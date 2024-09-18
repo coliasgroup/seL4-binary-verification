@@ -16,8 +16,7 @@ pub(crate) fn project_root_dir() -> PathBuf {
 }
 
 pub(crate) fn super_project_root_dir() -> PathBuf {
-    // project_root_dir().join("../..")
-    project_root_dir().join("../seL4-verification-reproducibility")
+    project_root_dir().join("../..")
 }
 
 pub(crate) fn tmp_dir() -> PathBuf {
