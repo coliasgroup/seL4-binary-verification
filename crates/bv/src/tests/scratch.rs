@@ -1,5 +1,5 @@
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 fn ensure_dir_and_write(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) {
     let d = path.as_ref().parent().unwrap();
@@ -13,7 +13,7 @@ mod dot {
     use crate::tests::utils::*;
 
     use petgraph::dot;
-    
+
     use crate::graph::HasNodeGraph;
     use crate::sel4::TargetDir;
 
@@ -32,8 +32,8 @@ mod dot {
 }
 
 mod pp {
-    use std::path::{Path, PathBuf};
     use std::ops::RangeInclusive;
+    use std::path::{Path, PathBuf};
 
     use crate::pretty_hack::pp;
     use crate::sel4::TargetDir;
@@ -100,7 +100,11 @@ mod pp {
             }
             {
                 let mut file = t.read_c_functions_file();
-                file.functions.retain(|k, _| k.strip_prefix("Kernel_C.").map(|k_| filter(k_)).unwrap_or(false));
+                file.functions.retain(|k, _| {
+                    k.strip_prefix("Kernel_C.")
+                        .map(|k_| filter(k_))
+                        .unwrap_or(false)
+                });
                 let s = pp(&file);
                 ensure_dir_and_write(out.join("CFunctions.rs"), s);
             }
@@ -122,8 +126,6 @@ mod pp {
     #[test]
     #[ignore]
     fn x() {
-        pp_some("lct", both, |k| [
-            "loadCapTransfer"
-        ].contains(&k));
+        pp_some("lct", both, |k| ["loadCapTransfer"].contains(&k));
     }
 }
