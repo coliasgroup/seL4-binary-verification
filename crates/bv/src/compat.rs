@@ -89,13 +89,8 @@ pub(crate) struct ProblemProof {
 
 impl ProofsFile {
     pub(crate) fn parse_from_str(s: &str) -> Result<Self, ParseError> {
-        let name_re =
-            Regex::new(r"^\s*ProblemProof \(Problem \(Pairing \((?<pairing_id>.*)\)\)\)\s*$")
-                .unwrap();
         let mut problems = BTreeMap::new();
-        for (name, body) in parse_compat_file(s) {
-            let caps = name_re.captures(name).unwrap();
-            let pairing_id = PairingId::parse_from_str(&caps["pairing_id"]);
+        for (pairing_id, body) in parse_compat_file(["ProblemProof", "Problem", "Paring"], s) {
             let problem_proof = body.parse_with(|lines| {
                 let problem = lines.parse()?;
                 let proof = lines.parse_next_line()?;
@@ -132,11 +127,8 @@ pub(crate) struct ProblemsFile {
 
 impl ProblemsFile {
     pub(crate) fn parse_from_str(s: &str) -> Result<Self, ParseError> {
-        let name_re = Regex::new(r"^\s*Problem \(Pairing \((?<pairing_id>.*)\)\)\s*$").unwrap();
         let mut problems = BTreeMap::new();
-        for (name, body) in parse_compat_file(s) {
-            let caps = name_re.captures(name).unwrap();
-            let pairing_id = PairingId::parse_from_str(&caps["pairing_id"]);
+        for (pairing_id, body) in parse_compat_file(["Problem", "Pairing"], s) {
             let problem = body.parse()?;
             problems.insert(pairing_id, problem);
         }
@@ -172,11 +164,8 @@ impl InlineScriptsFile {
     }
 
     pub(crate) fn parse_from_str(s: &str) -> Result<Self, ParseError> {
-        let name_re = Regex::new(r"^\s*Problem \(Pairing \((?<pairing_id>.*)\)\)\s*$").unwrap();
         let mut inline_scripts = BTreeMap::new();
-        for (name, body) in parse_compat_file(s) {
-            let caps = name_re.captures(name).unwrap();
-            let pairing_id = PairingId::parse_from_str(&caps["pairing_id"]);
+        for (pairing_id, body) in parse_compat_file(["Problem", "Pairing"], s) {
             inline_scripts.insert(pairing_id, body.parse()?);
         }
         Ok(Self { inline_scripts })
@@ -279,11 +268,8 @@ pub(crate) struct PairingsFile {
 
 impl PairingsFile {
     pub(crate) fn parse_from_str(s: &str) -> Result<Self, ParseError> {
-        let name_re = Regex::new(r"^\s*Pairing \((?<pairing_id>.*)\)\s*$").unwrap();
         let mut pairings = BTreeMap::new();
-        for (name, body) in parse_compat_file(s) {
-            let caps = name_re.captures(name).unwrap();
-            let pairing_id = PairingId::parse_from_str(&caps["pairing_id"]);
+        for (pairing_id, body) in parse_compat_file(["Pairing"], s) {
             pairings.insert(pairing_id, body.parse()?);
         }
         Ok(Self { pairings })
@@ -300,9 +286,28 @@ impl PairingsFile {
 
 // // //
 
-fn parse_compat_file(s: &str) -> Vec<(&str, Lines)> {
+fn parse_compat_file(
+    nested_name: impl IntoIterator<Item = impl AsRef<str>>,
+    s: &str,
+) -> Vec<(PairingId, Lines)> {
     let line_re = Regex::new(r"^\s*(#.*)?$").unwrap();
-    let open_re = Regex::new(r"^*(?<name>.*)*\{\s*$").unwrap();
+
+    let open_re = {
+        let mut re_s = String::new();
+        re_s.push_str(r"^\s*");
+        let mut num_parens = 0;
+        for segment in nested_name.into_iter() {
+            write!(re_s, r"{}\s*\(\s*", regex::escape(segment.as_ref())).unwrap();
+            num_parens += 1;
+        }
+        re_s.push_str(r"(?<pairing_id>.*)\s*");
+        for _ in 0..num_parens {
+            re_s.push_str(r"\)\s*");
+        }
+        re_s.push_str(r"\{\s*$");
+        Regex::new(&re_s).unwrap()
+    };
+
     let close_re = Regex::new(r"^\s*\}\s*$").unwrap();
 
     let mut items = vec![];
@@ -315,12 +320,13 @@ fn parse_compat_file(s: &str) -> Vec<(&str, Lines)> {
 
     while lines.peek().is_some() {
         let (_i, open) = lines.next().unwrap();
-        let name = open_re
+        let pairing_id_s = open_re
             .captures(open)
             .unwrap()
-            .name("name")
+            .name("pairing_id")
             .unwrap()
             .as_str();
+        let pairing_id = PairingId::parse_from_str(pairing_id_s);
 
         let mut body = vec![];
         loop {
@@ -333,7 +339,7 @@ fn parse_compat_file(s: &str) -> Vec<(&str, Lines)> {
         }
 
         let lines = Lines::tokenize_indexed_syntax_lines(body.into_iter());
-        items.push((name, lines));
+        items.push((pairing_id, lines));
     }
 
     items
