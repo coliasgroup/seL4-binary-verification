@@ -3,11 +3,9 @@ use std::collections::BTreeMap;
 pub(crate) mod parse;
 pub(crate) mod print;
 
-use parse::{
-    LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
-};
-use print::{BlockBuf, FileBuf, LineBuf, ToTokens};
 use crate::abstract_syntax::*;
+use parse::{LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, ParseFromLines};
+use print::{BlockBuf, FileBuf, LineBuf, ToTokens};
 
 impl File {
     pub(crate) fn parse_from_str(s: &str) -> Result<Self, ParseError> {
