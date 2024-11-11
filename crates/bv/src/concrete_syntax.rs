@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
+use crate::abstract_syntax::*;
+
 pub(crate) mod parse;
 pub(crate) mod print;
 
-use crate::abstract_syntax::*;
 use parse::{LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, ParseFromLines};
 use print::{BlockBuf, FileBuf, LineBuf, ToTokens};
 
