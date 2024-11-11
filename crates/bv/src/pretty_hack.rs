@@ -3,13 +3,13 @@ use std::str::FromStr;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
+use crate::abstract_syntax::{
+    Argument, Expr, ExprValue, File, Function, Ident, Node, NodeId, Type, VarUpdate,
+};
 use crate::compat::{PairingsFile, ProblemProof, ProblemsFile, ProofsFile};
 use crate::pairing::{Eq, EqSide, Pairing, PairingId, Tag};
 use crate::problem::{Problem, ProblemSide};
 use crate::proof_script::{ProofNode, RestrProofNodeKind};
-use crate::abstract_syntax::{
-    Argument, Expr, ExprValue, File, Function, Ident, Node, NodeId, Type, VarUpdate,
-};
 
 pub(crate) fn pp(x: impl ToTokens) -> String {
     try_pp(x).unwrap_or_else(|e| panic!("failed to format: {}: {:?}", e, e.span().start()))

@@ -1,6 +1,6 @@
+use crate::abstract_syntax::{Expr, ExprValue, Function, Num, Type};
 use crate::arch::WORD_SIZE_BITS;
 use crate::objdump::ObjdumpInfo;
-use crate::abstract_syntax::{Expr, ExprValue, Function, Num, Type};
 use crate::utils::DoubleEndedIteratorExt;
 
 impl Function {

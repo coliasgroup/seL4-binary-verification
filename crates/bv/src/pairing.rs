@@ -4,10 +4,10 @@ use std::fmt;
 
 use regex::Regex;
 
+use crate::abstract_syntax::{Argument, Expr, Ident, Type};
 use crate::logic::split_scalar_pairs;
 use crate::parse::{LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines};
 use crate::pretty_print::{BlockBuf, LineBuf, ToTokens};
-use crate::abstract_syntax::{Argument, Expr, Ident, Type};
 
 // TODO ordering throughout
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]

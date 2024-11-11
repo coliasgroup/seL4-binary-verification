@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![deny(clippy::arithmetic_side_effects)]
 
+mod abstract_syntax;
 mod arch;
 mod compat;
 mod fixup;
@@ -16,7 +17,6 @@ mod problem;
 mod proof_script;
 mod pseudo_compile;
 mod sel4;
-mod abstract_syntax;
 mod utils;
 
 #[cfg(test)]
