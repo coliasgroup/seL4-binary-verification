@@ -6,9 +6,11 @@ use arrayvec::ArrayVec;
 use num::BigInt;
 
 use crate::arch::WORD_SIZE_BITS;
-use crate::graph::{HasNodeGraph, HasNodeGraphWithNodeAddrBound};
-use crate::concrete_syntax::parse::{LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, ParseFromLines};
+use crate::concrete_syntax::parse::{
+    LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
+};
 use crate::concrete_syntax::pretty_print::{BlockBuf, FileBuf, LineBuf, ToTokens};
+use crate::graph::{HasNodeGraph, HasNodeGraphWithNodeAddrBound};
 
 pub(crate) type Ident = String;
 

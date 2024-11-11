@@ -9,11 +9,13 @@ use crate::abstract_syntax::{
     Argument, BasicNode, CallNode, Expr, ExprValue, Function, Ident, Node, NodeAddr, NodeId, Type,
     VarUpdate,
 };
+use crate::concrete_syntax::parse::{
+    LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
+};
+use crate::concrete_syntax::pretty_print::{BlockBuf, LineBuf, ToTokens};
 use crate::graph::algo::{reachable_nodes, tarjan_scc_variant};
 use crate::graph::{HasNodeGraph, HasNodeGraphWithNodeAddrBound};
 use crate::pairing::Tag;
-use crate::concrete_syntax::parse::{LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines};
-use crate::concrete_syntax::pretty_print::{BlockBuf, LineBuf, ToTokens};
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct Problem<M = ()> {
