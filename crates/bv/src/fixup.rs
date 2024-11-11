@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::syntax::{BasicNode, Function, FunctionBody, Node, NodeAddr, NodeId};
+use crate::abstract_syntax::{BasicNode, Function, FunctionBody, Node, NodeAddr, NodeId};
 
 impl Function {
     pub(crate) fn fixup(&mut self) {

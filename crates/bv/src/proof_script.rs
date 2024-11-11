@@ -1,7 +1,7 @@
 use crate::pairing::Tag;
 use crate::parse::{LineBuffer, Lines, ParseError, ParseFromLine};
 use crate::pretty_print::{LineBuf, ToTokens};
-use crate::syntax::{Expr, Ident, NodeAddr, Type};
+use crate::abstract_syntax::{Expr, Ident, NodeAddr, Type};
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) enum ProofNode {

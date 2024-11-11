@@ -16,7 +16,7 @@ mod problem;
 mod proof_script;
 mod pseudo_compile;
 mod sel4;
-mod syntax;
+mod abstract_syntax;
 mod utils;
 
 #[cfg(test)]

@@ -10,7 +10,7 @@ use crate::graph::{HasNodeGraph, HasNodeGraphWithNodeAddrBound};
 use crate::pairing::Tag;
 use crate::parse::{LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines};
 use crate::pretty_print::{BlockBuf, LineBuf, ToTokens};
-use crate::syntax::{
+use crate::abstract_syntax::{
     Argument, BasicNode, CallNode, Expr, ExprValue, Function, Ident, Node, NodeAddr, NodeId, Type,
     VarUpdate,
 };

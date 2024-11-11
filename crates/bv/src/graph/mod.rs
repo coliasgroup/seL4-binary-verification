@@ -9,7 +9,7 @@ use petgraph::visit::{
 };
 use petgraph::Directed;
 
-use crate::syntax::{Node, NodeAddr, NodeId};
+use crate::abstract_syntax::{Node, NodeAddr, NodeId};
 
 pub(crate) mod algo;
 

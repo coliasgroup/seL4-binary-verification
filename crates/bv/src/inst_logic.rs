@@ -4,7 +4,7 @@ use regex::Regex;
 
 use crate::arch::WORD_SIZE_BITS;
 use crate::logic::split_scalar_pairs;
-use crate::syntax::{Argument, CallNode, Expr, Function, FunctionBody, Ident, Node, NodeId, Type};
+use crate::abstract_syntax::{Argument, CallNode, Expr, Function, FunctionBody, Ident, Node, NodeId, Type};
 
 pub(crate) fn add_asm_inst_spec(
     asm_functions: &mut BTreeMap<Ident, Function>,

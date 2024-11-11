@@ -11,7 +11,7 @@ use crate::pairing::PairingId;
 use crate::pairing::{Pairing, Tag};
 use crate::pretty_hack::pp;
 use crate::problem::{NodeBySource, Problem, ProblemBuilder, ProblemNodeMeta};
-use crate::syntax::{Expr, File, Function, Ident};
+use crate::abstract_syntax::{Expr, File, Function, Ident};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct TargetDir {

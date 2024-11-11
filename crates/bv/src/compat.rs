@@ -9,7 +9,7 @@ use crate::parse::{LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, Pa
 use crate::pretty_print::{BlockBuf, FileBuf, LineBuf, ToTokens};
 use crate::problem::{NodeBySource, Problem};
 use crate::proof_script::ProofNode;
-use crate::syntax::{Expr, Ident, NodeAddr, Num};
+use crate::abstract_syntax::{Expr, Ident, NodeAddr, Num};
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct StackBoundsFile {

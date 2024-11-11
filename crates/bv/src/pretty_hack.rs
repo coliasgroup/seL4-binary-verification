@@ -7,7 +7,7 @@ use crate::compat::{PairingsFile, ProblemProof, ProblemsFile, ProofsFile};
 use crate::pairing::{Eq, EqSide, Pairing, PairingId, Tag};
 use crate::problem::{Problem, ProblemSide};
 use crate::proof_script::{ProofNode, RestrProofNodeKind};
-use crate::syntax::{
+use crate::abstract_syntax::{
     Argument, Expr, ExprValue, File, Function, Ident, Node, NodeId, Type, VarUpdate,
 };
 
