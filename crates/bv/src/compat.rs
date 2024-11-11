@@ -6,8 +6,8 @@ use regex::Regex;
 
 use crate::abstract_syntax::{Expr, Ident, NodeAddr, Num};
 use crate::pairing::{Pairing, PairingId};
-use crate::parse::{LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, ParseFromLines};
-use crate::pretty_print::{BlockBuf, FileBuf, LineBuf, ToTokens};
+use crate::concrete_syntax::parse::{LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, ParseFromLines};
+use crate::concrete_syntax::pretty_print::{BlockBuf, FileBuf, LineBuf, ToTokens};
 use crate::problem::{NodeBySource, Problem};
 use crate::proof_script::ProofNode;
 
