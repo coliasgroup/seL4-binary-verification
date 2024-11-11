@@ -6,7 +6,7 @@ use regex::Regex;
 
 use crate::abstract_syntax::{Expr, Ident, NodeAddr, Num};
 use crate::concrete_syntax::parse::{
-    LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
+    LineBuffer, Lines, LinesBuffer, ParseError, ParseFileAsLines, ParseFromLine, ParseFromLines,
 };
 use crate::concrete_syntax::print::{BlockBuf, FileBuf, LineBuf, ToTokens};
 use crate::pairing::{Pairing, PairingId};
@@ -20,10 +20,6 @@ pub(crate) struct StackBoundsFile {
 }
 
 impl StackBoundsFile {
-    pub(crate) fn parse_from_str(s: &str) -> Result<Self, ParseError> {
-        Lines::tokenize(s).parse()
-    }
-
     pub(crate) fn pretty_print(&self) -> String {
         let mut block = BlockBuf::new();
 
@@ -45,6 +41,8 @@ impl StackBoundsFile {
         block.pretty_print_into_string()
     }
 }
+
+impl ParseFileAsLines for StackBoundsFile {}
 
 impl ParseFromLines for StackBoundsFile {
     fn parse(lines: &mut LinesBuffer) -> Result<Self, ParseError> {
@@ -355,6 +353,8 @@ fn pretty_print_compat_file(items: impl Iterator<Item = (impl fmt::Display, File
 
 #[cfg(test)]
 mod tests {
+    use crate::concrete_syntax::parse::ParseFile;
+
     use crate::tests::utils::*;
 
     use super::*;

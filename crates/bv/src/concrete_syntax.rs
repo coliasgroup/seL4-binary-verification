@@ -5,14 +5,10 @@ use crate::abstract_syntax::*;
 pub(crate) mod parse;
 pub(crate) mod print;
 
-use parse::{LineBuffer, Lines, LinesBuffer, ParseError, ParseFromLine, ParseFromLines};
+use parse::{LineBuffer, LinesBuffer, ParseError, ParseFileAsLines, ParseFromLine, ParseFromLines};
 use print::{BlockBuf, FileBuf, LineBuf, ToTokens};
 
 impl File {
-    pub(crate) fn parse_from_str(s: &str) -> Result<Self, ParseError> {
-        Lines::tokenize(s).parse()
-    }
-
     pub(crate) fn pretty_print(&self) -> String {
         let mut file = FileBuf::new();
         for (name, struct_) in &self.structs {
@@ -27,6 +23,8 @@ impl File {
         file.pretty_print_into_string()
     }
 }
+
+impl ParseFileAsLines for File {}
 
 impl ParseFromLines for File {
     fn parse(lines: &mut LinesBuffer) -> Result<Self, ParseError> {
@@ -501,6 +499,8 @@ impl ToTokens for Type {
 
 #[cfg(test)]
 mod tests {
+    use crate::concrete_syntax::parse::ParseFile;
+
     use crate::tests::utils::*;
 
     use super::*;

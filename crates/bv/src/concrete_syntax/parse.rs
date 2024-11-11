@@ -391,6 +391,18 @@ pub(crate) trait ParseFromLines: Sized {
     fn parse(lines: &mut LinesBuffer) -> ParseResult<Self>;
 }
 
+pub(crate) trait ParseFileAsLines: ParseFromLines {}
+
+pub trait ParseFile: Sized {
+    fn parse_from_str(s: &str) -> ParseResult<Self>;
+}
+
+impl<T: ParseFileAsLines> ParseFile for T {
+    fn parse_from_str(s: &str) -> ParseResult<Self> {
+        Lines::tokenize(s).parse()
+    }
+}
+
 pub(crate) type ParseResult<T> = Result<T, ParseError>;
 
 #[derive(Debug, Copy, Clone)]
