@@ -8,7 +8,7 @@ use crate::abstract_syntax::{Argument, Expr, Ident, Type};
 use crate::concrete_syntax::parse::{
     LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
 };
-use crate::concrete_syntax::pretty_print::{BlockBuf, LineBuf, ToTokens};
+use crate::concrete_syntax::print::{BlockBuf, LineBuf, ToTokens};
 use crate::logic::split_scalar_pairs;
 
 // TODO ordering throughout

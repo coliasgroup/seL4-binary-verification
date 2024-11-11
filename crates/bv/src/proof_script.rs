@@ -1,6 +1,6 @@
 use crate::abstract_syntax::{Expr, Ident, NodeAddr, Type};
 use crate::concrete_syntax::parse::{LineBuffer, Lines, ParseError, ParseFromLine};
-use crate::concrete_syntax::pretty_print::{LineBuf, ToTokens};
+use crate::concrete_syntax::print::{LineBuf, ToTokens};
 use crate::pairing::Tag;
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
