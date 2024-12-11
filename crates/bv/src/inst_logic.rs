@@ -7,10 +7,12 @@ use crate::abstract_syntax::{
 };
 use crate::arch::WORD_SIZE_BITS;
 use crate::logic::split_scalar_pairs;
+use crate::pairing::{Pairing, PairingId, ASM_IN, ASM_OUT, C_IN, C_OUT};
 
 pub(crate) fn add_asm_inst_spec(
     asm_functions: &mut BTreeMap<Ident, Function>,
     c_functions: &mut BTreeMap<Ident, Function>,
+    pairings: &mut BTreeMap<PairingId, Pairing>,
 ) {
     let mut new_idents = BTreeSet::new();
     let mut unhandled = BTreeSet::new();
@@ -75,8 +77,44 @@ pub(crate) fn add_asm_inst_spec(
             output,
             body: None,
         };
-        asm_functions.insert(format!("l_{impl_name}"), new_f.clone());
-        c_functions.insert(format!("r_{impl_name}"), new_f.clone());
+        let new_asm_f_name = format!("l_{impl_name}");
+        let new_c_f_name = format!("r_{impl_name}");
+        let pairing_id = PairingId {
+            asm: new_asm_f_name.clone(),
+            c: new_c_f_name.clone(),
+        };
+
+        asm_functions.insert(new_asm_f_name, new_f.clone());
+        c_functions.insert(new_c_f_name, new_f.clone());
+
+        let mut in_eqs = new_f
+            .input
+            .iter()
+            .map(|arg| {
+                let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
+                ASM_IN.side(expr.clone()).mk_eq(C_IN.side(expr.clone()))
+            })
+            .collect::<Vec<_>>();
+        in_eqs.push(
+            ASM_IN
+                .side(Expr::mk_var("mem".to_owned(), Type::Mem).mk_rodata())
+                .mk_eq(C_IN.side(Expr::mk_true())),
+        );
+        let mut out_eqs = new_f
+            .output
+            .iter()
+            .map(|arg| {
+                let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
+                ASM_OUT.side(expr.clone()).mk_eq(C_OUT.side(expr.clone()))
+            })
+            .collect::<Vec<_>>();
+        out_eqs.push(
+            ASM_OUT
+                .side(Expr::mk_var("mem".to_owned(), Type::Mem).mk_rodata())
+                .mk_eq(C_OUT.side(Expr::mk_true())),
+        );
+        let pairing = Pairing { in_eqs, out_eqs };
+        pairings.insert(pairing_id, pairing);
     }
     // TODO
     // log::warn!("unhandled: {unhandled:#?}");

@@ -9,9 +9,11 @@ use petgraph::visit::{
 };
 use petgraph::Directed;
 
+use crate::abstract_syntax::Argument;
 use crate::abstract_syntax::{Node, NodeAddr, NodeId};
 
 pub(crate) mod algo;
+pub(crate) mod generic_ops;
 
 #[derive(Copy, Clone)]
 pub(crate) struct NodeGraph<T, D = SimpleFormatter> {
@@ -379,5 +381,68 @@ impl<T> EdgeFormatter<T> for SimpleFormatter {
                 false => write!(f, "F"),
             },
         }
+    }
+}
+
+// TODO
+// - HasNodeGraphWithEntrypoint
+// - HasFunctionSignature
+// - HasFunction (HasFunctionSignature + MaybeHasNodeGraphWithEntrypoint)
+
+pub(crate) trait HasNodeGraphWithEntry: HasNodeGraph {
+    fn graph_entry(&self) -> NodeId;
+}
+
+impl<T: HasNodeGraphWithEntry, D> HasNodeGraphWithEntry for NodeGraph<T, D> {
+    fn graph_entry(&self) -> NodeId {
+        self.inner.graph_entry()
+    }
+}
+
+pub(crate) trait MightHaveNodeGraphWithEntry {
+    type NodeGraph<'a>: HasNodeGraph
+    where
+        Self: 'a;
+
+    fn node_graph_option(&self) -> Option<Self::NodeGraph<'_>>;
+}
+
+impl<T: HasNodeGraphWithEntry> MightHaveNodeGraphWithEntry for T {
+    type NodeGraph<'a> = &'a T where Self: 'a;
+
+    fn node_graph_option(&self) -> Option<Self::NodeGraph<'_>> {
+        Some(self)
+    }
+}
+
+pub(crate) trait HasFunctionSignature {
+    fn graph_input(&self) -> &[Argument];
+
+    fn graph_output(&self) -> &[Argument];
+}
+
+impl<T: HasFunctionSignature, D> HasFunctionSignature for NodeGraph<T, D> {
+    fn graph_input(&self) -> &[Argument] {
+        self.inner.graph_input()
+    }
+
+    fn graph_output(&self) -> &[Argument] {
+        self.inner.graph_output()
+    }
+}
+
+impl<T: HasNodeGraphWithEntry, D> NodeGraph<T, D> {
+    pub(crate) fn entry(&self) -> NodeId {
+        self.graph_entry()
+    }
+}
+
+impl<T: HasFunctionSignature, D> NodeGraph<T, D> {
+    pub(crate) fn inputs(&self) -> &[Argument] {
+        self.graph_input()
+    }
+
+    pub(crate) fn outputs(&self) -> &[Argument] {
+        self.graph_output()
     }
 }

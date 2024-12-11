@@ -358,8 +358,9 @@ impl ParseFromLine for Expr {
                 ExprValue::Num(num)
             }
             "Type" => {
-                ty = toks.parse()?;
-                ExprValue::Type
+                ty = Type::Type;
+                let ty_val = toks.parse()?;
+                ExprValue::Type(ty_val)
             }
             "Symbol" => {
                 let name = toks.parse()?;
@@ -397,9 +398,9 @@ impl ToTokens for Expr {
                 line.lower_hex_to_tokens(num);
                 line.to_tokens(ty);
             }
-            ExprValue::Type => {
+            ExprValue::Type(ty_val) => {
                 line.to_tokens("Type");
-                line.to_tokens(ty);
+                line.to_tokens(ty_val);
             }
             ExprValue::Symbol(name) => {
                 line.to_tokens("Symbol");
@@ -494,6 +495,137 @@ impl ToTokens for Type {
                 line.to_tokens(&**ty);
             }
         }
+    }
+}
+
+impl Op {
+    pub(crate) fn from_op_name(s: &str) -> Option<Self> {
+        Some(match s {
+            "Plus" => Self::Plus,
+            "Minus" => Self::Minus,
+            "Times" => Self::Times,
+            "Modulus" => Self::Modulus,
+            "DividedBy" => Self::DividedBy,
+            "BWAnd" => Self::BWAnd,
+            "BWOr" => Self::BWOr,
+            "BWXOR" => Self::BWXOR,
+            "And" => Self::And,
+            "Or" => Self::Or,
+            "Implies" => Self::Implies,
+            "Equals" => Self::Equals,
+            "Less" => Self::Less,
+            "LessEquals" => Self::LessEquals,
+            "SignedLess" => Self::SignedLess,
+            "SignedLessEquals" => Self::SignedLessEquals,
+            "ShiftLeft" => Self::ShiftLeft,
+            "ShiftRight" => Self::ShiftRight,
+            "CountLeadingZeroes" => Self::CountLeadingZeroes,
+            "CountTrailingZeroes" => Self::CountTrailingZeroes,
+            "WordReverse" => Self::WordReverse,
+            "SignedShiftRight" => Self::SignedShiftRight,
+            "Not" => Self::Not,
+            "BWNot" => Self::BWNot,
+            "WordCast" => Self::WordCast,
+            "WordCastSigned" => Self::WordCastSigned,
+            "True" => Self::True,
+            "False" => Self::False,
+            "UnspecifiedPrecond" => Self::UnspecifiedPrecond,
+            "MemUpdate" => Self::MemUpdate,
+            "MemAcc" => Self::MemAcc,
+            "IfThenElse" => Self::IfThenElse,
+            "ArrayIndex" => Self::ArrayIndex,
+            "ArrayUpdate" => Self::ArrayUpdate,
+            "MemDom" => Self::MemDom,
+            "PValid" => Self::PValid,
+            "PWeakValid" => Self::PWeakValid,
+            "PAlignValid" => Self::PAlignValid,
+            "PGlobalValid" => Self::PGlobalValid,
+            "PArrayValid" => Self::PArrayValid,
+            "HTDUpdate" => Self::HTDUpdate,
+            "WordArrayAccess" => Self::WordArrayAccess,
+            "WordArrayUpdate" => Self::WordArrayUpdate,
+            "TokenWordsAccess" => Self::TokenWordsAccess,
+            "TokenWordsUpdate" => Self::TokenWordsUpdate,
+            "ROData" => Self::ROData,
+            "StackWrapper" => Self::StackWrapper,
+            "EqSelectiveWrapper" => Self::EqSelectiveWrapper,
+            "ToFloatingPoint" => Self::ToFloatingPoint,
+            "ToFloatingPointSigned" => Self::ToFloatingPointSigned,
+            "ToFloatingPointUnsigned" => Self::ToFloatingPointUnsigned,
+            "FloatingPointCast" => Self::FloatingPointCast,
+            _ => return None,
+        })
+    }
+
+    pub(crate) fn to_op_name(&self) -> String {
+        match self {
+            Self::Plus => "Plus".to_string(),
+            Self::Minus => "Minus".to_string(),
+            Self::Times => "Times".to_string(),
+            Self::Modulus => "Modulus".to_string(),
+            Self::DividedBy => "DividedBy".to_string(),
+            Self::BWAnd => "BWAnd".to_string(),
+            Self::BWOr => "BWOr".to_string(),
+            Self::BWXOR => "BWXOR".to_string(),
+            Self::And => "And".to_string(),
+            Self::Or => "Or".to_string(),
+            Self::Implies => "Implies".to_string(),
+            Self::Equals => "Equals".to_string(),
+            Self::Less => "Less".to_string(),
+            Self::LessEquals => "LessEquals".to_string(),
+            Self::SignedLess => "SignedLess".to_string(),
+            Self::SignedLessEquals => "SignedLessEquals".to_string(),
+            Self::ShiftLeft => "ShiftLeft".to_string(),
+            Self::ShiftRight => "ShiftRight".to_string(),
+            Self::CountLeadingZeroes => "CountLeadingZeroes".to_string(),
+            Self::CountTrailingZeroes => "CountTrailingZeroes".to_string(),
+            Self::WordReverse => "WordReverse".to_string(),
+            Self::SignedShiftRight => "SignedShiftRight".to_string(),
+            Self::Not => "Not".to_string(),
+            Self::BWNot => "BWNot".to_string(),
+            Self::WordCast => "WordCast".to_string(),
+            Self::WordCastSigned => "WordCastSigned".to_string(),
+            Self::True => "True".to_string(),
+            Self::False => "False".to_string(),
+            Self::UnspecifiedPrecond => "UnspecifiedPrecond".to_string(),
+            Self::MemUpdate => "MemUpdate".to_string(),
+            Self::MemAcc => "MemAcc".to_string(),
+            Self::IfThenElse => "IfThenElse".to_string(),
+            Self::ArrayIndex => "ArrayIndex".to_string(),
+            Self::ArrayUpdate => "ArrayUpdate".to_string(),
+            Self::MemDom => "MemDom".to_string(),
+            Self::PValid => "PValid".to_string(),
+            Self::PWeakValid => "PWeakValid".to_string(),
+            Self::PAlignValid => "PAlignValid".to_string(),
+            Self::PGlobalValid => "PGlobalValid".to_string(),
+            Self::PArrayValid => "PArrayValid".to_string(),
+            Self::HTDUpdate => "HTDUpdate".to_string(),
+            Self::WordArrayAccess => "WordArrayAccess".to_string(),
+            Self::WordArrayUpdate => "WordArrayUpdate".to_string(),
+            Self::TokenWordsAccess => "TokenWordsAccess".to_string(),
+            Self::TokenWordsUpdate => "TokenWordsUpdate".to_string(),
+            Self::ROData => "ROData".to_string(),
+            Self::StackWrapper => "StackWrapper".to_string(),
+            Self::EqSelectiveWrapper => "EqSelectiveWrapper".to_string(),
+            Self::ToFloatingPoint => "ToFloatingPoint".to_string(),
+            Self::ToFloatingPointSigned => "ToFloatingPointSigned".to_string(),
+            Self::ToFloatingPointUnsigned => "ToFloatingPointUnsigned".to_string(),
+            Self::FloatingPointCast => "FloatingPointCast".to_string(),
+        }
+    }
+}
+
+impl ParseFromLine for Op {
+    fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
+        let tok = toks.next()?;
+        Self::from_op_name(tok.as_str())
+            .ok_or_else(|| ParseError::InvalidOperationName(tok.location()))
+    }
+}
+
+impl ToTokens for Op {
+    fn to_tokens(&self, line: &mut LineBuf) {
+        line.to_tokens(&self.to_op_name());
     }
 }
 

@@ -126,6 +126,14 @@ mod pp {
     #[test]
     #[ignore]
     fn x() {
-        pp_some("lct", both, |k| ["loadCapTransfer"].contains(&k));
+        pp_some("lct", both, |k| {
+            true || [
+                "loadCapTransfer",
+                "lookupSourceSlot",
+                "Arch_maskCapRights",
+                "setupCallerCap",
+            ]
+            .contains(&k)
+        });
     }
 }

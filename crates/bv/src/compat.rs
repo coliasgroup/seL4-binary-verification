@@ -90,7 +90,7 @@ pub(crate) struct ProblemProof {
 impl ProofsFile {
     pub(crate) fn parse_from_str(s: &str) -> Result<Self, ParseError> {
         let mut problems = BTreeMap::new();
-        for (pairing_id, body) in parse_compat_file(["ProblemProof", "Problem", "Paring"], s) {
+        for (pairing_id, body) in parse_compat_file(["ProblemProof", "Problem", "Pairing"], s) {
             let problem_proof = body.parse_with(|lines| {
                 let problem = lines.parse()?;
                 let proof = lines.parse_next_line()?;

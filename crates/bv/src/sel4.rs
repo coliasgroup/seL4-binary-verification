@@ -137,7 +137,7 @@ impl TargetDir {
     pub(crate) fn build_functions_file(&self) -> File {
         let mut asm = self.altered_asm_functions();
         let mut c = self.altered_c_functions();
-        add_asm_inst_spec(&mut asm, &mut c);
+        add_asm_inst_spec(&mut asm, &mut c, &mut Default::default());
 
         let mut functions = asm;
         functions.extend(c.into_iter());
@@ -148,26 +148,24 @@ impl TargetDir {
     }
 
     pub(crate) fn build_pairings(&self) -> BTreeMap<PairingId, Pairing> {
-        let mut asm = self.altered_asm_functions();
-        let mut c = self.altered_c_functions();
-        add_asm_inst_spec(&mut asm, &mut c);
-
         let stack_bounds = &self.read_stack_bounds();
 
+        let mut asm = self.altered_asm_functions();
+        let mut c = self.altered_c_functions();
         let mut pairings = BTreeMap::new();
 
-        for (f_asm_name, f_asm) in asm.iter() {
+        add_asm_inst_spec(&mut asm, &mut c, &mut pairings);
+
+        for f_asm_name in asm.keys() {
             let f_c_name = format!("Kernel_C.{}", f_asm_name);
             if let Some(f_c) = c.get(&f_c_name) {
-                if f_asm.body().is_some() && f_c.body().is_some() {
-                    let pairing_id = PairingId {
-                        asm: f_asm_name.clone(),
-                        c: f_c_name.clone(),
-                    };
-                    let min_stack_size = &stack_bounds[f_asm_name];
-                    let pairing = Pairing::formulate(min_stack_size, &f_c.input, &f_c.output);
-                    pairings.insert(pairing_id, pairing);
-                }
+                let pairing_id = PairingId {
+                    asm: f_asm_name.clone(),
+                    c: f_c_name.clone(),
+                };
+                let min_stack_size = &stack_bounds[f_asm_name];
+                let pairing = Pairing::formulate(min_stack_size, &f_c.input, &f_c.output);
+                pairings.insert(pairing_id, pairing);
             }
         }
 
@@ -183,9 +181,9 @@ impl TargetDir {
         let inline_scripts = &self.read_inline_scripts();
         let mut asm = self.altered_asm_functions();
         let mut c = self.altered_c_functions();
-        add_asm_inst_spec(&mut asm, &mut c);
-
         let pairings = self.build_pairings();
+
+        add_asm_inst_spec(&mut asm, &mut c, &mut Default::default());
 
         let mut problems = BTreeMap::new();
 
@@ -194,19 +192,21 @@ impl TargetDir {
             let f_asm_name = &pairing_id.asm;
             let f_c = &c[f_c_name];
             let f_asm = &asm[f_asm_name];
-            let mut builder = ProblemBuilder::new(&f_c_name, f_c, f_asm_name, f_asm);
-            if let Some(inlines) = inline_scripts.get(&pairing_id) {
-                for inline in inlines {
-                    builder.inline(inline, |tag, f_name| {
-                        &(match tag {
-                            Tag::C => &c,
-                            Tag::Asm => &asm,
-                        })[f_name]
-                    });
+            if f_asm.body().is_some() && f_c.body().is_some() {
+                let mut builder = ProblemBuilder::new(&f_c_name, f_c, f_asm_name, f_asm);
+                if let Some(inlines) = inline_scripts.get(&pairing_id) {
+                    for inline in inlines {
+                        builder.inline(inline, |tag, f_name| {
+                            &(match tag {
+                                Tag::C => &c,
+                                Tag::Asm => &asm,
+                            })[f_name]
+                        });
+                    }
                 }
+                let problem = builder.build();
+                problems.insert(pairing_id.clone(), problem);
             }
-            let problem = builder.build();
-            problems.insert(pairing_id.clone(), problem);
         }
 
         problems
@@ -252,16 +252,19 @@ mod tests {
     #[test]
     fn functions() {
         let t = t();
+        let theirs = t.read_functions_file();
+        let ours = t.build_functions_file();
+        theirs.typecheck().unwrap();
+        ours.typecheck().unwrap();
         eq_or_dump(
             "t/functions.txt",
             "txt",
-            t.read_functions_file().pretty_print(),
-            t.build_functions_file().pretty_print(),
+            theirs.pretty_print(),
+            ours.pretty_print(),
         );
     }
 
     #[test]
-    #[ignore]
     fn pairings() {
         let t = t();
         eq_or_dump(
@@ -275,11 +278,17 @@ mod tests {
     #[test]
     fn problems() {
         let t = t();
+        let theirs = t.read_problems_file();
+        let mut ours = t.build_problems_file();
+        theirs.typecheck().unwrap();
+        ours.typecheck().unwrap();
+        // graph-refine doesn't output aborted problems
+        ours.problems.retain(|k, _| theirs.problems.contains_key(k));
         eq_or_dump(
             "t/problems.txt",
             "txt",
-            t.read_problems_file().pretty_print(),
-            t.read_problems_file().pretty_print(),
+            theirs.pretty_print(),
+            ours.pretty_print(),
         );
     }
 }

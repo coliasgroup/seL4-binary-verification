@@ -14,7 +14,9 @@ use crate::concrete_syntax::parse::{
 };
 use crate::concrete_syntax::print::{BlockBuf, LineBuf, ToTokens};
 use crate::graph::algo::{reachable_nodes, tarjan_scc_variant};
-use crate::graph::{HasNodeGraph, HasNodeGraphWithNodeAddrBound};
+use crate::graph::{
+    HasFunctionSignature, HasNodeGraph, HasNodeGraphWithEntry, HasNodeGraphWithNodeAddrBound,
+};
 use crate::pairing::Tag;
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -43,6 +45,35 @@ impl<M> Problem<M> {
             asm: self.asm,
             nodes: self.nodes.map_meta(f),
         }
+    }
+
+    pub(crate) fn problem_side(&self, tag: Tag) -> &ProblemSide {
+        match tag {
+            Tag::C => &self.c,
+            Tag::Asm => &self.asm,
+        }
+    }
+
+    pub(crate) fn problem_side_mut(&mut self, tag: Tag) -> &mut ProblemSide {
+        match tag {
+            Tag::C => &mut self.c,
+            Tag::Asm => &mut self.asm,
+        }
+    }
+
+    pub(crate) fn at<T>(&self, tag_selector: T) -> ProblemAtSide<'_, T, M> {
+        ProblemAtSide {
+            inner: self,
+            selector: tag_selector,
+        }
+    }
+
+    pub(crate) fn at_c(&self) -> ProblemAtSide<'_, C, M> {
+        self.at(C)
+    }
+
+    pub(crate) fn at_asm(&self) -> ProblemAtSide<'_, Asm, M> {
+        self.at(Asm)
     }
 }
 
@@ -842,4 +873,65 @@ impl ProblemBuilder {
 struct AddFunctionRenames {
     node_addr: BTreeMap<NodeId, NodeId>,
     var: BTreeMap<Ident, Ident>,
+}
+
+pub(crate) struct ProblemAtSide<'a, T, M = ()> {
+    inner: &'a Problem<M>,
+    selector: T,
+}
+
+pub(crate) trait TagSelector {
+    fn select(&self) -> Tag;
+}
+
+impl TagSelector for Tag {
+    fn select(&self) -> Tag {
+        *self
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct C;
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct Asm;
+
+impl TagSelector for C {
+    fn select(&self) -> Tag {
+        Tag::C
+    }
+}
+
+impl TagSelector for Asm {
+    fn select(&self) -> Tag {
+        Tag::Asm
+    }
+}
+
+impl<'a, T, M> HasNodeGraph for ProblemAtSide<'a, T, M> {
+    type NodesForGraph<'b> = <Problem<M> as HasNodeGraph>::NodesForGraph<'b> where Self: 'b;
+
+    fn graph_node(&self, addr: NodeAddr) -> &Node {
+        self.inner.graph_node(addr)
+    }
+
+    fn graph_nodes(&self) -> Self::NodesForGraph<'_> {
+        self.inner.graph_nodes()
+    }
+}
+
+impl<'a, T: TagSelector, M> HasNodeGraphWithEntry for ProblemAtSide<'a, T, M> {
+    fn graph_entry(&self) -> NodeId {
+        self.inner.problem_side(self.selector.select()).entry
+    }
+}
+
+impl<'a, T: TagSelector, M> HasFunctionSignature for ProblemAtSide<'a, T, M> {
+    fn graph_input(&self) -> &[Argument] {
+        &self.inner.problem_side(self.selector.select()).input
+    }
+
+    fn graph_output(&self) -> &[Argument] {
+        &self.inner.problem_side(self.selector.select()).output
+    }
 }

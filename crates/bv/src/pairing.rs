@@ -1,10 +1,11 @@
 #![allow(warnings)]
 
-use std::fmt;
+use std::{fmt, iter};
 
 use regex::Regex;
 
-use crate::abstract_syntax::{Argument, Expr, Ident, Type};
+use crate::abstract_syntax::{Argument, Expr, ExprValue, Ident, Type};
+use crate::arch::WORD_SIZE_BITS;
 use crate::concrete_syntax::parse::{
     LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
 };
@@ -75,8 +76,8 @@ impl Pairing {
         let (var_c_rets, c_omem, _glob_c_rets) = split_scalar_pairs(c_output);
         Self::formulate_arm_none_eabi_gnu(
             min_stack_size,
-            &var_c_rets,
             &var_c_args,
+            &var_c_rets,
             &c_imem,
             &c_omem,
         )
@@ -87,16 +88,179 @@ impl Pairing {
         var_c_args: &[Argument],
         var_c_rets: &[Argument],
         c_imem: &[Argument],
-        o_omem: &[Argument],
+        c_omem: &[Argument],
     ) -> Self {
         let mut in_eqs = vec![];
         let mut out_eqs = vec![];
-        let r = (0..=13)
+        let r = (0..=14)
             .map(|i| Expr::mk_machine_word_var(format!("r{i}")))
             .collect::<Vec<_>>();
         let stack_pointer = &r[13];
         let stack = Expr::mk_var("stack".to_owned(), Type::Mem);
+        let r0_input = Expr::mk_machine_word_var("ret_addr_input".to_owned());
         let asm_mem = Expr::mk_var("mem".to_owned(), Type::Mem);
+
+        let ret = Expr::mk_machine_word_var("ret".to_owned());
+
+        let mut preconds = vec![];
+        let mut post_eqs = vec![];
+
+        preconds.push(stack_pointer.clone().mk_aligned(2));
+        preconds.push(ret.clone().mk_eq(r[14].clone()));
+        preconds.push(ret.clone().mk_aligned(2));
+        preconds.push(r0_input.clone().mk_eq(r[0].clone()));
+        preconds.push(min_stack_size.clone().mk_less_eq(stack_pointer.clone()));
+
+        for i in (4..=11).chain(iter::once(13)) {
+            post_eqs.push((r[i].clone(), r[i].clone()));
+        }
+
+        let mut arg_seq = vec![];
+        for i in 0..=3 {
+            arg_seq.push((r[i].clone(), None));
+        }
+        arg_seq.extend(mk_stack_sequence(
+            &stack_pointer,
+            4,
+            &stack,
+            &Type::mk_machine_word(),
+            var_c_args.len() + 1,
+        ));
+
+        let x_out_eqs;
+        let arg_seq_start;
+        let save_addrs;
+        if var_c_rets.len() <= 1 {
+            arg_seq_start = 0;
+            x_out_eqs = var_c_rets
+                .iter()
+                .map(Expr::mk_var_from_arg)
+                .zip([r[0].clone()])
+                .collect::<Vec<_>>();
+            save_addrs = vec![];
+        } else {
+            arg_seq_start = 1;
+            preconds.push(r[0].clone().mk_aligned(2));
+            preconds.push(stack_pointer.clone().mk_less_eq(r[0].clone()));
+            let save_seq = mk_stack_sequence(
+                &r0_input,
+                4,
+                &stack,
+                &Type::Word(WORD_SIZE_BITS),
+                var_c_rets.len(),
+            );
+            save_addrs = save_seq
+                .iter()
+                .map(|(_, addr)| addr.as_ref().unwrap().clone())
+                .collect::<Vec<_>>();
+            post_eqs.push((r0_input.clone(), r0_input.clone()));
+            x_out_eqs = var_c_rets
+                .iter()
+                .zip(save_seq.iter().map(|(x, _)| x))
+                .map(|(c, a)| (Expr::mk_var_from_arg(c), a.clone().mk_cast(c.ty.clone())))
+                .collect::<Vec<_>>();
+            let init_save_seq = mk_stack_sequence(
+                &r[0],
+                4,
+                &stack,
+                &Type::Word(WORD_SIZE_BITS),
+                var_c_rets.len(),
+            );
+            let last_arg_addr = if var_c_args.is_empty() {
+                // JUST TO MATCH PY, WRONG
+                &arg_seq[arg_seq_start..].last().as_ref().unwrap().1
+            } else {
+                &arg_seq[arg_seq_start..][var_c_args.len() - 1].1
+            };
+            if let Some((_, addr)) = init_save_seq.last() {
+                preconds.push(r[0].clone().mk_less_eq(addr.as_ref().unwrap().clone()));
+            }
+            if let Some(last_arg_addr) = last_arg_addr {
+                for (_, addr) in &init_save_seq[..1] {
+                    preconds.push(
+                        last_arg_addr
+                            .clone()
+                            .mk_less(addr.as_ref().unwrap().clone()),
+                    );
+                }
+            }
+        }
+
+        let arg_seq_addrs = arg_seq[arg_seq_start..][..var_c_args.len()]
+            .iter()
+            .filter_map(|(_, addr)| addr.as_ref().map(Clone::clone))
+            .collect::<Vec<_>>();
+        post_eqs.push((
+            Expr::mk_stack_wrapper(stack_pointer.clone(), stack.clone(), arg_seq_addrs),
+            Expr::mk_stack_wrapper(stack_pointer.clone(), stack.clone(), save_addrs),
+        ));
+
+        let mem_ieqs = match c_imem {
+            [] => vec![ASM_IN
+                .side(asm_mem.clone().mk_rodata())
+                .mk_eq(C_IN.side(Expr::mk_true()))],
+            [c_imem] => vec![
+                ASM_IN
+                    .side(asm_mem.clone())
+                    .mk_eq(C_IN.side(Expr::mk_var_from_arg(c_imem))),
+                C_IN.side(Expr::mk_var_from_arg(c_imem).mk_rodata())
+                    .mk_eq(C_IN.side(Expr::mk_true())),
+            ],
+            _ => panic!(),
+        };
+
+        let mem_oeqs = match c_omem {
+            [] => vec![ASM_OUT
+                .side(asm_mem.clone())
+                .mk_eq(ASM_IN.side(asm_mem.clone()))],
+            [c_omem] => vec![
+                ASM_OUT
+                    .side(asm_mem.clone())
+                    .mk_eq(C_OUT.side(Expr::mk_var_from_arg(c_omem))),
+                C_OUT
+                    .side(Expr::mk_var_from_arg(c_omem).mk_rodata())
+                    .mk_eq(C_OUT.side(Expr::mk_true())),
+            ],
+            _ => panic!(),
+        };
+
+        let mut outer_addr = None;
+        let arg_eqs = var_c_args
+            .iter()
+            .zip(arg_seq.iter().skip(arg_seq_start))
+            .map(|(c, (asm, addr))| {
+                outer_addr = addr.clone();
+                ASM_IN
+                    .side(asm.clone())
+                    .mk_eq(C_IN.side(Expr::mk_var_from_arg(c).clone().cast_c_val(asm.ty.clone())))
+            })
+            .collect::<Vec<_>>();
+        if let Some(addr) = outer_addr {
+            preconds.push(stack_pointer.clone().mk_less_eq(addr));
+        }
+
+        in_eqs.extend(arg_eqs);
+        in_eqs.extend(mem_ieqs);
+        in_eqs.extend(
+            preconds
+                .into_iter()
+                .map(|expr| ASM_IN.side(expr).mk_eq(ASM_IN.side(Expr::mk_true()))),
+        );
+
+        let ret_eqs = x_out_eqs.iter().map(|(c, asm)| {
+            ASM_OUT
+                .side(asm.clone())
+                .mk_eq(C_OUT.side(c.clone().cast_c_val(asm.ty.clone())))
+        });
+
+        let asm_invs = post_eqs
+            .into_iter()
+            .map(|(vin, vout)| ASM_IN.side(vin).mk_eq(ASM_OUT.side(vout)));
+
+        out_eqs.extend(ret_eqs);
+        out_eqs.extend(mem_oeqs);
+        out_eqs.extend(asm_invs);
+
         Self { in_eqs, out_eqs }
     }
 
@@ -117,6 +281,24 @@ impl Pairing {
         block.push_line_with(|line| line.to_tokens("EndPairing"));
         block
     }
+}
+
+fn mk_stack_sequence(
+    sp: &Expr,
+    offs: usize,
+    stack: &Expr,
+    ty: &Type,
+    n: usize,
+) -> Vec<(Expr, Option<Expr>)> {
+    let mut seq = vec![];
+    for i in 0..n {
+        let addr = sp
+            .clone()
+            .mk_plus(Expr::new(sp.ty.clone(), ExprValue::Num((offs * i).into())));
+        let expr = Expr::mk_memacc(stack.clone(), addr.clone(), ty.clone());
+        seq.push((expr, Some(addr)));
+    }
+    seq
 }
 
 impl ParseFromLines for Pairing {
@@ -146,6 +328,13 @@ pub(crate) struct Eq {
     pub(crate) rhs: EqSide,
 }
 
+impl Eq {
+    pub(crate) fn new(lhs: EqSide, rhs: EqSide) -> Self {
+        assert_eq!(lhs.expr.ty, rhs.expr.ty);
+        Self { lhs, rhs }
+    }
+}
+
 impl ParseFromLine for Eq {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
         Ok(Self {
@@ -166,6 +355,16 @@ impl ToTokens for Eq {
 pub(crate) struct EqSide {
     pub(crate) quadrant: EqSideQuadrant,
     pub(crate) expr: Expr,
+}
+
+impl EqSide {
+    pub(crate) fn new(quadrant: EqSideQuadrant, expr: Expr) -> Self {
+        Self { quadrant, expr }
+    }
+
+    pub(crate) fn mk_eq(self, rhs: Self) -> Eq {
+        Eq::new(self, rhs)
+    }
 }
 
 impl ParseFromLine for EqSide {
@@ -189,6 +388,21 @@ pub(crate) struct EqSideQuadrant {
     pub(crate) tag: Tag,
     pub(crate) direction: EqDirection,
 }
+
+impl EqSideQuadrant {
+    pub(crate) const fn new(tag: Tag, direction: EqDirection) -> Self {
+        Self { tag, direction }
+    }
+
+    pub(crate) fn side(self, expr: Expr) -> EqSide {
+        EqSide::new(self, expr)
+    }
+}
+
+pub(crate) const ASM_IN: EqSideQuadrant = EqSideQuadrant::new(Tag::Asm, EqDirection::In);
+pub(crate) const ASM_OUT: EqSideQuadrant = EqSideQuadrant::new(Tag::Asm, EqDirection::Out);
+pub(crate) const C_IN: EqSideQuadrant = EqSideQuadrant::new(Tag::C, EqDirection::In);
+pub(crate) const C_OUT: EqSideQuadrant = EqSideQuadrant::new(Tag::C, EqDirection::Out);
 
 impl ParseFromLine for EqSideQuadrant {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
