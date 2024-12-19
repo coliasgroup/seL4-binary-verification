@@ -5,6 +5,7 @@ mod abstract_syntax;
 mod arch;
 mod compat;
 mod concrete_syntax;
+mod debugger;
 mod fixup;
 mod graph;
 mod inst_logic;
