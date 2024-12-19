@@ -664,7 +664,187 @@ impl Op {
     }
 
     pub(crate) fn typecheck(&self, operands: &[Expr]) -> Result<(), OpTypeError> {
-        todo!()
+        if self.num_operands() != operands.len() {
+            return Err(OpTypeError::IncorrectNumberOfOperands { op: *self, num_operands: operands.len() })
+        }
+
+        let checker = OperandChecker {
+            op: self,
+            operands,
+        };
+
+        match self {
+            Self::Plus => {
+                checker.check(0, |t| true)?;
+            }
+            Self::Minus => {
+                checker.check(0, |t| true)?;
+            }
+            Self::Times => {
+                checker.check(0, |t| true)?;
+            }
+            Self::Modulus => {
+                checker.check(0, |t| true)?;
+            }
+            Self::DividedBy => {
+                checker.check(0, |t| true)?;
+            }
+            Self::BWAnd => {
+                checker.check(0, |t| true)?;
+            }
+            Self::BWOr => {
+                checker.check(0, |t| true)?;
+            }
+            Self::BWXOR => {
+                checker.check(0, |t| true)?;
+            }
+            Self::And => {
+                checker.check(0, |t| true)?;
+            }
+            Self::Or => {
+                checker.check(0, |t| true)?;
+            }
+            Self::Implies => {
+                checker.check(0, |t| true)?;
+            }
+            Self::Equals => {
+                checker.check(0, |t| true)?;
+            }
+            Self::Less => {
+                checker.check(0, |t| true)?;
+            }
+            Self::LessEquals => {
+                checker.check(0, |t| true)?;
+            }
+            Self::SignedLess => {
+                checker.check(0, |t| true)?;
+            }
+            Self::SignedLessEquals => {
+                checker.check(0, |t| true)?;
+            }
+            Self::ShiftLeft => {
+                checker.check(0, |t| true)?;
+            }
+            Self::ShiftRight => {
+                checker.check(0, |t| true)?;
+            }
+            Self::CountLeadingZeroes => {
+                checker.check(0, |t| true)?;
+            }
+            Self::CountTrailingZeroes => {
+                checker.check(0, |t| true)?;
+            }
+            Self::WordReverse => {
+                checker.check(0, |t| true)?;
+            }
+            Self::SignedShiftRight => {
+                checker.check(0, |t| true)?;
+            }
+            Self::Not => {
+                checker.check(0, |t| true)?;
+            }
+            Self::BWNot => {
+                checker.check(0, |t| true)?;
+            }
+            Self::WordCast => {
+                checker.check(0, |t| true)?;
+            }
+            Self::WordCastSigned => {
+                checker.check(0, |t| true)?;
+            }
+            Self::True => {
+                checker.check(0, |t| true)?;
+            }
+            Self::False => {
+                checker.check(0, |t| true)?;
+            }
+            Self::UnspecifiedPrecond => {
+                checker.check(0, |t| true)?;
+            }
+            Self::MemUpdate => {
+                checker.check(0, |t| true)?;
+            }
+            Self::MemAcc => {
+                checker.check(0, |t| true)?;
+            }
+            Self::IfThenElse => {
+                checker.check(0, |t| true)?;
+            }
+            Self::ArrayIndex => {
+                checker.check(0, |t| true)?;
+            }
+            Self::ArrayUpdate => {
+                checker.check(0, |t| true)?;
+            }
+            Self::MemDom => {
+                checker.check(0, |t| true)?;
+            }
+            Self::PValid => {
+                checker.check(0, |t| true)?;
+            }
+            Self::PWeakValid => {
+                checker.check(0, |t| true)?;
+            }
+            Self::PAlignValid => {
+                checker.check(0, |t| true)?;
+            }
+            Self::PGlobalValid => {
+                checker.check(0, |t| true)?;
+            }
+            Self::PArrayValid => {
+                checker.check(0, |t| true)?;
+            }
+            Self::HTDUpdate => {
+                checker.check(0, |t| true)?;
+            }
+            Self::WordArrayAccess => {
+                checker.check(0, |t| true)?;
+            }
+            Self::WordArrayUpdate => {
+                checker.check(0, |t| true)?;
+            }
+            Self::TokenWordsAccess => {
+                checker.check(0, |t| true)?;
+            }
+            Self::TokenWordsUpdate => {
+                checker.check(0, |t| true)?;
+            }
+            Self::ROData => {
+                checker.check(0, |t| true)?;
+            }
+            Self::StackWrapper => {
+                checker.check(0, |t| true)?;
+            }
+            Self::ToFloatingPoint => {
+                checker.check(0, |t| true)?;
+            }
+            Self::ToFloatingPointSigned => {
+                checker.check(0, |t| true)?;
+            }
+            Self::ToFloatingPointUnsigned => {
+                checker.check(0, |t| true)?;
+            }
+            Self::FloatingPointCast => {
+                checker.check(0, |t| true)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+struct OperandChecker<'a> {
+    op: &'a Op,
+    operands: &'a [Expr],
+}
+
+impl<'a> OperandChecker<'a> {
+    fn check(&self, i: usize, f: impl FnOnce(&Type) -> bool) -> Result<(), OpTypeError> {
+        let ty = &self.operands[i].ty;
+        if f(ty) {
+            Ok(())
+        } else {
+            Err(OpTypeError::IncorrectTypeOfOperand { op: *self.op, operand_index: i, operand_type: ty.clone() })
+        }
     }
 }
 
