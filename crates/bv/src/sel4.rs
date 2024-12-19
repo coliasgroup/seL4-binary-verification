@@ -275,11 +275,15 @@ mod tests {
     #[test]
     fn problems() {
         let t = t();
+        let theirs = t.read_problems_file();
+        let mut ours = t.build_problems_file();
+        // graph-refine doesn't output aborted problems
+        ours.problems.retain(|k, _| theirs.problems.contains_key(k));
         eq_or_dump(
             "t/problems.txt",
             "txt",
-            t.read_problems_file().pretty_print(),
-            t.read_problems_file().pretty_print(),
+            theirs.pretty_print(),
+            ours.pretty_print(),
         );
     }
 }
