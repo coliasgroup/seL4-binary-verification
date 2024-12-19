@@ -384,31 +384,25 @@ impl Expr {
 
     pub(crate) fn mk_eq(self, rhs: Self) -> Self {
         assert_eq!(self.ty, rhs.ty);
-        Self::new(
-            Type::Bool,
-            ExprValue::Op("Equals".to_owned(), vec![self, rhs]),
-        )
+        Self::new(Type::Bool, Op::Equals.mk(&[self, rhs]))
     }
 
     pub(crate) fn mk_and(self, rhs: Self) -> Self {
         assert_eq!(self.ty, Type::Bool);
         assert_eq!(rhs.ty, Type::Bool);
-        Self::new(Type::Bool, ExprValue::Op("And".to_owned(), vec![self, rhs]))
+        Self::new(Type::Bool, Op::And.mk(&[self, rhs]))
     }
 
     pub(crate) fn mk_or(self, rhs: Self) -> Self {
         assert_eq!(self.ty, Type::Bool);
         assert_eq!(rhs.ty, Type::Bool);
-        Self::new(Type::Bool, ExprValue::Op("Or".to_owned(), vec![self, rhs]))
+        Self::new(Type::Bool, Op::Or.mk(&[self, rhs]))
     }
 
     pub(crate) fn mk_implies(self, rhs: Self) -> Self {
         assert_eq!(self.ty, Type::Bool);
         assert_eq!(rhs.ty, Type::Bool);
-        Self::new(
-            Type::Bool,
-            ExprValue::Op("Implies".to_owned(), vec![self, rhs]),
-        )
+        Self::new(Type::Bool, Op::Implies.mk(&[self, rhs]))
     }
 
     pub(crate) fn mk_less(self, rhs: Self) -> Self {
@@ -421,8 +415,8 @@ impl Expr {
 
     pub(crate) fn mk_less_with_signedness(self, rhs: Self, signed: bool) -> Self {
         assert_eq!(self.ty, rhs.ty);
-        let name = if signed { "SignedLess" } else { "Less" };
-        Self::new(Type::Bool, ExprValue::Op(name.to_owned(), vec![self, rhs]))
+        let op = if signed { Op::SignedLess } else { Op::Less };
+        Self::new(Type::Bool, op.mk(&[self, rhs]))
     }
 
     pub(crate) fn mk_less_eq(self, rhs: Self) -> Self {
@@ -435,21 +429,18 @@ impl Expr {
 
     pub(crate) fn mk_less_eq_with_signedness(self, rhs: Self, signed: bool) -> Self {
         assert_eq!(self.ty, rhs.ty);
-        let name = if signed {
-            "SignedLessEquals"
+        let op = if signed {
+            Op::SignedLessEquals
         } else {
-            "LessEquals"
+            Op::LessEquals
         };
-        Self::new(Type::Bool, ExprValue::Op(name.to_owned(), vec![self, rhs]))
+        Self::new(Type::Bool, op.mk(&[self, rhs]))
     }
 
     pub(crate) fn mk_bitwise_and(self, rhs: Self) -> Self {
         assert_eq!(self.ty, rhs.ty);
         assert!(matches!(self.ty, Type::Word(_)));
-        Self::new(
-            self.ty.clone(),
-            ExprValue::Op("BWAnd".to_owned(), vec![self, rhs]),
-        )
+        Self::new(self.ty.clone(), Op::BWAnd.mk(&[self, rhs]))
     }
 
     pub(crate) fn mk_token(name: Ident) -> Self {
@@ -490,7 +481,7 @@ impl Not for Expr {
 
     fn not(self) -> Self::Output {
         assert_eq!(self.ty, Type::Bool);
-        Self::new(self.ty.clone(), ExprValue::Op("Not".to_owned(), vec![self]))
+        Self::new(self.ty.clone(), Op::Not.mk(&[self]))
     }
 }
 
@@ -499,10 +490,7 @@ impl Add for Expr {
 
     fn add(self, rhs: Self) -> Self::Output {
         assert_eq!(self.ty, rhs.ty);
-        Self::new(
-            self.ty.clone(),
-            ExprValue::Op("Plus".to_owned(), vec![self, rhs]),
-        )
+        Self::new(self.ty.clone(), Op::Plus.mk(&[self, rhs]))
     }
 }
 
@@ -511,10 +499,7 @@ impl Sub for Expr {
 
     fn sub(self, rhs: Self) -> Self::Output {
         assert_eq!(self.ty, rhs.ty);
-        Self::new(
-            self.ty.clone(),
-            ExprValue::Op("Minus".to_owned(), vec![self, rhs]),
-        )
+        Self::new(self.ty.clone(), Op::Minus.mk(&[self, rhs]))
     }
 }
 
@@ -553,7 +538,7 @@ impl Type {
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) enum ExprValue {
     Var(Ident),
-    Op(OpName, Vec<Expr>),
+    Op(Op, Vec<Expr>),
     Num(Num),
     Type,
     Symbol(Ident),
@@ -562,8 +547,7 @@ pub(crate) enum ExprValue {
 
 pub(crate) type Num = BigInt;
 
-pub(crate) type OpName = String;
-
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) enum Op {
     Plus,
     Minus,
@@ -616,4 +600,92 @@ pub(crate) enum Op {
     ToFloatingPointSigned,
     ToFloatingPointUnsigned,
     FloatingPointCast,
+}
+
+impl Op {
+    pub(crate) fn mk(self, operands: impl AsRef<[Expr]>) -> ExprValue {
+        ExprValue::Op(self, operands.as_ref().to_owned())
+    }
+
+    pub(crate) fn num_operands(&self) -> usize {
+        match self {
+            Self::Plus => 2,
+            Self::Minus => 2,
+            Self::Times => 2,
+            Self::Modulus => 2,
+            Self::DividedBy => 2,
+            Self::BWAnd => 2,
+            Self::BWOr => 2,
+            Self::BWXOR => 2,
+            Self::And => 2,
+            Self::Or => 2,
+            Self::Implies => 2,
+            Self::Equals => 2,
+            Self::Less => 2,
+            Self::LessEquals => 2,
+            Self::SignedLess => 2,
+            Self::SignedLessEquals => 2,
+            Self::ShiftLeft => 2,
+            Self::ShiftRight => 2,
+            Self::CountLeadingZeroes => 1,
+            Self::CountTrailingZeroes => 1,
+            Self::WordReverse => 1,
+            Self::SignedShiftRight => 2,
+            Self::Not => 1,
+            Self::BWNot => 1,
+            Self::WordCast => 1,
+            Self::WordCastSigned => 1,
+            Self::True => 0,
+            Self::False => 0,
+            Self::UnspecifiedPrecond => 0,
+            Self::MemUpdate => 3,
+            Self::MemAcc => 2,
+            Self::IfThenElse => 3,
+            Self::ArrayIndex => 2,
+            Self::ArrayUpdate => 3,
+            Self::MemDom => 2,
+            Self::PValid => 3,
+            Self::PWeakValid => 3,
+            Self::PAlignValid => 2,
+            Self::PGlobalValid => 3,
+            Self::PArrayValid => 4,
+            Self::HTDUpdate => 5,
+            Self::WordArrayAccess => 2,
+            Self::WordArrayUpdate => 3,
+            Self::TokenWordsAccess => 2,
+            Self::TokenWordsUpdate => 3,
+            Self::ROData => 1,
+            Self::StackWrapper => 2,
+            Self::ToFloatingPoint => 1,
+            Self::ToFloatingPointSigned => 2,
+            Self::ToFloatingPointUnsigned => 2,
+            Self::FloatingPointCast => 1,
+        }
+    }
+
+    pub(crate) fn typecheck(&self, operands: &[Expr]) -> Result<(), OpTypeError> {
+        todo!()
+    }
+}
+
+impl Expr {
+    pub(crate) fn typecheck(&self) -> Result<(), OpTypeError> {
+        match &self.value {
+            Self::Op(op, operands) => op.typecheck(operands),
+            _ => true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub(crate) enum OpTypeError {
+    IncorrectNumberOfOperands {
+        op: Op,
+        num_operands: usize,
+    },
+    IncorrectTypeOfOperand {
+        op: Op,
+        operand_index: usize,
+        operand_type: Type,
+    },
 }

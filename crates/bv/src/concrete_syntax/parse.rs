@@ -414,6 +414,7 @@ pub(crate) enum ParseError {
     UnexpectedToken(TokenLocation),
     InvalidNumber(TokenLocation),
     NumberOutOfRange(TokenLocation),
+    InvalidOperationName(TokenLocation),
     Unspecified,
 }
 

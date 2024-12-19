@@ -12,7 +12,5 @@ struct VarState {
 }
 
 enum DebuggerError {
-    VariableUndefined {
-        ident: Ident,
-    }
+    VariableUndefined { ident: Ident },
 }
