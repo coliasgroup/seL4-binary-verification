@@ -8,7 +8,7 @@ impl<T: HasNodeGraph> NodeGraph<T> {
         input: &[Argument],
         output: &[Argument],
     ) -> Result<(), FunctionTypeError> {
-        Ok(())
+        todo!()
     }
 }
 
