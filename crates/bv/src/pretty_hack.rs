@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::abstract_syntax::{
-    Argument, Expr, ExprValue, File, Function, Ident, Node, NodeId, Type, VarUpdate,
+    Argument, Expr, ExprValue, File, Function, Ident, Node, NodeId, Op, Type, VarUpdate
 };
 use crate::compat::{PairingsFile, ProblemProof, ProblemsFile, ProofsFile};
 use crate::pairing::{Eq, EqSide, Pairing, PairingId, Tag};
@@ -418,8 +418,8 @@ impl Expr {
                     #name
                 }
             }
-            ExprValue::Op(op_name, exprs) => {
-                if let Some(op) = binop(&op_name) {
+            ExprValue::Op(op, exprs) => {
+                if let Some(op) = binop(&op) {
                     is_compound = true;
                     let op = parse(op);
                     let (x, y) = match exprs.as_slice() {
@@ -432,10 +432,10 @@ impl Expr {
                         #x #op #y
                     }
                 } else {
-                    match op_name.as_str() {
-                        "True" => quote!(true),
-                        "False" => quote!(false),
-                        "Not" | "BWNot" => {
+                    match op {
+                        Op::True => quote!(true),
+                        Op::False => quote!(false),
+                        Op::Not | Op::BWNot => {
                             let x = match exprs.as_slice() {
                                 [x] => x,
                                 _ => panic!(),
@@ -443,7 +443,7 @@ impl Expr {
                             let x = x.to_tokens_sub();
                             quote!(!#x)
                         }
-                        "WordCast" => {
+                        Op::WordCast => {
                             let bits = match ty {
                                 Type::Word(bits) => bits,
                                 _ => panic!(),
@@ -459,7 +459,7 @@ impl Expr {
                                 #x as #t
                             }
                         }
-                        "WordCastSigned" => {
+                        Op::WordCastSigned => {
                             let bits = match ty {
                                 Type::Word(bits) => bits,
                                 _ => panic!(),
@@ -475,7 +475,7 @@ impl Expr {
                                 #x as Signed<#t>
                             }
                         }
-                        "IfThenElse" => {
+                        Op::IfThenElse => {
                             let (x, y, z) = match exprs.as_slice() {
                                 [x, y, z] => (x, y, z),
                                 _ => panic!(),
@@ -486,7 +486,7 @@ impl Expr {
                             }
                         }
                         _ => {
-                            let op_name = escape_ident(op_name);
+                            let op_name = escape_ident(&op.to_op_name());
                             quote! {
                                 #op_name(#(#exprs),*)
                             }
@@ -536,23 +536,23 @@ impl ToTokens for Expr {
     }
 }
 
-fn binop(op_name: &str) -> Option<&str> {
-    Some(match op_name {
-        "Plus" => "+",
-        "Minus" => "-",
-        "Times" => "*",
-        "Modulus" => "%",
-        "DividedBy" => "/",
-        "BWAnd" => "&",
-        "BWOr" => "|",
-        "BWXOR" => "^",
-        "And" => "&&",
-        "Or" => "||",
-        "Equals" => "==",
-        "Less" => "<",
-        "LessEquals" => "<=",
-        "ShiftLeft" => "<<",
-        "ShiftRight" => ">>",
+fn binop(op: &Op) -> Option<&str> {
+    Some(match op {
+        Op::Plus => "+",
+        Op::Minus => "-",
+        Op::Times => "*",
+        Op::Modulus => "%",
+        Op::DividedBy => "/",
+        Op::BWAnd => "&",
+        Op::BWOr => "|",
+        Op::BWXOR => "^",
+        Op::And => "&&",
+        Op::Or => "||",
+        Op::Equals => "==",
+        Op::Less => "<",
+        Op::LessEquals => "<=",
+        Op::ShiftLeft => "<<",
+        Op::ShiftRight => ">>",
         _ => return None,
     })
 }

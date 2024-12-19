@@ -1,4 +1,4 @@
-use crate::abstract_syntax::{Expr, ExprValue, Function, Num, Type};
+use crate::abstract_syntax::{Expr, ExprValue, Function, Num, Op, Type};
 use crate::arch::WORD_SIZE_BITS;
 use crate::objdump::ObjdumpInfo;
 use crate::utils::DoubleEndedIteratorExt;
@@ -20,20 +20,18 @@ impl Function {
 
     fn compile_p_align_valid_exprs(&mut self) {
         self.visit_exprs_mut(&mut |expr| {
-            if let ExprValue::Op(name, exprs) = &expr.value {
-                if name == "PAlignValid" {
-                    let (ty, p) = match exprs.as_slice() {
-                        [Expr {
-                            ty,
-                            value: ExprValue::Type,
-                        }, p @ Expr {
-                            ty: Type::Word(ptr_bits),
-                            value: ExprValue::Var(_),
-                        }] if *ptr_bits == WORD_SIZE_BITS => (ty, p),
-                        _ => panic!(),
-                    };
-                    *expr = mk_align_valid_ineq(ty, p);
-                }
+            if let ExprValue::Op(Op::PAlignValid, exprs) = &expr.value {
+                let (ty, p) = match exprs.as_slice() {
+                    [Expr {
+                        ty,
+                        value: ExprValue::Type,
+                    }, p @ Expr {
+                        ty: Type::Word(ptr_bits),
+                        value: ExprValue::Var(_),
+                    }] if *ptr_bits == WORD_SIZE_BITS => (ty, p),
+                    _ => panic!(),
+                };
+                *expr = mk_align_valid_ineq(ty, p);
             }
         })
     }

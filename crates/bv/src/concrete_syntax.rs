@@ -555,7 +555,7 @@ impl Op {
         })
     }
 
-    fn to_op_name(&self) -> String {
+    pub(crate) fn to_op_name(&self) -> String {
         match self {
             Self::Plus => "Plus".to_string(),
             Self::Minus => "Minus".to_string(),

@@ -671,8 +671,8 @@ impl Op {
 impl Expr {
     pub(crate) fn typecheck(&self) -> Result<(), OpTypeError> {
         match &self.value {
-            Self::Op(op, operands) => op.typecheck(operands),
-            _ => true,
+            ExprValue::Op(op, operands) => op.typecheck(operands),
+            _ => Ok(()),
         }
     }
 }
