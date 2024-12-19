@@ -720,7 +720,7 @@ impl<'a> ExprChecker<'a> {
     }
 
     fn check_ret(&self, f: impl FnOnce(&Type) -> bool) -> Result<(), OpTypeError> {
-        let ty = &self.operands[i].ty;
+        let ty = self.ty;
         if f(ty) {
             Ok(())
         } else {
@@ -944,6 +944,15 @@ impl<'a> ExprChecker<'a> {
                 todo!()
             }
             Op::ToFloatingPoint => {
+                todo!()
+            }
+            Op::ToFloatingPointSigned => {
+                todo!()
+            }
+            Op::ToFloatingPointUnsigned => {
+                todo!()
+            }
+            Op::FloatingPointCast => {
                 todo!()
             }
         }
