@@ -1,4 +1,5 @@
 use std::collections::{btree_map, BTreeMap};
+use std::convert::Infallible;
 use std::ops::{Add, BitAnd, BitOr, Neg, Not, Sub};
 use std::slice::SliceIndex;
 use std::{fmt, iter};
@@ -263,6 +264,13 @@ impl BasicNode {
         }
     }
 
+    pub(crate) fn try_visit_exprs<E>(&self, f: &mut impl FnMut(&Expr) -> Result<(), E>) -> Result<(), E> {
+        for var_update in &self.var_updates {
+            var_update.expr.try_visit_exprs(f)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn visit_exprs_mut(&mut self, f: &mut impl FnMut(&mut Expr)) {
         for var_update in &mut self.var_updates {
             var_update.expr.visit_exprs_mut(f);
@@ -366,12 +374,16 @@ impl Expr {
     }
 
     pub(crate) fn visit_exprs(&self, f: &mut impl FnMut(&Expr)) {
+        self.try_visit_exprs(&mut |x| Ok::<(), Infallible>(f(x))).unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_exprs<E>(&self, f: &mut impl FnMut(&Expr) -> Result<(), E>) -> Result<(), E> {
         if let ExprValue::Op(_, exprs) = &self.value {
             for expr in exprs {
-                expr.visit_exprs(f);
+                expr.try_visit_exprs(f)?;
             }
         }
-        f(self);
+        f(self)
     }
 
     pub(crate) fn visit_exprs_mut(&mut self, f: &mut impl FnMut(&mut Expr)) {
