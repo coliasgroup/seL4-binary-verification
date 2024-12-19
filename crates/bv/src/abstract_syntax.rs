@@ -546,8 +546,39 @@ impl Type {
         self.as_word().is_some()
     }
 
+    pub(crate) fn is_word_with_size(&self, bits: u64) -> bool {
+        matches!(self, Self::Word(actual_bits) if &bits == actual_bits)
+    }
+
     pub(crate) fn is_bool(&self) -> bool {
         matches!(self, Self::Bool)
+    }
+
+    pub(crate) fn is_mem(&self) -> bool {
+        matches!(self, Self::Mem)
+    }
+
+    pub(crate) fn is_dom(&self) -> bool {
+        matches!(self, Self::Dom)
+    }
+
+    pub(crate) fn is_htd(&self) -> bool {
+        matches!(self, Self::Htd)
+    }
+
+    pub(crate) fn is_type(&self) -> bool {
+        matches!(self, Self::Type)
+    }
+
+    pub(crate) fn as_ptr(&self) -> Option<&Self> {
+        match self {
+            Self::Ptr(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn is_ptr(&self) -> bool {
+        self.as_ptr().is_some()
     }
 }
 
@@ -768,6 +799,16 @@ impl<'a> ExprChecker<'a> {
         }
     }
 
+    fn ensure_equal_to_op<Ix>(
+        &self,
+        indices: Ix,
+    ) -> Result<(), OpTypeError>
+    where
+        Ix: SliceIndex<[Expr], Output = [Expr]>,
+    {
+        self.ensure_equal_to_op_and(indices, |_| true)
+    }
+
     fn ensure_equal_to_op_and<Ix>(
         &self,
         indices: Ix,
@@ -787,6 +828,7 @@ impl<'a> ExprChecker<'a> {
         }
     }
 
+    // TODO mark args and op as having been checked and then ensure all have been checked
     fn check_all(&self) -> Result<(), OpTypeError> {
         if self.op.num_operands() != self.operands.len() {
             return Err(OpTypeError::IncorrectNumberOfOperands {
@@ -887,16 +929,22 @@ impl<'a> ExprChecker<'a> {
                 self.check_op(Type::is_bool)?;
             }
             Op::UnspecifiedPrecond => {
-                todo!()
+                self.check_op(Type::is_bool)?;
             }
             Op::MemUpdate => {
-                todo!()
+                self.check(0, Type::is_mem)?;
+                self.check(1, |ty| ty.is_word_with_size(32))?;
+                self.check(2, Type::is_word)?;
+                self.check_op(Type::is_mem)?;
             }
             Op::MemAcc => {
-                todo!()
+                self.check(0, Type::is_mem)?;
+                self.check(1, |ty| ty.is_word_with_size(32))?;
+                self.check_op(Type::is_word)?;
             }
             Op::IfThenElse => {
-                todo!()
+                self.check(0, Type::is_bool)?;
+                self.ensure_equal_to_op(1..)?;
             }
             Op::ArrayIndex => {
                 todo!()
@@ -905,22 +953,39 @@ impl<'a> ExprChecker<'a> {
                 todo!()
             }
             Op::MemDom => {
-                todo!()
+                self.check(0, |ty| ty.is_word_with_size(32))?;
+                self.check(1, Type::is_dom)?;
+                self.check_op(Type::is_bool)?;
             }
             Op::PValid => {
-                todo!()
+                self.check(0, Type::is_htd)?;
+                self.check(1, Type::is_type)?;
+                self.check(2, |ty| ty.is_word_with_size(32))?;
+                self.check_op(Type::is_bool)?;
             }
             Op::PWeakValid => {
-                todo!()
+                self.check(0, Type::is_htd)?;
+                self.check(1, Type::is_type)?;
+                self.check(2, |ty| ty.is_word_with_size(32))?;
+                self.check_op(Type::is_bool)?;
             }
             Op::PAlignValid => {
-                todo!()
+                self.check(0, Type::is_type)?;
+                self.check(1, |ty| ty.is_word_with_size(32))?;
+                self.check_op(Type::is_bool)?;
             }
             Op::PGlobalValid => {
-                todo!()
+                self.check(0, Type::is_htd)?;
+                self.check(1, Type::is_type)?;
+                self.check(2, |ty| ty.is_word_with_size(32))?;
+                self.check_op(Type::is_bool)?;
             }
             Op::PArrayValid => {
-                todo!()
+                self.check(0, Type::is_htd)?;
+                self.check(1, Type::is_type)?;
+                self.check(2, |ty| ty.is_word_with_size(32))?;
+                self.check(3, |ty| ty.is_word_with_size(32))?;
+                self.check_op(Type::is_bool)?;
             }
             Op::HTDUpdate => {
                 todo!()
