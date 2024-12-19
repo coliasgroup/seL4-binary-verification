@@ -1,6 +1,6 @@
 use std::collections::{btree_map::Entry, BTreeMap};
 
-use crate::abstract_syntax::{Argument, Ident, OpTypeError, Type};
+use crate::abstract_syntax::{Argument, Ident, Node, OpTypeError, Type};
 
 use super::{HasNodeGraph, NodeGraph};
 
@@ -14,9 +14,9 @@ impl<T: HasNodeGraph> NodeGraph<T> {
         var_types.admit_args(input)?;
         var_types.admit_args(output)?;
         for (_, node) in self.graph_nodes() {
-            node.try_visit_exprs(|expr| {
-
-            })
+            todo!()
+            // node.try_visit_exprs(|expr| {
+            // })
         }
         Ok(())
     }
