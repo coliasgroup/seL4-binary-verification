@@ -732,9 +732,7 @@ impl<'a> ExprChecker<'a> {
         if f(ty) {
             Ok(())
         } else {
-            Err(OpTypeError::OperationTypeMismatch {
-                op: *self.op,
-            })
+            Err(OpTypeError::OperationTypeMismatch { op: *self.op })
         }
     }
 
@@ -799,10 +797,7 @@ impl<'a> ExprChecker<'a> {
         }
     }
 
-    fn ensure_equal_to_op<Ix>(
-        &self,
-        indices: Ix,
-    ) -> Result<(), OpTypeError>
+    fn ensure_equal_to_op<Ix>(&self, indices: Ix) -> Result<(), OpTypeError>
     where
         Ix: SliceIndex<[Expr], Output = [Expr]>,
     {

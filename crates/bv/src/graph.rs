@@ -12,6 +12,7 @@ use petgraph::Directed;
 use crate::abstract_syntax::{Node, NodeAddr, NodeId};
 
 pub(crate) mod algo;
+pub(crate) mod generic_ops;
 
 #[derive(Copy, Clone)]
 pub(crate) struct NodeGraph<T, D = SimpleFormatter> {
