@@ -1,5 +1,6 @@
 use std::collections::{btree_map, BTreeMap};
 use std::ops::{Add, BitAnd, BitOr, Neg, Not, Sub};
+use std::slice::SliceIndex;
 use std::{fmt, iter};
 
 use arrayvec::ArrayVec;
@@ -533,6 +534,21 @@ impl Type {
     pub(crate) fn mk_machine_word() -> Self {
         Self::Word(WORD_SIZE_BITS)
     }
+
+    pub(crate) fn as_word(&self) -> Option<u64> {
+        match self {
+            Self::Word(bits) => Some(*bits),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn is_word(&self) -> bool {
+        self.as_word().is_some()
+    }
+
+    pub(crate) fn is_bool(&self) -> bool {
+        matches!(self, Self::Bool)
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -663,195 +679,282 @@ impl Op {
         }
     }
 
-    pub(crate) fn typecheck(&self, operands: &[Expr]) -> Result<(), OpTypeError> {
-        if self.num_operands() != operands.len() {
-            return Err(OpTypeError::IncorrectNumberOfOperands { op: *self, num_operands: operands.len() })
-        }
-
-        let checker = OperandChecker {
+    pub(crate) fn typecheck(&self, ty: &Type, operands: &[Expr]) -> Result<(), OpTypeError> {
+        ExprChecker {
             op: self,
+            ty,
             operands,
-        };
+        }
+        .check_all()
+    }
+}
 
-        match self {
-            Self::Plus => {
-                checker.check(0, |t| true)?;
+struct ExprChecker<'a> {
+    op: &'a Op,
+    ty: &'a Type,
+    operands: &'a [Expr],
+}
+
+impl<'a> ExprChecker<'a> {
+    fn check_op(&self, f: impl FnOnce(&Type) -> bool) -> Result<(), OpTypeError> {
+        let ty = self.ty;
+        if f(ty) {
+            Ok(())
+        } else {
+            Err(OpTypeError::OperationTypeMismatch {
+                op: *self.op,
+            })
+        }
+    }
+
+    fn check(&self, i: usize, f: impl FnOnce(&Type) -> bool) -> Result<(), OpTypeError> {
+        let ty = &self.operands[i].ty;
+        if f(ty) {
+            Ok(())
+        } else {
+            Err(OpTypeError::IncorrectTypeOfOperand {
+                op: *self.op,
+                operand_type: ty.clone(),
+            })
+        }
+    }
+
+    fn check_ret(&self, f: impl FnOnce(&Type) -> bool) -> Result<(), OpTypeError> {
+        let ty = &self.operands[i].ty;
+        if f(ty) {
+            Ok(())
+        } else {
+            Err(OpTypeError::IncorrectTypeOfOperand {
+                op: *self.op,
+                operand_type: ty.clone(),
+            })
+        }
+    }
+
+    fn ensure_equal<Ix>(&self, indices: Ix) -> Result<&Type, OpTypeError>
+    where
+        Ix: SliceIndex<[Expr], Output = [Expr]>,
+    {
+        let mut it = self.operands[indices].as_ref().iter().map(|expr| &expr.ty);
+        let ty = it.next().unwrap();
+        for ty_j in it {
+            if ty_j != ty {
+                return Err(OpTypeError::OperandTypeMismatch {
+                    op: *self.op,
+                    operand_type_1: ty.clone(),
+                    operand_type_2: ty_j.clone(),
+                });
             }
-            Self::Minus => {
-                checker.check(0, |t| true)?;
+        }
+        Ok(ty)
+    }
+
+    fn ensure_equal_and<Ix>(
+        &self,
+        indices: Ix,
+        f: impl FnOnce(&Type) -> bool,
+    ) -> Result<(), OpTypeError>
+    where
+        Ix: SliceIndex<[Expr], Output = [Expr]>,
+    {
+        let ty = self.ensure_equal(indices)?;
+        if f(ty) {
+            Ok(())
+        } else {
+            Err(OpTypeError::IncorrectTypeOfOperand {
+                op: *self.op,
+                operand_type: ty.clone(),
+            })
+        }
+    }
+
+    fn ensure_equal_to_op_and<Ix>(
+        &self,
+        indices: Ix,
+        f: impl FnOnce(&Type) -> bool,
+    ) -> Result<(), OpTypeError>
+    where
+        Ix: SliceIndex<[Expr], Output = [Expr]>,
+    {
+        let ty = self.ensure_equal(indices)?;
+        if ty == self.ty && f(ty) {
+            Ok(())
+        } else {
+            Err(OpTypeError::IncorrectTypeOfOperand {
+                op: *self.op,
+                operand_type: ty.clone(),
+            })
+        }
+    }
+
+    fn check_all(&self) -> Result<(), OpTypeError> {
+        if self.op.num_operands() != self.operands.len() {
+            return Err(OpTypeError::IncorrectNumberOfOperands {
+                op: *self.op,
+                num_operands: self.operands.len(),
+            });
+        }
+        match self.op {
+            Op::Plus => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::Times => {
-                checker.check(0, |t| true)?;
+            Op::Minus => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::Modulus => {
-                checker.check(0, |t| true)?;
+            Op::Times => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::DividedBy => {
-                checker.check(0, |t| true)?;
+            Op::Modulus => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::BWAnd => {
-                checker.check(0, |t| true)?;
+            Op::DividedBy => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::BWOr => {
-                checker.check(0, |t| true)?;
+            Op::BWAnd => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::BWXOR => {
-                checker.check(0, |t| true)?;
+            Op::BWOr => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::And => {
-                checker.check(0, |t| true)?;
+            Op::BWXOR => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::Or => {
-                checker.check(0, |t| true)?;
+            Op::And => {
+                self.ensure_equal_to_op_and(.., Type::is_bool)?;
             }
-            Self::Implies => {
-                checker.check(0, |t| true)?;
+            Op::Or => {
+                self.ensure_equal_to_op_and(.., Type::is_bool)?;
             }
-            Self::Equals => {
-                checker.check(0, |t| true)?;
+            Op::Implies => {
+                self.ensure_equal_to_op_and(.., Type::is_bool)?;
             }
-            Self::Less => {
-                checker.check(0, |t| true)?;
+            Op::Equals => {
+                self.check_op(Type::is_bool)?;
+                self.ensure_equal(..)?;
             }
-            Self::LessEquals => {
-                checker.check(0, |t| true)?;
+            Op::Less => {
+                self.check_op(Type::is_bool)?;
+                self.ensure_equal_and(.., Type::is_word)?;
             }
-            Self::SignedLess => {
-                checker.check(0, |t| true)?;
+            Op::LessEquals => {
+                self.check_op(Type::is_bool)?;
+                self.ensure_equal_and(.., Type::is_word)?;
             }
-            Self::SignedLessEquals => {
-                checker.check(0, |t| true)?;
+            Op::SignedLess => {
+                self.check_op(Type::is_bool)?;
+                self.ensure_equal_and(.., Type::is_word)?;
             }
-            Self::ShiftLeft => {
-                checker.check(0, |t| true)?;
+            Op::SignedLessEquals => {
+                self.check_op(Type::is_bool)?;
+                self.ensure_equal_and(.., Type::is_word)?;
             }
-            Self::ShiftRight => {
-                checker.check(0, |t| true)?;
+            Op::ShiftLeft => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::CountLeadingZeroes => {
-                checker.check(0, |t| true)?;
+            Op::ShiftRight => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::CountTrailingZeroes => {
-                checker.check(0, |t| true)?;
+            Op::CountLeadingZeroes => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::WordReverse => {
-                checker.check(0, |t| true)?;
+            Op::CountTrailingZeroes => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::SignedShiftRight => {
-                checker.check(0, |t| true)?;
+            Op::WordReverse => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::Not => {
-                checker.check(0, |t| true)?;
+            Op::SignedShiftRight => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::BWNot => {
-                checker.check(0, |t| true)?;
+            Op::Not => {
+                self.ensure_equal_to_op_and(.., Type::is_bool)?;
             }
-            Self::WordCast => {
-                checker.check(0, |t| true)?;
+            Op::BWNot => {
+                self.ensure_equal_to_op_and(.., Type::is_word)?;
             }
-            Self::WordCastSigned => {
-                checker.check(0, |t| true)?;
+            Op::WordCast => {
+                self.check_op(Type::is_word)?;
+                self.check(0, Type::is_word)?;
             }
-            Self::True => {
-                checker.check(0, |t| true)?;
+            Op::WordCastSigned => {
+                self.check_op(Type::is_word)?;
+                self.check(0, Type::is_word)?;
             }
-            Self::False => {
-                checker.check(0, |t| true)?;
+            Op::True => {
+                self.check_op(Type::is_bool)?;
             }
-            Self::UnspecifiedPrecond => {
-                checker.check(0, |t| true)?;
+            Op::False => {
+                self.check_op(Type::is_bool)?;
             }
-            Self::MemUpdate => {
-                checker.check(0, |t| true)?;
+            Op::UnspecifiedPrecond => {
+                todo!()
             }
-            Self::MemAcc => {
-                checker.check(0, |t| true)?;
+            Op::MemUpdate => {
+                todo!()
             }
-            Self::IfThenElse => {
-                checker.check(0, |t| true)?;
+            Op::MemAcc => {
+                todo!()
             }
-            Self::ArrayIndex => {
-                checker.check(0, |t| true)?;
+            Op::IfThenElse => {
+                todo!()
             }
-            Self::ArrayUpdate => {
-                checker.check(0, |t| true)?;
+            Op::ArrayIndex => {
+                todo!()
             }
-            Self::MemDom => {
-                checker.check(0, |t| true)?;
+            Op::ArrayUpdate => {
+                todo!()
             }
-            Self::PValid => {
-                checker.check(0, |t| true)?;
+            Op::MemDom => {
+                todo!()
             }
-            Self::PWeakValid => {
-                checker.check(0, |t| true)?;
+            Op::PValid => {
+                todo!()
             }
-            Self::PAlignValid => {
-                checker.check(0, |t| true)?;
+            Op::PWeakValid => {
+                todo!()
             }
-            Self::PGlobalValid => {
-                checker.check(0, |t| true)?;
+            Op::PAlignValid => {
+                todo!()
             }
-            Self::PArrayValid => {
-                checker.check(0, |t| true)?;
+            Op::PGlobalValid => {
+                todo!()
             }
-            Self::HTDUpdate => {
-                checker.check(0, |t| true)?;
+            Op::PArrayValid => {
+                todo!()
             }
-            Self::WordArrayAccess => {
-                checker.check(0, |t| true)?;
+            Op::HTDUpdate => {
+                todo!()
             }
-            Self::WordArrayUpdate => {
-                checker.check(0, |t| true)?;
+            Op::WordArrayAccess => {
+                todo!()
             }
-            Self::TokenWordsAccess => {
-                checker.check(0, |t| true)?;
+            Op::WordArrayUpdate => {
+                todo!()
             }
-            Self::TokenWordsUpdate => {
-                checker.check(0, |t| true)?;
+            Op::TokenWordsAccess => {
+                todo!()
             }
-            Self::ROData => {
-                checker.check(0, |t| true)?;
+            Op::TokenWordsUpdate => {
+                todo!()
             }
-            Self::StackWrapper => {
-                checker.check(0, |t| true)?;
+            Op::ROData => {
+                todo!()
             }
-            Self::ToFloatingPoint => {
-                checker.check(0, |t| true)?;
+            Op::StackWrapper => {
+                todo!()
             }
-            Self::ToFloatingPointSigned => {
-                checker.check(0, |t| true)?;
-            }
-            Self::ToFloatingPointUnsigned => {
-                checker.check(0, |t| true)?;
-            }
-            Self::FloatingPointCast => {
-                checker.check(0, |t| true)?;
+            Op::ToFloatingPoint => {
+                todo!()
             }
         }
         Ok(())
     }
 }
 
-struct OperandChecker<'a> {
-    op: &'a Op,
-    operands: &'a [Expr],
-}
-
-impl<'a> OperandChecker<'a> {
-    fn check(&self, i: usize, f: impl FnOnce(&Type) -> bool) -> Result<(), OpTypeError> {
-        let ty = &self.operands[i].ty;
-        if f(ty) {
-            Ok(())
-        } else {
-            Err(OpTypeError::IncorrectTypeOfOperand { op: *self.op, operand_index: i, operand_type: ty.clone() })
-        }
-    }
-}
-
 impl Expr {
     pub(crate) fn typecheck(&self) -> Result<(), OpTypeError> {
         match &self.value {
-            ExprValue::Op(op, operands) => op.typecheck(operands),
+            ExprValue::Op(op, operands) => op.typecheck(&self.ty, operands),
             _ => Ok(()),
         }
     }
@@ -865,7 +968,14 @@ pub(crate) enum OpTypeError {
     },
     IncorrectTypeOfOperand {
         op: Op,
-        operand_index: usize,
         operand_type: Type,
+    },
+    OperandTypeMismatch {
+        op: Op,
+        operand_type_1: Type,
+        operand_type_2: Type,
+    },
+    OperationTypeMismatch {
+        op: Op,
     },
 }

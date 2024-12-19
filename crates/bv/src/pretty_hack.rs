@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::abstract_syntax::{
-    Argument, Expr, ExprValue, File, Function, Ident, Node, NodeId, Op, Type, VarUpdate
+    Argument, Expr, ExprValue, File, Function, Ident, Node, NodeId, Op, Type, VarUpdate,
 };
 use crate::compat::{PairingsFile, ProblemProof, ProblemsFile, ProofsFile};
 use crate::pairing::{Eq, EqSide, Pairing, PairingId, Tag};
