@@ -117,7 +117,7 @@ mod pp {
             {
                 let mut file = t.read_problems_file();
                 file.problems.retain(|k, _| filter(&k.asm));
-                let s = pp(&file); 
+                let s = pp(&file);
                 ensure_dir_and_write(out.join("problems.rs"), s);
             }
         }
