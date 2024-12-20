@@ -358,8 +358,9 @@ impl ParseFromLine for Expr {
                 ExprValue::Num(num)
             }
             "Type" => {
-                ty = toks.parse()?;
-                ExprValue::Type
+                ty = Type::Type;
+                let ty_val = toks.parse()?;
+                ExprValue::Type(ty_val)
             }
             "Symbol" => {
                 let name = toks.parse()?;
@@ -397,9 +398,9 @@ impl ToTokens for Expr {
                 line.lower_hex_to_tokens(num);
                 line.to_tokens(ty);
             }
-            ExprValue::Type => {
+            ExprValue::Type(ty_val) => {
                 line.to_tokens("Type");
-                line.to_tokens(ty);
+                line.to_tokens(ty_val);
             }
             ExprValue::Symbol(name) => {
                 line.to_tokens("Symbol");

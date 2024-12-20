@@ -23,12 +23,12 @@ impl Function {
             if let ExprValue::Op(Op::PAlignValid, exprs) = &expr.value {
                 let (ty, p) = match exprs.as_slice() {
                     [Expr {
-                        ty,
-                        value: ExprValue::Type,
+                        ty: Type::Type,
+                        value: ExprValue::Type(ty_val),
                     }, p @ Expr {
                         ty: Type::Word(ptr_bits),
                         value: ExprValue::Var(_),
-                    }] if *ptr_bits == WORD_SIZE_BITS => (ty, p),
+                    }] if *ptr_bits == WORD_SIZE_BITS => (ty_val, p),
                     _ => panic!(),
                 };
                 *expr = mk_align_valid_ineq(ty, p);

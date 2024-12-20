@@ -794,7 +794,7 @@ pub(crate) enum ExprValue {
     Var(Ident),
     Op(Op, Vec<Expr>),
     Num(Num),
-    Type,
+    Type(Type),
     Symbol(Ident),
     Token(Ident),
 }
@@ -1231,6 +1231,14 @@ impl Expr {
     pub(crate) fn typecheck(&self) -> Result<(), OpTypeError> {
         match &self.value {
             ExprValue::Op(op, operands) => op.typecheck(&self.ty, operands),
+            ExprValue::Num(_) => match &self.ty {
+                Type::Word(_) => Ok(()),
+                _ => Err(OpTypeError::MistypedNum),
+            },
+            ExprValue::Type(_) => match &self.ty {
+                Type::Type => Ok(()),
+                _ => Err(OpTypeError::MistypedType),
+            },
             _ => Ok(()),
         }
     }
@@ -1254,4 +1262,6 @@ pub(crate) enum OpTypeError {
     OperationTypeMismatch {
         op: Op,
     },
+    MistypedNum,
+    MistypedType,
 }

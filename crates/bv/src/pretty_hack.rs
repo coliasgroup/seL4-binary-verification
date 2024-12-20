@@ -505,9 +505,9 @@ impl Expr {
                     #val
                 }
             }
-            ExprValue::Type => {
+            ExprValue::Type(ty_val) => {
                 quote! {
-                    Type
+                    #ty_val
                 }
             }
             ExprValue::Symbol(name) => {
