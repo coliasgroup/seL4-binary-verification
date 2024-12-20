@@ -12,14 +12,14 @@ use super::{HasNodeGraph, NodeGraph};
 impl File {
     pub(crate) fn typecheck(&self) -> Result<(), FileTypeError> {
         for (f_name, f) in &self.functions {
-            f.body()
-                .unwrap()
-                .node_graph()
-                .typecheck(f.input(), f.output())
-                .map_err(|err| FileTypeError {
-                    function: f_name.clone(),
-                    error: err,
-                })?;
+            if let Some(body) = f.body() {
+                body.node_graph()
+                    .typecheck(f.input(), f.output())
+                    .map_err(|err| FileTypeError {
+                        function: f_name.clone(),
+                        error: err,
+                    })?;
+            }
         }
         Ok(())
     }

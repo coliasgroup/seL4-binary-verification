@@ -955,18 +955,6 @@ impl<'a> ExprChecker<'a> {
         }
     }
 
-    fn check_ret(&self, f: impl FnOnce(&Type) -> bool) -> Result<(), OpTypeError> {
-        let ty = self.ty;
-        if f(ty) {
-            Ok(())
-        } else {
-            Err(OpTypeError::IncorrectTypeOfOperand {
-                op: *self.op,
-                operand_type: ty.clone(),
-            })
-        }
-    }
-
     fn ensure_equal<Ix>(&self, indices: Ix) -> Result<&Type, OpTypeError>
     where
         Ix: SliceIndex<[Expr], Output = [Expr]>,
@@ -1190,13 +1178,45 @@ impl<'a> ExprChecker<'a> {
                 self.check_op(Type::is_bool)?;
             }
             Op::HTDUpdate => {
-                todo!()
+                self.check(0, Type::is_type)?;
+                self.check(1, |ty| ty.is_word_with_size(32))?;
+                self.check(2, |ty| ty.is_word_with_size(32))?;
+                self.check(3, |ty| ty.is_word_with_size(32))?;
+                self.check(4, Type::is_htd)?;
+                self.check_op(Type::is_htd)?;
             }
             Op::WordArrayAccess => {
-                todo!()
+                let (length, bits) = {
+                    let ty = &self.operands[0].ty;
+                    match &self.operands[0].ty {
+                        Type::WordArray { length, bits } => (length, bits),
+                        _ => {
+                            return Err(OpTypeError::IncorrectTypeOfOperand {
+                                op: *self.op,
+                                operand_type: ty.clone(),
+                            })
+                        }
+                    }
+                };
+                self.check(1, |ty| ty.is_word_with_size(*length))?;
+                self.check_op(|ty| ty.is_word_with_size(*bits))?;
             }
             Op::WordArrayUpdate => {
-                todo!()
+                let (length, bits) = {
+                    let ty = &self.operands[0].ty;
+                    match &self.operands[0].ty {
+                        Type::WordArray { length, bits } => (length, bits),
+                        _ => {
+                            return Err(OpTypeError::IncorrectTypeOfOperand {
+                                op: *self.op,
+                                operand_type: ty.clone(),
+                            })
+                        }
+                    }
+                };
+                self.check(1, |ty| ty.is_word_with_size(*length))?;
+                self.check(2, |ty| ty.is_word_with_size(*bits))?;
+                self.check_op(|ty| ty == &self.operands[0].ty)?;
             }
             Op::TokenWordsAccess => {
                 todo!()
