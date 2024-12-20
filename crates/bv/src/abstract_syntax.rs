@@ -130,10 +130,26 @@ pub(crate) struct Argument {
 
 impl Argument {
     pub(crate) fn visit_var_decls(&self, f: &mut impl FnMut(&Ident, &Type)) {
+        self.try_visit_var_decls(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls<E>(
+        &self,
+        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         f(&self.name, &self.ty)
     }
 
     pub(crate) fn visit_var_decls_mut(&mut self, f: &mut impl FnMut(&mut Ident, &mut Type)) {
+        self.try_visit_var_decls_mut(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Ident, &mut Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         f(&mut self.name, &mut self.ty)
     }
 }
@@ -175,65 +191,115 @@ pub(crate) enum Node {
 
 impl Node {
     pub(crate) fn visit_exprs(&self, f: &mut impl FnMut(&Expr)) {
+        self.try_visit_exprs(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_exprs<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
         match self {
-            Self::Basic(basic) => basic.visit_exprs(f),
-            Self::Cond(cond) => cond.visit_exprs(f),
-            Self::Call(call) => call.visit_exprs(f),
+            Self::Basic(basic) => basic.try_visit_exprs(f),
+            Self::Cond(cond) => cond.try_visit_exprs(f),
+            Self::Call(call) => call.try_visit_exprs(f),
         }
     }
 
     pub(crate) fn visit_exprs_mut(&mut self, f: &mut impl FnMut(&mut Expr)) {
+        self.try_visit_exprs_mut(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_exprs_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
         match self {
-            Self::Basic(basic) => basic.visit_exprs_mut(f),
-            Self::Cond(cond) => cond.visit_exprs_mut(f),
-            Self::Call(call) => call.visit_exprs_mut(f),
+            Self::Basic(basic) => basic.try_visit_exprs_mut(f),
+            Self::Cond(cond) => cond.try_visit_exprs_mut(f),
+            Self::Call(call) => call.try_visit_exprs_mut(f),
         }
     }
 
     pub(crate) fn visit_var_decls(&self, f: &mut impl FnMut(&Ident, &Type)) {
+        self.try_visit_var_decls(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls<E>(
+        &self,
+        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         match self {
-            Self::Basic(basic) => basic.visit_var_decls(f),
-            Self::Cond(cond) => cond.visit_var_decls(f),
-            Self::Call(call) => call.visit_var_decls(f),
+            Self::Basic(basic) => basic.try_visit_var_decls(f),
+            Self::Cond(cond) => cond.try_visit_var_decls(f),
+            Self::Call(call) => call.try_visit_var_decls(f),
         }
     }
 
     pub(crate) fn visit_var_decls_mut(&mut self, f: &mut impl FnMut(&mut Ident, &mut Type)) {
+        self.try_visit_var_decls_mut(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Ident, &mut Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         match self {
-            Self::Basic(basic) => basic.visit_var_decls_mut(f),
-            Self::Cond(cond) => cond.visit_var_decls_mut(f),
-            Self::Call(call) => call.visit_var_decls_mut(f),
+            Self::Basic(basic) => basic.try_visit_var_decls_mut(f),
+            Self::Cond(cond) => cond.try_visit_var_decls_mut(f),
+            Self::Call(call) => call.try_visit_var_decls_mut(f),
         }
     }
 
     pub(crate) fn visit_conts(&self, mut f: impl FnMut(&NodeId)) {
+        self.try_visit_conts(|x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_conts<E>(
+        &self,
+        mut f: impl FnMut(&NodeId) -> Result<(), E>,
+    ) -> Result<(), E> {
         match self {
             Self::Basic(inner) => {
-                f(&inner.next);
+                f(&inner.next)?;
             }
             Self::Cond(inner) => {
-                f(&inner.left);
-                f(&inner.right);
+                f(&inner.left)?;
+                f(&inner.right)?;
             }
             Self::Call(inner) => {
-                f(&inner.next);
+                f(&inner.next)?;
             }
         }
+        Ok(())
     }
 
     pub(crate) fn visit_conts_mut(&mut self, mut f: impl FnMut(&mut NodeId)) {
+        self.try_visit_conts_mut(|x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_conts_mut<E>(
+        &mut self,
+        mut f: impl FnMut(&mut NodeId) -> Result<(), E>,
+    ) -> Result<(), E> {
         match self {
             Self::Basic(inner) => {
-                f(&mut inner.next);
+                f(&mut inner.next)?;
             }
             Self::Cond(inner) => {
-                f(&mut inner.left);
-                f(&mut inner.right);
+                f(&mut inner.left)?;
+                f(&mut inner.right)?;
             }
             Self::Call(inner) => {
-                f(&mut inner.next);
+                f(&mut inner.next)?;
             }
         }
+        Ok(())
     }
 
     pub(crate) fn conts(&self) -> ArrayVec<NodeId, 2> {
@@ -259,12 +325,14 @@ pub(crate) struct BasicNode {
 
 impl BasicNode {
     pub(crate) fn visit_exprs(&self, f: &mut impl FnMut(&Expr)) {
-        for var_update in &self.var_updates {
-            var_update.expr.visit_exprs(f);
-        }
+        self.try_visit_exprs(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
     }
 
-    pub(crate) fn try_visit_exprs<E>(&self, f: &mut impl FnMut(&Expr) -> Result<(), E>) -> Result<(), E> {
+    pub(crate) fn try_visit_exprs<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
         for var_update in &self.var_updates {
             var_update.expr.try_visit_exprs(f)?;
         }
@@ -272,21 +340,48 @@ impl BasicNode {
     }
 
     pub(crate) fn visit_exprs_mut(&mut self, f: &mut impl FnMut(&mut Expr)) {
+        self.try_visit_exprs_mut(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_exprs_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
         for var_update in &mut self.var_updates {
-            var_update.expr.visit_exprs_mut(f);
+            var_update.expr.try_visit_exprs_mut(f)?;
         }
+        Ok(())
     }
 
     pub(crate) fn visit_var_decls(&self, f: &mut impl FnMut(&Ident, &Type)) {
+        self.try_visit_var_decls(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls<E>(
+        &self,
+        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         for var_update in &self.var_updates {
-            var_update.visit_var_decls(f);
+            var_update.try_visit_var_decls(f)?;
         }
+        Ok(())
     }
 
     pub(crate) fn visit_var_decls_mut(&mut self, f: &mut impl FnMut(&mut Ident, &mut Type)) {
+        self.try_visit_var_decls_mut(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Ident, &mut Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         for var_update in &mut self.var_updates {
-            var_update.visit_var_decls_mut(f);
+            var_update.try_visit_var_decls_mut(f)?;
         }
+        Ok(())
     }
 }
 
@@ -299,16 +394,52 @@ pub(crate) struct CondNode {
 
 impl CondNode {
     pub(crate) fn visit_exprs(&self, f: &mut impl FnMut(&Expr)) {
-        self.expr.visit_exprs(f);
+        self.try_visit_exprs(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_exprs<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
+        self.expr.try_visit_exprs(f)
     }
 
     pub(crate) fn visit_exprs_mut(&mut self, f: &mut impl FnMut(&mut Expr)) {
-        self.expr.visit_exprs_mut(f);
+        self.try_visit_exprs_mut(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
     }
 
-    pub(crate) fn visit_var_decls(&self, _f: &mut impl FnMut(&Ident, &Type)) {}
+    pub(crate) fn try_visit_exprs_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
+        self.expr.try_visit_exprs_mut(f)
+    }
 
-    pub(crate) fn visit_var_decls_mut(&mut self, _f: &mut impl FnMut(&mut Ident, &mut Type)) {}
+    pub(crate) fn visit_var_decls(&self, f: &mut impl FnMut(&Ident, &Type)) {
+        self.try_visit_var_decls(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls<E>(
+        &self,
+        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    ) -> Result<(), E> {
+        Ok(())
+    }
+
+    pub(crate) fn visit_var_decls_mut(&mut self, f: &mut impl FnMut(&mut Ident, &mut Type)) {
+        self.try_visit_var_decls_mut(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Ident, &mut Type) -> Result<(), E>,
+    ) -> Result<(), E> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -321,27 +452,63 @@ pub(crate) struct CallNode {
 
 impl CallNode {
     pub(crate) fn visit_exprs(&self, f: &mut impl FnMut(&Expr)) {
+        self.try_visit_exprs(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_exprs<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
         for expr in &self.input {
-            expr.visit_exprs(f);
+            expr.try_visit_exprs(f)?;
         }
+        Ok(())
     }
 
     pub(crate) fn visit_exprs_mut(&mut self, f: &mut impl FnMut(&mut Expr)) {
+        self.try_visit_exprs_mut(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_exprs_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
         for expr in &mut self.input {
-            expr.visit_exprs_mut(f);
+            expr.try_visit_exprs_mut(f)?;
         }
+        Ok(())
     }
 
     pub(crate) fn visit_var_decls(&self, f: &mut impl FnMut(&Ident, &Type)) {
+        self.try_visit_var_decls(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls<E>(
+        &self,
+        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         for arg in &self.output {
-            arg.visit_var_decls(f);
+            arg.try_visit_var_decls(f)?;
         }
+        Ok(())
     }
 
     pub(crate) fn visit_var_decls_mut(&mut self, f: &mut impl FnMut(&mut Ident, &mut Type)) {
+        self.try_visit_var_decls_mut(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Ident, &mut Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         for arg in &mut self.output {
-            arg.visit_var_decls_mut(f);
+            arg.try_visit_var_decls_mut(f)?;
         }
+        Ok(())
     }
 }
 
@@ -354,10 +521,26 @@ pub(crate) struct VarUpdate {
 
 impl VarUpdate {
     pub(crate) fn visit_var_decls(&self, f: &mut impl FnMut(&Ident, &Type)) {
+        self.try_visit_var_decls(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls<E>(
+        &self,
+        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         f(&self.var_name, &self.ty)
     }
 
     pub(crate) fn visit_var_decls_mut(&mut self, f: &mut impl FnMut(&mut Ident, &mut Type)) {
+        self.try_visit_var_decls_mut(&mut |x, y| Ok::<(), Infallible>(f(x, y)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_decls_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Ident, &mut Type) -> Result<(), E>,
+    ) -> Result<(), E> {
         f(&mut self.var_name, &mut self.ty)
     }
 }
@@ -374,10 +557,14 @@ impl Expr {
     }
 
     pub(crate) fn visit_exprs(&self, f: &mut impl FnMut(&Expr)) {
-        self.try_visit_exprs(&mut |x| Ok::<(), Infallible>(f(x))).unwrap_or_else(|err| match err {})
+        self.try_visit_exprs(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
     }
 
-    pub(crate) fn try_visit_exprs<E>(&self, f: &mut impl FnMut(&Expr) -> Result<(), E>) -> Result<(), E> {
+    pub(crate) fn try_visit_exprs<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
         if let ExprValue::Op(_, exprs) = &self.value {
             for expr in exprs {
                 expr.try_visit_exprs(f)?;
@@ -387,12 +574,20 @@ impl Expr {
     }
 
     pub(crate) fn visit_exprs_mut(&mut self, f: &mut impl FnMut(&mut Expr)) {
+        self.try_visit_exprs_mut(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_exprs_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Expr) -> Result<(), E>,
+    ) -> Result<(), E> {
         if let ExprValue::Op(_, exprs) = &mut self.value {
             for expr in exprs {
-                expr.visit_exprs_mut(f);
+                expr.try_visit_exprs_mut(f)?;
             }
         }
-        f(self);
+        f(self)
     }
 
     pub(crate) fn mk_eq(self, rhs: Self) -> Self {

@@ -1,6 +1,6 @@
 use std::collections::{btree_map::Entry, BTreeMap};
 
-use crate::abstract_syntax::{Argument, Ident, Node, OpTypeError, Type};
+use crate::abstract_syntax::{Argument, Expr, ExprValue, Ident, Node, OpTypeError, Type};
 
 use super::{HasNodeGraph, NodeGraph};
 
@@ -10,20 +10,22 @@ impl<T: HasNodeGraph> NodeGraph<T> {
         input: &[Argument],
         output: &[Argument],
     ) -> Result<(), FunctionTypeError> {
+        for (_, node) in self.graph_nodes() {
+            node.try_visit_exprs(&mut |expr| expr.typecheck())
+                .map_err(FunctionTypeError::OpTypeError)?;
+        }
         let mut var_types = VariableTypes::new();
         var_types.admit_args(input)?;
         var_types.admit_args(output)?;
         for (_, node) in self.graph_nodes() {
-            todo!()
-            // node.try_visit_exprs(|expr| {
-            // })
+            var_types.admit_node(node)?;
         }
         Ok(())
     }
 }
 
 struct VariableTypes<'a> {
-    map: BTreeMap<&'a Ident, &'a Type>
+    map: BTreeMap<&'a Ident, &'a Type>,
 }
 
 impl<'a> VariableTypes<'a> {
@@ -58,7 +60,14 @@ impl<'a> VariableTypes<'a> {
         Ok(())
     }
 
-    fn admit_expr(&mut self, node: &'a Node) -> Result<(), FunctionTypeError> {
+    fn admit_node(&mut self, node: &'a Node) -> Result<(), FunctionTypeError> {
+        node.try_visit_exprs(&mut |expr| self.admit_expr(expr))
+    }
+
+    fn admit_expr(&mut self, expr: &'a Expr) -> Result<(), FunctionTypeError> {
+        if let ExprValue::Var(ident) = &expr.value {
+            self.admit(ident, &expr.ty)?;
+        }
         Ok(())
     }
 }
