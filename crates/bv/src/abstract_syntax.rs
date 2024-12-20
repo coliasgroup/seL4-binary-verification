@@ -424,7 +424,7 @@ impl CondNode {
 
     pub(crate) fn try_visit_var_decls<E>(
         &self,
-        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+        _f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
     ) -> Result<(), E> {
         Ok(())
     }
@@ -436,7 +436,7 @@ impl CondNode {
 
     pub(crate) fn try_visit_var_decls_mut<E>(
         &mut self,
-        f: &mut impl FnMut(&mut Ident, &mut Type) -> Result<(), E>,
+        _f: &mut impl FnMut(&mut Ident, &mut Type) -> Result<(), E>,
     ) -> Result<(), E> {
         Ok(())
     }
