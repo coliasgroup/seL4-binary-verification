@@ -252,11 +252,15 @@ mod tests {
     #[test]
     fn functions() {
         let t = t();
+        let theirs = t.read_functions_file();
+        let ours = t.build_functions_file();
+        theirs.typecheck().unwrap();
+        ours.typecheck().unwrap();
         eq_or_dump(
             "t/functions.txt",
             "txt",
-            t.read_functions_file().pretty_print(),
-            t.build_functions_file().pretty_print(),
+            theirs.pretty_print(),
+            ours.pretty_print(),
         );
     }
 
@@ -277,6 +281,8 @@ mod tests {
         let t = t();
         let theirs = t.read_problems_file();
         let mut ours = t.build_problems_file();
+        theirs.typecheck().unwrap();
+        ours.typecheck().unwrap();
         // graph-refine doesn't output aborted problems
         ours.problems.retain(|k, _| theirs.problems.contains_key(k));
         eq_or_dump(

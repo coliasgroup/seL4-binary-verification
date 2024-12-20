@@ -1,8 +1,55 @@
 use std::collections::{btree_map::Entry, BTreeMap};
 
-use crate::abstract_syntax::{Argument, Expr, ExprValue, Ident, Node, OpTypeError, Type};
+use crate::{abstract_syntax::{Argument, Expr, ExprValue, File, Ident, Node, OpTypeError, Type}, compat::ProblemsFile, pairing::{PairingId, Tag}, problem::Problem};
 
 use super::{HasNodeGraph, NodeGraph};
+
+impl File {
+    pub(crate) fn typecheck(&self) -> Result<(), FileTypeError> {
+        for (f_name, f) in &self.functions {
+            f.body().unwrap().node_graph().typecheck(
+                f.input(),
+                f.output(),
+            ).map_err(|err| FileTypeError {
+                function: f_name.clone(),
+                error: err,
+            })?;
+        }
+        Ok(())
+    }
+}
+
+impl ProblemsFile {
+    pub(crate) fn typecheck(&self) -> Result<(), ProblemsFileTypeError> {
+        for (pairing, problem) in &self.problems {
+            problem.typecheck().map_err(|err| ProblemsFileTypeError {
+                pairing: pairing.clone(),
+                error: err,
+            })?;
+        }
+        Ok(())
+    }
+}
+
+impl Problem {
+    pub(crate) fn typecheck(&self) -> Result<(), ProblemTypeError> {
+        self.nodes.node_graph().typecheck(
+            &self.c.input,
+            &self.c.output,
+        ).map_err(|err| ProblemTypeError {
+            tag: Tag::C,
+            error: err,
+        })?;
+        self.nodes.node_graph().typecheck(
+            &self.asm.input,
+            &self.asm.output,
+        ).map_err(|err| ProblemTypeError {
+            tag: Tag::Asm,
+            error: err,
+        })?;
+        Ok(())
+    }
+}
 
 impl<T: HasNodeGraph> NodeGraph<T> {
     pub(crate) fn typecheck(
@@ -76,4 +123,22 @@ impl<'a> VariableTypes<'a> {
 pub(crate) enum FunctionTypeError {
     OpTypeError(OpTypeError),
     InconsistentVariableType(Ident),
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub(crate) struct FileTypeError {
+    function: Ident,
+    error: FunctionTypeError,
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub(crate) struct ProblemsFileTypeError {
+    pairing: PairingId,
+    error: ProblemTypeError,
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub(crate) struct ProblemTypeError {
+    tag: Tag,
+    error: FunctionTypeError,
 }
