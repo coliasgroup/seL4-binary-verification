@@ -8,7 +8,9 @@ use arrayvec::ArrayVec;
 use num::BigInt;
 
 use crate::arch::WORD_SIZE_BITS;
-use crate::graph::{HasNodeGraph, HasNodeGraphWithNodeAddrBound};
+use crate::graph::{
+    HasFunctionSignature, HasNodeGraph, HasNodeGraphWithNodeAddrBound, MightHaveNodeGraphWithEntry,
+};
 
 pub(crate) type Ident = String;
 
@@ -92,6 +94,24 @@ impl Function {
     }
 }
 
+impl MightHaveNodeGraphWithEntry for Function {
+    type NodeGraph<'a> = &'a FunctionBody;
+
+    fn node_graph_option(&self) -> Option<Self::NodeGraph<'_>> {
+        self.body()
+    }
+}
+
+impl HasFunctionSignature for Function {
+    fn graph_input(&self) -> &[Argument] {
+        self.input()
+    }
+
+    fn graph_output(&self) -> &[Argument] {
+        self.output()
+    }
+}
+
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct FunctionBody {
     pub(crate) entry_point: NodeId,
@@ -134,9 +154,9 @@ impl Argument {
             .unwrap_or_else(|err| match err {})
     }
 
-    pub(crate) fn try_visit_var_decls<E>(
-        &self,
-        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    pub(crate) fn try_visit_var_decls<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Ident, &'a Type) -> Result<(), E>,
     ) -> Result<(), E> {
         f(&self.name, &self.ty)
     }
@@ -227,9 +247,9 @@ impl Node {
             .unwrap_or_else(|err| match err {})
     }
 
-    pub(crate) fn try_visit_var_decls<E>(
-        &self,
-        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    pub(crate) fn try_visit_var_decls<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Ident, &'a Type) -> Result<(), E>,
     ) -> Result<(), E> {
         match self {
             Self::Basic(basic) => basic.try_visit_var_decls(f),
@@ -359,9 +379,9 @@ impl BasicNode {
             .unwrap_or_else(|err| match err {})
     }
 
-    pub(crate) fn try_visit_var_decls<E>(
-        &self,
-        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    pub(crate) fn try_visit_var_decls<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Ident, &'a Type) -> Result<(), E>,
     ) -> Result<(), E> {
         for var_update in &self.var_updates {
             var_update.try_visit_var_decls(f)?;
@@ -422,9 +442,9 @@ impl CondNode {
             .unwrap_or_else(|err| match err {})
     }
 
-    pub(crate) fn try_visit_var_decls<E>(
-        &self,
-        _f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    pub(crate) fn try_visit_var_decls<'a, E>(
+        &'a self,
+        _f: &mut impl FnMut(&'a Ident, &'a Type) -> Result<(), E>,
     ) -> Result<(), E> {
         Ok(())
     }
@@ -486,9 +506,9 @@ impl CallNode {
             .unwrap_or_else(|err| match err {})
     }
 
-    pub(crate) fn try_visit_var_decls<E>(
-        &self,
-        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    pub(crate) fn try_visit_var_decls<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Ident, &'a Type) -> Result<(), E>,
     ) -> Result<(), E> {
         for arg in &self.output {
             arg.try_visit_var_decls(f)?;
@@ -525,9 +545,9 @@ impl VarUpdate {
             .unwrap_or_else(|err| match err {})
     }
 
-    pub(crate) fn try_visit_var_decls<E>(
-        &self,
-        f: &mut impl FnMut(&Ident, &Type) -> Result<(), E>,
+    pub(crate) fn try_visit_var_decls<'a, E>(
+        &'a self,
+        f: &mut impl FnMut(&'a Ident, &'a Type) -> Result<(), E>,
     ) -> Result<(), E> {
         f(&self.var_name, &self.ty)
     }
