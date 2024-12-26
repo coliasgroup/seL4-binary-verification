@@ -610,6 +610,14 @@ impl Expr {
         f(self)
     }
 
+    pub(crate) fn mk_true() -> Self {
+        Self::new(Type::Bool, Op::True.mk(&[]))
+    }
+
+    pub(crate) fn mk_false() -> Self {
+        Self::new(Type::Bool, Op::False.mk(&[]))
+    }
+
     pub(crate) fn mk_eq(self, rhs: Self) -> Self {
         assert_eq!(self.ty, rhs.ty);
         Self::new(Type::Bool, Op::Equals.mk(&[self, rhs]))
@@ -685,6 +693,11 @@ impl Expr {
 
     pub(crate) fn mk_machine_word_var(name: Ident) -> Self {
         Self::mk_var(name, Type::mk_machine_word())
+    }
+
+    pub(crate) fn mk_rodata(self) -> Self {
+        assert_eq!(self.ty, Type::Mem);
+        Self::new(Type::Bool, Op::ROData.mk(&[self]))
     }
 }
 
