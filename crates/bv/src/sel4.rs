@@ -192,19 +192,21 @@ impl TargetDir {
             let f_asm_name = &pairing_id.asm;
             let f_c = &c[f_c_name];
             let f_asm = &asm[f_asm_name];
-            let mut builder = ProblemBuilder::new(&f_c_name, f_c, f_asm_name, f_asm);
-            if let Some(inlines) = inline_scripts.get(&pairing_id) {
-                for inline in inlines {
-                    builder.inline(inline, |tag, f_name| {
-                        &(match tag {
-                            Tag::C => &c,
-                            Tag::Asm => &asm,
-                        })[f_name]
-                    });
+            if f_asm.body().is_some() && f_c.body().is_some() {
+                let mut builder = ProblemBuilder::new(&f_c_name, f_c, f_asm_name, f_asm);
+                if let Some(inlines) = inline_scripts.get(&pairing_id) {
+                    for inline in inlines {
+                        builder.inline(inline, |tag, f_name| {
+                            &(match tag {
+                                Tag::C => &c,
+                                Tag::Asm => &asm,
+                            })[f_name]
+                        });
+                    }
                 }
+                let problem = builder.build();
+                problems.insert(pairing_id.clone(), problem);
             }
-            let problem = builder.build();
-            problems.insert(pairing_id.clone(), problem);
         }
 
         problems
