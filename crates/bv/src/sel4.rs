@@ -137,7 +137,7 @@ impl TargetDir {
     pub(crate) fn build_functions_file(&self) -> File {
         let mut asm = self.altered_asm_functions();
         let mut c = self.altered_c_functions();
-        add_asm_inst_spec(&mut asm, &mut c);
+        add_asm_inst_spec(&mut asm, &mut c, &mut Default::default());
 
         let mut functions = asm;
         functions.extend(c.into_iter());
@@ -148,13 +148,13 @@ impl TargetDir {
     }
 
     pub(crate) fn build_pairings(&self) -> BTreeMap<PairingId, Pairing> {
-        let mut asm = self.altered_asm_functions();
-        let mut c = self.altered_c_functions();
-        add_asm_inst_spec(&mut asm, &mut c);
-
         let stack_bounds = &self.read_stack_bounds();
 
+        let mut asm = self.altered_asm_functions();
+        let mut c = self.altered_c_functions();
         let mut pairings = BTreeMap::new();
+
+        add_asm_inst_spec(&mut asm, &mut c, &mut pairings);
 
         for (f_asm_name, f_asm) in asm.iter() {
             let f_c_name = format!("Kernel_C.{}", f_asm_name);
@@ -183,9 +183,9 @@ impl TargetDir {
         let inline_scripts = &self.read_inline_scripts();
         let mut asm = self.altered_asm_functions();
         let mut c = self.altered_c_functions();
-        add_asm_inst_spec(&mut asm, &mut c);
-
         let pairings = self.build_pairings();
+
+        add_asm_inst_spec(&mut asm, &mut c, &mut Default::default());
 
         let mut problems = BTreeMap::new();
 

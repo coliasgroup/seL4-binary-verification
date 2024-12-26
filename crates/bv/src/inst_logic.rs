@@ -7,10 +7,12 @@ use crate::abstract_syntax::{
 };
 use crate::arch::WORD_SIZE_BITS;
 use crate::logic::split_scalar_pairs;
+use crate::pairing::{Pairing, PairingId};
 
 pub(crate) fn add_asm_inst_spec(
     asm_functions: &mut BTreeMap<Ident, Function>,
     c_functions: &mut BTreeMap<Ident, Function>,
+    pairings: &mut BTreeMap<PairingId, Pairing>,
 ) {
     let mut new_idents = BTreeSet::new();
     let mut unhandled = BTreeSet::new();
