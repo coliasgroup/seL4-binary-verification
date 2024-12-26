@@ -156,18 +156,16 @@ impl TargetDir {
 
         add_asm_inst_spec(&mut asm, &mut c, &mut pairings);
 
-        for (f_asm_name, f_asm) in asm.iter() {
+        for f_asm_name in asm.keys() {
             let f_c_name = format!("Kernel_C.{}", f_asm_name);
             if let Some(f_c) = c.get(&f_c_name) {
-                if f_asm.body().is_some() && f_c.body().is_some() {
-                    let pairing_id = PairingId {
-                        asm: f_asm_name.clone(),
-                        c: f_c_name.clone(),
-                    };
-                    let min_stack_size = &stack_bounds[f_asm_name];
-                    let pairing = Pairing::formulate(min_stack_size, &f_c.input, &f_c.output);
-                    pairings.insert(pairing_id, pairing);
-                }
+                let pairing_id = PairingId {
+                    asm: f_asm_name.clone(),
+                    c: f_c_name.clone(),
+                };
+                let min_stack_size = &stack_bounds[f_asm_name];
+                let pairing = Pairing::formulate(min_stack_size, &f_c.input, &f_c.output);
+                pairings.insert(pairing_id, pairing);
             }
         }
 
@@ -273,6 +271,24 @@ mod tests {
             "txt",
             t.read_pairings_file().pretty_print(),
             t.build_pairings_file().pretty_print(),
+        );
+    }
+
+    #[test]
+    #[ignore]
+    fn common_pairings() {
+        let t = t();
+        let mut theirs = t.read_pairings_file();
+        let ours = t.build_pairings_file();
+        theirs.pairings.retain(|pairing, _| {
+            let pairing = &ours.pairings[pairing];
+            pairing.in_eqs.len() != 0 && pairing.out_eqs.len() != 0
+        });
+        eq_or_dump(
+            "t/pairings.txt",
+            "txt",
+            theirs.pretty_print(),
+            ours.pretty_print(),
         );
     }
 

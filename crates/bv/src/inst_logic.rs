@@ -77,8 +77,20 @@ pub(crate) fn add_asm_inst_spec(
             output,
             body: None,
         };
-        asm_functions.insert(format!("l_{impl_name}"), new_f.clone());
-        c_functions.insert(format!("r_{impl_name}"), new_f.clone());
+        let new_asm_f_name = format!("l_{impl_name}");
+        let new_c_f_name = format!("r_{impl_name}");
+        let pairing_id = PairingId {
+            asm: new_asm_f_name.clone(),
+            c: new_c_f_name.clone(),
+        };
+
+        asm_functions.insert(new_asm_f_name, new_f.clone());
+        c_functions.insert(new_c_f_name, new_f.clone());
+
+        let in_eqs = vec![];
+        let out_eqs = vec![];
+        let pairing = Pairing { in_eqs, out_eqs };
+        pairings.insert(pairing_id, pairing);
     }
     // TODO
     // log::warn!("unhandled: {unhandled:#?}");
