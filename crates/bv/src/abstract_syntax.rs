@@ -699,6 +699,10 @@ impl Expr {
         Self::new(ty, ExprValue::Var(name))
     }
 
+    pub(crate) fn mk_var_from_arg(arg: &Argument) -> Self {
+        Self::mk_var(arg.name.clone(), arg.ty.clone())
+    }
+
     pub(crate) fn mk_word_var(name: Ident, bits: u64) -> Self {
         Self::mk_var(name, Type::Word(bits))
     }

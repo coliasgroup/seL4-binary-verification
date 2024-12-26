@@ -87,7 +87,7 @@ impl Pairing {
         var_c_args: &[Argument],
         var_c_rets: &[Argument],
         c_imem: &[Argument],
-        o_omem: &[Argument],
+        c_omem: &[Argument],
     ) -> Self {
         let mut in_eqs = vec![];
         let mut out_eqs = vec![];
@@ -114,6 +114,36 @@ impl Pairing {
             post_eqs.push((r[i].clone(), r[i].clone()));
         }
 
+        let mem_ieqs = match c_imem {
+            [] => vec![ASM_IN
+                .side(asm_mem.clone().mk_rodata())
+                .mk_eq(C_IN.side(Expr::mk_true()))],
+            [c_imem] => vec![
+                ASM_IN
+                    .side(asm_mem.clone())
+                    .mk_eq(C_IN.side(Expr::mk_var_from_arg(c_imem))),
+                C_IN.side(Expr::mk_var_from_arg(c_imem).mk_rodata())
+                    .mk_eq(C_IN.side(Expr::mk_true())),
+            ],
+            _ => panic!(),
+        };
+
+        let mem_oeqs = match c_omem {
+            [] => vec![ASM_OUT
+                .side(asm_mem.clone())
+                .mk_eq(ASM_IN.side(asm_mem.clone()))],
+            [c_omem] => vec![
+                ASM_OUT
+                    .side(asm_mem.clone())
+                    .mk_eq(C_OUT.side(Expr::mk_var_from_arg(c_omem))),
+                C_OUT
+                    .side(Expr::mk_var_from_arg(c_omem).mk_rodata())
+                    .mk_eq(C_OUT.side(Expr::mk_true())),
+            ],
+            _ => panic!(),
+        };
+
+        in_eqs.extend(mem_ieqs);
         in_eqs.extend(
             preconds
                 .into_iter()
@@ -123,6 +153,8 @@ impl Pairing {
         let asm_invs = post_eqs
             .into_iter()
             .map(|(vin, vout)| ASM_IN.side(vin).mk_eq(ASM_OUT.side(vout)));
+
+        out_eqs.extend(mem_oeqs);
         out_eqs.extend(asm_invs);
 
         Self { in_eqs, out_eqs }
