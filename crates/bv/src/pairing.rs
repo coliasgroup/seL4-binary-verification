@@ -148,10 +148,7 @@ pub(crate) struct Eq {
 
 impl Eq {
     pub(crate) fn new(lhs: EqSide, rhs: EqSide) -> Self {
-        Self {
-            lhs,
-            rhs,
-        }
+        Self { lhs, rhs }
     }
 }
 
@@ -179,10 +176,7 @@ pub(crate) struct EqSide {
 
 impl EqSide {
     pub(crate) fn new(quadrant: EqSideQuadrant, expr: Expr) -> Self {
-        Self {
-            quadrant,
-            expr,
-        }
+        Self { quadrant, expr }
     }
 
     pub(crate) fn mk_eq(self, rhs: Self) -> Eq {
@@ -214,10 +208,7 @@ pub(crate) struct EqSideQuadrant {
 
 impl EqSideQuadrant {
     pub(crate) const fn new(tag: Tag, direction: EqDirection) -> Self {
-        Self {
-            tag,
-            direction,
-        }
+        Self { tag, direction }
     }
 
     pub(crate) fn side(self, expr: Expr) -> EqSide {

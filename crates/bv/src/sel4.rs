@@ -284,9 +284,8 @@ mod tests {
             let pairing = &ours.pairings[pairing];
             pairing.in_eqs.len() != 0 && pairing.out_eqs.len() != 0
         });
-        ours.pairings.retain(|pairing, _| {
-            theirs.pairings.contains_key(pairing)
-        });
+        ours.pairings
+            .retain(|pairing, _| theirs.pairings.contains_key(pairing));
         eq_or_dump(
             "t/pairings.txt",
             "txt",

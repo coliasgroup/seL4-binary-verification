@@ -87,16 +87,36 @@ pub(crate) fn add_asm_inst_spec(
         asm_functions.insert(new_asm_f_name, new_f.clone());
         c_functions.insert(new_c_f_name, new_f.clone());
 
-        let mut in_eqs = new_f.input.iter().map(|arg| {
-            let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
-            EqSideQuadrant::ASM_IN.side(expr.clone()).mk_eq(EqSideQuadrant::C_IN.side(expr.clone()))
-        }).collect::<Vec<_>>();
-        in_eqs.push(EqSideQuadrant::ASM_IN.side(Expr::mk_var("mem".to_owned(), Type::Mem).mk_rodata()).mk_eq(EqSideQuadrant::C_IN.side(Expr::mk_true())));
-        let mut out_eqs = new_f.output.iter().map(|arg| {
-            let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
-            EqSideQuadrant::ASM_OUT.side(expr.clone()).mk_eq(EqSideQuadrant::C_OUT.side(expr.clone()))
-        }).collect::<Vec<_>>();
-        out_eqs.push(EqSideQuadrant::ASM_OUT.side(Expr::mk_var("mem".to_owned(), Type::Mem).mk_rodata()).mk_eq(EqSideQuadrant::C_OUT.side(Expr::mk_true())));
+        let mut in_eqs = new_f
+            .input
+            .iter()
+            .map(|arg| {
+                let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
+                EqSideQuadrant::ASM_IN
+                    .side(expr.clone())
+                    .mk_eq(EqSideQuadrant::C_IN.side(expr.clone()))
+            })
+            .collect::<Vec<_>>();
+        in_eqs.push(
+            EqSideQuadrant::ASM_IN
+                .side(Expr::mk_var("mem".to_owned(), Type::Mem).mk_rodata())
+                .mk_eq(EqSideQuadrant::C_IN.side(Expr::mk_true())),
+        );
+        let mut out_eqs = new_f
+            .output
+            .iter()
+            .map(|arg| {
+                let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
+                EqSideQuadrant::ASM_OUT
+                    .side(expr.clone())
+                    .mk_eq(EqSideQuadrant::C_OUT.side(expr.clone()))
+            })
+            .collect::<Vec<_>>();
+        out_eqs.push(
+            EqSideQuadrant::ASM_OUT
+                .side(Expr::mk_var("mem".to_owned(), Type::Mem).mk_rodata())
+                .mk_eq(EqSideQuadrant::C_OUT.side(Expr::mk_true())),
+        );
         let pairing = Pairing { in_eqs, out_eqs };
         pairings.insert(pairing_id, pairing);
     }
