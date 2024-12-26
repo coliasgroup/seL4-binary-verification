@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::f32::consts::E;
 
 use regex::Regex;
 
@@ -7,7 +8,7 @@ use crate::abstract_syntax::{
 };
 use crate::arch::WORD_SIZE_BITS;
 use crate::logic::split_scalar_pairs;
-use crate::pairing::{Pairing, PairingId};
+use crate::pairing::{self, EqSideQuadrant, Pairing, PairingId};
 
 pub(crate) fn add_asm_inst_spec(
     asm_functions: &mut BTreeMap<Ident, Function>,
@@ -87,8 +88,14 @@ pub(crate) fn add_asm_inst_spec(
         asm_functions.insert(new_asm_f_name, new_f.clone());
         c_functions.insert(new_c_f_name, new_f.clone());
 
-        let in_eqs = vec![];
-        let out_eqs = vec![];
+        let mut in_eqs = new_f.input.iter().map(|arg| {
+            let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
+            EqSideQuadrant::ASM_IN.side(expr.clone()).mk_eq(EqSideQuadrant::C_IN.side(expr.clone()))
+        }).collect();
+        let mut out_eqs = new_f.output.iter().map(|arg| {
+            let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
+            EqSideQuadrant::ASM_OUT.side(expr.clone()).mk_eq(EqSideQuadrant::C_OUT.side(expr.clone()))
+        }).collect();
         let pairing = Pairing { in_eqs, out_eqs };
         pairings.insert(pairing_id, pairing);
     }

@@ -146,6 +146,15 @@ pub(crate) struct Eq {
     pub(crate) rhs: EqSide,
 }
 
+impl Eq {
+    pub(crate) fn new(lhs: EqSide, rhs: EqSide) -> Self {
+        Self {
+            lhs,
+            rhs,
+        }
+    }
+}
+
 impl ParseFromLine for Eq {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
         Ok(Self {
@@ -168,6 +177,19 @@ pub(crate) struct EqSide {
     pub(crate) expr: Expr,
 }
 
+impl EqSide {
+    pub(crate) fn new(quadrant: EqSideQuadrant, expr: Expr) -> Self {
+        Self {
+            quadrant,
+            expr,
+        }
+    }
+
+    pub(crate) fn mk_eq(self, rhs: Self) -> Eq {
+        Eq::new(self, rhs)
+    }
+}
+
 impl ParseFromLine for EqSide {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
         Ok(Self {
@@ -188,6 +210,24 @@ impl ToTokens for EqSide {
 pub(crate) struct EqSideQuadrant {
     pub(crate) tag: Tag,
     pub(crate) direction: EqDirection,
+}
+
+impl EqSideQuadrant {
+    pub(crate) const fn new(tag: Tag, direction: EqDirection) -> Self {
+        Self {
+            tag,
+            direction,
+        }
+    }
+
+    pub(crate) fn side(self, expr: Expr) -> EqSide {
+        EqSide::new(self, expr)
+    }
+
+    pub(crate) const ASM_IN: Self = Self::new(Tag::Asm, EqDirection::In);
+    pub(crate) const ASM_OUT: Self = Self::new(Tag::Asm, EqDirection::Out);
+    pub(crate) const C_IN: Self = Self::new(Tag::C, EqDirection::In);
+    pub(crate) const C_OUT: Self = Self::new(Tag::C, EqDirection::Out);
 }
 
 impl ParseFromLine for EqSideQuadrant {

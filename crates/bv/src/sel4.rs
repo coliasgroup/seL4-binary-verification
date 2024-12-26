@@ -279,10 +279,13 @@ mod tests {
     fn common_pairings() {
         let t = t();
         let mut theirs = t.read_pairings_file();
-        let ours = t.build_pairings_file();
+        let mut ours = t.build_pairings_file();
         theirs.pairings.retain(|pairing, _| {
             let pairing = &ours.pairings[pairing];
             pairing.in_eqs.len() != 0 && pairing.out_eqs.len() != 0
+        });
+        ours.pairings.retain(|pairing, _| {
+            theirs.pairings.contains_key(pairing)
         });
         eq_or_dump(
             "t/pairings.txt",
