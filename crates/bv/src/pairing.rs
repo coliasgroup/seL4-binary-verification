@@ -91,12 +91,22 @@ impl Pairing {
     ) -> Self {
         let mut in_eqs = vec![];
         let mut out_eqs = vec![];
-        let r = (0..=13)
+        let r = (0..=14)
             .map(|i| Expr::mk_machine_word_var(format!("r{i}")))
             .collect::<Vec<_>>();
         let stack_pointer = &r[13];
         let stack = Expr::mk_var("stack".to_owned(), Type::Mem);
         let asm_mem = Expr::mk_var("mem".to_owned(), Type::Mem);
+
+        let ret = Expr::mk_machine_word_var("ret".to_owned());
+
+        let mut preconds = vec![];
+
+        preconds.push(stack_pointer.clone().mk_aligned(2));
+        preconds.push(ret.clone().mk_eq(r[14].clone()));
+
+        in_eqs.extend(preconds.into_iter().map(|expr| ASM_IN.side(expr).mk_eq(ASM_IN.side(Expr::mk_true()))));
+
         Self { in_eqs, out_eqs }
     }
 
@@ -214,12 +224,12 @@ impl EqSideQuadrant {
     pub(crate) fn side(self, expr: Expr) -> EqSide {
         EqSide::new(self, expr)
     }
-
-    pub(crate) const ASM_IN: Self = Self::new(Tag::Asm, EqDirection::In);
-    pub(crate) const ASM_OUT: Self = Self::new(Tag::Asm, EqDirection::Out);
-    pub(crate) const C_IN: Self = Self::new(Tag::C, EqDirection::In);
-    pub(crate) const C_OUT: Self = Self::new(Tag::C, EqDirection::Out);
 }
+
+pub(crate) const ASM_IN: EqSideQuadrant = EqSideQuadrant::new(Tag::Asm, EqDirection::In);
+pub(crate) const ASM_OUT: EqSideQuadrant = EqSideQuadrant::new(Tag::Asm, EqDirection::Out);
+pub(crate) const C_IN: EqSideQuadrant = EqSideQuadrant::new(Tag::C, EqDirection::In);
+pub(crate) const C_OUT: EqSideQuadrant = EqSideQuadrant::new(Tag::C, EqDirection::Out);
 
 impl ParseFromLine for EqSideQuadrant {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {

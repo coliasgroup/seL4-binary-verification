@@ -618,9 +618,20 @@ impl Expr {
         Self::new(Type::Bool, Op::False.mk(&[]))
     }
 
+    pub(crate) fn mk_word(val: Num, bits: u64) -> Self {
+        Self::new(Type::Word(bits), ExprValue::Num(val))
+    }
+
     pub(crate) fn mk_eq(self, rhs: Self) -> Self {
         assert_eq!(self.ty, rhs.ty);
         Self::new(Type::Bool, Op::Equals.mk(&[self, rhs]))
+    }
+
+    pub(crate) fn mk_aligned(self, n: u64) -> Self {
+        assert!(self.ty.is_word());
+        let bits = self.ty.as_word().unwrap();
+        let mask = Self::mk_word((Num::from(1) << n) - 1, bits);
+        self.mk_bitwise_and(mask).mk_eq(Self::mk_word(0.into(), bits))
     }
 
     pub(crate) fn mk_and(self, rhs: Self) -> Self {
