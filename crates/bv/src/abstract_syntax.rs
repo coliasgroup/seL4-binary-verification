@@ -631,7 +631,8 @@ impl Expr {
         assert!(self.ty.is_word());
         let bits = self.ty.as_word().unwrap();
         let mask = Self::mk_word((Num::from(1) << n) - 1, bits);
-        self.mk_bitwise_and(mask).mk_eq(Self::mk_word(0.into(), bits))
+        self.mk_bitwise_and(mask)
+            .mk_eq(Self::mk_word(0.into(), bits))
     }
 
     pub(crate) fn mk_and(self, rhs: Self) -> Self {

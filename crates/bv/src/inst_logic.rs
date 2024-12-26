@@ -92,9 +92,7 @@ pub(crate) fn add_asm_inst_spec(
             .iter()
             .map(|arg| {
                 let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
-                ASM_IN
-                    .side(expr.clone())
-                    .mk_eq(C_IN.side(expr.clone()))
+                ASM_IN.side(expr.clone()).mk_eq(C_IN.side(expr.clone()))
             })
             .collect::<Vec<_>>();
         in_eqs.push(
@@ -107,9 +105,7 @@ pub(crate) fn add_asm_inst_spec(
             .iter()
             .map(|arg| {
                 let expr = Expr::mk_var(arg.name.clone(), arg.ty.clone());
-                ASM_OUT
-                    .side(expr.clone())
-                    .mk_eq(C_OUT.side(expr.clone()))
+                ASM_OUT.side(expr.clone()).mk_eq(C_OUT.side(expr.clone()))
             })
             .collect::<Vec<_>>();
         out_eqs.push(

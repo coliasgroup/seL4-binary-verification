@@ -114,9 +114,15 @@ impl Pairing {
             post_eqs.push((r[i].clone(), r[i].clone()));
         }
 
-        in_eqs.extend(preconds.into_iter().map(|expr| ASM_IN.side(expr).mk_eq(ASM_IN.side(Expr::mk_true()))));
+        in_eqs.extend(
+            preconds
+                .into_iter()
+                .map(|expr| ASM_IN.side(expr).mk_eq(ASM_IN.side(Expr::mk_true()))),
+        );
 
-        let asm_invs = post_eqs.into_iter().map(|(vin, vout)| ASM_IN.side(vin).mk_eq(ASM_OUT.side(vout)));
+        let asm_invs = post_eqs
+            .into_iter()
+            .map(|(vin, vout)| ASM_IN.side(vin).mk_eq(ASM_OUT.side(vout)));
         out_eqs.extend(asm_invs);
 
         Self { in_eqs, out_eqs }
