@@ -1,6 +1,6 @@
 #![allow(warnings)]
 
-use std::fmt;
+use std::{fmt, iter};
 
 use regex::Regex;
 
@@ -102,6 +102,7 @@ impl Pairing {
         let ret = Expr::mk_machine_word_var("ret".to_owned());
 
         let mut preconds = vec![];
+        let mut post_eqs = vec![];
 
         preconds.push(stack_pointer.clone().mk_aligned(2));
         preconds.push(ret.clone().mk_eq(r[14].clone()));
@@ -109,7 +110,14 @@ impl Pairing {
         preconds.push(r0_input.clone().mk_eq(r[0].clone()));
         preconds.push(min_stack_size.clone().mk_less_eq(stack_pointer.clone()));
 
+        for i in (4..=11).chain(iter::once(13)) {
+            post_eqs.push((r[i].clone(), r[i].clone()));
+        }
+
         in_eqs.extend(preconds.into_iter().map(|expr| ASM_IN.side(expr).mk_eq(ASM_IN.side(Expr::mk_true()))));
+
+        let asm_invs = post_eqs.into_iter().map(|(vin, vout)| ASM_IN.side(vin).mk_eq(ASM_OUT.side(vout)));
+        out_eqs.extend(asm_invs);
 
         Self { in_eqs, out_eqs }
     }
