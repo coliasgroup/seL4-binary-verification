@@ -96,6 +96,7 @@ impl Pairing {
             .collect::<Vec<_>>();
         let stack_pointer = &r[13];
         let stack = Expr::mk_var("stack".to_owned(), Type::Mem);
+        let r0_input = Expr::mk_machine_word_var("ret_addr_input".to_owned());
         let asm_mem = Expr::mk_var("mem".to_owned(), Type::Mem);
 
         let ret = Expr::mk_machine_word_var("ret".to_owned());
@@ -104,6 +105,9 @@ impl Pairing {
 
         preconds.push(stack_pointer.clone().mk_aligned(2));
         preconds.push(ret.clone().mk_eq(r[14].clone()));
+        preconds.push(ret.clone().mk_aligned(2));
+        preconds.push(r0_input.clone().mk_eq(r[0].clone()));
+        preconds.push(min_stack_size.clone().mk_less_eq(stack_pointer.clone()));
 
         in_eqs.extend(preconds.into_iter().map(|expr| ASM_IN.side(expr).mk_eq(ASM_IN.side(Expr::mk_true()))));
 
