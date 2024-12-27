@@ -114,6 +114,18 @@ impl Pairing {
             post_eqs.push((r[i].clone(), r[i].clone()));
         }
 
+        let mut arg_seq = vec![];
+        for i in 0..=3 {
+            arg_seq.push((r[i].clone(), None));
+        }
+        arg_seq.extend(mk_stack_sequence(&stack_pointer, 4, &stack, &Type::mk_machine_word(), var_c_args.len() + 1));
+
+        if var_c_rets.len() <= 1 {
+
+        } else {
+            eprintln!("todo");
+        }
+
         let mem_ieqs = match c_imem {
             [] => vec![ASM_IN
                 .side(asm_mem.clone().mk_rodata())
@@ -177,6 +189,15 @@ impl Pairing {
         block.push_line_with(|line| line.to_tokens("EndPairing"));
         block
     }
+}
+
+fn mk_stack_sequence(sp: &Expr, offs: usize, stack: &Expr, ty: &Type, n: usize) -> Vec<(Expr, Option<u64>)> {
+    let mut seq = vec![];
+    for i in 0..n {
+        let expr = Expr::mk_memacc(stack.clone(), addr,
+        seq.push(expr);
+    }
+    seq
 }
 
 impl ParseFromLines for Pairing {
