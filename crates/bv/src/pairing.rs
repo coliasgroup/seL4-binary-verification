@@ -156,7 +156,12 @@ impl Pairing {
             post_eqs.push((r0_input.clone(), r0_input.clone()));
             x_out_eqs = var_c_rets.iter().zip(save_seq.iter().map(|(x, _)| x)).map(|(c, a)| (Expr::mk_var_from_arg(c), a.clone().mk_cast(c.ty.clone()))).collect::<Vec<_>>();
             let init_save_seq = mk_stack_sequence(&r[0], 4, &stack, &Type::Word(WORD_SIZE_BITS), var_c_rets.len());
-            let (_, last_arg_addr) = &arg_seq[var_c_args.len().checked_sub(1).unwrap_or(0)];
+            let last_arg_addr = if var_c_args.is_empty() {
+                // JUST TO MATCH PY, WRONG
+                &arg_seq[arg_seq_start..].last().as_ref().unwrap().1
+            } else {
+                &arg_seq[arg_seq_start..][var_c_args.len() - 1].1
+            };
             // if let Some((_, addr)) = init_save_seq.last() {
             //     preconds.push(r[0].clone().mk_less_eq(addr.as_ref().unwrap().clone()));
             // }
