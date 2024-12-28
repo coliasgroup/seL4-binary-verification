@@ -154,8 +154,17 @@ impl Pairing {
                 .map(|(_, addr)| addr.as_ref().unwrap().clone())
                 .collect::<Vec<_>>();
             post_eqs.push((r0_input.clone(), r0_input.clone()));
-            x_out_eqs = vec![];
-            eprintln!("todo");
+            x_out_eqs = var_c_rets.iter().zip(save_seq.iter().map(|(x, _)| x)).map(|(c, a)| (Expr::mk_var_from_arg(c), a.clone().mk_cast(c.ty.clone()))).collect::<Vec<_>>();
+            let init_save_seq = mk_stack_sequence(&r[0], 4, &stack, &Type::Word(WORD_SIZE_BITS), var_c_rets.len());
+            let (_, last_arg_addr) = &arg_seq[var_c_args.len().checked_sub(1).unwrap_or(0)];
+            if let Some((_, addr)) = init_save_seq.last() {
+                preconds.push(r[0].clone().mk_less_eq(addr.as_ref().unwrap().clone()));
+            }
+            if let Some(last_arg_addr) = last_arg_addr {
+                for (_, addr) in &init_save_seq[..1] {
+                    preconds.push(last_arg_addr.clone().mk_less(addr.as_ref().unwrap().clone()));
+                }
+            }
         }
 
         let arg_seq_addrs = arg_seq[arg_seq_start..][..var_c_args.len()]
