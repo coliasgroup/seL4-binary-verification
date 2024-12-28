@@ -162,9 +162,9 @@ impl Pairing {
             } else {
                 &arg_seq[arg_seq_start..][var_c_args.len() - 1].1
             };
-            // if let Some((_, addr)) = init_save_seq.last() {
-            //     preconds.push(r[0].clone().mk_less_eq(addr.as_ref().unwrap().clone()));
-            // }
+            if let Some((_, addr)) = init_save_seq.last() {
+                preconds.push(r[0].clone().mk_less_eq(addr.as_ref().unwrap().clone()));
+            }
             if let Some(last_arg_addr) = last_arg_addr {
                 for (_, addr) in &init_save_seq[..1] {
                     preconds.push(last_arg_addr.clone().mk_less(addr.as_ref().unwrap().clone()));
