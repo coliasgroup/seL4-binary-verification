@@ -5,6 +5,7 @@ use std::{fmt, iter};
 use regex::Regex;
 
 use crate::abstract_syntax::{Argument, Expr, ExprValue, Ident, Type};
+use crate::arch::WORD_SIZE_BITS;
 use crate::concrete_syntax::parse::{
     LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
 };
@@ -129,8 +130,12 @@ impl Pairing {
             save_addrs = vec![];
         } else {
             arg_seq_start = 1;
+            preconds.push(r[0].clone().mk_aligned(2));
+            preconds.push(stack_pointer.clone().mk_less_eq(r[0].clone()));
+            let save_seq = mk_stack_sequence(&r0_input, 4, &stack, &Type::Word(WORD_SIZE_BITS), var_c_rets.len());
+            save_addrs = save_seq.iter().map(|(_, addr)| addr.as_ref().unwrap().clone()).collect::<Vec<_>>();
+            post_eqs.push((r0_input.clone(), r0_input.clone()));
             x_out_eqs = vec![];
-            save_addrs = vec![];
             eprintln!("todo");
         }
 
