@@ -154,8 +154,18 @@ impl Pairing {
                 .map(|(_, addr)| addr.as_ref().unwrap().clone())
                 .collect::<Vec<_>>();
             post_eqs.push((r0_input.clone(), r0_input.clone()));
-            x_out_eqs = var_c_rets.iter().zip(save_seq.iter().map(|(x, _)| x)).map(|(c, a)| (Expr::mk_var_from_arg(c), a.clone().mk_cast(c.ty.clone()))).collect::<Vec<_>>();
-            let init_save_seq = mk_stack_sequence(&r[0], 4, &stack, &Type::Word(WORD_SIZE_BITS), var_c_rets.len());
+            x_out_eqs = var_c_rets
+                .iter()
+                .zip(save_seq.iter().map(|(x, _)| x))
+                .map(|(c, a)| (Expr::mk_var_from_arg(c), a.clone().mk_cast(c.ty.clone())))
+                .collect::<Vec<_>>();
+            let init_save_seq = mk_stack_sequence(
+                &r[0],
+                4,
+                &stack,
+                &Type::Word(WORD_SIZE_BITS),
+                var_c_rets.len(),
+            );
             let last_arg_addr = if var_c_args.is_empty() {
                 // JUST TO MATCH PY, WRONG
                 &arg_seq[arg_seq_start..].last().as_ref().unwrap().1
@@ -167,7 +177,11 @@ impl Pairing {
             }
             if let Some(last_arg_addr) = last_arg_addr {
                 for (_, addr) in &init_save_seq[..1] {
-                    preconds.push(last_arg_addr.clone().mk_less(addr.as_ref().unwrap().clone()));
+                    preconds.push(
+                        last_arg_addr
+                            .clone()
+                            .mk_less(addr.as_ref().unwrap().clone()),
+                    );
                 }
             }
         }
