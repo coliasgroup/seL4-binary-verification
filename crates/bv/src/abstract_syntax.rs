@@ -653,6 +653,12 @@ impl Expr {
         Self::new(Type::Bool, Op::Implies.mk(&[self, rhs]))
     }
 
+    pub(crate) fn mk_plus(self, rhs: Self) -> Self {
+        assert!(self.ty.is_word());
+        assert_eq!(self.ty, rhs.ty);
+        Self::new(self.ty.clone(), Op::Plus.mk(&[self, rhs]))
+    }
+
     pub(crate) fn mk_less(self, rhs: Self) -> Self {
         self.mk_less_with_signedness(rhs, false)
     }
@@ -662,6 +668,7 @@ impl Expr {
     }
 
     pub(crate) fn mk_less_with_signedness(self, rhs: Self, signed: bool) -> Self {
+        assert!(self.ty.is_word());
         assert_eq!(self.ty, rhs.ty);
         let op = if signed { Op::SignedLess } else { Op::Less };
         Self::new(Type::Bool, op.mk(&[self, rhs]))
@@ -676,6 +683,7 @@ impl Expr {
     }
 
     pub(crate) fn mk_less_eq_with_signedness(self, rhs: Self, signed: bool) -> Self {
+        assert!(self.ty.is_word());
         assert_eq!(self.ty, rhs.ty);
         let op = if signed {
             Op::SignedLessEquals
@@ -686,8 +694,8 @@ impl Expr {
     }
 
     pub(crate) fn mk_bitwise_and(self, rhs: Self) -> Self {
+        assert!(self.ty.is_word());
         assert_eq!(self.ty, rhs.ty);
-        assert!(matches!(self.ty, Type::Word(_)));
         Self::new(self.ty.clone(), Op::BWAnd.mk(&[self, rhs]))
     }
 
@@ -709,6 +717,13 @@ impl Expr {
 
     pub(crate) fn mk_machine_word_var(name: Ident) -> Self {
         Self::mk_var(name, Type::mk_machine_word())
+    }
+
+    pub(crate) fn mk_memacc(self, addr: Self, ty: Type) -> Self {
+        assert!(self.ty.is_mem());
+        assert!(addr.ty.is_word_with_size(WORD_SIZE_BITS));
+        assert!(ty.is_word());
+        Self::new(ty, Op::MemAcc.mk([self, addr]))
     }
 
     pub(crate) fn mk_rodata(self) -> Self {

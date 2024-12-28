@@ -4,7 +4,7 @@ use std::{fmt, iter};
 
 use regex::Regex;
 
-use crate::abstract_syntax::{Argument, Expr, Ident, Type};
+use crate::abstract_syntax::{Argument, Expr, ExprValue, Ident, Type};
 use crate::concrete_syntax::parse::{
     LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
 };
@@ -191,11 +191,12 @@ impl Pairing {
     }
 }
 
-fn mk_stack_sequence(sp: &Expr, offs: usize, stack: &Expr, ty: &Type, n: usize) -> Vec<(Expr, Option<u64>)> {
+fn mk_stack_sequence(sp: &Expr, offs: usize, stack: &Expr, ty: &Type, n: usize) -> Vec<(Expr, Option<Expr>)> {
     let mut seq = vec![];
     for i in 0..n {
-        let expr = Expr::mk_memacc(stack.clone(), addr,
-        seq.push(expr);
+        let addr = sp.clone().mk_plus(Expr::new(sp.ty.clone(), ExprValue::Num((offs * i).into())));
+        let expr = Expr::mk_memacc(stack.clone(), addr.clone(), ty.clone());
+        seq.push((expr, Some(addr)));
     }
     seq
 }
