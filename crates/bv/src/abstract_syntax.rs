@@ -730,6 +730,31 @@ impl Expr {
         assert_eq!(self.ty, Type::Mem);
         Self::new(Type::Bool, Op::ROData.mk(&[self]))
     }
+
+    pub(crate) fn mk_if(self, true_: Self, false_: Self) -> Self {
+        assert!(self.ty.is_bool());
+        assert_eq!(true_.ty, false_.ty);
+        Self::new(true_.ty.clone(), Op::IfThenElse.mk([true_, false_]))
+    }
+
+    pub(crate) fn mk_cast(self, ty: Type) -> Self {
+        if self.ty == ty {
+            self
+        } else {
+            assert!(self.ty.is_word());
+            assert!(ty.is_word());
+            Self::new(ty, Op::WordCast.mk([self]))
+        }
+    }
+
+    pub(crate) fn cast_c_val(self, ty: Type) -> Self {
+        assert!(ty.is_word());
+        if self.ty.is_bool() {
+            self.mk_if(Self::new(ty.clone(), ExprValue::Num(1.into())), Self::new(ty.clone(), ExprValue::Num(0.into())))
+        } else {
+            self.mk_cast(ty)
+        }
+    }
 }
 
 impl BitAnd for Expr {

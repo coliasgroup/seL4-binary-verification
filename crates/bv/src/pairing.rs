@@ -75,8 +75,8 @@ impl Pairing {
         let (var_c_rets, c_omem, _glob_c_rets) = split_scalar_pairs(c_output);
         Self::formulate_arm_none_eabi_gnu(
             min_stack_size,
-            &var_c_rets,
             &var_c_args,
+            &var_c_rets,
             &c_imem,
             &c_omem,
         )
@@ -120,9 +120,13 @@ impl Pairing {
         }
         arg_seq.extend(mk_stack_sequence(&stack_pointer, 4, &stack, &Type::mk_machine_word(), var_c_args.len() + 1));
 
+        let x_out_eqs;
+        // let save_addrs;
         if var_c_rets.len() <= 1 {
-
+            x_out_eqs = var_c_rets.iter().map(Expr::mk_var_from_arg).zip([r[0].clone()]).collect::<Vec<_>>();
+            // save_addrs = vec![];
         } else {
+            x_out_eqs = vec![];
             eprintln!("todo");
         }
 
@@ -162,10 +166,15 @@ impl Pairing {
                 .map(|expr| ASM_IN.side(expr).mk_eq(ASM_IN.side(Expr::mk_true()))),
         );
 
+        let ret_eqs = x_out_eqs.iter().map(|(c, asm)| {
+            ASM_OUT.side(asm.clone()).mk_eq(C_OUT.side(c.clone().cast_c_val(asm.ty.clone())))
+        });
+
         let asm_invs = post_eqs
             .into_iter()
             .map(|(vin, vout)| ASM_IN.side(vin).mk_eq(ASM_OUT.side(vout)));
 
+        out_eqs.extend(ret_eqs);
         out_eqs.extend(mem_oeqs);
         out_eqs.extend(asm_invs);
 
