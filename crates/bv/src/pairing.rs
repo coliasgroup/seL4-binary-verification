@@ -252,6 +252,7 @@ pub(crate) struct Eq {
 
 impl Eq {
     pub(crate) fn new(lhs: EqSide, rhs: EqSide) -> Self {
+        assert_eq!(lhs.expr.ty, rhs.expr.ty);
         Self { lhs, rhs }
     }
 }

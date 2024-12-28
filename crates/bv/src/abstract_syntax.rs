@@ -737,6 +737,14 @@ impl Expr {
         Self::new(true_.ty.clone(), Op::IfThenElse.mk([true_, false_]))
     }
 
+    pub(crate) fn mk_stack_wrapper(sp: Self, stack: Self, except: impl IntoIterator<Item = Self>) -> Self {
+        assert!(sp.ty.is_word_with_size(WORD_SIZE_BITS));
+        assert!(stack.ty.is_mem());
+        let except = except.into_iter().inspect(|expr| assert!(expr.ty.is_word_with_size(WORD_SIZE_BITS)));
+        let args = [sp, stack].into_iter().chain(except).collect::<Vec<_>>();
+        Self::new(Type::RelWrapper, Op::StackWrapper.mk(args))
+    }
+
     pub(crate) fn mk_cast(self, ty: Type) -> Self {
         if self.ty == ty {
             self
