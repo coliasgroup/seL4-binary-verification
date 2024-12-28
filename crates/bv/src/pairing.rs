@@ -119,28 +119,53 @@ impl Pairing {
         for i in 0..=3 {
             arg_seq.push((r[i].clone(), None));
         }
-        arg_seq.extend(mk_stack_sequence(&stack_pointer, 4, &stack, &Type::mk_machine_word(), var_c_args.len() + 1));
+        arg_seq.extend(mk_stack_sequence(
+            &stack_pointer,
+            4,
+            &stack,
+            &Type::mk_machine_word(),
+            var_c_args.len() + 1,
+        ));
 
         let x_out_eqs;
         let arg_seq_start;
         let save_addrs;
         if var_c_rets.len() <= 1 {
             arg_seq_start = 0;
-            x_out_eqs = var_c_rets.iter().map(Expr::mk_var_from_arg).zip([r[0].clone()]).collect::<Vec<_>>();
+            x_out_eqs = var_c_rets
+                .iter()
+                .map(Expr::mk_var_from_arg)
+                .zip([r[0].clone()])
+                .collect::<Vec<_>>();
             save_addrs = vec![];
         } else {
             arg_seq_start = 1;
             preconds.push(r[0].clone().mk_aligned(2));
             preconds.push(stack_pointer.clone().mk_less_eq(r[0].clone()));
-            let save_seq = mk_stack_sequence(&r0_input, 4, &stack, &Type::Word(WORD_SIZE_BITS), var_c_rets.len());
-            save_addrs = save_seq.iter().map(|(_, addr)| addr.as_ref().unwrap().clone()).collect::<Vec<_>>();
+            let save_seq = mk_stack_sequence(
+                &r0_input,
+                4,
+                &stack,
+                &Type::Word(WORD_SIZE_BITS),
+                var_c_rets.len(),
+            );
+            save_addrs = save_seq
+                .iter()
+                .map(|(_, addr)| addr.as_ref().unwrap().clone())
+                .collect::<Vec<_>>();
             post_eqs.push((r0_input.clone(), r0_input.clone()));
             x_out_eqs = vec![];
             eprintln!("todo");
         }
 
-        let arg_seq_addrs = arg_seq[arg_seq_start..][..var_c_args.len()].iter().filter_map(|(_, addr)| addr.as_ref().map(Clone::clone)).collect::<Vec<_>>();
-        post_eqs.push((Expr::mk_stack_wrapper(stack_pointer.clone(), stack.clone(), arg_seq_addrs), Expr::mk_stack_wrapper(stack_pointer.clone(), stack.clone(), save_addrs)));
+        let arg_seq_addrs = arg_seq[arg_seq_start..][..var_c_args.len()]
+            .iter()
+            .filter_map(|(_, addr)| addr.as_ref().map(Clone::clone))
+            .collect::<Vec<_>>();
+        post_eqs.push((
+            Expr::mk_stack_wrapper(stack_pointer.clone(), stack.clone(), arg_seq_addrs),
+            Expr::mk_stack_wrapper(stack_pointer.clone(), stack.clone(), save_addrs),
+        ));
 
         let mem_ieqs = match c_imem {
             [] => vec![ASM_IN
@@ -172,10 +197,16 @@ impl Pairing {
         };
 
         let mut outer_addr = None;
-        let arg_eqs = var_c_args.iter().zip(arg_seq.iter().skip(arg_seq_start)).map(|(c, (asm, addr))| {
-            outer_addr = addr.clone();
-            ASM_IN.side(asm.clone()).mk_eq(C_IN.side(Expr::mk_var_from_arg(c).clone().cast_c_val(asm.ty.clone())))
-        }).collect::<Vec<_>>();
+        let arg_eqs = var_c_args
+            .iter()
+            .zip(arg_seq.iter().skip(arg_seq_start))
+            .map(|(c, (asm, addr))| {
+                outer_addr = addr.clone();
+                ASM_IN
+                    .side(asm.clone())
+                    .mk_eq(C_IN.side(Expr::mk_var_from_arg(c).clone().cast_c_val(asm.ty.clone())))
+            })
+            .collect::<Vec<_>>();
         if let Some(addr) = outer_addr {
             preconds.push(stack_pointer.clone().mk_less_eq(addr));
         }
@@ -189,7 +220,9 @@ impl Pairing {
         );
 
         let ret_eqs = x_out_eqs.iter().map(|(c, asm)| {
-            ASM_OUT.side(asm.clone()).mk_eq(C_OUT.side(c.clone().cast_c_val(asm.ty.clone())))
+            ASM_OUT
+                .side(asm.clone())
+                .mk_eq(C_OUT.side(c.clone().cast_c_val(asm.ty.clone())))
         });
 
         let asm_invs = post_eqs
@@ -222,10 +255,18 @@ impl Pairing {
     }
 }
 
-fn mk_stack_sequence(sp: &Expr, offs: usize, stack: &Expr, ty: &Type, n: usize) -> Vec<(Expr, Option<Expr>)> {
+fn mk_stack_sequence(
+    sp: &Expr,
+    offs: usize,
+    stack: &Expr,
+    ty: &Type,
+    n: usize,
+) -> Vec<(Expr, Option<Expr>)> {
     let mut seq = vec![];
     for i in 0..n {
-        let addr = sp.clone().mk_plus(Expr::new(sp.ty.clone(), ExprValue::Num((offs * i).into())));
+        let addr = sp
+            .clone()
+            .mk_plus(Expr::new(sp.ty.clone(), ExprValue::Num((offs * i).into())));
         let expr = Expr::mk_memacc(stack.clone(), addr.clone(), ty.clone());
         seq.push((expr, Some(addr)));
     }

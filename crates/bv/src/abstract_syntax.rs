@@ -737,10 +737,16 @@ impl Expr {
         Self::new(true_.ty.clone(), Op::IfThenElse.mk([true_, false_]))
     }
 
-    pub(crate) fn mk_stack_wrapper(sp: Self, stack: Self, except: impl IntoIterator<Item = Self>) -> Self {
+    pub(crate) fn mk_stack_wrapper(
+        sp: Self,
+        stack: Self,
+        except: impl IntoIterator<Item = Self>,
+    ) -> Self {
         assert!(sp.ty.is_word_with_size(WORD_SIZE_BITS));
         assert!(stack.ty.is_mem());
-        let except = except.into_iter().inspect(|expr| assert!(expr.ty.is_word_with_size(WORD_SIZE_BITS)));
+        let except = except
+            .into_iter()
+            .inspect(|expr| assert!(expr.ty.is_word_with_size(WORD_SIZE_BITS)));
         let args = [sp, stack].into_iter().chain(except).collect::<Vec<_>>();
         Self::new(Type::RelWrapper, Op::StackWrapper.mk(args))
     }
@@ -758,7 +764,10 @@ impl Expr {
     pub(crate) fn cast_c_val(self, ty: Type) -> Self {
         assert!(ty.is_word());
         if self.ty.is_bool() {
-            self.mk_if(Self::new(ty.clone(), ExprValue::Num(1.into())), Self::new(ty.clone(), ExprValue::Num(0.into())))
+            self.mk_if(
+                Self::new(ty.clone(), ExprValue::Num(1.into())),
+                Self::new(ty.clone(), ExprValue::Num(0.into())),
+            )
         } else {
             self.mk_cast(ty)
         }
