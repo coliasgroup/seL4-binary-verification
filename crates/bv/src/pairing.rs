@@ -121,11 +121,14 @@ impl Pairing {
         arg_seq.extend(mk_stack_sequence(&stack_pointer, 4, &stack, &Type::mk_machine_word(), var_c_args.len() + 1));
 
         let x_out_eqs;
+        let arg_seq_start;
         // let save_addrs;
         if var_c_rets.len() <= 1 {
+            arg_seq_start = 0;
             x_out_eqs = var_c_rets.iter().map(Expr::mk_var_from_arg).zip([r[0].clone()]).collect::<Vec<_>>();
             // save_addrs = vec![];
         } else {
+            arg_seq_start = 1;
             x_out_eqs = vec![];
             eprintln!("todo");
         }
@@ -160,14 +163,15 @@ impl Pairing {
         };
 
         let mut outer_addr = None;
-        let arg_eqs = var_c_args.iter().zip(arg_seq).map(|(c, (asm, addr))| {
-            outer_addr = addr;
+        let arg_eqs = var_c_args.iter().zip(arg_seq.iter().skip(arg_seq_start)).map(|(c, (asm, addr))| {
+            outer_addr = addr.clone();
             ASM_IN.side(asm.clone()).mk_eq(C_IN.side(Expr::mk_var_from_arg(c).clone().cast_c_val(asm.ty.clone())))
-        });
+        }).collect::<Vec<_>>();
         if let Some(addr) = outer_addr {
             preconds.push(stack_pointer.clone().mk_less_eq(addr));
         }
 
+        in_eqs.extend(arg_eqs);
         in_eqs.extend(mem_ieqs);
         in_eqs.extend(
             preconds
