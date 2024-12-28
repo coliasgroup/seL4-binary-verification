@@ -122,16 +122,20 @@ impl Pairing {
 
         let x_out_eqs;
         let arg_seq_start;
-        // let save_addrs;
+        let save_addrs;
         if var_c_rets.len() <= 1 {
             arg_seq_start = 0;
             x_out_eqs = var_c_rets.iter().map(Expr::mk_var_from_arg).zip([r[0].clone()]).collect::<Vec<_>>();
-            // save_addrs = vec![];
+            save_addrs = vec![];
         } else {
             arg_seq_start = 1;
             x_out_eqs = vec![];
+            save_addrs = vec![];
             eprintln!("todo");
         }
+
+        let arg_seq_addrs = arg_seq[arg_seq_start..][..var_c_args.len()].iter().filter_map(|(_, addr)| addr.as_ref().map(Clone::clone)).collect::<Vec<_>>();
+        post_eqs.push((Expr::mk_stack_wrapper(stack_pointer.clone(), stack.clone(), arg_seq_addrs), Expr::mk_stack_wrapper(stack_pointer.clone(), stack.clone(), save_addrs)));
 
         let mem_ieqs = match c_imem {
             [] => vec![ASM_IN
