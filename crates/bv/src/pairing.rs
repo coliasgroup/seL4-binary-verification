@@ -159,6 +159,15 @@ impl Pairing {
             _ => panic!(),
         };
 
+        let mut outer_addr = None;
+        let arg_eqs = var_c_args.iter().zip(arg_seq).map(|(c, (asm, addr))| {
+            outer_addr = addr;
+            ASM_IN.side(asm.clone()).mk_eq(C_IN.side(Expr::mk_var_from_arg(c).clone().cast_c_val(asm.ty.clone())))
+        });
+        if let Some(addr) = outer_addr {
+            preconds.push(stack_pointer.clone().mk_less_eq(addr));
+        }
+
         in_eqs.extend(mem_ieqs);
         in_eqs.extend(
             preconds
