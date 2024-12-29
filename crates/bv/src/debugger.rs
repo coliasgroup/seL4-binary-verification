@@ -156,6 +156,7 @@ impl<'a> VarState<'a> {
             Op::TokenWordsUpdate => todo!(),
             Op::ROData => todo!(),
             Op::StackWrapper => todo!(),
+            Op::EqSelectiveWrapper => todo!(),
             Op::ToFloatingPoint => todo!(),
             Op::ToFloatingPointSigned => todo!(),
             Op::ToFloatingPointUnsigned => todo!(),

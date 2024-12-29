@@ -956,6 +956,7 @@ pub(crate) enum Op {
     TokenWordsUpdate,
     ROData,
     StackWrapper,
+    EqSelectiveWrapper,
     ToFloatingPoint,
     ToFloatingPointSigned,
     ToFloatingPointUnsigned,
@@ -1015,7 +1016,8 @@ impl Op {
             Self::TokenWordsAccess => 2,
             Self::TokenWordsUpdate => 3,
             Self::ROData => 1,
-            Self::StackWrapper => 2,
+            Self::StackWrapper => todo!(), // 2,
+            Self::EqSelectiveWrapper => todo!(),
             Self::ToFloatingPoint => 1,
             Self::ToFloatingPointSigned => 2,
             Self::ToFloatingPointUnsigned => 2,
@@ -1334,6 +1336,9 @@ impl<'a> ExprChecker<'a> {
                 todo!()
             }
             Op::StackWrapper => {
+                todo!()
+            }
+            Op::EqSelectiveWrapper => {
                 todo!()
             }
             Op::ToFloatingPoint => {
