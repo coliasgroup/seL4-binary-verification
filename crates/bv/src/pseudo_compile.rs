@@ -53,10 +53,10 @@ fn mk_align_valid_ineq(ty: &Type, p: &Expr) -> Expr {
                 .mk_eq(w0.clone()),
         );
     }
-    conj.push(!p.clone().mk_eq(w0.clone()));
+    conj.push(p.clone().mk_eq(w0.clone()).mk_not());
     conj.push(
         w0.mk_less(size.clone())
-            .mk_implies(p.clone().mk_less_eq(-size)),
+            .mk_implies(p.clone().mk_less_eq(size.mk_neg())),
     );
     conj.into_iter().foldr1_like_gr(Expr::mk_and).unwrap()
 }
