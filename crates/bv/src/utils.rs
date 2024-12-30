@@ -1,3 +1,5 @@
+pub(crate) mod petgraph;
+
 pub(crate) trait DoubleEndedIteratorExt: DoubleEndedIterator {
     fn foldr1_like_gr<F>(mut self, mut f: F) -> Option<Self::Item>
     where
