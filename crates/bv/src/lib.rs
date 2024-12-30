@@ -7,7 +7,6 @@ mod compat;
 mod concrete_syntax;
 mod debugger;
 mod fixup;
-mod graph;
 mod inst_logic;
 mod logic;
 mod objdump;

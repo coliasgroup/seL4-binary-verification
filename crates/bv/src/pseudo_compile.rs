@@ -1,4 +1,4 @@
-use crate::abstract_syntax::{Expr, ExprValue, Function, Num, Op, Type};
+use crate::abstract_syntax::{Expr, ExprValue, Function, HasFunctionMut, Num, Op, Type};
 use crate::arch::WORD_SIZE_BITS;
 use crate::objdump::ObjdumpInfo;
 use crate::utils::DoubleEndedIteratorExt;
@@ -10,7 +10,7 @@ impl Function {
     }
 
     fn compile_symbol_references(&mut self, objdump_info: &ObjdumpInfo) {
-        self.visit_exprs_mut(&mut |expr| {
+        self.function_mut().visit_exprs_mut(&mut |expr| {
             if let ExprValue::Symbol(name) = &expr.value {
                 // pseudo_compile.subst_expr: #FIXME: dubious assumption of native word size here
                 expr.value = ExprValue::Num(Num::from(objdump_info.symbols[name].addr));
@@ -19,7 +19,7 @@ impl Function {
     }
 
     fn compile_p_align_valid_exprs(&mut self) {
-        self.visit_exprs_mut(&mut |expr| {
+        self.function_mut().visit_exprs_mut(&mut |expr| {
             if let ExprValue::Op(Op::PAlignValid, exprs) = &expr.value {
                 let (ty, p) = match exprs.as_slice() {
                     [Expr {

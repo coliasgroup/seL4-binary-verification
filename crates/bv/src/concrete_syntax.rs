@@ -18,7 +18,7 @@ impl File {
             file.push(const_global.pretty_print_into_block(name));
         }
         for (name, function) in &self.functions {
-            file.push(function.pretty_print_into_block(name));
+            file.push(function.function().pretty_print_into_block(name));
         }
         file.pretty_print_into_string()
     }
@@ -160,25 +160,27 @@ impl Function {
 
         Ok((name, f))
     }
+}
 
+impl<T: HasFunction> AbstractFunction<T> {
     fn pretty_print_into_block(&self, name: &Ident) -> BlockBuf {
         let mut block = BlockBuf::new();
         block.push_line_with(|line| {
             line.to_tokens("Function");
             line.to_tokens(name);
-            line.to_tokens(&self.input);
-            line.to_tokens(&self.output);
+            line.to_tokens(self.input());
+            line.to_tokens(self.output());
         });
-        if let Some(body) = self.body() {
-            for (addr, node) in &body.nodes {
+        if let Some(body) = self.body_if_present() {
+            for (addr, node) in body.nodes() {
                 block.push_line_with(|line| {
-                    line.lower_hex_to_tokens(addr);
+                    line.lower_hex_to_tokens(&addr);
                     line.to_tokens(node);
                 });
             }
             block.push_line_with(|line| {
                 line.to_tokens("EntryPoint");
-                line.to_tokens(&body.entry_point);
+                line.to_tokens(&body.entry());
             });
         }
         block
@@ -276,7 +278,7 @@ impl ParseFromLine for BasicNode {
 impl ToTokens for BasicNode {
     fn to_tokens(&self, line: &mut LineBuf) {
         line.to_tokens(&self.next);
-        line.to_tokens(&self.var_updates);
+        line.to_tokens(&*self.var_updates);
     }
 }
 
@@ -313,8 +315,8 @@ impl ToTokens for CallNode {
     fn to_tokens(&self, line: &mut LineBuf) {
         line.to_tokens(&self.next);
         line.to_tokens(&self.function_name);
-        line.to_tokens(&self.input);
-        line.to_tokens(&self.output);
+        line.to_tokens(&*self.input);
+        line.to_tokens(&*self.output);
     }
 }
 
@@ -391,7 +393,7 @@ impl ToTokens for Expr {
                 line.to_tokens("Op");
                 line.to_tokens(name);
                 line.to_tokens(ty);
-                line.to_tokens(exprs);
+                line.to_tokens(&**exprs);
             }
             ExprValue::Num(num) => {
                 line.to_tokens("Num");

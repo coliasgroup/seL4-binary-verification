@@ -9,10 +9,10 @@ use petgraph::visit::{
 };
 use petgraph::Directed;
 
+use crate::abstract_syntax::AbstractNodeGraph;
+use crate::abstract_syntax::HasNodeGraph;
+use crate::abstract_syntax::HasNodeGraphWithNodeAddrBound;
 use crate::abstract_syntax::{Node, NodeAddr, NodeId};
-use crate::graph::HasNodeGraph;
-use crate::graph::HasNodeGraphWithNodeAddrBound;
-use crate::graph::NodeGraph;
 
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct EdgeId {
@@ -34,14 +34,14 @@ impl EdgeId {
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct EdgeCondition(Option<bool>);
 
-impl<T: HasNodeGraph> GraphBase for NodeGraph<T> {
+impl<T: HasNodeGraph> GraphBase for AbstractNodeGraph<T> {
     type EdgeId = EdgeId;
     type NodeId = NodeId;
 }
 
 pub(crate) struct GraphNodeRef<'a, T> {
     id: NodeId,
-    inner: &'a NodeGraph<T>,
+    inner: &'a AbstractNodeGraph<T>,
 }
 
 impl<'a, T> Clone for GraphNodeRef<'a, T> {
@@ -76,7 +76,7 @@ impl<'a, T: HasNodeFormatter<T>> fmt::Display for GraphNodeRef<'a, T> {
 
 pub(crate) struct GraphEdgeRef<'a, T> {
     id: EdgeId,
-    inner: &'a NodeGraph<T>,
+    inner: &'a AbstractNodeGraph<T>,
 }
 
 impl<'a, T> Clone for GraphEdgeRef<'a, T> {
@@ -118,12 +118,12 @@ impl<'a, T: HasEdgeFormatter<T>> fmt::Display for GraphEdgeRef<'a, T> {
     }
 }
 
-impl<'a, T: HasNodeGraph> Data for &'a NodeGraph<T> {
+impl<'a, T: HasNodeGraph> Data for &'a AbstractNodeGraph<T> {
     type NodeWeight = GraphNodeRef<'a, T>;
     type EdgeWeight = GraphEdgeRef<'a, T>;
 }
 
-impl<'a, T: HasNodeGraph> IntoNodeIdentifiers for &'a NodeGraph<T> {
+impl<'a, T: HasNodeGraph> IntoNodeIdentifiers for &'a AbstractNodeGraph<T> {
     type NodeIdentifiers = iter::Chain<
         std::array::IntoIter<NodeId, 2>,
         iter::Map<T::NodesForGraph<'a>, fn((NodeAddr, &'a Node)) -> NodeId>,
@@ -132,13 +132,13 @@ impl<'a, T: HasNodeGraph> IntoNodeIdentifiers for &'a NodeGraph<T> {
     fn node_identifiers(self) -> Self::NodeIdentifiers {
         [NodeId::Ret, NodeId::Err].into_iter().chain(
             self.inner()
-                .graph_nodes()
+                .node_graph_nodes()
                 .map((|(addr, _node)| NodeId::Addr(addr)) as _),
         )
     }
 }
 
-impl<'a, T: HasNodeGraph> IntoNodeReferences for &'a NodeGraph<T> {
+impl<'a, T: HasNodeGraph> IntoNodeReferences for &'a AbstractNodeGraph<T> {
     type NodeRef = GraphNodeRef<'a, T>;
     type NodeReferences = NodeReferences<'a, T, Self::NodeIdentifiers>;
 
@@ -151,7 +151,7 @@ impl<'a, T: HasNodeGraph> IntoNodeReferences for &'a NodeGraph<T> {
 }
 
 pub(crate) struct NodeReferences<'a, T, I> {
-    inner: &'a NodeGraph<T>,
+    inner: &'a AbstractNodeGraph<T>,
     it: I,
 }
 
@@ -166,7 +166,7 @@ impl<'a, T, I: Iterator<Item = NodeId>> Iterator for NodeReferences<'a, T, I> {
     }
 }
 
-impl<'a, T: HasNodeGraph> IntoEdgeReferences for &'a NodeGraph<T> {
+impl<'a, T: HasNodeGraph> IntoEdgeReferences for &'a AbstractNodeGraph<T> {
     type EdgeRef = GraphEdgeRef<'a, T>;
     type EdgeReferences = EdgeReferences<
         'a,
@@ -181,7 +181,7 @@ impl<'a, T: HasNodeGraph> IntoEdgeReferences for &'a NodeGraph<T> {
     fn edge_references(self) -> Self::EdgeReferences {
         EdgeReferences {
             inner: self,
-            it: self.graph_nodes().flat_map(|(addr, node)| {
+            it: self.node_graph_nodes().flat_map(|(addr, node)| {
                 let node_id = NodeId::Addr(addr);
                 let mut ret = ArrayVec::new();
                 match node {
@@ -203,7 +203,7 @@ impl<'a, T: HasNodeGraph> IntoEdgeReferences for &'a NodeGraph<T> {
 }
 
 pub(crate) struct EdgeReferences<'a, T, I> {
-    inner: &'a NodeGraph<T>,
+    inner: &'a AbstractNodeGraph<T>,
     it: I,
 }
 
@@ -218,12 +218,12 @@ impl<'a, T, I: Iterator<Item = EdgeId>> Iterator for EdgeReferences<'a, T, I> {
     }
 }
 
-impl<'a, T: HasNodeGraph> IntoNeighbors for &'a NodeGraph<T> {
+impl<'a, T: HasNodeGraph> IntoNeighbors for &'a AbstractNodeGraph<T> {
     type Neighbors = arrayvec::IntoIter<NodeId, 2>;
 
     fn neighbors(self, a: Self::NodeId) -> Self::Neighbors {
         if let NodeId::Addr(addr) = a {
-            self.graph_node(addr).conts()
+            self.node_graph_node(addr).conts()
         } else {
             ArrayVec::new()
         }
@@ -231,7 +231,7 @@ impl<'a, T: HasNodeGraph> IntoNeighbors for &'a NodeGraph<T> {
     }
 }
 
-impl<T: HasNodeGraphWithNodeAddrBound> NodeIndexable for NodeGraph<T> {
+impl<T: HasNodeGraphWithNodeAddrBound> NodeIndexable for AbstractNodeGraph<T> {
     fn node_bound(&self) -> usize {
         usize::try_from(self.node_addr_bound()).unwrap() + 2
     }
@@ -254,7 +254,7 @@ impl<T: HasNodeGraphWithNodeAddrBound> NodeIndexable for NodeGraph<T> {
 }
 
 // TODO use FixedBitSet for NodeMap case?
-impl<T: HasNodeGraph> Visitable for NodeGraph<T> {
+impl<T: HasNodeGraph> Visitable for AbstractNodeGraph<T> {
     type Map = HashSet<NodeId>;
 
     fn visit_map(&self) -> Self::Map {
@@ -266,7 +266,7 @@ impl<T: HasNodeGraph> Visitable for NodeGraph<T> {
     }
 }
 
-impl<T: HasNodeGraph> GraphProp for NodeGraph<T> {
+impl<T: HasNodeGraph> GraphProp for AbstractNodeGraph<T> {
     type EdgeType = Directed;
 }
 
@@ -327,12 +327,12 @@ impl<T, U, D: HasEdgeFormatter<T>> HasEdgeFormatter<T> for NodeGraphFormatterWra
 impl<T: HasNodeGraph, D> HasNodeGraph for NodeGraphFormatterWrapper<T, D> {
     type NodesForGraph<'b> = T::NodesForGraph<'b> where Self: 'b;
 
-    fn graph_node(&self, addr: NodeAddr) -> &Node {
-        T::graph_node(&self.inner, addr)
+    fn node_graph_node(&self, addr: NodeAddr) -> &Node {
+        T::node_graph_node(&self.inner, addr)
     }
 
-    fn graph_nodes(&self) -> Self::NodesForGraph<'_> {
-        T::graph_nodes(&self.inner)
+    fn node_graph_nodes(&self) -> Self::NodesForGraph<'_> {
+        T::node_graph_nodes(&self.inner)
     }
 }
 

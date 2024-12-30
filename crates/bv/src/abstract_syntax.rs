@@ -7,8 +7,14 @@ use arrayvec::ArrayVec;
 use num::BigInt;
 
 use crate::arch::WORD_SIZE_BITS;
-use crate::graph::{
-    HasFunctionSignature, HasNodeGraph, HasNodeGraphWithNodeAddrBound, MightHaveNodeGraphWithEntry,
+
+mod abstract_node_graph;
+
+#[allow(unused_imports)]
+pub(crate) use abstract_node_graph::{
+    AbstractFunction, AbstractNodeGraph, HasFunction, HasFunctionMut, HasFunctionWithBody,
+    HasFunctionWithBodyMut, HasNodeGraph, HasNodeGraphMut, HasNodeGraphWithEntry,
+    HasNodeGraphWithNodeAddrBound,
 };
 
 pub(crate) type Ident = String;
@@ -61,53 +67,73 @@ impl Function {
     pub(crate) fn body_mut(&mut self) -> Option<&mut FunctionBody> {
         self.body.as_mut()
     }
+}
 
+impl HasFunction for Function {
+    type FunctionBody = FunctionBody;
+
+    fn function_input(&self) -> &[Argument] {
+        &self.input
+    }
+
+    fn function_output(&self) -> &[Argument] {
+        &self.output
+    }
+
+    fn function_body_if_present(&self) -> Option<AbstractNodeGraph<&Self::FunctionBody>> {
+        self.body.as_ref().map(AbstractNodeGraph::new)
+    }
+}
+
+impl HasFunctionMut for Function {
+    type FunctionBodyMut = FunctionBody;
+
+    fn function_input_mut(&mut self) -> &mut [Argument] {
+        &mut self.input
+    }
+
+    fn function_output_mut(&mut self) -> &mut [Argument] {
+        &mut self.output
+    }
+
+    fn function_body_if_present_mut(
+        &mut self,
+    ) -> Option<AbstractNodeGraph<&mut Self::FunctionBodyMut>> {
+        self.body.as_mut().map(AbstractNodeGraph::new)
+    }
+}
+
+impl<T: HasFunction> AbstractFunction<T> {
     pub(crate) fn visit_exprs(&mut self, f: &mut impl FnMut(&Expr)) {
-        if let Some(body) = self.body() {
-            for node in body.nodes.values() {
+        if let Some(body) = self.body_if_present() {
+            for node in body.node_values() {
                 node.visit_exprs(f);
             }
         }
     }
 
-    pub(crate) fn visit_exprs_mut(&mut self, f: &mut impl FnMut(&mut Expr)) {
-        if let Some(body) = self.body_mut() {
-            for node in body.nodes.values_mut() {
-                node.visit_exprs_mut(f);
-            }
-        }
-    }
-
     pub(crate) fn visit_var_decls(&self, f: &mut impl FnMut(&Ident, &Type)) {
-        for arg in &self.input {
+        for arg in self.input() {
             arg.visit_var_decls(f);
         }
-        for arg in &self.output {
+        for arg in self.output() {
             arg.visit_var_decls(f);
         }
-        if let Some(body) = &self.body {
-            for node in body.nodes.values() {
+        if let Some(body) = self.body_if_present() {
+            for node in body.node_values() {
                 node.visit_var_decls(f);
             }
         }
     }
 }
 
-impl MightHaveNodeGraphWithEntry for Function {
-    type NodeGraph<'a> = &'a FunctionBody;
-
-    fn node_graph_option(&self) -> Option<Self::NodeGraph<'_>> {
-        self.body()
-    }
-}
-
-impl HasFunctionSignature for Function {
-    fn graph_input(&self) -> &[Argument] {
-        self.input()
-    }
-
-    fn graph_output(&self) -> &[Argument] {
-        self.output()
+impl<T: HasFunctionMut> AbstractFunction<T> {
+    pub(crate) fn visit_exprs_mut(&mut self, f: &mut impl FnMut(&mut Expr)) {
+        if let Some(mut body) = self.body_if_present_mut() {
+            for node in body.node_values_mut() {
+                node.visit_exprs_mut(f);
+            }
+        }
     }
 }
 
@@ -123,12 +149,27 @@ impl HasNodeGraph for FunctionBody {
         fn((&'a NodeAddr, &'a Node)) -> (NodeAddr, &'a Node),
     >;
 
-    fn graph_node(&self, addr: NodeAddr) -> &Node {
-        &self.nodes[&addr]
+    fn node_graph_node(&self, addr: NodeAddr) -> &Node {
+        self.nodes.get(&addr).unwrap()
     }
 
-    fn graph_nodes(&self) -> Self::NodesForGraph<'_> {
+    fn node_graph_nodes(&self) -> Self::NodesForGraph<'_> {
         self.nodes.iter().map(|(addr, node)| (*addr, node))
+    }
+}
+
+impl HasNodeGraphMut for FunctionBody {
+    type NodesForGraphMut<'a> = iter::Map<
+        btree_map::IterMut<'a, NodeAddr, Node>,
+        fn((&'a NodeAddr, &'a mut Node)) -> (NodeAddr, &'a mut Node),
+    >;
+
+    fn node_graph_node_mut(&mut self, addr: NodeAddr) -> &mut Node {
+        self.nodes.get_mut(&addr).unwrap()
+    }
+
+    fn node_graph_nodes_mut(&mut self) -> Self::NodesForGraphMut<'_> {
+        self.nodes.iter_mut().map(|(addr, node)| (*addr, node))
     }
 }
 
@@ -138,6 +179,12 @@ impl HasNodeGraphWithNodeAddrBound for FunctionBody {
             .last_key_value()
             .map(|(k, _v)| k + 1)
             .unwrap_or(0)
+    }
+}
+
+impl HasNodeGraphWithEntry for FunctionBody {
+    fn node_graph_entry(&self) -> NodeId {
+        self.entry_point
     }
 }
 

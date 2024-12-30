@@ -146,7 +146,7 @@ impl<T: ToTokens, U: ToTokens> ToTokens for (T, U) {
     }
 }
 
-impl<T: ToTokens> ToTokens for Vec<T> {
+impl<T: ToTokens> ToTokens for [T] {
     fn to_tokens(&self, line: &mut LineBuf) {
         line.display_to_tokens(&self.len());
         for x in self {

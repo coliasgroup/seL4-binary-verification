@@ -194,7 +194,7 @@ impl ToTokens for SplitProofNode {
         line.display_to_tokens(&self.loop_r_max);
         line.to_tokens(&self.l_details);
         line.to_tokens(&self.r_details);
-        line.to_tokens(&self.eqs);
+        line.to_tokens(&*self.eqs);
         line.to_tokens(&*self.p1);
         line.to_tokens(&*self.p2);
     }
@@ -228,7 +228,7 @@ impl ToTokens for SplitProofNodeDetails {
         line.display_to_tokens(&self.split);
         line.display_to_tokens(&self.seq_start);
         line.display_to_tokens(&self.step);
-        line.to_tokens(&self.eqs);
+        line.to_tokens(&*self.eqs);
     }
 }
 
@@ -269,7 +269,7 @@ impl ToTokens for SingleRevInductProofNode {
         line.display_to_tokens(&self.point);
         line.to_tokens(&self.tag);
         line.display_to_tokens(&self.n);
-        line.to_tokens(&self.eqs);
+        line.to_tokens(&*self.eqs);
         line.to_tokens(&self.pred);
         line.display_to_tokens(&self.n_bound);
         line.to_tokens(&*self.child);

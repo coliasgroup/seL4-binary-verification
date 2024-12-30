@@ -6,6 +6,10 @@ use std::slice;
 use std::vec;
 
 use crate::abstract_syntax::{
+    AbstractNodeGraph, HasFunction, HasFunctionWithBody, HasNodeGraph, HasNodeGraphWithEntry,
+    HasNodeGraphWithNodeAddrBound,
+};
+use crate::abstract_syntax::{
     Argument, BasicNode, CallNode, Expr, ExprValue, Function, Ident, Node, NodeAddr, NodeId, Type,
     VarUpdate,
 };
@@ -13,9 +17,6 @@ use crate::concrete_syntax::parse::{
     LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
 };
 use crate::concrete_syntax::print::{BlockBuf, LineBuf, ToTokens};
-use crate::graph::{
-    HasFunctionSignature, HasNodeGraph, HasNodeGraphWithEntry, HasNodeGraphWithNodeAddrBound,
-};
 use crate::pairing::Tag;
 use crate::utils::petgraph::algorithms::{reachable_nodes, tarjan_scc_variant};
 
@@ -87,8 +88,8 @@ impl Problem {
                 line.to_tokens(&side.entry);
                 line.to_tokens(&tag);
                 line.to_tokens(&side.name);
-                line.to_tokens(&side.input);
-                line.to_tokens(&side.output);
+                line.to_tokens(&*side.input);
+                line.to_tokens(&*side.output);
             });
         }
         for (addr, node) in self.nodes.nodes() {
@@ -155,12 +156,12 @@ fn parse_problem_side_line(toks: &mut LineBuffer) -> Result<(Tag, ProblemSide), 
 impl<M> HasNodeGraph for Problem<M> {
     type NodesForGraph<'a> = <NodeMap<M> as HasNodeGraph>::NodesForGraph<'a> where M: 'a;
 
-    fn graph_node(&self, addr: NodeAddr) -> &Node {
-        self.nodes.graph_node(addr)
+    fn node_graph_node(&self, addr: NodeAddr) -> &Node {
+        self.nodes.node_graph_node(addr)
     }
 
-    fn graph_nodes(&self) -> Self::NodesForGraph<'_> {
-        self.nodes.graph_nodes()
+    fn node_graph_nodes(&self) -> Self::NodesForGraph<'_> {
+        self.nodes.node_graph_nodes()
     }
 }
 
@@ -424,11 +425,11 @@ pub(crate) type NodeMapNodeAddrsIter<'a, M> =
 impl<M> HasNodeGraph for NodeMap<M> {
     type NodesForGraph<'a> = NodeMapNodesIter<'a, M> where M: 'a;
 
-    fn graph_node(&self, addr: NodeAddr) -> &Node {
+    fn node_graph_node(&self, addr: NodeAddr) -> &Node {
         self.node(addr)
     }
 
-    fn graph_nodes(&self) -> Self::NodesForGraph<'_> {
+    fn node_graph_nodes(&self) -> Self::NodesForGraph<'_> {
         self.nodes()
     }
 }
@@ -573,9 +574,10 @@ impl NodeMapBuilder {
         }
         let orig_vars = {
             let mut this = BTreeMap::new();
-            f.visit_var_decls(&mut |name: &Ident, ty: &Type| {
-                this.insert(name.clone(), ty.clone());
-            });
+            f.function()
+                .visit_var_decls(&mut |name: &Ident, ty: &Type| {
+                    this.insert(name.clone(), ty.clone());
+                });
             this
         };
         let var_renames: BTreeMap<Ident, Ident> = orig_vars
@@ -911,27 +913,39 @@ impl TagSelector for Asm {
 impl<'a, T, M> HasNodeGraph for ProblemAtSide<'a, T, M> {
     type NodesForGraph<'b> = <Problem<M> as HasNodeGraph>::NodesForGraph<'b> where Self: 'b;
 
-    fn graph_node(&self, addr: NodeAddr) -> &Node {
-        self.inner.graph_node(addr)
+    fn node_graph_node(&self, addr: NodeAddr) -> &Node {
+        self.inner.node_graph_node(addr)
     }
 
-    fn graph_nodes(&self) -> Self::NodesForGraph<'_> {
-        self.inner.graph_nodes()
+    fn node_graph_nodes(&self) -> Self::NodesForGraph<'_> {
+        self.inner.node_graph_nodes()
     }
 }
 
 impl<'a, T: TagSelector, M> HasNodeGraphWithEntry for ProblemAtSide<'a, T, M> {
-    fn graph_entry(&self) -> NodeId {
+    fn node_graph_entry(&self) -> NodeId {
         self.inner.problem_side(self.selector.select()).entry
     }
 }
 
-impl<'a, T: TagSelector, M> HasFunctionSignature for ProblemAtSide<'a, T, M> {
-    fn graph_input(&self) -> &[Argument] {
+impl<'a, T: TagSelector, M> HasFunction for ProblemAtSide<'a, T, M> {
+    type FunctionBody = Self;
+
+    fn function_input(&self) -> &[Argument] {
         &self.inner.problem_side(self.selector.select()).input
     }
 
-    fn graph_output(&self) -> &[Argument] {
+    fn function_output(&self) -> &[Argument] {
         &self.inner.problem_side(self.selector.select()).output
+    }
+
+    fn function_body_if_present(&self) -> Option<AbstractNodeGraph<&Self::FunctionBody>> {
+        Some(self.function_body())
+    }
+}
+
+impl<'a, T: TagSelector, M> HasFunctionWithBody for ProblemAtSide<'a, T, M> {
+    fn function_body(&self) -> AbstractNodeGraph<&Self::FunctionBody> {
+        self.node_graph()
     }
 }
