@@ -3,6 +3,7 @@
 
 mod abstract_syntax;
 mod arch;
+mod check;
 mod compat;
 mod concrete_syntax;
 mod debugger;

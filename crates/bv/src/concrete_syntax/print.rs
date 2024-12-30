@@ -121,6 +121,24 @@ impl LineBuf {
     pub(crate) fn to_tokens<T: ToTokens + ?Sized>(&mut self, v: &T) {
         v.to_tokens(self)
     }
+
+    pub(crate) fn iter_to_tokens_with<T>(
+        &mut self,
+        it: impl ExactSizeIterator<Item = T>,
+        f: impl Fn(T, &mut LineBuf),
+    ) {
+        self.display_to_tokens(&it.len());
+        for x in it {
+            f(x, self);
+        }
+    }
+
+    pub(crate) fn iter_to_tokens<'a, T: ToTokens + 'a>(
+        &mut self,
+        it: impl ExactSizeIterator<Item = &'a T>,
+    ) {
+        self.iter_to_tokens_with(it, ToTokens::to_tokens)
+    }
 }
 
 pub(crate) type Token = String;
@@ -148,10 +166,7 @@ impl<T: ToTokens, U: ToTokens> ToTokens for (T, U) {
 
 impl<T: ToTokens> ToTokens for [T] {
     fn to_tokens(&self, line: &mut LineBuf) {
-        line.display_to_tokens(&self.len());
-        for x in self {
-            line.to_tokens(x);
-        }
+        line.iter_to_tokens(self.iter())
     }
 }
 
