@@ -1,4 +1,4 @@
-use crate::abstract_syntax::{Argument, Type};
+use crate::abstract_syntax::{Argument, Node, Type};
 use crate::arch::PTR_SIZE_BYTES;
 
 impl Type {
@@ -23,6 +23,16 @@ impl Type {
             _ => {
                 panic!()
             }
+        }
+    }
+}
+
+impl Node {
+    pub(crate) fn is_noop(&self) -> bool {
+        match self {
+            Self::Basic(inner) => inner.var_updates.is_empty(),
+            Self::Cond(inner) => inner.left == inner.right,
+            Self::Call(_inner) => false,
         }
     }
 }
