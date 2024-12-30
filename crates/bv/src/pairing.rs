@@ -4,7 +4,8 @@ use std::{fmt, iter};
 
 use regex::Regex;
 
-use crate::abstract_syntax::{Argument, Expr, ExprValue, Ident, Type};
+use crate::abstract_syntax::{Argument, Ident};
+use crate::expr::{Expr, ExprValue, Type};
 use crate::arch::WORD_SIZE_BITS;
 use crate::concrete_syntax::parse::{
     LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,

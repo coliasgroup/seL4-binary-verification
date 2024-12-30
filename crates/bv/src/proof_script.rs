@@ -1,7 +1,8 @@
-use crate::abstract_syntax::{Expr, Ident, NodeAddr, Type};
+use crate::abstract_syntax::{Ident, NodeAddr};
 use crate::concrete_syntax::parse::{LineBuffer, Lines, ParseError, ParseFromLine};
 use crate::concrete_syntax::print::{LineBuf, ToTokens};
 use crate::pairing::Tag;
+use crate::expr::{Expr, ExprValue, Op, Type};
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) enum ProofNode {

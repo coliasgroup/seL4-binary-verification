@@ -1,10 +1,7 @@
 use std::collections::{btree_map::Entry, BTreeMap};
 
 use crate::{
-    abstract_syntax::{Argument, Expr, ExprValue, File, Ident, Node, OpTypeError, Type},
-    compat::ProblemsFile,
-    pairing::{PairingId, Tag},
-    problem::Problem,
+    abstract_syntax::{Argument, File, Ident, Node}, compat::ProblemsFile, expr::{typecheck::OpTypeError, Expr, ExprValue, Type}, pairing::{PairingId, Tag}, problem::Problem
 };
 
 use super::{HasFunctionSignature, HasNodeGraph, MightHaveNodeGraphWithEntry};

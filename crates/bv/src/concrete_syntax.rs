@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::abstract_syntax::*;
+use crate::{abstract_syntax::*, expr::{Expr, ExprValue, Op, Type}};
 
 pub(crate) mod parse;
 pub(crate) mod print;

@@ -4,9 +4,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 
-use crate::abstract_syntax::{Expr, File, Function, Ident};
+use crate::abstract_syntax::{File, Function, Ident};
 use crate::compat::{InlineScriptsFile, PairingsFile, ProblemsFile, ProofsFile, StackBoundsFile};
 use crate::concrete_syntax::parse::ParseFile;
+use crate::expr::Expr;
 use crate::inst_logic::add_asm_inst_spec;
 use crate::objdump::ObjdumpInfo;
 use crate::pairing::PairingId;

@@ -1,5 +1,6 @@
-use crate::abstract_syntax::{Argument, Type};
+use crate::abstract_syntax::{Argument};
 use crate::arch::PTR_SIZE_BYTES;
+use crate::expr::Type;
 
 impl Type {
     pub(crate) fn size(&self) -> u64 {
