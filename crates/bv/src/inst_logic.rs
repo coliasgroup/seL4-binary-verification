@@ -3,10 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use regex::Regex;
 
 use crate::abstract_syntax::{
-    Argument, CallNode, Function, FunctionBody, Ident, Node, NodeId,
+    Argument, CallNode, Expr, Function, FunctionBody, Ident, Node, NodeId, Type,
 };
 use crate::arch::WORD_SIZE_BITS;
-use crate::expr::{Expr, Type};
 use crate::logic::split_scalar_pairs;
 use crate::pairing::{Pairing, PairingId, ASM_IN, ASM_OUT, C_IN, C_OUT};
 

@@ -6,10 +6,9 @@ use std::slice;
 use std::vec;
 
 use crate::abstract_syntax::{
-    Argument, BasicNode, CallNode, Function, Ident, Node, NodeAddr, NodeId,
+    Argument, BasicNode, CallNode, Expr, ExprValue, Function, Ident, Node, NodeAddr, NodeId, Type,
     VarUpdate,
 };
-use crate::expr::{Expr, ExprValue, Op, Type};
 use crate::concrete_syntax::parse::{
     LineBuffer, LinesBuffer, ParseError, ParseFromLine, ParseFromLines,
 };

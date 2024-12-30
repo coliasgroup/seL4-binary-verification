@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt::Debug};
 
-use crate::{abstract_syntax::{Ident, NodeId}, expr::{Expr, ExprValue, Num, Op, Type}};
+use crate::abstract_syntax::{Expr, ExprValue, Ident, NodeId, Num, Op, Type};
 
 struct State<'a> {
     pos: NodeId,

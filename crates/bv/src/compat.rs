@@ -4,12 +4,11 @@ use std::fmt::Write;
 
 use regex::Regex;
 
-use crate::abstract_syntax::{Ident, NodeAddr};
+use crate::abstract_syntax::{Expr, Ident, NodeAddr, Num};
 use crate::concrete_syntax::parse::{
     LineBuffer, Lines, LinesBuffer, ParseError, ParseFileAsLines, ParseFromLine, ParseFromLines,
 };
 use crate::concrete_syntax::print::{BlockBuf, FileBuf, LineBuf, ToTokens};
-use crate::expr::{Expr, Num};
 use crate::pairing::{Pairing, PairingId};
 use crate::problem::{NodeBySource, Problem};
 use crate::proof_script::ProofNode;

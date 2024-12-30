@@ -1,8 +1,7 @@
-use crate::abstract_syntax::{Function};
+use crate::abstract_syntax::{Expr, ExprValue, Function, Num, Op, Type};
 use crate::arch::WORD_SIZE_BITS;
 use crate::objdump::ObjdumpInfo;
 use crate::utils::DoubleEndedIteratorExt;
-use crate::expr::{Expr, ExprValue, Num, Op, Type};
 
 impl Function {
     pub(crate) fn pseudo_compile(&mut self, objdump_info: &ObjdumpInfo) {

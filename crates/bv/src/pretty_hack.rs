@@ -4,9 +4,8 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::abstract_syntax::{
-    Argument, File, Function, Ident, Node, NodeId, VarUpdate,
+    Argument, Expr, ExprValue, File, Function, Ident, Node, NodeId, Op, Type, VarUpdate,
 };
-use crate::expr::{Expr, ExprValue, Op, Type};
 use crate::compat::{PairingsFile, ProblemProof, ProblemsFile, ProofsFile};
 use crate::pairing::{Eq, EqSide, Pairing, PairingId, Tag};
 use crate::problem::{Problem, ProblemSide};
