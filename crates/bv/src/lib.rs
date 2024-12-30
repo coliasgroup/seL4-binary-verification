@@ -17,6 +17,7 @@ mod problem;
 mod proof_script;
 mod pseudo_compile;
 mod sel4;
+mod typecheck;
 mod utils;
 
 #[cfg(test)]
