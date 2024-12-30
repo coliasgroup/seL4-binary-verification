@@ -10,7 +10,7 @@ use crate::{
     problem::Problem,
 };
 
-use crate::graph::{HasFunctionSignature, HasNodeGraph, MightHaveNodeGraphWithEntry};
+use crate::abstract_syntax::{HasFunction, HasNodeGraph};
 
 // TODO
 // - typecheck symbols file-wide
@@ -54,11 +54,9 @@ impl Problem {
     }
 }
 
-fn typecheck_function<T: HasFunctionSignature + MightHaveNodeGraphWithEntry>(
-    f: &T,
-) -> Result<(), FunctionTypeError> {
-    if let Some(graph) = f.node_graph_option() {
-        for (_, node) in graph.graph_nodes() {
+fn typecheck_function<T: HasFunction>(f: &T) -> Result<(), FunctionTypeError> {
+    if let Some(graph) = f.function_body_if_present() {
+        for (_, node) in graph.node_graph_nodes() {
             node.try_visit_exprs(&mut |expr| expr.typecheck())
                 .map_err(FunctionTypeError::OpTypeError)?;
             if let Node::Cond(node) = node {
@@ -69,10 +67,10 @@ fn typecheck_function<T: HasFunctionSignature + MightHaveNodeGraphWithEntry>(
         }
     }
     let mut var_types = VariableTypes::new();
-    var_types.admit_args(f.graph_input())?;
-    var_types.admit_args(f.graph_output())?;
-    if let Some(graph) = f.node_graph_option() {
-        for (_, node) in graph.graph_nodes() {
+    var_types.admit_args(f.function_input())?;
+    var_types.admit_args(f.function_output())?;
+    if let Some(graph) = f.function_body_if_present() {
+        for (_, node) in graph.node_graph_nodes() {
             var_types.admit_node(node)?;
         }
     }
