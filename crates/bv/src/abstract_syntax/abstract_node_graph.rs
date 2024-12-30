@@ -131,7 +131,7 @@ pub(crate) trait HasNodeGraph {
 
     fn node_graph_nodes(&self) -> Self::NodesForGraph<'_>;
 
-    fn node_graph(&self) -> AbstractNodeGraph<&Self> {
+    fn abstract_node_graph(&self) -> AbstractNodeGraph<&Self> {
         AbstractNodeGraph::new(self)
     }
 }
@@ -181,7 +181,7 @@ pub(crate) trait HasNodeGraphMut: HasNodeGraph {
 
     fn node_graph_nodes_mut(&mut self) -> Self::NodesForGraphMut<'_>;
 
-    fn node_graph_mut(&mut self) -> AbstractNodeGraph<&mut Self> {
+    fn abstract_node_graph_mut(&mut self) -> AbstractNodeGraph<&mut Self> {
         AbstractNodeGraph::new(self)
     }
 }
@@ -263,7 +263,7 @@ pub(crate) trait HasFunction {
 
     fn function_body_if_present(&self) -> Option<AbstractNodeGraph<&Self::FunctionBody>>;
 
-    fn function(&self) -> AbstractFunction<&Self> {
+    fn abstract_function(&self) -> AbstractFunction<&Self> {
         AbstractFunction::new(self)
     }
 }
@@ -327,7 +327,7 @@ pub(crate) trait HasFunctionMut: HasFunction {
         &mut self,
     ) -> Option<AbstractNodeGraph<&mut Self::FunctionBodyMut>>;
 
-    fn function_mut(&mut self) -> AbstractFunction<&mut Self> {
+    fn abstract_function_mut(&mut self) -> AbstractFunction<&mut Self> {
         AbstractFunction::new(self)
     }
 }
