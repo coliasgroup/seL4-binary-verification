@@ -78,6 +78,24 @@ impl<'a> Line<'a> {
             line_number: self.line_index + 1,
         }
     }
+
+    pub(crate) fn parse_with<T>(
+        &self,
+        f: impl FnOnce(&mut LineBuffer) -> ParseResult<T>,
+    ) -> ParseResult<T> {
+        let mut lines = LineBuffer::new(self);
+        let ret = f(&mut lines)?;
+        lines.ensure_empty()?;
+        Ok(ret)
+    }
+
+    pub(crate) fn parse<T: ParseFromLine>(&self) -> ParseResult<T> {
+        self.parse_with(ParseFromLine::parse)
+    }
+}
+
+pub(crate) fn parse_line<T: ParseFromLine>(s: &str) -> ParseResult<T> {
+    Line::tokenize(0, s).parse()
 }
 
 #[derive(Debug)]

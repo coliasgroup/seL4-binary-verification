@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 
 use crate::abstract_syntax::{Expr, File, Function, Ident};
-use crate::compat::{InlineScriptsFile, PairingsFile, ProblemsFile, ProofsFile, StackBoundsFile};
+use crate::compat::{
+    InlineScriptsFile, PairingsFile, ProblemsFile, ProofChecksFile, ProofsFile, StackBoundsFile,
+};
 use crate::concrete_syntax::parse::ParseFile;
 use crate::inst_logic::add_asm_inst_spec;
 use crate::objdump::ObjdumpInfo;
@@ -113,6 +115,10 @@ impl TargetDir {
 
     pub(crate) fn read_proofs_file(&self) -> ProofsFile {
         ProofsFile::parse_from_str(&self.read("proofs.txt")).unwrap()
+    }
+
+    pub(crate) fn read_proof_checks_file(&self) -> ProofChecksFile {
+        ProofChecksFile::parse_from_str(&self.read("proof-checks.txt")).unwrap()
     }
 
     fn altered_asm_functions(&self) -> BTreeMap<Ident, Function> {

@@ -3,10 +3,15 @@ use std::fmt;
 use std::fmt::Write;
 
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_json::de::StrRead;
+use serde_json::StreamDeserializer;
 
 use crate::abstract_syntax::{Expr, Ident, NodeAddr, Num};
+use crate::check::{ProofCheck, ProofChecks};
 use crate::concrete_syntax::parse::{
-    LineBuffer, Lines, LinesBuffer, ParseError, ParseFileAsLines, ParseFromLine, ParseFromLines,
+    parse_line, LineBuffer, Lines, LinesBuffer, ParseError, ParseFileAsLines, ParseFromLine,
+    ParseFromLines,
 };
 use crate::concrete_syntax::print::{BlockBuf, FileBuf, LineBuf, ToTokens};
 use crate::pairing::{Pairing, PairingId};
@@ -286,6 +291,90 @@ impl PairingsFile {
 
 // // //
 
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub(crate) struct ProofChecksFile {
+    pub(crate) problems: BTreeMap<PairingId, ProofChecks<String>>,
+}
+
+impl ProofChecksFile {
+    pub(crate) fn parse_from_str(s: &str) -> Result<Self, ParseError> {
+        let mut problems = BTreeMap::new();
+        for entry in StreamDeserializer::new(StrRead::new(s)) {
+            let entry: ChecksFileEntry = entry.unwrap();
+            let pairing_id = parse_pairing_id_from_problem_name(&entry.problem_name);
+            let checks = entry
+                .checks
+                .into_iter()
+                .map(|check| {
+                    Ok(ProofCheck {
+                        meta: check.name,
+                        hyps: check
+                            .hyps
+                            .iter()
+                            .map(|s| {
+                                // println!("{s:?}");
+                                parse_line(s)
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
+                        hyp: {
+                            // println!("{:?}", check.hyp);
+                            parse_line(&check.hyp)?
+                        },
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            problems.insert(pairing_id, ProofChecks { checks });
+        }
+        Ok(Self { problems })
+    }
+
+    pub(crate) fn pretty_print(&self) -> String {
+        let mut s = String::new();
+        for (pairing_id, checks) in &self.problems {
+            let obj = ChecksFileEntry {
+                problem_name: problem_name_from_pairing_id(pairing_id),
+                checks: checks
+                    .checks
+                    .iter()
+                    .map(|check| ChecksFileCheck {
+                        name: check.meta.clone(),
+                        hyps: check.hyps.iter().map(|hyp| hyp.pretty_print()).collect(),
+                        hyp: check.hyp.pretty_print(),
+                    })
+                    .collect(),
+            };
+            s.push_str(&serde_json::to_string_pretty(&obj).unwrap());
+            s.push_str("\n");
+        }
+        s
+    }
+}
+
+fn parse_pairing_id_from_problem_name(s: &str) -> PairingId {
+    let re = Regex::new(r"^Problem \(Pairing \((?<pairing_id>.*)\)\)$").unwrap();
+    let pairing_id_s = re.captures(s).unwrap().name("pairing_id").unwrap().as_str();
+    PairingId::parse_from_str(pairing_id_s)
+}
+
+fn problem_name_from_pairing_id(pairing_id: &PairingId) -> String {
+    format!("Problem (Pairing ({}))", pairing_id.pretty_print())
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub(crate) struct ChecksFileEntry {
+    problem_name: String,
+    checks: Vec<ChecksFileCheck>,
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub(crate) struct ChecksFileCheck {
+    name: String,
+    hyp: String,
+    hyps: Vec<String>,
+}
+
+// // //
+
 fn parse_compat_file(
     nested_name: impl IntoIterator<Item = impl AsRef<str>>,
     s: &str,
@@ -384,6 +473,15 @@ mod tests {
     }
 
     #[test]
+    fn just_proof_checks_round_trip() {
+        test_round_trip_path(
+            sel4_target_dir().join("proof-checks.txt"),
+            ProofChecksFile::parse_from_str,
+            ProofChecksFile::pretty_print,
+        );
+    }
+
+    #[test]
     fn other_round_trips() {
         test_round_trip_path(
             sel4_target_dir().join("inline-scripts.txt"),
@@ -404,6 +502,11 @@ mod tests {
             sel4_target_dir().join("proofs.txt"),
             ProofsFile::parse_from_str,
             ProofsFile::pretty_print,
+        );
+        test_round_trip_path(
+            sel4_target_dir().join("proof-checks.txt"),
+            ProofChecksFile::parse_from_str,
+            ProofChecksFile::pretty_print,
         );
     }
 }
