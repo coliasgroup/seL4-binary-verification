@@ -18,7 +18,7 @@ impl File {
             file.push(const_global.pretty_print_into_block(name));
         }
         for (name, function) in &self.functions {
-            file.push(function.function().pretty_print_into_block(name));
+            file.push(function.abstract_function().pretty_print_into_block(name));
         }
         file.pretty_print_into_string()
     }

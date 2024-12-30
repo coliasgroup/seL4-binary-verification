@@ -574,7 +574,7 @@ impl NodeMapBuilder {
         }
         let orig_vars = {
             let mut this = BTreeMap::new();
-            f.function()
+            f.abstract_function()
                 .visit_var_decls(&mut |name: &Ident, ty: &Type| {
                     this.insert(name.clone(), ty.clone());
                 });
@@ -585,7 +585,7 @@ impl NodeMapBuilder {
             .map(|(name, _ty)| (name.clone(), self.fresh_name(name)))
             .collect();
         let mut orig_node_addrs = reachable_nodes(
-            &f.body().unwrap().node_graph(),
+            &f.body().unwrap().abstract_node_graph(),
             Some(f.body().unwrap().entry_point),
         );
         orig_node_addrs.sort();
@@ -841,7 +841,7 @@ impl ProblemBuilder {
 
     fn force_simple_loop_returns(&mut self) {
         let preds = self.builder.compute_preds();
-        let sccs_with_heads = tarjan_scc_variant(&self.builder.nodes.node_graph(), || {
+        let sccs_with_heads = tarjan_scc_variant(&self.builder.nodes.abstract_node_graph(), || {
             [self.c.entry, self.asm.entry]
         });
         for (head, scc) in sccs_with_heads {
@@ -946,6 +946,6 @@ impl<'a, T: TagSelector, M> HasFunction for ProblemAtSide<'a, T, M> {
 
 impl<'a, T: TagSelector, M> HasFunctionWithBody for ProblemAtSide<'a, T, M> {
     fn function_body(&self) -> AbstractNodeGraph<&Self::FunctionBody> {
-        self.node_graph()
+        self.abstract_node_graph()
     }
 }
