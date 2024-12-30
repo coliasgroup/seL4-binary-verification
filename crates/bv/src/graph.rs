@@ -15,31 +15,19 @@ use crate::abstract_syntax::{Node, NodeAddr, NodeId};
 pub(crate) mod algo;
 
 #[derive(Copy, Clone)]
-pub(crate) struct NodeGraph<T, D = SimpleFormatter> {
+pub(crate) struct NodeGraph<T> {
     inner: T,
-    formatter: D,
 }
 
 impl<T> NodeGraph<T> {
     pub(crate) fn new(inner: T) -> Self {
         Self {
             inner,
-            formatter: Default::default(),
         }
-    }
-}
-
-impl<T, D> NodeGraph<T, D> {
-    pub(crate) fn new_with_formatter(inner: T, formatter: D) -> Self {
-        Self { inner, formatter }
     }
 
     pub(crate) fn inner(&self) -> &T {
         &self.inner
-    }
-
-    pub(crate) fn formatter(&self) -> &D {
-        &self.formatter
     }
 }
 
@@ -53,6 +41,10 @@ pub(crate) trait HasNodeGraph {
     fn graph_nodes(&self) -> Self::NodesForGraph<'_>;
 
     fn node_graph(&self) -> NodeGraph<&Self> {
+        NodeGraph::new(self)
+    }
+
+    fn owned_node_graph(self) -> NodeGraph<Self> where Self: Sized {
         NodeGraph::new(self)
     }
 }
@@ -69,7 +61,7 @@ impl<'a, T: HasNodeGraph> HasNodeGraph for &'a T {
     }
 }
 
-impl<T: HasNodeGraph, D> HasNodeGraph for NodeGraph<T, D> {
+impl<T: HasNodeGraph> HasNodeGraph for NodeGraph<T> {
     type NodesForGraph<'a> = T::NodesForGraph<'a> where Self: 'a;
 
     fn graph_node(&self, addr: NodeAddr) -> &Node {
@@ -91,11 +83,76 @@ impl<'a, T: HasNodeGraphWithNodeAddrBound> HasNodeGraphWithNodeAddrBound for &'a
     }
 }
 
-impl<T: HasNodeGraphWithNodeAddrBound, D> HasNodeGraphWithNodeAddrBound for NodeGraph<T, D> {
+impl<T: HasNodeGraphWithNodeAddrBound> HasNodeGraphWithNodeAddrBound for NodeGraph<T> {
     fn node_addr_bound(&self) -> NodeAddr {
         self.inner.node_addr_bound()
     }
 }
+
+// TODO
+// - HasNodeGraphWithEntrypoint
+// - HasFunctionSignature
+// - HasFunction (HasFunctionSignature + MaybeHasNodeGraphWithEntrypoint)
+
+pub(crate) trait HasNodeGraphWithEntry: HasNodeGraph {
+    fn graph_entry(&self) -> NodeId;
+}
+
+impl<T: HasNodeGraphWithEntry> HasNodeGraphWithEntry for NodeGraph<T> {
+    fn graph_entry(&self) -> NodeId {
+        self.inner.graph_entry()
+    }
+}
+
+pub(crate) trait MightHaveNodeGraphWithEntry {
+    type NodeGraph<'a>: HasNodeGraph
+    where
+        Self: 'a;
+
+    fn node_graph_option(&self) -> Option<Self::NodeGraph<'_>>;
+}
+
+impl<T: HasNodeGraphWithEntry> MightHaveNodeGraphWithEntry for T {
+    type NodeGraph<'a> = &'a T where Self: 'a;
+
+    fn node_graph_option(&self) -> Option<Self::NodeGraph<'_>> {
+        Some(self)
+    }
+}
+
+pub(crate) trait HasFunctionSignature {
+    fn graph_input(&self) -> &[Argument];
+
+    fn graph_output(&self) -> &[Argument];
+}
+
+impl<T: HasFunctionSignature> HasFunctionSignature for NodeGraph<T> {
+    fn graph_input(&self) -> &[Argument] {
+        self.inner.graph_input()
+    }
+
+    fn graph_output(&self) -> &[Argument] {
+        self.inner.graph_output()
+    }
+}
+
+impl<T: HasNodeGraphWithEntry> NodeGraph<T> {
+    pub(crate) fn entry(&self) -> NodeId {
+        self.graph_entry()
+    }
+}
+
+impl<T: HasFunctionSignature> NodeGraph<T> {
+    pub(crate) fn inputs(&self) -> &[Argument] {
+        self.graph_input()
+    }
+
+    pub(crate) fn outputs(&self) -> &[Argument] {
+        self.graph_output()
+    }
+}
+
+// // //
 
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct EdgeId {
@@ -117,17 +174,17 @@ impl EdgeId {
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct EdgeCondition(Option<bool>);
 
-impl<T: HasNodeGraph, D> GraphBase for NodeGraph<T, D> {
+impl<T: HasNodeGraph> GraphBase for NodeGraph<T> {
     type EdgeId = EdgeId;
     type NodeId = NodeId;
 }
 
-pub(crate) struct GraphNodeRef<'a, T, D> {
+pub(crate) struct GraphNodeRef<'a, T> {
     id: NodeId,
-    inner: &'a NodeGraph<T, D>,
+    inner: &'a NodeGraph<T>,
 }
 
-impl<'a, T, D> Clone for GraphNodeRef<'a, T, D> {
+impl<'a, T> Clone for GraphNodeRef<'a, T> {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -136,9 +193,9 @@ impl<'a, T, D> Clone for GraphNodeRef<'a, T, D> {
     }
 }
 
-impl<'a, T, D> Copy for GraphNodeRef<'a, T, D> {}
+impl<'a, T> Copy for GraphNodeRef<'a, T> {}
 
-impl<'a, T: HasNodeGraph, D> NodeRef for GraphNodeRef<'a, T, D> {
+impl<'a, T: HasNodeGraph> NodeRef for GraphNodeRef<'a, T> {
     type NodeId = NodeId;
     type Weight = Self;
 
@@ -151,18 +208,18 @@ impl<'a, T: HasNodeGraph, D> NodeRef for GraphNodeRef<'a, T, D> {
     }
 }
 
-impl<'a, T, D: NodeFormatter<T>> fmt::Display for GraphNodeRef<'a, T, D> {
+impl<'a, T: HasNodeFormatter<T>> fmt::Display for GraphNodeRef<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        D::fmt_node(self, f)
+        self.inner.inner().fmt_node(self, f)
     }
 }
 
-pub(crate) struct GraphEdgeRef<'a, T, D> {
+pub(crate) struct GraphEdgeRef<'a, T> {
     id: EdgeId,
-    inner: &'a NodeGraph<T, D>,
+    inner: &'a NodeGraph<T>,
 }
 
-impl<'a, T, D> Clone for GraphEdgeRef<'a, T, D> {
+impl<'a, T> Clone for GraphEdgeRef<'a, T> {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -171,9 +228,9 @@ impl<'a, T, D> Clone for GraphEdgeRef<'a, T, D> {
     }
 }
 
-impl<'a, T, D> Copy for GraphEdgeRef<'a, T, D> {}
+impl<'a, T> Copy for GraphEdgeRef<'a, T> {}
 
-impl<'a, T, D> EdgeRef for GraphEdgeRef<'a, T, D> {
+impl<'a, T> EdgeRef for GraphEdgeRef<'a, T> {
     type NodeId = NodeId;
     type EdgeId = EdgeId;
     type Weight = Self;
@@ -195,18 +252,18 @@ impl<'a, T, D> EdgeRef for GraphEdgeRef<'a, T, D> {
     }
 }
 
-impl<'a, T, D: EdgeFormatter<T>> fmt::Display for GraphEdgeRef<'a, T, D> {
+impl<'a, T: HasEdgeFormatter<T>> fmt::Display for GraphEdgeRef<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        D::fmt_edge(self, f)
+        self.inner.inner().fmt_edge(self, f)
     }
 }
 
-impl<'a, T: HasNodeGraph, D> Data for &'a NodeGraph<T, D> {
-    type NodeWeight = GraphNodeRef<'a, T, D>;
-    type EdgeWeight = GraphEdgeRef<'a, T, D>;
+impl<'a, T: HasNodeGraph> Data for &'a NodeGraph<T> {
+    type NodeWeight = GraphNodeRef<'a, T>;
+    type EdgeWeight = GraphEdgeRef<'a, T>;
 }
 
-impl<'a, T: HasNodeGraph, D> IntoNodeIdentifiers for &'a NodeGraph<T, D> {
+impl<'a, T: HasNodeGraph> IntoNodeIdentifiers for &'a NodeGraph<T> {
     type NodeIdentifiers = iter::Chain<
         std::array::IntoIter<NodeId, 2>,
         iter::Map<T::NodesForGraph<'a>, fn((NodeAddr, &'a Node)) -> NodeId>,
@@ -221,9 +278,9 @@ impl<'a, T: HasNodeGraph, D> IntoNodeIdentifiers for &'a NodeGraph<T, D> {
     }
 }
 
-impl<'a, T: HasNodeGraph, D: 'a> IntoNodeReferences for &'a NodeGraph<T, D> {
-    type NodeRef = GraphNodeRef<'a, T, D>;
-    type NodeReferences = NodeReferences<'a, T, D, Self::NodeIdentifiers>;
+impl<'a, T: HasNodeGraph> IntoNodeReferences for &'a NodeGraph<T> {
+    type NodeRef = GraphNodeRef<'a, T>;
+    type NodeReferences = NodeReferences<'a, T, Self::NodeIdentifiers>;
 
     fn node_references(self) -> Self::NodeReferences {
         NodeReferences {
@@ -233,13 +290,13 @@ impl<'a, T: HasNodeGraph, D: 'a> IntoNodeReferences for &'a NodeGraph<T, D> {
     }
 }
 
-pub(crate) struct NodeReferences<'a, T, D, I> {
-    inner: &'a NodeGraph<T, D>,
+pub(crate) struct NodeReferences<'a, T, I> {
+    inner: &'a NodeGraph<T>,
     it: I,
 }
 
-impl<'a, T, D, I: Iterator<Item = NodeId>> Iterator for NodeReferences<'a, T, D, I> {
-    type Item = GraphNodeRef<'a, T, D>;
+impl<'a, T, I: Iterator<Item = NodeId>> Iterator for NodeReferences<'a, T, I> {
+    type Item = GraphNodeRef<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.it.next().map(|id| GraphNodeRef {
@@ -249,12 +306,11 @@ impl<'a, T, D, I: Iterator<Item = NodeId>> Iterator for NodeReferences<'a, T, D,
     }
 }
 
-impl<'a, T: HasNodeGraph, D> IntoEdgeReferences for &'a NodeGraph<T, D> {
-    type EdgeRef = GraphEdgeRef<'a, T, D>;
+impl<'a, T: HasNodeGraph> IntoEdgeReferences for &'a NodeGraph<T> {
+    type EdgeRef = GraphEdgeRef<'a, T>;
     type EdgeReferences = EdgeReferences<
         'a,
         T,
-        D,
         iter::FlatMap<
             T::NodesForGraph<'a>,
             ArrayVec<EdgeId, 2>,
@@ -286,13 +342,13 @@ impl<'a, T: HasNodeGraph, D> IntoEdgeReferences for &'a NodeGraph<T, D> {
     }
 }
 
-pub(crate) struct EdgeReferences<'a, T, D, I> {
-    inner: &'a NodeGraph<T, D>,
+pub(crate) struct EdgeReferences<'a, T, I> {
+    inner: &'a NodeGraph<T>,
     it: I,
 }
 
-impl<'a, T, D, I: Iterator<Item = EdgeId>> Iterator for EdgeReferences<'a, T, D, I> {
-    type Item = GraphEdgeRef<'a, T, D>;
+impl<'a, T, I: Iterator<Item = EdgeId>> Iterator for EdgeReferences<'a, T, I> {
+    type Item = GraphEdgeRef<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.it.next().map(|id| GraphEdgeRef {
@@ -302,7 +358,7 @@ impl<'a, T, D, I: Iterator<Item = EdgeId>> Iterator for EdgeReferences<'a, T, D,
     }
 }
 
-impl<'a, T: HasNodeGraph, D> IntoNeighbors for &'a NodeGraph<T, D> {
+impl<'a, T: HasNodeGraph> IntoNeighbors for &'a NodeGraph<T> {
     type Neighbors = arrayvec::IntoIter<NodeId, 2>;
 
     fn neighbors(self, a: Self::NodeId) -> Self::Neighbors {
@@ -315,7 +371,7 @@ impl<'a, T: HasNodeGraph, D> IntoNeighbors for &'a NodeGraph<T, D> {
     }
 }
 
-impl<T: HasNodeGraphWithNodeAddrBound, D> NodeIndexable for NodeGraph<T, D> {
+impl<T: HasNodeGraphWithNodeAddrBound> NodeIndexable for NodeGraph<T> {
     fn node_bound(&self) -> usize {
         usize::try_from(self.node_addr_bound()).unwrap() + 2
     }
@@ -338,7 +394,7 @@ impl<T: HasNodeGraphWithNodeAddrBound, D> NodeIndexable for NodeGraph<T, D> {
 }
 
 // TODO use FixedBitSet for NodeMap case?
-impl<T: HasNodeGraph, D> Visitable for NodeGraph<T, D> {
+impl<T: HasNodeGraph> Visitable for NodeGraph<T> {
     type Map = HashSet<NodeId>;
 
     fn visit_map(&self) -> Self::Map {
@@ -350,29 +406,96 @@ impl<T: HasNodeGraph, D> Visitable for NodeGraph<T, D> {
     }
 }
 
-impl<T: HasNodeGraph, D> GraphProp for NodeGraph<T, D> {
+impl<T: HasNodeGraph> GraphProp for NodeGraph<T> {
     type EdgeType = Directed;
 }
 
-pub(crate) trait NodeFormatter<T>: Sized {
-    fn fmt_node<'a>(node: &GraphNodeRef<'a, T, Self>, f: &mut fmt::Formatter) -> fmt::Result;
+// // //
+
+pub(crate) trait HasNodeFormatter<T> {
+    fn fmt_node<'a>(&self, node: &GraphNodeRef<'a, T>, f: &mut fmt::Formatter) -> fmt::Result;
 }
 
-pub(crate) trait EdgeFormatter<T>: Sized {
-    fn fmt_edge<'a>(edge: &GraphEdgeRef<'a, T, Self>, f: &mut fmt::Formatter) -> fmt::Result;
+pub(crate) trait HasEdgeFormatter<T> {
+    fn fmt_edge<'a>(&self, edge: &GraphEdgeRef<'a, T>, f: &mut fmt::Formatter) -> fmt::Result;
+}
+
+impl<T, D: HasNodeFormatter<T>> HasNodeFormatter<T> for &D {
+    fn fmt_node<'a>(&self, node: &GraphNodeRef<'a, T>, f: &mut fmt::Formatter) -> fmt::Result {
+        D::fmt_node(self, node, f)
+    }
+}
+
+impl<T, D: HasEdgeFormatter<T>> HasEdgeFormatter<T> for &D {
+    fn fmt_edge<'a>(&self, node: &GraphEdgeRef<'a, T>, f: &mut fmt::Formatter) -> fmt::Result {
+        D::fmt_edge(self, node, f)
+    }
+}
+
+pub(crate) struct NodeGraphFormatterWrapper<T, D = SimpleFormatter> {
+    inner: T,
+    formatter: D,
+}
+
+impl<T> NodeGraphFormatterWrapper<T> {
+    pub(crate) fn new(inner: T) -> Self {
+        Self {
+            inner,
+            formatter: Default::default(),
+        }
+    }
+}
+
+impl<T, D> NodeGraphFormatterWrapper<T, D> {
+    pub(crate) fn new_with_formatter(inner: T, formatter: D) -> Self {
+        Self {
+            inner,
+            formatter,
+        }
+    }
+}
+
+impl<T, U, D: HasNodeFormatter<T>> HasNodeFormatter<T> for NodeGraphFormatterWrapper<U, D> {
+    fn fmt_node<'a>(&self, node: &GraphNodeRef<'a, T>, f: &mut fmt::Formatter) -> fmt::Result {
+        self.formatter.fmt_node(node, f)
+    }
+}
+
+impl<T, U, D: HasEdgeFormatter<T>> HasEdgeFormatter<T> for NodeGraphFormatterWrapper<U, D> {
+    fn fmt_edge<'a>(&self, node: &GraphEdgeRef<'a, T>, f: &mut fmt::Formatter) -> fmt::Result {
+        self.formatter.fmt_edge(node, f)
+    }
+}
+
+impl<T: HasNodeGraph, D> HasNodeGraph for NodeGraphFormatterWrapper<T, D> {
+    type NodesForGraph<'b> = T::NodesForGraph<'b> where Self: 'b;
+
+    fn graph_node(&self, addr: NodeAddr) -> &Node {
+        T::graph_node(&self.inner, addr)
+    }
+
+    fn graph_nodes(&self) -> Self::NodesForGraph<'_> {
+        T::graph_nodes(&self.inner)
+    }
+}
+
+impl<'a, T: HasNodeGraphWithNodeAddrBound, D> HasNodeGraphWithNodeAddrBound for NodeGraphFormatterWrapper<T, D> {
+    fn node_addr_bound(&self) -> NodeAddr {
+        T::node_addr_bound(&self.inner)
+    }
 }
 
 #[derive(Default, Copy, Clone)]
 pub(crate) struct SimpleFormatter(());
 
-impl<T> NodeFormatter<T> for SimpleFormatter {
-    fn fmt_node<'a>(node: &GraphNodeRef<'a, T, Self>, f: &mut fmt::Formatter) -> fmt::Result {
+impl<T> HasNodeFormatter<T> for SimpleFormatter {
+    fn fmt_node<'a>(&self, node: &GraphNodeRef<'a, T>, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", node.id)
     }
 }
 
-impl<T> EdgeFormatter<T> for SimpleFormatter {
-    fn fmt_edge<'a>(edge: &GraphEdgeRef<'a, T, Self>, f: &mut fmt::Formatter) -> fmt::Result {
+impl<T> HasEdgeFormatter<T> for SimpleFormatter {
+    fn fmt_edge<'a>(&self, edge: &GraphEdgeRef<'a, T>, f: &mut fmt::Formatter) -> fmt::Result {
         match edge.id.condition.0 {
             None => write!(f, ""),
             Some(b) => match b {
@@ -380,68 +503,5 @@ impl<T> EdgeFormatter<T> for SimpleFormatter {
                 false => write!(f, "F"),
             },
         }
-    }
-}
-
-// TODO
-// - HasNodeGraphWithEntrypoint
-// - HasFunctionSignature
-// - HasFunction (HasFunctionSignature + MaybeHasNodeGraphWithEntrypoint)
-
-pub(crate) trait HasNodeGraphWithEntry: HasNodeGraph {
-    fn graph_entry(&self) -> NodeId;
-}
-
-impl<T: HasNodeGraphWithEntry, D> HasNodeGraphWithEntry for NodeGraph<T, D> {
-    fn graph_entry(&self) -> NodeId {
-        self.inner.graph_entry()
-    }
-}
-
-pub(crate) trait MightHaveNodeGraphWithEntry {
-    type NodeGraph<'a>: HasNodeGraph
-    where
-        Self: 'a;
-
-    fn node_graph_option(&self) -> Option<Self::NodeGraph<'_>>;
-}
-
-impl<T: HasNodeGraphWithEntry> MightHaveNodeGraphWithEntry for T {
-    type NodeGraph<'a> = &'a T where Self: 'a;
-
-    fn node_graph_option(&self) -> Option<Self::NodeGraph<'_>> {
-        Some(self)
-    }
-}
-
-pub(crate) trait HasFunctionSignature {
-    fn graph_input(&self) -> &[Argument];
-
-    fn graph_output(&self) -> &[Argument];
-}
-
-impl<T: HasFunctionSignature, D> HasFunctionSignature for NodeGraph<T, D> {
-    fn graph_input(&self) -> &[Argument] {
-        self.inner.graph_input()
-    }
-
-    fn graph_output(&self) -> &[Argument] {
-        self.inner.graph_output()
-    }
-}
-
-impl<T: HasNodeGraphWithEntry, D> NodeGraph<T, D> {
-    pub(crate) fn entry(&self) -> NodeId {
-        self.graph_entry()
-    }
-}
-
-impl<T: HasFunctionSignature, D> NodeGraph<T, D> {
-    pub(crate) fn inputs(&self) -> &[Argument] {
-        self.graph_input()
-    }
-
-    pub(crate) fn outputs(&self) -> &[Argument] {
-        self.graph_output()
     }
 }

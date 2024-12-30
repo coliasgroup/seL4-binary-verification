@@ -14,7 +14,7 @@ mod dot {
 
     use petgraph::dot;
 
-    use crate::graph::HasNodeGraph;
+    use crate::graph::{HasNodeGraph, NodeGraphFormatterWrapper};
     use crate::sel4::TargetDir;
 
     #[test]
@@ -24,7 +24,7 @@ mod dot {
         let t = TargetDir::usual(sel4_target_dir());
         let fs = t.read_asm_functions();
         let f = &fs[f_name];
-        let g = f.body().unwrap().node_graph();
+        let g = NodeGraphFormatterWrapper::new(f.body().unwrap()).owned_node_graph();
         let d = dot::Dot::with_config(&g, &[]);
         eprintln!("{}", d);
         write("f.dot", format!("{}", d));
