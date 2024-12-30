@@ -1,5 +1,10 @@
 use super::{Argument, Node, NodeAddr, NodeId};
 
+// TODO
+// - AbstractFunctions
+// - HasFunctions
+// - HasFunctionsMut
+
 #[derive(Copy, Clone)]
 pub(crate) struct AbstractNodeGraph<T> {
     inner: T,
