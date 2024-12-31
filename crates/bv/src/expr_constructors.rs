@@ -10,6 +10,14 @@ impl Expr {
         Self::new(Type::Bool, Op::False.mk([]))
     }
 
+    pub(crate) fn mk_bool(val: bool) -> Self {
+        if val {
+            Self::mk_true()
+        } else {
+            Self::mk_false()
+        }
+    }
+
     pub(crate) fn mk_word(val: Num, bits: u64) -> Self {
         Self::new(Type::Word(bits), ExprValue::Num(val))
     }

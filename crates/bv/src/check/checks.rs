@@ -17,8 +17,11 @@ pub(crate) fn proof_checks(
     problem: &Problem,
     proof: &ProofNode,
 ) -> ProofChecks<()> {
+    let pairing = &pairings[pairing_id];
     todo!()
 }
+
+// fn inst_eqs(problem: &Problem, pairing: &Pairing)
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct ProofChecks<M> {
@@ -64,6 +67,61 @@ pub(crate) enum Hyp {
     Eq { eq: EqHyp, if_at: bool },
 }
 
+impl Hyp {
+    pub(crate) fn mk_eq_with_if_at(
+        lhs: EqHypSide,
+        rhs: EqHypSide,
+        induct: Option<EqHypInduct>,
+        if_at: bool,
+    ) -> Self {
+        Self::Eq {
+            eq: EqHyp { lhs, rhs, induct },
+            if_at,
+        }
+    }
+
+    pub(crate) fn mk_eq(lhs: EqHypSide, rhs: EqHypSide, induct: Option<EqHypInduct>) -> Self {
+        Self::mk_eq_with_if_at(lhs, rhs, induct, false)
+    }
+
+    pub(crate) fn mk_eq_if_at(lhs: EqHypSide, rhs: EqHypSide, induct: Option<EqHypInduct>) -> Self {
+        Self::mk_eq_with_if_at(lhs, rhs, induct, false)
+    }
+
+    pub(crate) fn mk_true_if_at(
+        expr: Expr,
+        vis: &VisitWithTag,
+        induct: Option<EqHypInduct>,
+    ) -> Self {
+        Self::mk_eq_if_at(
+            EqHypSide::new(expr, vis.clone()),
+            EqHypSide::new(Expr::mk_true(), vis.clone()),
+            induct,
+        )
+    }
+
+    pub(crate) fn pc_true(vis: VisitWithTag) -> Self {
+        Self::PcImp(PcImpHyp {
+            lhs: PcImpHypSide::Bool(true),
+            rhs: PcImpHypSide::Pc(vis),
+        })
+    }
+
+    pub(crate) fn pc_false(vis: VisitWithTag) -> Self {
+        Self::PcImp(PcImpHyp {
+            lhs: PcImpHypSide::Pc(vis),
+            rhs: PcImpHypSide::Bool(false),
+        })
+    }
+
+    pub(crate) fn pc_triv(vis: &VisitWithTag) -> Self {
+        Self::PcImp(PcImpHyp {
+            lhs: PcImpHypSide::Pc(vis.clone()),
+            rhs: PcImpHypSide::Pc(vis.clone()),
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct PcImpHyp {
     lhs: PcImpHypSide,
@@ -73,7 +131,7 @@ pub(crate) struct PcImpHyp {
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) enum PcImpHypSide {
     Bool(bool),
-    Pc { visit: Visit, tag: Tag },
+    Pc(VisitWithTag),
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -86,14 +144,19 @@ pub(crate) struct EqHyp {
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct EqHypSide {
     expr: Expr,
-    visit: Visit,
-    tag: Tag,
+    visit: VisitWithTag,
+}
+
+impl EqHypSide {
+    pub(crate) fn new(expr: Expr, visit: VisitWithTag) -> Self {
+        Self { expr, visit }
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub(crate) struct EqHypInduct {
-    a: Num,
-    b: Num,
+pub(crate) struct VisitWithTag {
+    visit: Visit,
+    tag: Tag,
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -112,6 +175,12 @@ pub(crate) struct Restr {
 pub(crate) struct VisitCount {
     numbers: Vec<Num>,
     offsets: Vec<Num>,
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub(crate) struct EqHypInduct {
+    a: Num,
+    b: Num,
 }
 
 impl ParseFromLine for Hyp {
@@ -169,10 +238,7 @@ impl ParseFromLine for PcImpHypSide {
         Ok(match tok.as_str() {
             "True" => Self::Bool(true),
             "False" => Self::Bool(false),
-            "PC" => Self::Pc {
-                visit: toks.parse()?,
-                tag: toks.parse()?,
-            },
+            "PC" => Self::Pc(toks.parse()?),
             _ => return Err(ParseError::UnexpectedToken(tok.location())),
         })
     }
@@ -184,10 +250,9 @@ impl ToTokens for PcImpHypSide {
             Self::Bool(inner) => {
                 line.to_tokens(if *inner { "True" } else { "False" });
             }
-            Self::Pc { visit, tag } => {
+            Self::Pc(visit) => {
                 line.to_tokens("PC");
                 line.to_tokens(visit);
-                line.to_tokens(tag);
             }
         }
     }
@@ -248,7 +313,6 @@ impl ParseFromLine for EqHypSide {
         Ok(Self {
             expr: toks.parse()?,
             visit: toks.parse()?,
-            tag: toks.parse()?,
         })
     }
 }
@@ -256,6 +320,21 @@ impl ParseFromLine for EqHypSide {
 impl ToTokens for EqHypSide {
     fn to_tokens(&self, line: &mut LineBuf) {
         line.to_tokens(&self.expr);
+        line.to_tokens(&self.visit);
+    }
+}
+
+impl ParseFromLine for VisitWithTag {
+    fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
+        Ok(Self {
+            visit: toks.parse()?,
+            tag: toks.parse()?,
+        })
+    }
+}
+
+impl ToTokens for VisitWithTag {
+    fn to_tokens(&self, line: &mut LineBuf) {
         line.to_tokens(&self.visit);
         line.to_tokens(&self.tag);
     }
