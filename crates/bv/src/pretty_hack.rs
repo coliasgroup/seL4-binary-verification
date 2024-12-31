@@ -7,7 +7,7 @@ use crate::abstract_syntax::{
     Argument, Expr, ExprValue, File, Function, Ident, Node, NodeId, Op, Type, VarUpdate,
 };
 use crate::compat::{PairingsFile, ProblemProof, ProblemsFile, ProofsFile};
-use crate::pairing::{Eq, EqSide, Pairing, PairingId, Tag};
+use crate::pairing::{Pairing, PairingEq, PairingEqSide, PairingId, Tag};
 use crate::problem::{Problem, ProblemSide};
 use crate::proof_script::{ProofNode, RestrProofNodeKind};
 
@@ -176,7 +176,7 @@ impl ToTokens for Pairing {
     }
 }
 
-impl ToTokens for Eq {
+impl ToTokens for PairingEq {
     fn to_tokens(&self, toks: &mut TokenStream) {
         let lhs = &self.lhs;
         let rhs = &self.rhs;
@@ -189,7 +189,7 @@ impl ToTokens for Eq {
     }
 }
 
-impl ToTokens for EqSide {
+impl ToTokens for PairingEqSide {
     fn to_tokens(&self, toks: &mut TokenStream) {
         let q = parse(format!("{}", self.quadrant));
         let expr = &self.expr;

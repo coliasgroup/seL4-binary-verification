@@ -62,8 +62,8 @@ impl PairingId {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash, Default)]
 pub(crate) struct Pairing {
-    pub(crate) in_eqs: Vec<Eq>,
-    pub(crate) out_eqs: Vec<Eq>,
+    pub(crate) in_eqs: Vec<PairingEq>,
+    pub(crate) out_eqs: Vec<PairingEq>,
 }
 
 impl Pairing {
@@ -268,8 +268,8 @@ impl Pairing {
         let mut block = BlockBuf::new();
         block.push_line_with(|line| line.to_tokens("Pairing"));
         for (dir, eqs) in [
-            (EqDirection::In, &self.in_eqs),
-            (EqDirection::Out, &self.out_eqs),
+            (PairingEqDirection::In, &self.in_eqs),
+            (PairingEqDirection::Out, &self.out_eqs),
         ] {
             for eq in eqs {
                 block.push_line_with(|line| {
@@ -312,8 +312,8 @@ impl ParseFromLines for Pairing {
             } else {
                 let (dir, eq) = lines.parse_next_line()?;
                 let v = match dir {
-                    EqDirection::In => &mut pairing.in_eqs,
-                    EqDirection::Out => &mut pairing.out_eqs,
+                    PairingEqDirection::In => &mut pairing.in_eqs,
+                    PairingEqDirection::Out => &mut pairing.out_eqs,
                 };
                 v.push(eq);
             }
@@ -323,19 +323,19 @@ impl ParseFromLines for Pairing {
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub(crate) struct Eq {
-    pub(crate) lhs: EqSide,
-    pub(crate) rhs: EqSide,
+pub(crate) struct PairingEq {
+    pub(crate) lhs: PairingEqSide,
+    pub(crate) rhs: PairingEqSide,
 }
 
-impl Eq {
-    pub(crate) fn new(lhs: EqSide, rhs: EqSide) -> Self {
+impl PairingEq {
+    pub(crate) fn new(lhs: PairingEqSide, rhs: PairingEqSide) -> Self {
         assert_eq!(lhs.expr.ty, rhs.expr.ty);
         Self { lhs, rhs }
     }
 }
 
-impl ParseFromLine for Eq {
+impl ParseFromLine for PairingEq {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
         Ok(Self {
             lhs: toks.parse()?,
@@ -344,7 +344,7 @@ impl ParseFromLine for Eq {
     }
 }
 
-impl ToTokens for Eq {
+impl ToTokens for PairingEq {
     fn to_tokens(&self, line: &mut LineBuf) {
         line.to_tokens(&self.lhs);
         line.to_tokens(&self.rhs);
@@ -352,22 +352,22 @@ impl ToTokens for Eq {
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub(crate) struct EqSide {
-    pub(crate) quadrant: EqSideQuadrant,
+pub(crate) struct PairingEqSide {
+    pub(crate) quadrant: PairingEqSideQuadrant,
     pub(crate) expr: Expr,
 }
 
-impl EqSide {
-    pub(crate) fn new(quadrant: EqSideQuadrant, expr: Expr) -> Self {
+impl PairingEqSide {
+    pub(crate) fn new(quadrant: PairingEqSideQuadrant, expr: Expr) -> Self {
         Self { quadrant, expr }
     }
 
-    pub(crate) fn mk_eq(self, rhs: Self) -> Eq {
-        Eq::new(self, rhs)
+    pub(crate) fn mk_eq(self, rhs: Self) -> PairingEq {
+        PairingEq::new(self, rhs)
     }
 }
 
-impl ParseFromLine for EqSide {
+impl ParseFromLine for PairingEqSide {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
         Ok(Self {
             quadrant: toks.parse()?,
@@ -376,7 +376,7 @@ impl ParseFromLine for EqSide {
     }
 }
 
-impl ToTokens for EqSide {
+impl ToTokens for PairingEqSide {
     fn to_tokens(&self, line: &mut LineBuf) {
         line.to_tokens(&self.quadrant);
         line.to_tokens(&self.expr);
@@ -384,27 +384,31 @@ impl ToTokens for EqSide {
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub(crate) struct EqSideQuadrant {
+pub(crate) struct PairingEqSideQuadrant {
     pub(crate) tag: Tag,
-    pub(crate) direction: EqDirection,
+    pub(crate) direction: PairingEqDirection,
 }
 
-impl EqSideQuadrant {
-    pub(crate) const fn new(tag: Tag, direction: EqDirection) -> Self {
+impl PairingEqSideQuadrant {
+    pub(crate) const fn new(tag: Tag, direction: PairingEqDirection) -> Self {
         Self { tag, direction }
     }
 
-    pub(crate) fn side(self, expr: Expr) -> EqSide {
-        EqSide::new(self, expr)
+    pub(crate) fn side(self, expr: Expr) -> PairingEqSide {
+        PairingEqSide::new(self, expr)
     }
 }
 
-pub(crate) const ASM_IN: EqSideQuadrant = EqSideQuadrant::new(Tag::Asm, EqDirection::In);
-pub(crate) const ASM_OUT: EqSideQuadrant = EqSideQuadrant::new(Tag::Asm, EqDirection::Out);
-pub(crate) const C_IN: EqSideQuadrant = EqSideQuadrant::new(Tag::C, EqDirection::In);
-pub(crate) const C_OUT: EqSideQuadrant = EqSideQuadrant::new(Tag::C, EqDirection::Out);
+pub(crate) const ASM_IN: PairingEqSideQuadrant =
+    PairingEqSideQuadrant::new(Tag::Asm, PairingEqDirection::In);
+pub(crate) const ASM_OUT: PairingEqSideQuadrant =
+    PairingEqSideQuadrant::new(Tag::Asm, PairingEqDirection::Out);
+pub(crate) const C_IN: PairingEqSideQuadrant =
+    PairingEqSideQuadrant::new(Tag::C, PairingEqDirection::In);
+pub(crate) const C_OUT: PairingEqSideQuadrant =
+    PairingEqSideQuadrant::new(Tag::C, PairingEqDirection::Out);
 
-impl ParseFromLine for EqSideQuadrant {
+impl ParseFromLine for PairingEqSideQuadrant {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
         let tok = toks.next()?;
         let (s_tag, s_dir) = tok
@@ -418,15 +422,15 @@ impl ParseFromLine for EqSideQuadrant {
                 _ => return Err(ParseError::UnexpectedToken(tok.location())),
             },
             direction: match s_dir {
-                "IN" => EqDirection::In,
-                "OUT" => EqDirection::Out,
+                "IN" => PairingEqDirection::In,
+                "OUT" => PairingEqDirection::Out,
                 _ => return Err(ParseError::UnexpectedToken(tok.location())),
             },
         })
     }
 }
 
-impl fmt::Display for EqSideQuadrant {
+impl fmt::Display for PairingEqSideQuadrant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match &self.tag {
             Tag::C => "C",
@@ -434,26 +438,26 @@ impl fmt::Display for EqSideQuadrant {
         })?;
         f.write_str("_")?;
         f.write_str(match &self.direction {
-            EqDirection::In => "IN",
-            EqDirection::Out => "OUT",
+            PairingEqDirection::In => "IN",
+            PairingEqDirection::Out => "OUT",
         })?;
         Ok(())
     }
 }
 
-impl ToTokens for EqSideQuadrant {
+impl ToTokens for PairingEqSideQuadrant {
     fn to_tokens(&self, line: &mut LineBuf) {
         line.display_to_tokens(self);
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub(crate) enum EqDirection {
+pub(crate) enum PairingEqDirection {
     In,
     Out,
 }
 
-impl ParseFromLine for EqDirection {
+impl ParseFromLine for PairingEqDirection {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
         let tok = toks.next()?;
         Ok(match tok.as_str() {
@@ -464,7 +468,7 @@ impl ParseFromLine for EqDirection {
     }
 }
 
-impl ToTokens for EqDirection {
+impl ToTokens for PairingEqDirection {
     fn to_tokens(&self, line: &mut LineBuf) {
         line.to_tokens(match self {
             Self::In => "IN",

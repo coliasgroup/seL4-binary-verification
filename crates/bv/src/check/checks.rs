@@ -21,7 +21,15 @@ pub(crate) fn proof_checks(
     todo!()
 }
 
-// fn inst_eqs(problem: &Problem, pairing: &Pairing)
+fn inst_eqs(
+    problem: &Problem,
+    pairing: &Pairing,
+    restrs: &[Restr],
+    eqs: &[Eq],
+    tag_map: &BTreeMap<Tag, Tag>,
+) -> Vec<Hyp> {
+    todo!()
+}
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct ProofChecks<M> {
