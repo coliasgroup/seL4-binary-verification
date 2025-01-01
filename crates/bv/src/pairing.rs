@@ -19,6 +19,16 @@ pub(crate) enum Tag {
     Asm,
 }
 
+impl Tag {
+    pub(crate) fn iter() -> impl Iterator<Item = Self> {
+        [Self::C, Self::Asm].into_iter()
+    }
+
+    pub(crate) fn with_direction(self, direction: PairingEqDirection) -> PairingEqSideQuadrant {
+        PairingEqSideQuadrant::new(self, direction)
+    }
+}
+
 impl ParseFromLine for Tag {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
         let tok = toks.next()?;

@@ -647,6 +647,29 @@ impl Expr {
         }
         f(self)
     }
+
+    pub(crate) fn visit_var_names_mut(&mut self, f: &mut impl FnMut(&mut Ident)) {
+        self.try_visit_var_names_mut(&mut |x| Ok::<(), Infallible>(f(x)))
+            .unwrap_or_else(|err| match err {})
+    }
+
+    pub(crate) fn try_visit_var_names_mut<E>(
+        &mut self,
+        f: &mut impl FnMut(&mut Ident) -> Result<(), E>,
+    ) -> Result<(), E> {
+        self.try_visit_exprs_mut(&mut |expr| match &mut expr.value {
+            ExprValue::Var(ident) => f(ident),
+            _ => Ok(()),
+        })
+    }
+
+    pub(crate) fn rename_vars(&mut self, mut f: impl FnMut(&Ident) -> Option<Ident>) {
+        self.visit_var_names_mut(&mut |ident| {
+            if let Some(new_ident) = f(ident) {
+                *ident = new_ident;
+            }
+        })
+    }
 }
 
 // TODO

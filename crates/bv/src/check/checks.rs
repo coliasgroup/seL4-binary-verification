@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    abstract_syntax::{Expr, NodeId, Num},
+    abstract_syntax::{Expr, Ident, NodeId, Num},
     concrete_syntax::{
         parse::{LineBuffer, ParseError, ParseFromLine},
         print::{LineBuf, ToTokens},
     },
-    pairing::{Pairing, PairingId, Tag},
+    pairing::{Pairing, PairingEq, PairingEqDirection, PairingId, Tag},
     problem::Problem,
     proof_script::ProofNode,
 };
@@ -23,12 +23,63 @@ pub(crate) fn proof_checks(
 
 fn inst_eqs(
     problem: &Problem,
-    pairing: &Pairing,
     restrs: &[Restr],
-    eqs: &[Eq],
-    tag_map: &BTreeMap<Tag, Tag>,
+    eqs: &[PairingEq],
+    tag_map: Option<&BTreeMap<Tag, Tag>>,
 ) -> Vec<Hyp> {
-    todo!()
+    let mut addr_map = BTreeMap::new();
+    let default_tag_map = BTreeMap::from_iter(Tag::iter().map(|tag| (tag.clone(), tag)));
+    let tag_map = tag_map.unwrap_or(&default_tag_map);
+    for (pair_tag, p_tag) in tag_map.iter() {
+        addr_map.insert(
+            pair_tag.with_direction(PairingEqDirection::In),
+            VisitWithTag::new(
+                Visit::new(problem.problem_side(*p_tag).entry, vec![]),
+                *p_tag,
+            ),
+        );
+        addr_map.insert(
+            pair_tag.with_direction(PairingEqDirection::Out),
+            VisitWithTag::new(Visit::new(NodeId::Ret, restrs.into()), *p_tag),
+        );
+    }
+    let mut renames = BTreeMap::<_, BTreeMap<Ident, _>>::new();
+    for (pair_tag, p_tag) in tag_map.iter() {
+        renames.insert(
+            pair_tag.with_direction(PairingEqDirection::In),
+            renames[&p_tag.with_direction(PairingEqDirection::In)].clone(),
+        );
+        renames.insert(
+            pair_tag.with_direction(PairingEqDirection::Out),
+            renames[&p_tag.with_direction(PairingEqDirection::Out)].clone(),
+        );
+    }
+    let mut hyps = vec![];
+    for eq in eqs {
+        let lhs = EqHypSide::new(
+            {
+                let mut expr = eq.lhs.expr.clone();
+                expr.rename_vars(|ident| renames[&eq.lhs.quadrant].get(ident).cloned());
+                expr
+            },
+            addr_map[&eq.lhs.quadrant].clone(),
+        );
+        let rhs = EqHypSide::new(
+            {
+                let mut expr = eq.rhs.expr.clone();
+                expr.rename_vars(|ident| renames[&eq.rhs.quadrant].get(ident).cloned());
+                expr
+            },
+            addr_map[&eq.rhs.quadrant].clone(),
+        );
+        let hyp = Hyp::mk_eq(lhs, rhs, None);
+        hyps.push(hyp);
+    }
+    hyps
+}
+
+fn init_point_hyps(problem: &Problem, pairing: &Pairing) -> Vec<Hyp> {
+    inst_eqs(problem, &[], &pairing.in_eqs, None)
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -167,10 +218,22 @@ pub(crate) struct VisitWithTag {
     tag: Tag,
 }
 
+impl VisitWithTag {
+    pub(crate) fn new(visit: Visit, tag: Tag) -> Self {
+        Self { visit, tag }
+    }
+}
+
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct Visit {
     node_id: NodeId,
     restrs: Vec<Restr>,
+}
+
+impl Visit {
+    pub(crate) fn new(node_id: NodeId, restrs: Vec<Restr>) -> Self {
+        Self { node_id, restrs }
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
