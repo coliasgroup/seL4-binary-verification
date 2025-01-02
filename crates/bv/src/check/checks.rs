@@ -1,15 +1,64 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+
+use env_logger::init;
 
 use crate::{
-    abstract_syntax::{Expr, File, Ident, NodeId, Num},
+    abstract_syntax::{Expr, File, HasNodeGraph, Ident, NodeAddr, NodeId, Num},
     concrete_syntax::{
         parse::{LineBuffer, ParseError, ParseFromLine},
         print::{LineBuf, ToTokens},
     },
     pairing::{Pairing, PairingEq, PairingEqDirection, PairingEqSideQuadrant, PairingId, Tag},
     problem::Problem,
-    proof_script::ProofNode,
+    proof_script::{ProofNode, RestrProofNodeKind, RestrProofNodeRange},
+    utils::petgraph::algorithms::{is_reachable_from, reachable_nodes, tarjan_scc_variant},
 };
+
+struct LoopData {
+    x: BTreeMap<NodeId, LoopDataEntry>,
+}
+
+enum LoopDataEntry {
+    Head(BTreeSet<NodeId>),
+    Member(NodeId),
+}
+
+impl LoopData {
+    fn new(problem: &Problem) -> Self {
+        let sccs_with_heads = tarjan_scc_variant(&problem.nodes.abstract_node_graph(), || {
+            [problem.c.entry, problem.asm.entry]
+        });
+        let mut x = BTreeMap::new();
+        for (head, scc) in sccs_with_heads {
+            for addr in &scc {
+                x.insert(*addr, LoopDataEntry::Member(head));
+            }
+            x.insert(head, LoopDataEntry::Head(BTreeSet::from_iter(scc)));
+        }
+        Self { x }
+    }
+
+    fn get(&self, node: NodeId) -> Option<&LoopDataEntry> {
+        self.x.get(&node)
+    }
+
+    fn loop_id(&self, node: NodeId) -> Option<NodeId> {
+        self.get(node).map(|entry| match entry {
+            LoopDataEntry::Head(_) => node,
+            LoopDataEntry::Member(node_) => *node_,
+        })
+    }
+
+    fn loop_heads(&self) -> Vec<NodeId> {
+        self.x
+            .iter()
+            .filter_map(|(n, e)| match e {
+                LoopDataEntry::Head(_) => Some(*n),
+                LoopDataEntry::Member(_) => None,
+            })
+            .collect()
+    }
+}
 
 pub(crate) fn proof_checks(
     pairing_id: &PairingId,
@@ -19,6 +68,18 @@ pub(crate) fn proof_checks(
     proof: &ProofNode,
 ) -> ProofChecks<String> {
     let pairing = &pairings[pairing_id];
+    let loop_data = LoopData::new(problem);
+    let mut node_tags = BTreeMap::new();
+    for n in reachable_nodes(&problem.nodes.abstract_node_graph(), [problem.asm.entry]) {
+        if let NodeId::Addr(addr) = n {
+            node_tags.insert(addr, Tag::Asm);
+        }
+    }
+    for n in reachable_nodes(&problem.nodes.abstract_node_graph(), [problem.c.entry]) {
+        if let NodeId::Addr(addr) = n {
+            node_tags.insert(addr, Tag::C);
+        }
+    }
     let builder = ProofChecksBuilder {
         ctxt: ProofChecksBuilderContext {
             pairings,
@@ -26,10 +87,12 @@ pub(crate) fn proof_checks(
             pairing_id,
             pairing,
             problem,
+            loop_data,
+            node_tags,
         },
     };
     let hyps = init_point_hyps(functions, problem, pairing);
-    let checks = builder.poof_checks_rec(vec![], hyps, proof, "root".to_string());
+    let checks = builder.proof_checks_rec(vec![], hyps, proof, "root".to_string());
     ProofChecks { checks }
 }
 
@@ -39,25 +102,28 @@ struct ProofChecksBuilderContext<'a> {
     pairing_id: &'a PairingId,
     pairing: &'a Pairing,
     problem: &'a Problem,
+    loop_data: LoopData,
+    node_tags: BTreeMap<NodeAddr, Tag>,
 }
 
 struct ProofChecksBuilder<'a> {
     ctxt: ProofChecksBuilderContext<'a>,
 }
 
-impl<'a> ProofChecksBuilder<'a> {
-    fn poof_checks_rec(
-        &self,
-        restrs: Vec<Restr>,
-        hyps: Vec<Hyp>,
-        proof: &ProofNode,
-        path: String,
-    ) -> Vec<ProofCheck<String>> {
-        let checks = self.proof_checks_imm(restrs.clone(), hyps.clone(), proof, path);
-        checks
-    }
+const RESTR_BUMP: u64 = 0;
 
-    fn proof_checks_imm(
+fn get_proof_restr(point: NodeAddr, range: &RestrProofNodeRange) -> Restr {
+    Restr {
+        node_id: NodeId::Addr(point),
+        visit_count: VisitCount::mk_options(
+            (range.x..(range.y + RESTR_BUMP))
+                .map(|n| VisitCount::mk_from_restr_kind(range.kind, n)),
+        ),
+    }
+}
+
+impl<'a> ProofChecksBuilder<'a> {
+    fn proof_checks_rec(
         &self,
         restrs: Vec<Restr>,
         hyps: Vec<Hyp>,
@@ -65,12 +131,43 @@ impl<'a> ProofChecksBuilder<'a> {
         path: String,
     ) -> Vec<ProofCheck<String>> {
         match proof {
-            ProofNode::Leaf => self.leaf_condition_checks(restrs, hyps),
+            ProofNode::Leaf => self
+                .leaf_condition_checks(restrs, hyps)
+                .into_iter()
+                .map(|check| check.map_meta(|name| format!("{name} on {path}")))
+                .collect(),
             ProofNode::CaseSplit(proof) => {
                 todo!()
             }
             ProofNode::Restr(proof) => {
-                todo!()
+                let mut checks = self
+                    .restr_checks(&proof.point, &proof.range, restrs.clone(), hyps.clone())
+                    .into_iter()
+                    .map(|check| check.map_meta(|name| format!("{name} on {path}")))
+                    .collect::<Vec<_>>();
+                let restr = get_proof_restr(proof.point, &proof.range);
+                let mut next_restrs = vec![restr];
+                next_restrs.extend(restrs.iter().cloned());
+                let mut next_hyps = hyps.clone();
+                next_hyps.push(Hyp::pc_triv(&VisitWithTag {
+                    visit: Visit::new(NodeId::Addr(proof.point), {
+                        let mut this = vec![Restr {
+                            node_id: NodeId::Addr(proof.point),
+                            visit_count: VisitCount::mk_from_restr_kind(
+                                proof.range.kind,
+                                proof.range.y - 1,
+                            ),
+                        }];
+                        this.extend(restrs.clone());
+                        this
+                    }),
+                    tag: proof.tag,
+                }));
+                let next_path = format!("{} ({:?} limited)", path, proof.point);
+                let next_checks =
+                    self.proof_checks_rec(next_restrs, next_hyps, &proof.child, next_path);
+                checks.extend(next_checks);
+                checks
             }
             ProofNode::Split(proof) => {
                 todo!()
@@ -133,6 +230,117 @@ impl<'a> ProofChecksBuilder<'a> {
             })
         }
         checks
+    }
+
+    fn restr_checks(
+        &self,
+        point: &NodeAddr,
+        range: &RestrProofNodeRange,
+        restrs: Vec<Restr>,
+        orig_hyps: Vec<Hyp>,
+    ) -> Vec<ProofCheck<String>> {
+        let restr = get_proof_restr(*point, range);
+        let nrerr_pc_hyp = non_r_err_pc_hyp(self.restr_others(
+            {
+                let mut this = vec![restr];
+                this.extend(restrs.clone());
+                this
+            },
+            2,
+        ));
+        let mut new_hyps = vec![nrerr_pc_hyp];
+        new_hyps.extend(orig_hyps.clone());
+
+        let min_vc = match range.kind {
+            RestrProofNodeKind::Offset => Some(VisitCount::mk_offset(range.x.saturating_sub(1))),
+            _ if range.x > 1 => Some(VisitCount::mk_number(range.x - 1)),
+            _ => None,
+        };
+        let init_check = match min_vc {
+            Some(min_vc) => vec![ProofCheck {
+                meta: format!(
+                    "Check of restr min {:?} {:?} for {:?}",
+                    range.x, range.kind, point
+                ),
+                hyp: Hyp::pc_true(VisitWithTag {
+                    tag: self.ctxt.node_tags[&point],
+                    visit: Visit {
+                        node_id: NodeId::Addr(*point),
+                        restrs: {
+                            let mut this = vec![Restr {
+                                node_id: NodeId::Addr(*point),
+                                visit_count: min_vc,
+                            }];
+                            this.extend(restrs.clone());
+                            this
+                        },
+                    },
+                }),
+                hyps: new_hyps.clone(),
+            }],
+            None => vec![],
+        };
+        let top_vc = match range.kind {
+            RestrProofNodeKind::Offset => VisitCount::mk_offset(range.y - 1),
+            RestrProofNodeKind::Number => VisitCount::mk_number(range.y - 1),
+        };
+        let top_check = ProofCheck {
+            meta: format!(
+                "Check of restr max {:?} {:?} for {:?}",
+                range.y, range.kind, point
+            ),
+            hyp: Hyp::pc_false(VisitWithTag {
+                tag: self.ctxt.node_tags[&point],
+                visit: Visit {
+                    node_id: NodeId::Addr(*point),
+                    restrs: {
+                        let mut this = vec![Restr {
+                            node_id: NodeId::Addr(*point),
+                            visit_count: top_vc,
+                        }];
+                        this.extend(restrs.clone());
+                        this
+                    },
+                },
+            }),
+            hyps: new_hyps.clone(),
+        };
+
+        let mut ret = init_check;
+        ret.push(top_check);
+        ret
+    }
+
+    fn restr_others(&self, mut restrs: Vec<Restr>, n: u64) -> Vec<Restr> {
+        let extras = self.loops_to_split(&restrs).into_iter().map(|sp| Restr {
+            node_id: sp,
+            visit_count: VisitCount::mk_up_to(n),
+        });
+        restrs.extend(extras);
+        restrs
+    }
+
+    fn loops_to_split(&self, restrs: &Vec<Restr>) -> BTreeSet<NodeId> {
+        let loop_heads_with_split = BTreeSet::from_iter(
+            restrs
+                .iter()
+                .map(|restr| self.ctxt.loop_data.loop_id(restr.node_id)),
+        );
+        let mut rem_loop_heads = BTreeSet::from_iter(self.ctxt.loop_data.loop_heads());
+        rem_loop_heads.retain(|h| !loop_heads_with_split.contains(&Some(*h)));
+        for restr in restrs {
+            if !restr.visit_count.has_zero() {
+                rem_loop_heads.retain(|h| {
+                    is_reachable_from(
+                        &self.ctxt.problem.nodes.abstract_node_graph(),
+                        restr.node_id,
+                        [*h],
+                    ) || self.ctxt.node_tags[&restr.node_id.addr().unwrap()]
+                        != self.ctxt.node_tags[&h.addr().unwrap()]
+                });
+            }
+        }
+        rem_loop_heads
     }
 }
 
@@ -396,8 +604,51 @@ pub(crate) struct Restr {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct VisitCount {
-    numbers: Vec<Num>,
-    offsets: Vec<Num>,
+    numbers: Vec<u64>,
+    offsets: Vec<u64>,
+}
+
+impl VisitCount {
+    fn mk_number(n: u64) -> Self {
+        Self {
+            numbers: vec![n],
+            offsets: vec![],
+        }
+    }
+
+    fn mk_offset(n: u64) -> Self {
+        Self {
+            numbers: vec![],
+            offsets: vec![n],
+        }
+    }
+
+    fn mk_options(it: impl Iterator<Item = Self>) -> Self {
+        let mut this = Self {
+            numbers: vec![],
+            offsets: vec![],
+        };
+        for vc in it {
+            this.numbers.extend(vc.numbers);
+            this.offsets.extend(vc.offsets);
+        }
+        this
+    }
+
+    fn mk_from_restr_kind(kind: RestrProofNodeKind, n: u64) -> Self {
+        match kind {
+            RestrProofNodeKind::Number => Self::mk_number(n),
+            RestrProofNodeKind::Offset => Self::mk_offset(n),
+        }
+    }
+
+    fn mk_up_to(n: u64) -> Self {
+        Self::mk_options((0..n).map(Self::mk_number))
+    }
+
+    fn has_zero(&self) -> bool {
+        self.numbers.contains(&0)
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -602,8 +853,8 @@ impl ParseFromLine for VisitCount {
             return Err(ParseError::UnexpectedToken(tok.location()));
         }
         Ok(Self {
-            numbers: toks.parse()?,
-            offsets: toks.parse()?,
+            numbers: toks.parse_vec_with(|toks| toks.parse_prim_int())?,
+            offsets: toks.parse_vec_with(|toks| toks.parse_prim_int())?,
         })
     }
 }

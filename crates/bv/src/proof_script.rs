@@ -60,28 +60,22 @@ impl ToTokens for ProofNode {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(crate) struct RestrProofNode {
-    pub(crate) addr: NodeAddr,
+    pub(crate) point: NodeAddr,
     pub(crate) tag: Tag,
-    pub(crate) kind: RestrProofNodeKind,
-    pub(crate) x: u64,
-    pub(crate) y: u64,
+    pub(crate) range: RestrProofNodeRange,
     pub(crate) child: Box<ProofNode>,
 }
 
 impl ParseFromLine for RestrProofNode {
     fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
-        let addr = toks.parse_prim_int()?;
+        let point = toks.parse_prim_int()?;
         let tag = toks.parse()?;
-        let kind = toks.parse()?;
-        let x = toks.parse_prim_int()?;
-        let y = toks.parse_prim_int()?;
+        let range = toks.parse()?;
         let child = toks.parse()?;
         Ok(Self {
-            addr,
+            point,
             tag,
-            kind,
-            x,
-            y,
+            range,
             child,
         })
     }
@@ -89,12 +83,34 @@ impl ParseFromLine for RestrProofNode {
 
 impl ToTokens for RestrProofNode {
     fn to_tokens(&self, line: &mut LineBuf) {
-        line.display_to_tokens(&self.addr);
+        line.display_to_tokens(&self.point);
         line.to_tokens(&self.tag);
+        line.to_tokens(&self.range);
+        line.to_tokens(&*self.child);
+    }
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub(crate) struct RestrProofNodeRange {
+    pub(crate) kind: RestrProofNodeKind,
+    pub(crate) x: u64,
+    pub(crate) y: u64,
+}
+
+impl ParseFromLine for RestrProofNodeRange {
+    fn parse(toks: &mut LineBuffer) -> Result<Self, ParseError> {
+        let kind = toks.parse()?;
+        let x = toks.parse_prim_int()?;
+        let y = toks.parse_prim_int()?;
+        Ok(Self { kind, x, y })
+    }
+}
+
+impl ToTokens for RestrProofNodeRange {
+    fn to_tokens(&self, line: &mut LineBuf) {
         line.to_tokens(&self.kind);
         line.display_to_tokens(&self.x);
         line.display_to_tokens(&self.y);
-        line.to_tokens(&*self.child);
     }
 }
 

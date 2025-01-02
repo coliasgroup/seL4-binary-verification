@@ -47,3 +47,21 @@ where
     });
     v
 }
+
+pub fn is_reachable_from<G, I>(graph: G, node: G::NodeId, starts: I) -> bool
+where
+    G: IntoNeighbors + Visitable,
+    G::NodeId: Eq + Hash,
+    I: IntoIterator<Item = G::NodeId>,
+{
+    depth_first_search(graph, starts, |event| {
+        if let DfsEvent::Discover(this_node, _) = event {
+            if this_node == node {
+                return Control::Break(());
+            }
+        }
+        Control::Continue
+    })
+    .break_value()
+    .is_some()
+}

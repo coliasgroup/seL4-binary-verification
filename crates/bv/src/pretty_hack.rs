@@ -73,11 +73,11 @@ impl ToTokens for ProofNode {
                 }
             }
             Self::Restr(inner) => {
-                let addr = parse(format!("{:#x?}", inner.addr));
+                let addr = parse(format!("{:#x?}", inner.point));
                 let tag = &inner.tag;
-                let kind = &inner.kind;
-                let x = parse(format!("{:#x?}", inner.x));
-                let y = parse(format!("{:#x?}", inner.y));
+                let kind = &inner.range.kind;
+                let x = parse(format!("{:#x?}", inner.range.x));
+                let y = parse(format!("{:#x?}", inner.range.y));
                 let child = &inner.child;
                 quote! {
                     RestrProofNode {
@@ -98,7 +98,6 @@ impl ToTokens for ProofNode {
             Self::Split(_inner) => {
                 quote! {
                     SplitProofNode {
-
                     }
                 }
             }

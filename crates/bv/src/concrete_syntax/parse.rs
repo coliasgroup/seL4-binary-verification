@@ -246,6 +246,18 @@ impl<'a> LineBuffer<'a> {
             .and_then(NumCast::from)
             .ok_or(ParseError::NumberOutOfRange(location))
     }
+
+    pub(crate) fn parse_vec_with<T>(
+        &mut self,
+        mut f: impl FnMut(&mut Self) -> ParseResult<T>,
+    ) -> ParseResult<Vec<T>> {
+        let n = self.parse_prim_int::<usize>()?;
+        let mut v = vec![];
+        for _ in 0..n {
+            v.push(f(self)?);
+        }
+        Ok(v)
+    }
 }
 
 pub(crate) trait ParseFromLine: Sized {
@@ -266,12 +278,7 @@ impl<T: ParseFromLine, U: ParseFromLine> ParseFromLine for (T, U) {
 
 impl<T: ParseFromLine> ParseFromLine for Vec<T> {
     fn parse(toks: &mut LineBuffer) -> ParseResult<Self> {
-        let n = toks.parse_prim_int::<usize>()?;
-        let mut v = vec![];
-        for _ in 0..n {
-            v.push(toks.parse()?);
-        }
-        Ok(v)
+        toks.parse_vec_with(T::parse)
     }
 }
 

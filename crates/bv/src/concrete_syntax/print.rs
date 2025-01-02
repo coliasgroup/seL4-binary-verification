@@ -125,7 +125,7 @@ impl LineBuf {
     pub(crate) fn iter_to_tokens_with<T>(
         &mut self,
         it: impl ExactSizeIterator<Item = T>,
-        f: impl Fn(T, &mut LineBuf),
+        f: impl Fn(T, &mut Self),
     ) {
         self.display_to_tokens(&it.len());
         for x in it {
