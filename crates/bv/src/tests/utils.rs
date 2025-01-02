@@ -98,8 +98,18 @@ pub(crate) fn eq_or_dump<T: AsRef<[u8]> + Eq>(
     rhs: T,
 ) {
     if lhs != rhs {
-        write(rel.as_ref().join("lhs").with_extension(&extension), lhs);
-        write(rel.as_ref().join("rhs").with_extension(&extension), rhs);
+        dump_juxt(&rel, extension, lhs, rhs);
         panic!("lhs != rhs. written to {}", rel.as_ref().display());
     }
+}
+
+pub(crate) fn dump_juxt<T: AsRef<[u8]> + Eq>(
+    rel: impl AsRef<Path>,
+    extension: impl AsRef<OsStr>,
+    lhs: T,
+    rhs: T,
+) {
+    write(rel.as_ref().join("lhs").with_extension(&extension), lhs);
+    write(rel.as_ref().join("rhs").with_extension(&extension), rhs);
+    eprintln!("written to {}", rel.as_ref().display());
 }

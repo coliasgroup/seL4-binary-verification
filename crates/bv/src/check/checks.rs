@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    abstract_syntax::{Expr, Ident, NodeId, Num},
+    abstract_syntax::{Expr, File, Ident, NodeId, Num},
     concrete_syntax::{
         parse::{LineBuffer, ParseError, ParseFromLine},
         print::{LineBuf, ToTokens},
     },
-    pairing::{Pairing, PairingEq, PairingEqDirection, PairingId, Tag},
+    pairing::{Pairing, PairingEq, PairingEqDirection, PairingEqSideQuadrant, PairingId, Tag},
     problem::Problem,
     proof_script::ProofNode,
 };
@@ -14,14 +14,134 @@ use crate::{
 pub(crate) fn proof_checks(
     pairing_id: &PairingId,
     pairings: &BTreeMap<PairingId, Pairing>,
+    functions: &File,
     problem: &Problem,
     proof: &ProofNode,
-) -> ProofChecks<()> {
+) -> ProofChecks<String> {
     let pairing = &pairings[pairing_id];
-    todo!()
+    let builder = ProofChecksBuilder {
+        ctxt: ProofChecksBuilderContext {
+            pairings,
+            functions,
+            pairing_id,
+            pairing,
+            problem,
+        },
+    };
+    let hyps = init_point_hyps(functions, problem, pairing);
+    let checks = builder.poof_checks_rec(vec![], hyps, proof, "root".to_string());
+    ProofChecks { checks }
+}
+
+struct ProofChecksBuilderContext<'a> {
+    pairings: &'a BTreeMap<PairingId, Pairing>,
+    functions: &'a File,
+    pairing_id: &'a PairingId,
+    pairing: &'a Pairing,
+    problem: &'a Problem,
+}
+
+struct ProofChecksBuilder<'a> {
+    ctxt: ProofChecksBuilderContext<'a>,
+}
+
+impl<'a> ProofChecksBuilder<'a> {
+    fn poof_checks_rec(
+        &self,
+        restrs: Vec<Restr>,
+        hyps: Vec<Hyp>,
+        proof: &ProofNode,
+        path: String,
+    ) -> Vec<ProofCheck<String>> {
+        let checks = self.proof_checks_imm(restrs.clone(), hyps.clone(), proof, path);
+        checks
+    }
+
+    fn proof_checks_imm(
+        &self,
+        restrs: Vec<Restr>,
+        hyps: Vec<Hyp>,
+        proof: &ProofNode,
+        path: String,
+    ) -> Vec<ProofCheck<String>> {
+        match proof {
+            ProofNode::Leaf => self.leaf_condition_checks(restrs, hyps),
+            ProofNode::CaseSplit(proof) => {
+                todo!()
+            }
+            ProofNode::Restr(proof) => {
+                todo!()
+            }
+            ProofNode::Split(proof) => {
+                todo!()
+            }
+            ProofNode::SingleRevInduct(proof) => {
+                todo!()
+            }
+        }
+    }
+
+    fn leaf_condition_checks(
+        &self,
+        restrs: Vec<Restr>,
+        orig_hyps: Vec<Hyp>,
+    ) -> Vec<ProofCheck<String>> {
+        let nrerr_pc_hyp = non_r_err_pc_hyp(restrs.clone());
+        let mut hyps = vec![nrerr_pc_hyp];
+        hyps.extend(orig_hyps);
+        let nlerr_pc = Hyp::pc_false(VisitWithTag::new(
+            Visit::new(NodeId::Err, restrs.clone()),
+            Tag::Asm,
+        ));
+        let ret_eq = Hyp::mk_eq(
+            EqHypSide::new(
+                Expr::mk_true(),
+                VisitWithTag::new(Visit::new(NodeId::Ret, restrs.clone()), Tag::Asm),
+            ),
+            EqHypSide::new(
+                Expr::mk_true(),
+                VisitWithTag::new(Visit::new(NodeId::Ret, restrs.clone()), Tag::C),
+            ),
+            None,
+        );
+        let out_eqs = &self.ctxt.pairing.out_eqs;
+        let mut checks = vec![ProofCheck {
+            hyps: {
+                let mut this = hyps.clone();
+                this.push(ret_eq.clone());
+                this
+            },
+            hyp: nlerr_pc.clone(),
+            meta: "Leaf path-cond imp".to_owned(),
+        }];
+        for hyp in inst_eqs(
+            &self.ctxt.functions,
+            &self.ctxt.problem,
+            &restrs,
+            out_eqs,
+            None,
+        ) {
+            checks.push(ProofCheck {
+                meta: "Leaf eq check".to_owned(),
+                hyps: {
+                    let mut this = hyps.clone();
+                    this.push(nlerr_pc.clone());
+                    this.push(ret_eq.clone());
+                    this
+                },
+                hyp,
+            })
+        }
+        checks
+    }
+}
+
+fn non_r_err_pc_hyp(restrs: Vec<Restr>) -> Hyp {
+    Hyp::pc_false(VisitWithTag::new(Visit::new(NodeId::Err, restrs), Tag::C))
 }
 
 fn inst_eqs(
+    functions: &File,
     problem: &Problem,
     restrs: &[Restr],
     eqs: &[PairingEq],
@@ -43,7 +163,7 @@ fn inst_eqs(
             VisitWithTag::new(Visit::new(NodeId::Ret, restrs.into()), *p_tag),
         );
     }
-    let mut renames = BTreeMap::<_, BTreeMap<Ident, _>>::new();
+    let mut renames = problem_entry_exit_renames(functions, problem, tag_map.values().copied());
     for (pair_tag, p_tag) in tag_map.iter() {
         renames.insert(
             pair_tag.with_direction(PairingEqDirection::In),
@@ -78,8 +198,40 @@ fn inst_eqs(
     hyps
 }
 
-fn init_point_hyps(problem: &Problem, pairing: &Pairing) -> Vec<Hyp> {
-    inst_eqs(problem, &[], &pairing.in_eqs, None)
+fn problem_entry_exit_renames(
+    functions: &File,
+    problem: &Problem,
+    tags: impl Iterator<Item = Tag>,
+) -> BTreeMap<PairingEqSideQuadrant, BTreeMap<Ident, Ident>> {
+    let mut renames = BTreeMap::new();
+    for tag in tags {
+        let f = &functions.functions[&problem.problem_side(tag).name];
+        let input = &problem.problem_side(tag).input;
+        let output = &problem.problem_side(tag).output;
+        renames.insert(
+            tag.with_direction(PairingEqDirection::In),
+            BTreeMap::from_iter(
+                f.input()
+                    .iter()
+                    .map(|arg| arg.name.clone())
+                    .zip(input.iter().map(|arg| arg.name.clone())),
+            ),
+        );
+        renames.insert(
+            tag.with_direction(PairingEqDirection::Out),
+            BTreeMap::from_iter(
+                f.output()
+                    .iter()
+                    .map(|arg| arg.name.clone())
+                    .zip(output.iter().map(|arg| arg.name.clone())),
+            ),
+        );
+    }
+    renames
+}
+
+fn init_point_hyps(functions: &File, problem: &Problem, pairing: &Pairing) -> Vec<Hyp> {
+    inst_eqs(functions, problem, &[], &pairing.in_eqs, None)
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -466,6 +618,7 @@ impl ToTokens for VisitCount {
 
 #[cfg(test)]
 mod tests {
+    use crate::compat::ProofChecksFile;
     use crate::sel4;
     use crate::tests::utils::*;
 
@@ -479,6 +632,7 @@ mod tests {
     #[ignore]
     fn x() {
         let t = t();
+        let functions = t.build_functions_file();
         let pairings = t.build_pairings();
         let their_pairings = t.read_pairings_file();
         assert_eq!(pairings, their_pairings.pairings);
@@ -486,6 +640,9 @@ mod tests {
         let their_proofs = t.read_proofs_file();
         let their_proof_checks = t.read_proof_checks_file();
         let mut failure = false;
+        let mut compat = ProofChecksFile {
+            problems: Default::default(),
+        };
         for (pairing_id, their_problem_proof) in &their_proofs.problems {
             let their_problem = &their_problem_proof.problem;
             let their_proof = &their_problem_proof.proof;
@@ -495,13 +652,22 @@ mod tests {
             assert_eq!(&problem, their_problem);
             // println!("{proof:?}");
             println!("checking...");
-            let checks = proof_checks(pairing_id, &pairings, &problem, proof);
-            let their_checks = their_proof_checks.problems[pairing_id].clone().strip_meta();
+            let checks = proof_checks(pairing_id, &pairings, &functions, &problem, proof);
+            let their_checks = their_proof_checks.problems[pairing_id].clone();
+            compat.problems.insert(pairing_id.clone(), checks.clone());
             if &checks != &their_checks {
                 failure = true;
                 println!("FAILURE: {:?}", pairing_id.pretty_print());
             }
             println!("done");
+        }
+        if failure {
+            dump_juxt(
+                "t/proof-checks.txt",
+                "json",
+                compat.pretty_print(),
+                their_proof_checks.pretty_print(),
+            );
         }
         assert!(!failure);
     }
