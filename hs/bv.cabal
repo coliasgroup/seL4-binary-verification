@@ -5,27 +5,39 @@ synopsis: TODO
 description: TODO
 license: BSD-2-Clause
 author: Nick Spinale (Colias Group, LLC)
-maintainer: nick@nickspinale.com
-copyright: Colias Group, LLC
+maintainer: Nick Spinale <nick@nickspinale.com>
+copyright: Copyright (c) 2025 Colias Group, LLC
 build-type: Simple
+tested-with: GHC == 9.6.6
 
-common common-deps
+common common
   default-language: Haskell2010
-  build-depends:
-    base,
+  default-extensions:
+    DeriveGeneric
+    DuplicateRecordFields
+    NoFieldSelectors
+    OverloadedLabels
+    NamedFieldPuns
   ghc-options:
     -Wall
+  build-depends:
+    base,
 
-library my-internal-lib
-  import: common-deps
+library
+  import: common
   exposed-modules:
     BV,
+    BV.Program,
+    BV.Problem,
+    BV.Graph,
   build-depends:
-    microlens-platform,
+    containers,
+    parsec,
+    optics-core,
   hs-source-dirs: src
 
 executable bv
-  import: common-deps
+  import: common
   hs-source-dirs: app
   main-is: Main.hs
   ghc-options:
@@ -33,12 +45,12 @@ executable bv
     -rtsopts
     -with-rtsopts=-N
   build-depends:
-    my-internal-lib,
+    bv,
 
-test-suite my-internal-lib-test
-  import: common-deps
+test-suite bv-test
+  import: common
   type: exitcode-stdio-1.0
   hs-source-dirs: test
   main-is: Main.hs
   build-depends:
-    my-internal-lib,
+    bv,

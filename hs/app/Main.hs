@@ -1,8 +1,6 @@
-module Main where
-
-import qualified BV (someFunc)
+module Main
+    ( main
+    ) where
 
 main :: IO ()
-main = do
-  putStrLn "Hello, Haskell!"
-  BV.someFunc
+main = putStrLn "TODO"

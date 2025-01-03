@@ -1,1 +1,10 @@
-resolver: nightly-2024-10-21
+resolver: lts-22.43
+
+nix:
+  enable: true
+  pure: true
+  packages:
+  - "xdg-utils"
+  - "haskellPackages.hoogle"
+  path:
+  - "nixpkgs=nixpkgs.nix"
