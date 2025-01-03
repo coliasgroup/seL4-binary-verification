@@ -137,7 +137,31 @@ impl<'a> ProofChecksBuilder<'a> {
                 .map(|check| check.map_meta(|name| format!("{name} on {path}")))
                 .collect(),
             ProofNode::CaseSplit(proof) => {
-                todo!()
+                let visit = VisitWithTag {
+                    visit: Visit {
+                        node_id: NodeId::Addr(proof.addr),
+                        restrs: restrs.clone(),
+                    },
+                    tag: proof.tag,
+                };
+                let mut true_hyps = hyps.clone();
+                true_hyps.push(Hyp::pc_true(visit.clone()));
+                let mut false_hyps = hyps.clone();
+                false_hyps.push(Hyp::pc_false(visit.clone()));
+                let mut checks = vec![];
+                checks.extend(self.proof_checks_rec(
+                    restrs.clone(),
+                    true_hyps,
+                    &proof.left,
+                    format!("true case ({:?} visited) in {}", proof.addr, path),
+                ));
+                checks.extend(self.proof_checks_rec(
+                    restrs.clone(),
+                    false_hyps,
+                    &proof.right,
+                    format!("false case ({:?} not visited) in {}", proof.addr, path),
+                ));
+                checks
             }
             ProofNode::Restr(proof) => {
                 let mut checks = self
