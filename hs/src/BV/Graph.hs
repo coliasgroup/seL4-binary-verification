@@ -1,6 +1,5 @@
 module BV.Graph where
 
-import BV.Program
 import Data.Graph (Graph, Vertex)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -8,6 +7,8 @@ import GHC.Arr (Array)
 import qualified GHC.Arr as A
 import GHC.Generics (Generic)
 import Optics.Core
+
+import BV.Program
 
 data NodeGraph
   = NodeGraph
@@ -18,24 +19,22 @@ data NodeGraph
   deriving (Generic, Show)
 
 makeNodeGraph :: Map NodeAddr Node -> NodeGraph
-makeNodeGraph nodeMap = NodeGraph
-    { graph
-    , nodeIDMap
-    , nodeIDMapRev
-    }
+makeNodeGraph nodeMap =
+    NodeGraph
+        { graph
+        , nodeIDMap
+        , nodeIDMapRev
+        }
   where
-    vertices = zip [0..]
-      ( (Ret, Nothing)
-      : (Err, Nothing)
-      : (M.assocs nodeMap <&> (_1 %~ Addr) . (_2 %~ Just))
-      )
-    (graphList, nodeIDMapList, nodeIDMapRevList) = unzip3
-      [ ( node ^.. _Just % nodeConts % to (nodeIDMapRev M.!)
-        , nodeID
-        , (nodeID, i)
+    vertices = zip [0 ..]
+        ( (Ret, [])
+        : (Err, [])
+        : (M.assocs nodeMap <&> (_1 %~ Addr) . (_2 %~ (^.. nodeConts % to (nodeIDMapRev M.!))))
         )
-      | (i, (nodeID, node)) <- vertices
-      ]
+    (graphList, nodeIDMapList, nodeIDMapRevList) = unzip3
+        [ (neighbors, nodeID, (nodeID, i))
+        | (i, (nodeID, neighbors)) <- vertices
+        ]
     bounds = (0, M.size nodeMap + 2)
     graph = A.listArray bounds graphList
     nodeIDMap = A.listArray bounds nodeIDMapList

@@ -1,9 +1,10 @@
 module BV.Problem where
 
-import BV.Program
 import Data.Map (Map)
 import GHC.Generics (Generic)
 import Optics.Core
+
+import BV.Program
 
 data Problem
   = Problem

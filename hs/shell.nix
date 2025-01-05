@@ -20,5 +20,9 @@ pkgs.mkShell {
     haskellPackages.fourmolu
     haskellPackages.floskell
     haskellPackages.stylish-haskell
+
+    haskellPackages.haskell-debug-adapter
+    haskellPackages.haskell-dap
+    haskellPackages.ghci-dap
   ];
 }

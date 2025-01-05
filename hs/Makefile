@@ -31,3 +31,11 @@ fmt:
 .PHONY: enumerate-transitive-deps
 enumerate-transitive-deps:
 	stack dot --external --include-base | cut -d ' ' -f 1 | grep '"' | sort | uniq
+
+.PHONY: i
+i:
+	stack ghci
+
+.PHONY: it
+it:
+	stack ghci bv:test:bv-test

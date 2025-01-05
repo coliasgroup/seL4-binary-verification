@@ -15,9 +15,9 @@ common common
   default-extensions:
     DeriveGeneric
     DuplicateRecordFields
+    NamedFieldPuns
     NoFieldSelectors
     OverloadedLabels
-    NamedFieldPuns
   ghc-options:
     -Wall
   build-depends:
@@ -27,13 +27,31 @@ library
   import: common
   exposed-modules:
     BV,
-    BV.Program,
-    BV.Problem,
     BV.Graph,
+    BV.Inputs,
+    BV.ObjDump,
+    BV.Parsing,
+    BV.Pairing,
+    BV.Printing,
+    BV.Problem,
+    BV.Program,
+    BV.SeL4,
+    BV.TargetDir,
+    -- TODO hack
+    BV.Test.Utils,
+    BV.Test.Scratch,
   build-depends:
     containers,
-    parsec,
     optics-core,
+    parsec,
+    filepath,
+    text,
+    -- TODO prune
+    pretty-show,
+    pretty-simple,
+    -- TODO hack
+    -- tasty,
+    -- tasty-hunit,
   hs-source-dirs: src
 
 executable bv
@@ -41,6 +59,7 @@ executable bv
   hs-source-dirs: app
   main-is: Main.hs
   ghc-options:
+    -- TODO probably unnecessary here
     -threaded
     -rtsopts
     -with-rtsopts=-N
@@ -53,4 +72,7 @@ test-suite bv-test
   hs-source-dirs: test
   main-is: Main.hs
   build-depends:
+    filepath,
+    tasty,
+    tasty-hunit,
     bv,

@@ -7,8 +7,8 @@ import GHC.Generics (Generic)
 import Optics.Core
 
 newtype Ident
-  = Ident String
-  deriving (Generic, Show)
+  = Ident { getIdent :: String }
+  deriving (Eq, Generic, Show)
 
 data Program
   = Program
@@ -141,123 +141,122 @@ data ExprValue
   deriving (Generic, Show)
 
 data Op
-  = Plus
-  | Minus
-  | Times
-  | Modulus
-  | DividedBy
-  | BWAnd
-  | BWOr
-  | BWXOR
-  | And
-  | Or
-  | Implies
-  | Equals
-  | Less
-  | LessEquals
-  | SignedLess
-  | SignedLessEquals
-  | ShiftLeft
-  | ShiftRight
-  | CountLeadingZeroes
-  | CountTrailingZeroes
-  | WordReverse
-  | SignedShiftRight
-  | Not
-  | BWNot
-  | WordCast
-  | WordCastSigned
-  | True
-  | False
-  | UnspecifiedPrecond
-  | MemUpdate
-  | MemAcc
-  | IfThenElse
-  | ArrayIndex
-  | ArrayUpdate
-  | MemDom
-  | PValid
-  | PWeakValid
-  | PAlignValid
-  | PGlobalValid
-  | PArrayValid
-  | HTDUpdate
-  | WordArrayAccess
-  | WordArrayUpdate
-  | TokenWordsAccess
-  | TokenWordsUpdate
-  | ROData
-  | StackWrapper
-  | EqSelectiveWrapper
-  | ToFloatingPoint
-  | ToFloatingPointSigned
-  | ToFloatingPointUnsigned
-  | FloatingPointCast
+  = OpPlus
+  | OpMinus
+  | OpTimes
+  | OpModulus
+  | OpDividedBy
+  | OpBWAnd
+  | OpBWOr
+  | OpBWXOR
+  | OpAnd
+  | OpOr
+  | OpImplies
+  | OpEquals
+  | OpLess
+  | OpLessEquals
+  | OpSignedLess
+  | OpSignedLessEquals
+  | OpShiftLeft
+  | OpShiftRight
+  | OpCountLeadingZeroes
+  | OpCountTrailingZeroes
+  | OpWordReverse
+  | OpSignedShiftRight
+  | OpNot
+  | OpBWNot
+  | OpWordCast
+  | OpWordCastSigned
+  | OpTrue
+  | OpFalse
+  | OpUnspecifiedPrecond
+  | OpMemUpdate
+  | OpMemAcc
+  | OpIfThenElse
+  | OpArrayIndex
+  | OpArrayUpdate
+  | OpMemDom
+  | OpPValid
+  | OpPWeakValid
+  | OpPAlignValid
+  | OpPGlobalValid
+  | OpPArrayValid
+  | OpHTDUpdate
+  | OpWordArrayAccess
+  | OpWordArrayUpdate
+  | OpTokenWordsAccess
+  | OpTokenWordsUpdate
+  | OpROData
+  | OpStackWrapper
+  | OpEqSelectiveWrapper
+  | OpToFloatingPoint
+  | OpToFloatingPointSigned
+  | OpToFloatingPointUnsigned
+  | OpFloatingPointCast
   deriving (Generic, Show)
 
 class HasExprs a where
-  exprsOf :: Traversal' a Expr
+    exprsOf :: Traversal' a Expr
 
 instance HasExprs Node where
-  exprsOf = (#_BasicNode % _2 % traversed % exprsOf)
-    `adjoin` (#_CondNode % _3)
-    `adjoin` (#_CallNode % _3 % traversed)
+    exprsOf =
+        (#_BasicNode % _2 % traversed % exprsOf)
+            `adjoin` (#_CondNode % _3)
+            `adjoin` (#_CallNode % _3 % traversed)
 
 instance HasExprs VarUpdate where
     exprsOf = castOptic #expr
 
 instance HasExprs Expr where
-  exprsOf = castOptic simple
+    exprsOf = castOptic simple
 
 class HasVarNames a where
-  varNamesOf :: Traversal' a Ident
+    varNamesOf :: Traversal' a Ident
 
 instance HasVarNames Argument where
-  varNamesOf = castOptic #name
+    varNamesOf = castOptic #name
 
 instance HasVarNames Node where
-  varNamesOf = foldr adjoin (castOptic (noIx ignored))
-    [ #_BasicNode % _2 % traversed % varNamesOf
-    , #_CondNode % _3 % varNamesOf
-    , #_CallNode % adjoin (_3 % traversed % varNamesOf) (_4 % traversed % varNamesOf)
-    ]
+    varNamesOf =
+        (#_BasicNode % _2 % traversed % varNamesOf)
+            `adjoin` (#_CondNode % _3 % varNamesOf)
+            `adjoin` (#_CallNode % adjoin (_3 % traversed % varNamesOf) (_4 % traversed % varNamesOf))
 
 instance HasVarNames VarUpdate where
-  varNamesOf = #varName `adjoin` #expr % varNamesOf
+    varNamesOf = #varName `adjoin` #expr % varNamesOf
 
 instance HasVarNames Expr where
-  varNamesOf = #value % varNamesOf
+    varNamesOf = #value % varNamesOf
 
 instance HasVarNames ExprValue where
-  varNamesOf = castOptic #_Var
+    varNamesOf = castOptic #_Var
 
 renameVars :: (HasVarNames a, Applicative f) => (Ident -> f Ident) -> a -> f a
 renameVars = traverseOf varNamesOf
 
 class HasVarBindings a where
-  varBindingsOf :: Traversal' a (Ident, Type)
+    varBindingsOf :: Traversal' a (Ident, Type)
 
 instance HasVarBindings Argument where
-  varBindingsOf = castOptic $ adjacently #name #ty
+    varBindingsOf = castOptic $ adjacently #name #ty
 
 instance HasVarBindings Node where
-  varBindingsOf = foldr adjoin (castOptic (noIx ignored))
-    [ #_BasicNode % _2 % traversed % varBindingsOf
-    , #_CallNode % _4 % traversed % varBindingsOf
-    ]
+    varBindingsOf = adjoin
+        (#_BasicNode % _2 % traversed % varBindingsOf)
+        (#_CallNode % _4 % traversed % varBindingsOf)
 
 instance HasVarBindings VarUpdate where
-  varBindingsOf = castOptic $ adjacently #varName #ty
+    varBindingsOf = castOptic $ adjacently #varName #ty
 
 nodeConts :: Fold Node NodeID
 nodeConts = castOptic $
-  (#_BasicNode % _1)
-  `adjoin`(#_CondNode % (_1 `adjoin` _2))
-  `adjoin` (#_CallNode % _1)
+    (#_BasicNode % _1)
+        `adjoin`(#_CondNode % (_1 `adjoin` _2))
+        `adjoin` (#_CallNode % _1)
 
 adjacently :: Lens' s a -> Lens' s a' -> Lens' s (a, a')
 adjacently l r =
-  withLens l $ \getl setl ->
-  withLens r $ \getr setr ->
-    lens (\s -> (getl s, getr s))
-         (\s (b, b') -> setr (setl s b) b')
+    withLens l $ \getl setl ->
+    withLens r $ \getr setr ->
+        lens (\s -> (getl s, getr s))
+             (\s (b, b') -> setr (setl s b) b')
