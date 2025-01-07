@@ -9,5 +9,6 @@ nix:
   packages:
   - "xdg-utils"
   - "haskellPackages.hoogle"
+  - "zlib"
   path:
   - "nixpkgs=nixpkgs.nix"

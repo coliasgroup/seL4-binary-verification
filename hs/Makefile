@@ -1,6 +1,10 @@
 .PHONY: none
 none:
 
+.PHONY: clean
+clean:
+	stack clean --full
+
 .PHONY: build
 build:
 	stack build

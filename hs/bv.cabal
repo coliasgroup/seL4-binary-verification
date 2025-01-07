@@ -35,6 +35,11 @@ library
   import: common
   exposed-modules:
     BV,
+    BV.BuildProblem,
+    BV.Check,
+    BV.Fixup,
+    BV.FormulatePairing,
+    BV.Glue,
     BV.Graph,
     BV.Inputs,
     BV.ObjDump,
@@ -45,6 +50,7 @@ library
     BV.Program,
     BV.ProofChecks,
     BV.ProofScript,
+    BV.PseudoCompile,
     BV.SeL4,
     BV.TargetDir,
     BV.Utils,
@@ -61,6 +67,8 @@ library
     filepath,
     aeson,
     dlist,
+    async,
+    monad-logger,
     -- TODO assess
     simple-smt,
     -- TODO prune

@@ -7,6 +7,7 @@ module BV.Pairing
     , PairingEqSide (..)
     , PairingEqSideQuadrant (..)
     , PairingId (..)
+    , PairingOf (..)
     , Pairings (..)
     , Tag (..)
     , asmIn
@@ -35,6 +36,13 @@ import Data.Char (isSpace)
 import Data.Functor (void)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (indentBlock)
+
+data PairingOf a
+  = PairingOf
+      { c :: a
+      , asm :: a
+      }
+  deriving (Eq, Generic, Ord, Show)
 
 data Tag
   = C

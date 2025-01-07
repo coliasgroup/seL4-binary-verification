@@ -29,7 +29,7 @@ data ObjDumpInfo
       { symbols :: Map String Symbol
       , sections :: Map String Section
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data Symbol
   = Symbol
@@ -37,14 +37,14 @@ data Symbol
       , size :: Integer
       , section :: String
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data Section
   = Section
       { addr :: Integer
       , size :: Integer
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 symbolEnd :: Symbol -> Integer
 symbolEnd = (+) <$> view #addr <*> view #size

@@ -2,6 +2,7 @@
 - Integer vs prims
 - rm void and _ <-
 - unwrapXyz -> unwrap
+- Function a (Function Maybe, Function Identity)
 
 - smt:
     https://hackage.haskell.org/package/simple-smt
