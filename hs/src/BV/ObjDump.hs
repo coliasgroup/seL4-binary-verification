@@ -1,6 +1,7 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module BV.ObjDump
     ( ObjDumpInfo (..)

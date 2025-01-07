@@ -78,3 +78,6 @@ cOut = PairingEqSideQuadrant C PairingEqDirectionOut
 newtype Pairings
   = Pairings (M.Map PairingId Pairing)
   deriving (Eq, Generic, Ord, Show)
+
+--
+
