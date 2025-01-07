@@ -13,8 +13,8 @@ import BV.Program
 data NodeGraph
   = NodeGraph
       { graph :: Graph
-      , nodeIDMap :: Array Vertex NodeID
-      , nodeIDMapRev :: Map NodeID Vertex
+      , nodeIDMap :: Array Vertex NodeId
+      , nodeIDMapRev :: Map NodeId Vertex
       }
   deriving (Generic, Show)
 

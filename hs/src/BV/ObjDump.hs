@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.ObjDump
@@ -21,6 +20,8 @@ import Optics.Core
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer
+
+import BV.Parsing
 
 data ObjDumpInfo
   = ObjDumpInfo
@@ -50,7 +51,7 @@ symbolEnd = (+) <$> view #addr <*> view #size
 sectionEnd :: Section -> Integer
 sectionEnd = (+) <$> view #addr <*> view #size
 
-parseLines :: Parsec Void Text [(String, Symbol)]
+parseLines :: Parser [(String, Symbol)]
 parseLines = do
     _ <- skipManyTill anySingle (string "SYMBOL TABLE:" *> eol)
     lines <- many $ do
@@ -82,9 +83,9 @@ makeObjDumpInfo lines =
   where
     symbols = M.fromList lines
     sections = appEndo (mconcat (map (Endo . f) (M.elems symbols))) M.empty
-    f symbol = flip M.alter (symbol ^. #section) $ \entry -> Just $ case entry of
+    f symbol = flip M.alter symbol.section $ \entry -> Just $ case entry of
         Just section ->
-            let addr = min (view #addr section) (view #addr symbol)
+            let addr = min section.addr symbol.addr
                 end = max (sectionEnd section) (symbolEnd symbol)
              in Section
                     { addr
@@ -92,9 +93,12 @@ makeObjDumpInfo lines =
                     }
         Nothing ->
             Section
-                { addr = view #addr symbol
-                , size = view #size symbol
+                { addr = symbol.addr
+                , size = symbol.size
                 }
 
 parseObjDumpInfo :: Parsec Void Text ObjDumpInfo
 parseObjDumpInfo = makeObjDumpInfo <$> parseLines
+
+instance ParseFile ObjDumpInfo where
+    parseFile = parseObjDumpInfo

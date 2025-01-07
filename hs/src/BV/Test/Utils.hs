@@ -1,7 +1,4 @@
-module BV.Test.Utils
-    ( testSeL4TargetDir
-    , writeHtml
-    ) where
+module BV.Test.Utils where
 
 import Data.Maybe (fromJust)
 import System.FilePath
@@ -35,3 +32,9 @@ writeHtml fname val = writeFile dst html
   where
     dst = testHtmlPagesDir </> fname <.> "html"
     html = H.valToHtmlPage testHtmlOpts (fromJust (H.reify val))
+
+tmpOutDir :: FilePath
+tmpOutDir = tmpDir </> "out"
+
+tmpOutPath :: FilePath -> FilePath
+tmpOutPath = (tmpOutDir </>)

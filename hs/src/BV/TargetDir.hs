@@ -1,17 +1,23 @@
 module BV.TargetDir
     ( TargetDir (..)
+    , readAsmFunctions
+    , readCFunctions
+    , readFunctions
     , readObjDumpInfo
     ) where
 
+import Data.Bifunctor (first)
+import Data.Text (Text)
 import qualified Data.Text.IO as T
+import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics.Core
 import System.FilePath ((</>))
-import Text.Megaparsec (eof, errorBundlePretty, parse)
+import Text.Megaparsec (Parsec, eof, errorBundlePretty, parse)
 
 import BV.ObjDump
+import BV.Parsing
 import BV.Program
-import Data.Bifunctor (first)
 
 data TargetDir
   = TargetDir
@@ -21,11 +27,21 @@ data TargetDir
   deriving (Generic)
 
 targetDirPath :: TargetDir -> FilePath -> FilePath
-targetDirPath targetDir rel = (targetDir ^. #path) </> rel
+targetDirPath targetDir rel = targetDir.path </> rel
+
+readAndParseFile :: ParseFile a => FilePath -> TargetDir -> IO (Either String a)
+readAndParseFile rel targetDir = parseWholeFile path <$> T.readFile path
+  where
+    path = targetDirPath targetDir rel
 
 readObjDumpInfo :: TargetDir -> IO (Either String ObjDumpInfo)
-readObjDumpInfo targetDir = do
-    s <- T.readFile path
-    return . first errorBundlePretty $ parse (parseObjDumpInfo <* eof) path s
-  where
-    path = targetDirPath targetDir "kernel.elf.symtab"
+readObjDumpInfo = readAndParseFile "kernel.elf.symtab"
+
+readCFunctions :: TargetDir -> IO (Either String Program)
+readCFunctions = readAndParseFile "CFunctions.txt"
+
+readAsmFunctions :: TargetDir -> IO (Either String Program)
+readAsmFunctions = readAndParseFile "ASMFunctions.txt"
+
+readFunctions :: TargetDir -> IO (Either String Program)
+readFunctions = readAndParseFile "functions.txt"

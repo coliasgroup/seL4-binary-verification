@@ -19,6 +19,6 @@ data ProblemSide
       { name :: Ident
       , input :: [Argument]
       , output :: [Argument]
-      , entryPoint :: NodeID
+      , entryPoint :: NodeId
       }
   deriving (Generic, Show)

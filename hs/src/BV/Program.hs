@@ -1,14 +1,53 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
 
-module BV.Program where
+module BV.Program
+    ( Argument (..)
+    , ConstGlobal (..)
+    , Expr (..)
+    , ExprType (..)
+    , ExprValue (..)
+    , Function (..)
+    , FunctionBody (..)
+    , HasExprs (..)
+    , HasVarBindings (..)
+    , HasVarNames (..)
+    , Ident (..)
+    , Named (..)
+    , Node (..)
+    , NodeAddr (..)
+    , NodeId (..)
+    , NodeMap
+    , Op (..)
+    , Program (..)
+    , Struct (..)
+    , StructField (..)
+    , VarUpdate (..)
+    , fromListOfNamed
+    , nodeConts
+    , toListOfNamed
+    ) where
 
 import Data.Map (Map)
+import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics.Core
 
 newtype Ident
-  = Ident { getIdent :: String }
-  deriving (Eq, Generic, Show)
+  = Ident { unwrapIdent :: String }
+  deriving (Eq, Generic, Ord, Show)
+
+data Named a
+  = Named
+      { name :: Ident
+      , value :: a
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+toListOfNamed :: Map Ident a -> [Named a]
+toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toList
+
+fromListOfNamed :: [Named a] -> Map Ident a
+fromListOfNamed = M.fromList . map (\Named { name, value } -> (name, value))
 
 data Program
   = Program
@@ -16,7 +55,7 @@ data Program
       , constGlobals :: Map Ident ConstGlobal
       , functions :: Map Ident Function
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data Struct
   = Struct
@@ -24,20 +63,20 @@ data Struct
       , align :: Integer
       , fields :: Map Ident StructField
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data StructField
   = StructField
-      { ty :: Type
+      { ty :: ExprType
       , offset :: Integer
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data ConstGlobal
   = ConstGlobal
       { value :: Expr
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data Function
   = Function
@@ -45,29 +84,29 @@ data Function
       , output :: [Argument]
       , body :: Maybe FunctionBody
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 type NodeMap = Map NodeAddr Node
 
 data FunctionBody
   = FunctionBody
-      { entryPoint :: NodeID
+      { entryPoint :: NodeId
       , nodes :: NodeMap
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data Argument
   = Argument
       { name :: Ident
-      , ty :: Type
+      , ty :: ExprType
       }
-  deriving (Generic, Show)
-
-newtype NodeAddr
-  = NodeAddr Integer
   deriving (Eq, Generic, Ord, Show)
 
-data NodeID
+newtype NodeAddr
+  = NodeAddr { unwrapNodeAddr :: Integer }
+  deriving (Eq, Generic, Ord, Show)
+
+data NodeId
   = Ret
   | Err
   | Addr NodeAddr
@@ -75,70 +114,70 @@ data NodeID
 
 data Node
   = BasicNode
-      { next :: NodeID
+      { next :: NodeId
       , varUpdates :: [VarUpdate]
       }
   | CondNode
-      { left :: NodeID
-      , right :: NodeID
+      { left :: NodeId
+      , right :: NodeId
       , expr :: Expr
       }
   | CallNode
-      { next :: NodeID
+      { next :: NodeId
       , functionName :: Ident
       , input :: [Expr]
       , output :: [Argument]
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data VarUpdate
   = VarUpdate
       { varName :: Ident
-      , ty :: Type
+      , ty :: ExprType
       , expr :: Expr
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data Expr
   = Expr
-      { ty :: Type
+      { ty :: ExprType
       , value :: ExprValue
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
-data Type
-  = Bool
-  | Mem
-  | Dom
-  | Htd
-  | Pms
-  | Unit
-  | Type
-  | Token
-  | RelWrapper
-  | Word
+data ExprType
+  = ExprTypeBool
+  | ExprTypeMem
+  | ExprTypeDom
+  | ExprTypeHtd
+  | ExprTypePms
+  | ExprTypeUnit
+  | ExprTypeType
+  | ExprTypeToken
+  | ExprTypeRelWrapper
+  | ExprTypeWord
       { bits :: Integer
       }
-  | WordArray
-      { bits :: Integer
+  | ExprTypeWordArray
+      { length :: Integer
+      , bits :: Integer
+      }
+  | ExprTypeArray
+      { ty :: ExprType
       , length :: Integer
       }
-  | Array
-      { ty :: Type
-      , length :: Integer
-      }
-  | StructType Ident
-  | Ptr Type
-  deriving (Generic, Show)
+  | ExprTypeStruct Ident
+  | ExprTypePtr ExprType
+  deriving (Eq, Generic, Ord, Show)
 
 data ExprValue
-  = Var Ident
-  | Op Op [Expr]
-  | Num Integer
-  | TypeValue Type
-  | Symbol Ident
-  | TokenValue Ident
-  deriving (Generic, Show)
+  = ExprValueVar Ident
+  | ExprValueOp Op [Expr]
+  | ExprValueNum Integer
+  | ExprValueType ExprType
+  | ExprValueSymbol Ident
+  | ExprValueToken Ident
+  deriving (Eq, Generic, Ord, Show)
 
 data Op
   = OpPlus
@@ -193,7 +232,7 @@ data Op
   | OpToFloatingPointSigned
   | OpToFloatingPointUnsigned
   | OpFloatingPointCast
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 class HasExprs a where
     exprsOf :: Traversal' a Expr
@@ -229,13 +268,13 @@ instance HasVarNames Expr where
     varNamesOf = #value % varNamesOf
 
 instance HasVarNames ExprValue where
-    varNamesOf = castOptic #_Var
+    varNamesOf = castOptic #_ExprValueVar
 
 renameVars :: (HasVarNames a, Applicative f) => (Ident -> f Ident) -> a -> f a
 renameVars = traverseOf varNamesOf
 
 class HasVarBindings a where
-    varBindingsOf :: Traversal' a (Ident, Type)
+    varBindingsOf :: Traversal' a (Ident, ExprType)
 
 instance HasVarBindings Argument where
     varBindingsOf = castOptic $ adjacently #name #ty
@@ -248,7 +287,7 @@ instance HasVarBindings Node where
 instance HasVarBindings VarUpdate where
     varBindingsOf = castOptic $ adjacently #varName #ty
 
-nodeConts :: Fold Node NodeID
+nodeConts :: Fold Node NodeId
 nodeConts = castOptic $
     (#_BasicNode % _1)
         `adjoin`(#_CondNode % (_1 `adjoin` _2))

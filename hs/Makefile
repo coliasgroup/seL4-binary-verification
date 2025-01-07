@@ -14,7 +14,8 @@ check:
 test:
 	stack test
 
-haddock_cmd := stack haddock --haddock-internal
+# TODO still seems to document some deps
+haddock_cmd := stack haddock --haddock-internal --no-haddock-deps --only-locals bv
 
 .PHONY: doc
 doc:

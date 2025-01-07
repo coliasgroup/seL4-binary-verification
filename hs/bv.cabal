@@ -13,11 +13,17 @@ tested-with: GHC == 9.6.6
 common common
   default-language: Haskell2010
   default-extensions:
-    DeriveGeneric
     DuplicateRecordFields
-    NamedFieldPuns
+    GeneralizedNewtypeDeriving
     NoFieldSelectors
     OverloadedLabels
+    OverloadedRecordDot
+    -- GHC2024
+    DeriveGeneric
+    DisambiguateRecordFields
+    FlexibleContexts
+    FlexibleInstances
+    NamedFieldPuns
   ghc-options:
     -Wall
   build-depends:
@@ -38,10 +44,12 @@ library
     BV.SeL4,
     BV.TargetDir,
     -- TODO hack
+    BV.Test.Main,
     BV.Test.Utils,
     BV.Test.Scratch,
   build-depends:
     text,
+    transformers,
     containers,
     optics-core,
     megaparsec,
@@ -50,8 +58,8 @@ library
     pretty-show,
     pretty-simple,
     -- TODO hack
-    -- tasty,
-    -- tasty-hunit,
+    tasty,
+    tasty-hunit,
   hs-source-dirs: src
 
 executable bv
@@ -72,7 +80,8 @@ test-suite bv-test
   hs-source-dirs: test
   main-is: Main.hs
   build-depends:
-    filepath,
-    tasty,
-    tasty-hunit,
+    -- text,
+    -- filepath,
+    -- tasty,
+    -- tasty-hunit,
     bv,
