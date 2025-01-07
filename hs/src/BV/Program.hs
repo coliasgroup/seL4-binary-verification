@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Use newtype instead of data" #-}
-{-# HLINT ignore "Use <$>" #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module BV.Program
     ( Argument (..)
@@ -435,63 +433,60 @@ instance ParseInLine ExprType where
             _ -> fail "invalid type"
 
 instance ParseInLine Op where
-    parseInLine = wordWithOr "invalid operation" matchOp
-
-matchOp :: String -> Maybe Op
-matchOp s = case s of
-    "Plus" -> Just OpPlus
-    "Minus" -> Just OpMinus
-    "Times" -> Just OpTimes
-    "Modulus" -> Just OpModulus
-    "DividedBy" -> Just OpDividedBy
-    "BWAnd" -> Just OpBWAnd
-    "BWOr" -> Just OpBWOr
-    "BWXOR" -> Just OpBWXOR
-    "And" -> Just OpAnd
-    "Or" -> Just OpOr
-    "Implies" -> Just OpImplies
-    "Equals" -> Just OpEquals
-    "Less" -> Just OpLess
-    "LessEquals" -> Just OpLessEquals
-    "SignedLess" -> Just OpSignedLess
-    "SignedLessEquals" -> Just OpSignedLessEquals
-    "ShiftLeft" -> Just OpShiftLeft
-    "ShiftRight" -> Just OpShiftRight
-    "CountLeadingZeroes" -> Just OpCountLeadingZeroes
-    "CountTrailingZeroes" -> Just OpCountTrailingZeroes
-    "WordReverse" -> Just OpWordReverse
-    "SignedShiftRight" -> Just OpSignedShiftRight
-    "Not" -> Just OpNot
-    "BWNot" -> Just OpBWNot
-    "WordCast" -> Just OpWordCast
-    "WordCastSigned" -> Just OpWordCastSigned
-    "True" -> Just OpTrue
-    "False" -> Just OpFalse
-    "UnspecifiedPrecond" -> Just OpUnspecifiedPrecond
-    "MemUpdate" -> Just OpMemUpdate
-    "MemAcc" -> Just OpMemAcc
-    "IfThenElse" -> Just OpIfThenElse
-    "ArrayIndex" -> Just OpArrayIndex
-    "ArrayUpdate" -> Just OpArrayUpdate
-    "MemDom" -> Just OpMemDom
-    "PValid" -> Just OpPValid
-    "PWeakValid" -> Just OpPWeakValid
-    "PAlignValid" -> Just OpPAlignValid
-    "PGlobalValid" -> Just OpPGlobalValid
-    "PArrayValid" -> Just OpPArrayValid
-    "HTDUpdate" -> Just OpHTDUpdate
-    "WordArrayAccess" -> Just OpWordArrayAccess
-    "WordArrayUpdate" -> Just OpWordArrayUpdate
-    "TokenWordsAccess" -> Just OpTokenWordsAccess
-    "TokenWordsUpdate" -> Just OpTokenWordsUpdate
-    "ROData" -> Just OpROData
-    "StackWrapper" -> Just OpStackWrapper
-    "EqSelectiveWrapper" -> Just OpEqSelectiveWrapper
-    "ToFloatingPoint" -> Just OpToFloatingPoint
-    "ToFloatingPointSigned" -> Just OpToFloatingPointSigned
-    "ToFloatingPointUnsigned" -> Just OpToFloatingPointUnsigned
-    "FloatingPointCast" -> Just OpFloatingPointCast
-    _ -> Nothing
+    parseInLine = wordWithOr "invalid operation" $ \case
+        "Plus" -> Just OpPlus
+        "Minus" -> Just OpMinus
+        "Times" -> Just OpTimes
+        "Modulus" -> Just OpModulus
+        "DividedBy" -> Just OpDividedBy
+        "BWAnd" -> Just OpBWAnd
+        "BWOr" -> Just OpBWOr
+        "BWXOR" -> Just OpBWXOR
+        "And" -> Just OpAnd
+        "Or" -> Just OpOr
+        "Implies" -> Just OpImplies
+        "Equals" -> Just OpEquals
+        "Less" -> Just OpLess
+        "LessEquals" -> Just OpLessEquals
+        "SignedLess" -> Just OpSignedLess
+        "SignedLessEquals" -> Just OpSignedLessEquals
+        "ShiftLeft" -> Just OpShiftLeft
+        "ShiftRight" -> Just OpShiftRight
+        "CountLeadingZeroes" -> Just OpCountLeadingZeroes
+        "CountTrailingZeroes" -> Just OpCountTrailingZeroes
+        "WordReverse" -> Just OpWordReverse
+        "SignedShiftRight" -> Just OpSignedShiftRight
+        "Not" -> Just OpNot
+        "BWNot" -> Just OpBWNot
+        "WordCast" -> Just OpWordCast
+        "WordCastSigned" -> Just OpWordCastSigned
+        "True" -> Just OpTrue
+        "False" -> Just OpFalse
+        "UnspecifiedPrecond" -> Just OpUnspecifiedPrecond
+        "MemUpdate" -> Just OpMemUpdate
+        "MemAcc" -> Just OpMemAcc
+        "IfThenElse" -> Just OpIfThenElse
+        "ArrayIndex" -> Just OpArrayIndex
+        "ArrayUpdate" -> Just OpArrayUpdate
+        "MemDom" -> Just OpMemDom
+        "PValid" -> Just OpPValid
+        "PWeakValid" -> Just OpPWeakValid
+        "PAlignValid" -> Just OpPAlignValid
+        "PGlobalValid" -> Just OpPGlobalValid
+        "PArrayValid" -> Just OpPArrayValid
+        "HTDUpdate" -> Just OpHTDUpdate
+        "WordArrayAccess" -> Just OpWordArrayAccess
+        "WordArrayUpdate" -> Just OpWordArrayUpdate
+        "TokenWordsAccess" -> Just OpTokenWordsAccess
+        "TokenWordsUpdate" -> Just OpTokenWordsUpdate
+        "ROData" -> Just OpROData
+        "StackWrapper" -> Just OpStackWrapper
+        "EqSelectiveWrapper" -> Just OpEqSelectiveWrapper
+        "ToFloatingPoint" -> Just OpToFloatingPoint
+        "ToFloatingPointSigned" -> Just OpToFloatingPointSigned
+        "ToFloatingPointUnsigned" -> Just OpToFloatingPointUnsigned
+        "FloatingPointCast" -> Just OpFloatingPointCast
+        _ -> Nothing
 
 --
 

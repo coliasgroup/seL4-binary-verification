@@ -16,6 +16,8 @@ pkgs.mkShell {
     hls
     ghc
 
+    hlint
+
     haskellPackages.ormolu
     haskellPackages.fourmolu
     haskellPackages.floskell

@@ -23,9 +23,11 @@ common common
     DisambiguateRecordFields
     FlexibleContexts
     FlexibleInstances
+    LambdaCase
     NamedFieldPuns
   ghc-options:
     -Wall
+    -Wno-unused-do-bind
   build-depends:
     base,
 

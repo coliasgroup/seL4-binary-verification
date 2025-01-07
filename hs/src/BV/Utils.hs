@@ -1,6 +1,6 @@
 module BV.Utils
-    ( intersperse
-    , adjacently
+    ( adjacently
+    , intersperse
     ) where
 
 import Optics.Core

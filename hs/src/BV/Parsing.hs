@@ -9,6 +9,8 @@ module BV.Parsing
     , inLineLexeme
     , inLineSymbol
     , line
+    , parseBlocksFile
+    , parseBlocksFileWithTypicalKeyFormat
     , parseWholeFile
     , unterminatedLine
     , word
@@ -20,6 +22,7 @@ import Control.Applicative ()
 import Data.Bifunctor (first)
 import Data.Char
 import Data.Maybe (isJust)
+import Data.String (fromString)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Void (Void)
@@ -67,9 +70,27 @@ ignoredLines = skipMany $ inLineSpace *> optional (L.skipLineComment "#") *> eol
 parseWholeFile :: ParseFile a => String -> Text -> Either String a
 parseWholeFile path = first errorBundlePretty . parse (parseFile <* eof) path
 
+parseBlocksFile :: Parser k -> Parser v -> Parser [(k, v)]
+parseBlocksFile pk pv = do
+    ignoredLines
+    many $ do
+        k <- pk
+        "{"
+        ignoredLines
+        v <- pv
+        "}"
+        ignoredLines
+        return (k, v)
+
+parseBlocksFileWithTypicalKeyFormat :: [String] -> Parser k -> Parser v -> Parser [(k, v)]
+parseBlocksFileWithTypicalKeyFormat nesting = parseBlocksFile . wrap nesting
+  where
+    wrap :: [String] -> Parser k -> Parser k
+    wrap [] pk = pk
+    wrap (x:xs) pk = hspace *> fromString x *> hspace *> "(" *> wrap xs pk <* hspace <* ")" <* hspace
+
 class ParseFile a where
     parseFile :: Parser a
-
 
 class ParseInBlock a where
     parseInBlock :: Parser a

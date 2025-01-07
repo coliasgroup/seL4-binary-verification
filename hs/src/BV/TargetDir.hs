@@ -4,6 +4,7 @@ module BV.TargetDir
     , readCFunctions
     , readFunctions
     , readObjDumpInfo
+    , readProblems
     ) where
 
 import Data.Bifunctor (first)
@@ -16,6 +17,8 @@ import System.FilePath ((</>))
 import Text.Megaparsec (Parsec, eof, errorBundlePretty, parse)
 
 import BV.ObjDump
+import BV.Problem
+import BV.Pairing
 import BV.Parsing
 import BV.Program
 
@@ -45,3 +48,6 @@ readAsmFunctions = readAndParseFile "ASMFunctions.txt"
 
 readFunctions :: TargetDir -> IO (Either String Program)
 readFunctions = readAndParseFile "functions.txt"
+
+readProblems :: TargetDir -> IO (Either String Problems)
+readProblems = readAndParseFile "problems.txt"

@@ -19,11 +19,11 @@ module BV.Printing
     , putWord
     ) where
 
+import qualified Data.DList as D
 import Data.String (IsString, fromString)
 import qualified Data.Text.Lazy as L
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Builder.Int (decimal, hexadecimal)
-import qualified Data.DList as D
 
 import BV.Utils
 

@@ -26,6 +26,7 @@ tests = testGroup "Tests"
     , testCase "round trip c functions" $ testRoundTrip readCFunctions
     , testCase "round trip asm functions" $ testRoundTrip readAsmFunctions
     , testCase "round trip functions" $ testRoundTrip readFunctions
+    , testCase "round trip problems" $ testReader readProblems
     ]
 
 testReader :: (TargetDir -> IO (Either String a)) -> IO ()
@@ -48,12 +49,19 @@ testRoundTrip f = do
 
 ttt :: IO ()
 ttt = do
-    r <- readCFunctions testSeL4TargetDir
+    r <- readProblems testSeL4TargetDir
     case r of
         Left err -> putStrLn err
-        Right x -> do
-            let t = buildFile x
-            L.writeFile (tmpOutPath "snd.txt") t
-            case parseWholeFile "second trip" (L.toStrict t) of
-                Left err -> putStrLn err
-                Right x' -> print $ x == x'
+        _ -> return ()
+
+-- ttt :: IO ()
+-- ttt = do
+--     r <- readCFunctions testSeL4TargetDir
+--     case r of
+--         Left err -> putStrLn err
+--         Right x -> do
+--             let t = buildFile x
+--             L.writeFile (tmpOutPath "snd.txt") t
+--             case parseWholeFile "second trip" (L.toStrict t) of
+--                 Left err -> putStrLn err
+--                 Right x' -> print $ x == x'

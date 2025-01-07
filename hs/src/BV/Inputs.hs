@@ -35,7 +35,3 @@ data ProblemAndProof
       , proof :: ProofNode
       }
   deriving (Eq, Generic, Ord, Show)
-
-newtype Problems
-  = Problems (M.Map PairingId Problem)
-  deriving (Eq, Generic, Ord, Show)

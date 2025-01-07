@@ -29,6 +29,10 @@ odoc:
 fmt:
 	stylish-haskell -i $$(find . -name '*.hs')
 
+.PHONY: hlint
+hlint:
+	hlint src app test
+
 .PHONY: enumerate-transitive-deps
 enumerate-transitive-deps:
 	stack dot --external --include-base | cut -d ' ' -f 1 | grep '"' | sort | uniq

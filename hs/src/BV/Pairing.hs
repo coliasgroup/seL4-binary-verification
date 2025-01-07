@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module BV.Pairing
     ( Pairing (..)
     , PairingEq (..)
@@ -11,12 +13,28 @@ module BV.Pairing
     , asmOut
     , cIn
     , cOut
+    , parsePrettyPairingId
+    , parsePythonPairingName
+    , prettyPairingId
     ) where
 
+import Control.Applicative (many, optional, (<|>))
+import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (maybeToList)
+import Data.String (fromString)
 import GHC.Generics (Generic)
+import Optics.Core
+import Text.Megaparsec (manyTill, manyTill_, satisfy, some, try)
 
+import BV.Parsing
+import BV.Printing
 import BV.Program
+import BV.Utils
+import Data.Char (isSpace)
+import Data.Functor (void)
+import Text.Megaparsec.Char
+import Text.Megaparsec.Char.Lexer (indentBlock)
 
 data Tag
   = C
@@ -79,5 +97,31 @@ newtype Pairings
   = Pairings (M.Map PairingId Pairing)
   deriving (Eq, Generic, Ord, Show)
 
+prettyPairingId :: PairingId -> String
+prettyPairingId (PairingId { c, asm }) = asm.unwrapIdent ++ " (ASM)" ++ " <= " ++ c.unwrapIdent ++ " (C)"
+
+parsePrettyPairingId :: Parser PairingId
+parsePrettyPairingId = do
+    asm <- ident
+    hspace *> "(ASM)" *> hspace *> "<=" *> hspace
+    c <- ident
+    hspace *> "(C)"
+    return $ PairingId { asm, c }
+  where
+    ident = Ident <$> some (satisfy isIdentChar)
+    isIdentChar c = not (isSpace c || c == '(' || c == ')')
+
+parsePythonPairingName :: Parser PairingId
+parsePythonPairingName = do
+    "Pairing" *> hspace1 *> "(" *> hspace
+    pairingId <- parsePrettyPairingId
+    ")"
+    return pairingId
+
 --
 
+instance ParseInLine Tag where
+    parseInLine = wordWithOr "invalid tag" $ \case
+        "C" -> Just C
+        "ASM" -> Just Asm
+        _ -> Nothing

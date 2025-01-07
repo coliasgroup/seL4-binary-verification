@@ -1,2 +1,3 @@
 - ExprTypeHtd vs ExprTypeHTD
 - Integer vs prims
+- rm void and _ <-
