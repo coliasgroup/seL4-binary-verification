@@ -1,6 +1,6 @@
 module BV.Graph where
 
-import Data.Graph (Graph, Vertex)
+import Data.Graph (Graph, Vertex, graphFromEdges)
 import Data.Map (Map)
 import qualified Data.Map as M
 import GHC.Arr (Array)
@@ -13,29 +13,46 @@ import BV.Program
 data NodeGraph
   = NodeGraph
       { graph :: Graph
-      , nodeIDMap :: Array Vertex NodeId
-      , nodeIDMapRev :: Map NodeId Vertex
+      , nodeIdMap :: Vertex -> NodeId
+      , nodeIdMapRev :: NodeId -> Maybe Vertex
       }
-  deriving (Generic, Show)
+  deriving (Generic)
 
 makeNodeGraph :: Map NodeAddr Node -> NodeGraph
-makeNodeGraph nodeMap =
+makeNodeGraph = makeNodeGraphTheirs
+
+makeNodeGraphOurs :: Map NodeAddr Node -> NodeGraph
+makeNodeGraphOurs nodeMap =
     NodeGraph
         { graph
-        , nodeIDMap
-        , nodeIDMapRev
+        , nodeIdMap = (nodeIdMap' A.!)
+        , nodeIdMapRev = (nodeIdMapRev' M.!?)
         }
   where
     vertices = zip [0 ..]
         ( (Ret, [])
         : (Err, [])
-        : (M.assocs nodeMap <&> (_1 %~ Addr) . (_2 %~ (^.. nodeConts % to (nodeIDMapRev M.!))))
+        : (M.assocs nodeMap <&> (_1 %~ Addr) . (_2 %~ (^.. nodeConts % to (nodeIdMapRev' M.!))))
         )
-    (graphList, nodeIDMapList, nodeIDMapRevList) = unzip3
-        [ (neighbors, nodeID, (nodeID, i))
-        | (i, (nodeID, neighbors)) <- vertices
+    (graphList, nodeIdMapList, nodeIdMapRevList) = unzip3
+        [ (neighbors, nodeId, (nodeId, i))
+        | (i, (nodeId, neighbors)) <- vertices
         ]
     bounds = (0, M.size nodeMap + 2)
     graph = A.listArray bounds graphList
-    nodeIDMap = A.listArray bounds nodeIDMapList
-    nodeIDMapRev = M.fromList nodeIDMapRevList
+    nodeIdMap' = A.listArray bounds nodeIdMapList
+    nodeIdMapRev' = M.fromList nodeIdMapRevList
+
+makeNodeGraphTheirs :: Map NodeAddr Node -> NodeGraph
+makeNodeGraphTheirs nodeMap =
+    NodeGraph
+        { graph
+        , nodeIdMap = view _2 . nodeIdMap'
+        , nodeIdMapRev
+        }
+  where
+    (graph, nodeIdMap', nodeIdMapRev) = graphFromEdges
+        ( ((), Ret, [])
+        : ((), Err, [])
+        : (M.assocs nodeMap <&> \(addr, node) -> ((), Addr addr, toListOf nodeConts node))
+        )
