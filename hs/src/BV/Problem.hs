@@ -4,6 +4,7 @@ import Data.Map (Map)
 import GHC.Generics (Generic)
 import Optics.Core
 
+import BV.Pairing
 import BV.Program
 
 data Problem
@@ -12,7 +13,7 @@ data Problem
       , asm :: ProblemSide
       , nodes :: NodeMap
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data ProblemSide
   = ProblemSide
@@ -21,4 +22,19 @@ data ProblemSide
       , output :: [Argument]
       , entryPoint :: NodeId
       }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
+
+data NodeBySource
+  = NodeBySource
+      { nodeSource :: NodeSource
+      , indexInProblem :: Integer
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+data NodeSource
+  = NodeSource
+      { tag :: Tag
+      , functionName :: Ident
+      , nodeAddr :: NodeAddr
+      }
+  deriving (Eq, Generic, Ord, Show)

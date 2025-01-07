@@ -1,7 +1,23 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.Printing where
+module BV.Printing
+    ( BlockBuilder
+    , BuildInBlock (..)
+    , BuildInLine (..)
+    , BuildToFile (..)
+    , LineBuilder
+    , buildBlock
+    , buildFile
+    , buildLine
+    , intersperse
+    , lineInBlock
+    , put
+    , putDec
+    , putHex
+    , putManyWith
+    , putWord
+    ) where
 
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
@@ -52,18 +68,18 @@ newtype BlockBuilder
 buildBlock :: BlockBuilder -> Builder
 buildBlock blockBuilder = mconcat (map buildLine (toList blockBuilder.unwrapBlockBuilder))
 
-line :: LineBuilder -> BlockBuilder
-line = BlockBuilder . singleton
+lineInBlock :: LineBuilder -> BlockBuilder
+lineInBlock = BlockBuilder . singleton
 
 class BuildInBlock a where
     buildInBlock :: a -> BlockBuilder
 
 instance BuildInBlock (Named Struct) where
     buildInBlock (Named name (Struct { size, align, fields })) =
-        line ("Struct" <> put name <> putDec size <> putDec align)
+        lineInBlock ("Struct" <> put name <> putDec size <> putDec align)
             <> mconcat (map buildField (M.toList fields))
       where
-        buildField (fieldName, StructField { ty, offset }) = line $
+        buildField (fieldName, StructField { ty, offset }) = lineInBlock $
             "StructField" <> put fieldName <> put ty <> putDec offset
 
 instance BuildInBlock (Named ConstGlobal) where
@@ -71,13 +87,13 @@ instance BuildInBlock (Named ConstGlobal) where
 
 instance BuildInBlock (Named Function) where
     buildInBlock (Named name (Function { input, output, body })) =
-        line ("Function" <> put name <> put input <> put output)
+        lineInBlock ("Function" <> put name <> put input <> put output)
             <> mconcat (maybeToList (buildBody <$> body))
       where
         buildBody (FunctionBody { entryPoint, nodes }) =
             mconcat (map buildNode (M.toList nodes))
-                <> line ("EntryPoint" <> put entryPoint)
-        buildNode (addr, node) = line $ put addr <> put node
+                <> lineInBlock ("EntryPoint" <> put entryPoint)
+        buildNode (addr, node) = lineInBlock $ put addr <> put node
 
 newtype LineBuilder
   = LineBuilder { unwrapLineBuilder :: DList Builder }

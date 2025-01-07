@@ -2,9 +2,17 @@
 
 module BV.Parsing
     ( ParseFile (..)
+    , ParseInBlock (..)
     , ParseInLine (..)
     , Parser
+    , inLineLexeme
+    , inLineSymbol
+    , line
     , parseWholeFile
+    , unterminatedLine
+    , word
+    , wordWith
+    , wordWithOr
     ) where
 
 import Control.Applicative ()
@@ -55,12 +63,11 @@ wordWith f = do
 wordWithOr :: String -> (Text -> Maybe a) -> Parser a
 wordWithOr msg f = wordWith (maybe (Left msg) Right . f)
 
+unterminatedLine :: Parser a -> Parser a
+unterminatedLine = (inLineSpace *>)
+
 line :: Parser a -> Parser a
-line p = do
-    inLineSpace
-    x <- p
-    lineSep
-    return x
+line p = unterminatedLine p <* lineSep
 
 lineSep :: Parser ()
 lineSep = eol *> ignoredLines
