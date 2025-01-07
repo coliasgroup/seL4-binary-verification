@@ -1,21 +1,24 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module BV.Parsing where
 
+import Data.Attoparsec.Text
 import Data.Char
-import Data.Text as T
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Monoid (Endo (Endo, appEndo))
+import Data.String (IsString (fromString))
+import Data.Text as T
 import GHC.Generics (Generic)
-import Numeric (readHex, readDec)
+import Numeric (readDec, readHex)
 import Optics.Core
-import Text.Parsec
-import Text.Parsec.Text
-import Data.String (IsString(fromString))
 
 import BV.Inputs
 import BV.Problem
 import BV.Program
+import Control.Applicative
 import Data.Functor (void)
+import Data.Maybe (isJust)
 
 tok :: Parser String
 tok = many1 (satisfy (not . isSpace))
@@ -31,7 +34,7 @@ tokWithOr :: String -> (String -> Maybe a) -> Parser a
 tokWithOr msg f = tokWith (maybe (Left msg) Right . f)
 
 tokSep :: Parser ()
-tokSep = void $ many1 (char ' ' <|> tab)
+tokSep = void $ many1 (satisfy isHorizontalSpace)
 
 lineSep :: Parser ()
 lineSep = void $ many1 undefined
@@ -41,12 +44,9 @@ class ParseInLine a where
 
 instance ParseInLine Integer where
     parseInLine = do
-        isNegative <- option False (True <$ oneOf "-~")
-        isHex <- option False (True <$ try (string "0x"))
-        let (digitClass, readFn) = if isHex then (hexDigit, readHex) else (digit, readDec)
-        digits <- many1 digitClass
-        let [(n, "")] = readFn digits
-        return $ (if isNegative then negate else id) n
+        isNegative <- isJust <$> optional (satisfy (inClass "-~"))
+        isHex <- isJust <$> optional (string "0x")
+        (if isNegative then negate else id) <$> (if isHex then hexadecimal else decimal)
 
 instance ParseInLine Op where
     parseInLine = tokWithOr "unrecognized operation" matchOp
@@ -108,7 +108,7 @@ matchOp s = case s of
 
 type T = Integer
 
-testString = "-0x32a"
+testString = "x-0x32a"
 
 x :: IO ()
 x = parseTest (parseInLine :: Parser T) (fromString testString)

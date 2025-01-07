@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module BV.ObjDump
     ( ObjDumpInfo (..)
@@ -9,15 +10,13 @@ module BV.ObjDump
     , parseObjDumpInfo
     ) where
 
+import Data.Attoparsec.Text
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Monoid (Endo (Endo, appEndo))
 import GHC.Generics (Generic)
-import Numeric (readHex)
 import Optics.Core
-import Text.Parsec
-import Text.Parsec.Text
 
 data ObjDumpInfo
   = ObjDumpInfo
@@ -49,31 +48,26 @@ sectionEnd = (+) <$> view #addr <*> view #size
 
 parseLines :: Parser [(String, Symbol)]
 parseLines = do
-    _ <- manyTill anyChar (try (string "SYMBOL TABLE:" >> newline))
-    lines <- many $ do
-        addr <- hex
+    _ <- manyTill anyChar (string "SYMBOL TABLE:" *> endOfLine)
+    lines <- many' $ do
+        addr <- hexadecimal
         _ <- char ' ' >> count 7 anyChar >> char ' '
         section <- ident
-        _ <- tab
-        size <- hex
+        _ <- char '\t'
+        size <- hexadecimal
         _ <- char ' '
         name <- ident
-        _ <- newline
+        _ <- endOfLine
         let symbol = Symbol
                 { addr
                 , size
                 , section
                 }
         return (name, symbol)
-    _ <- many newline
-    eof
+    _ <- many' endOfLine
     return lines
   where
     ident = many1 (satisfy (not . isSpace))
-    hex = readHex' <$> many1 hexDigit
-
-readHex' :: (Eq a, Num a) => String -> a
-readHex' s = let [(x, "")] = readHex s in x
 
 makeObjDumpInfo :: [(String, Symbol)] -> ObjDumpInfo
 makeObjDumpInfo lines =

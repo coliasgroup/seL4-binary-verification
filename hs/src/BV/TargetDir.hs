@@ -3,14 +3,13 @@ module BV.TargetDir
     , readObjDumpInfo
     ) where
 
+import Data.Attoparsec.Text (endOfInput, parseOnly)
+import qualified Data.Text.IO as T
 import GHC.Generics (Generic)
 import Optics.Core
 import System.FilePath ((</>))
-import Text.Parsec
-import Text.Parsec.Text
 
 import BV.ObjDump
-import BV.Parsing
 import BV.Program
 
 data TargetDir
@@ -23,5 +22,7 @@ data TargetDir
 targetDirPath :: TargetDir -> FilePath -> FilePath
 targetDirPath targetDir rel = (targetDir ^. #path) </> rel
 
-readObjDumpInfo :: TargetDir -> IO (Either ParseError ObjDumpInfo)
-readObjDumpInfo targetDir = parseFromFile parseObjDumpInfo (targetDirPath targetDir "kernel.elf.symtab")
+readObjDumpInfo :: TargetDir -> IO (Either String ObjDumpInfo)
+readObjDumpInfo targetDir = do
+    s <- T.readFile $ targetDirPath targetDir "kernel.elf.symtab"
+    return $ parseOnly (parseObjDumpInfo <* endOfInput) s

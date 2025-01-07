@@ -41,11 +41,11 @@ library
     BV.Test.Utils,
     BV.Test.Scratch,
   build-depends:
+    text,
     containers,
     optics-core,
-    parsec,
+    attoparsec,
     filepath,
-    text,
     -- TODO prune
     pretty-show,
     pretty-simple,
