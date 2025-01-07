@@ -5,6 +5,7 @@ module BV.TargetDir
     , readFunctions
     , readObjDumpInfo
     , readProblems
+    , readStackBounds
     ) where
 
 import Data.Bifunctor (first)
@@ -16,6 +17,7 @@ import Optics.Core
 import System.FilePath ((</>))
 import Text.Megaparsec (Parsec, eof, errorBundlePretty, parse)
 
+import BV.Inputs
 import BV.ObjDump
 import BV.Pairing
 import BV.Parsing
@@ -51,3 +53,6 @@ readFunctions = readAndParseFile "functions.txt"
 
 readProblems :: TargetDir -> IO (Either String Problems)
 readProblems = readAndParseFile "problems.txt"
+
+readStackBounds :: TargetDir -> IO (Either String StackBounds)
+readStackBounds = readAndParseFile "StackBounds.txt"

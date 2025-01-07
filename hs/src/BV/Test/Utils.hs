@@ -4,6 +4,8 @@ import Data.Maybe (fromJust)
 import System.FilePath
 import qualified Text.Show.Pretty as H
 
+import BV.Parsing
+import BV.Printing
 import BV.SeL4
 import BV.TargetDir
 
@@ -38,3 +40,18 @@ tmpOutDir = tmpDir </> "out"
 
 tmpOutPath :: FilePath -> FilePath
 tmpOutPath = (tmpOutDir </>)
+
+graphRefineDir :: FilePath
+graphRefineDir = "../../graph-refine"
+
+newtype InBlockAsFile a
+  = InBlockAsFile { unwrap :: a }
+
+instance ParseInBlock a => ParseFile (InBlockAsFile a) where
+    parseFile = InBlockAsFile <$> parseInBlock
+
+newtype InLineAsInBlock a
+  = InLineAsInBlock { unwrap :: a }
+
+instance ParseInLine a => ParseInBlock (InLineAsInBlock a) where
+    parseInBlock = InLineAsInBlock <$> line parseInLine

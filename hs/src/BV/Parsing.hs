@@ -12,6 +12,7 @@ module BV.Parsing
     , parseBlocksFile
     , parseBlocksFileWithTypicalKeyFormat
     , parseWholeFile
+    , parseWholeFileWith
     , unterminatedLine
     , word
     , wordWith
@@ -68,7 +69,10 @@ ignoredLines :: Parser ()
 ignoredLines = skipMany $ inLineSpace *> optional (L.skipLineComment "#") *> eol
 
 parseWholeFile :: ParseFile a => String -> Text -> Either String a
-parseWholeFile path = first errorBundlePretty . parse (parseFile <* eof) path
+parseWholeFile = parseWholeFileWith parseFile
+
+parseWholeFileWith :: Parser a -> String -> Text -> Either String a
+parseWholeFileWith p path = first errorBundlePretty . parse (p <* eof) path
 
 parseBlocksFile :: Parser k -> Parser v -> Parser [(k, v)]
 parseBlocksFile pk pv = do

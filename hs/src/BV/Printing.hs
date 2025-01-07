@@ -79,10 +79,13 @@ putBuilder :: Builder -> LineBuilder
 putBuilder = LineBuilder . D.singleton
 
 putDec :: Integral a => a -> LineBuilder
-putDec = putBuilder . decimal
+putDec = putIntegralWith decimal
 
 putHex :: Integral a => a -> LineBuilder
-putHex = putBuilder . ("0x" <>). hexadecimal
+putHex = putIntegralWith $ ("0x" <>) . hexadecimal
+
+putIntegralWith :: Integral a => (a -> Builder) -> a -> LineBuilder
+putIntegralWith putAbs n = putBuilder $ (if n < 0 then "-" else mempty) <> putAbs (abs n)
 
 putManyWith :: (a -> LineBuilder) -> [a] -> LineBuilder
 putManyWith f xs = putDec (length xs) <> mconcat (map f xs)

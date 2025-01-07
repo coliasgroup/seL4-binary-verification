@@ -1,12 +1,18 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
+
 module BV.Inputs where
 
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
 import BV.Pairing
+import BV.Parsing
+import BV.Printing
 import BV.Problem
 import BV.Program
 import BV.ProofScript
+import Control.Applicative (many, optional)
 
 newtype StackBounds
   = StackBounds (M.Map Ident Expr)
@@ -35,3 +41,19 @@ data ProblemAndProof
       , proof :: ProofNode
       }
   deriving (Eq, Generic, Ord, Show)
+
+--
+
+instance ParseFile StackBounds where
+    parseFile = do
+        optional . line $ inLineSymbol "FunctionHash" *> parseInLine @Integer
+        StackBounds . M.fromList <$> many p
+      where
+        p = line $ do
+            inLineSymbol "StackBound"
+            (,) <$> parseInLine <*> parseInLine
+
+instance BuildToFile StackBounds where
+    buildToFile (StackBounds stackBounds) = buildBlock $ mconcat (map f (M.toList stackBounds))
+      where
+        f (ident, expr) = lineInBlock $ "StackBound" <> put ident <> put expr
