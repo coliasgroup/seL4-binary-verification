@@ -44,6 +44,7 @@ import Text.Megaparsec (manyTill_, try)
 
 import BV.Parsing
 import BV.Printing
+import BV.Utils
 
 newtype Ident
   = Ident { unwrapIdent :: String }
@@ -305,13 +306,6 @@ nodeConts = castOptic $
     (#_BasicNode % _1)
         `adjoin`(#_CondNode % (_1 `adjoin` _2))
         `adjoin` (#_CallNode % _1)
-
-adjacently :: Lens' s a -> Lens' s a' -> Lens' s (a, a')
-adjacently l r =
-    withLens l $ \getl setl ->
-    withLens r $ \getr setr ->
-        lens (\s -> (getl s, getr s))
-             (\s (b, b') -> setr (setl s b) b')
 
 --
 

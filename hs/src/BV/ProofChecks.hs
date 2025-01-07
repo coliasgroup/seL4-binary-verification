@@ -4,7 +4,6 @@ import qualified Data.Map as M
 import GHC.Generics (Generic)
 
 import BV.Pairing
-import BV.Problem
 import BV.Program
 
 newtype ProofChecks a

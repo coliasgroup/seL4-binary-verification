@@ -3,7 +3,6 @@ module BV.ProofScript where
 import GHC.Generics (Generic)
 
 import BV.Pairing
-import BV.Problem
 import BV.Program
 
 data ProofNode

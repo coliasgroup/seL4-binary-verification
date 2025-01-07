@@ -45,6 +45,7 @@ library
     BV.ProofScript,
     BV.SeL4,
     BV.TargetDir,
+    BV.Utils,
     -- TODO hack
     BV.Test.Main,
     BV.Test.Scratch,
@@ -57,6 +58,7 @@ library
     megaparsec,
     filepath,
     aeson,
+    dlist,
     -- TODO prune
     pretty-show,
     pretty-simple,

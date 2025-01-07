@@ -1,8 +1,6 @@
 module BV.Problem where
 
-import Data.Map (Map)
 import GHC.Generics (Generic)
-import Optics.Core
 
 import BV.Pairing
 import BV.Program

@@ -19,30 +19,13 @@ module BV.Printing
     , putWord
     ) where
 
-import Data.Monoid
 import Data.String (IsString, fromString)
 import qualified Data.Text.Lazy as L
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Builder.Int (decimal, hexadecimal)
+import qualified Data.DList as D
 
-intersperse :: Monoid a => a -> [a] -> a
-intersperse _ [] = mempty
-intersperse sep (x:xs) = x <> mconcat (map (sep <>) xs)
-
-newtype DList a
-  = DList { applyDList :: Endo [a] }
-  deriving (Monoid, Semigroup)
-
-singleton :: a -> DList a
-singleton = DList . Endo . (:)
-
-fromList :: [a] -> DList a
-fromList = DList . Endo . (++)
-
-toList :: DList a -> [a]
-toList = ($ []) . appEndo . (.applyDList)
-
---
+import BV.Utils
 
 class BuildToFile a where
     buildToFile :: a -> Builder
@@ -51,27 +34,27 @@ buildFile :: BuildToFile a => a -> L.Text
 buildFile = toLazyText . buildToFile
 
 newtype BlockBuilder
-  = BlockBuilder { unwrapBlockBuilder :: DList LineBuilder }
+  = BlockBuilder { unwrapBlockBuilder :: D.DList LineBuilder }
   deriving (Monoid, Semigroup)
 
 buildBlock :: BlockBuilder -> Builder
-buildBlock blockBuilder = mconcat (map buildLine (toList blockBuilder.unwrapBlockBuilder))
+buildBlock blockBuilder = mconcat (map buildLine (D.toList blockBuilder.unwrapBlockBuilder))
 
 lineInBlock :: LineBuilder -> BlockBuilder
-lineInBlock = BlockBuilder . singleton
+lineInBlock = BlockBuilder . D.singleton
 
 class BuildInBlock a where
     buildInBlock :: a -> BlockBuilder
 
 newtype LineBuilder
-  = LineBuilder { unwrapLineBuilder :: DList Builder }
+  = LineBuilder { unwrapLineBuilder :: D.DList Builder }
   deriving (Monoid, Semigroup)
 
 instance IsString LineBuilder where
     fromString = putWord
 
 buildLine :: LineBuilder -> Builder
-buildLine lineBuilder = intersperse " " (toList lineBuilder.unwrapLineBuilder) <> "\n"
+buildLine lineBuilder = intersperse " " (D.toList lineBuilder.unwrapLineBuilder) <> "\n"
 
 put :: BuildInLine a => a -> LineBuilder
 put = buildInLine
@@ -80,7 +63,7 @@ putWord :: String -> LineBuilder
 putWord = putBuilder . fromString
 
 putBuilder :: Builder -> LineBuilder
-putBuilder = LineBuilder . singleton
+putBuilder = LineBuilder . D.singleton
 
 putDec :: Integral a => a -> LineBuilder
 putDec = putBuilder . decimal

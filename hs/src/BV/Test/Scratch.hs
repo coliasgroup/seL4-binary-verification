@@ -2,8 +2,6 @@ module BV.Test.Scratch
     (
     ) where
 
-import Data.Maybe
-
 import Text.Pretty.Simple
 
 import BV.TargetDir
