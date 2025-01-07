@@ -61,6 +61,8 @@ library
     filepath,
     aeson,
     dlist,
+    -- TODO assess
+    simple-smt,
     -- TODO prune
     pretty-show,
     pretty-simple,

@@ -3,7 +3,14 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: simple-smt-0.9.8@sha256:d0b06f24372c0a15d4d6296708a349e837924274fa4b6d9dc0d148d5554cfec7,736
+    pantry-tree:
+      sha256: ad967264a5c77874f0eadc6225dd73a6a8edd5f8573a4cb531d73ab9c5b1ddd9
+      size: 253
+  original:
+    hackage: simple-smt-0.9.8@sha256:d0b06f24372c0a15d4d6296708a349e837924274fa4b6d9dc0d148d5554cfec7,736
 snapshots:
 - completed:
     sha256: 08bd13ce621b41a8f5e51456b38d5b46d7783ce114a50ab604d6bbab0d002146

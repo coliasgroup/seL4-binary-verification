@@ -8,13 +8,10 @@ import qualified Data.Text.Lazy.IO as L
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import BV.ObjDump
 import BV.Parsing (ParseFile, parseWholeFile)
 import BV.Printing (BuildToFile, buildFile)
-import BV.SeL4
 import BV.TargetDir
 import BV.Test.Utils
-import Control.Monad (when)
 
 main :: IO ()
 main = defaultMain tests
@@ -26,7 +23,7 @@ tests = testGroup "Tests"
     , testCase "round trip c functions" $ testRoundTrip readCFunctions
     , testCase "round trip asm functions" $ testRoundTrip readAsmFunctions
     , testCase "round trip functions" $ testRoundTrip readFunctions
-    , testCase "round trip problems" $ testReader readProblems
+    , testCase "round trip problems" $ testRoundTrip readProblems
     ]
 
 testReader :: (TargetDir -> IO (Either String a)) -> IO ()

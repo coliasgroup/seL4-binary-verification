@@ -530,7 +530,7 @@ instance BuildInLine NodeId where
     buildInLine (Addr addr) = put addr
 
 instance BuildInLine NodeAddr where
-    buildInLine= putHex . (.unwrapNodeAddr)
+    buildInLine = putHex . (.unwrapNodeAddr)
 
 instance BuildInLine Node where
     buildInLine (BasicNode { next, varUpdates }) = "Basic" <> put next <> put varUpdates

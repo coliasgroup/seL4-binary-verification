@@ -15,7 +15,6 @@ import BV.Pairing
 import BV.Parsing
 import BV.Printing
 import BV.Program
-import BV.Utils
 
 data Problem
   = Problem
@@ -86,3 +85,33 @@ instance ParseInBlock Problem where
 
 instance ParseInLine NodeSource where
     parseInLine = NodeSource <$> parseInLine <*> parseInLine <*> parseInLine
+
+--
+
+instance BuildToFile Problems where
+    buildToFile (Problems problems) =
+        buildBlocksFileWithTypicalKeyFormat
+            ["Problem", "Pairing"]
+            (fromString . prettyPairingId)
+            buildInBlock
+            (M.toList problems)
+
+instance BuildInBlock Problem where
+    buildInBlock (Problem { c, asm, nodes }) =
+        lineInBlock "Problem"
+            <> problemSideLine C c
+            <> problemSideLine Asm asm
+            <> mconcat (map nodeLine (M.toList nodes))
+            <> lineInBlock "EndProblem"
+      where
+        problemSideLine tag (ProblemSide { name, input, output, entryPoint }) = lineInBlock $
+            "Entry"
+                <> put entryPoint
+                <> put tag
+                <> put name
+                <> put input
+                <> put output
+        nodeLine (addr, node) = lineInBlock $ put addr <> put node
+
+instance BuildInLine NodeSource where
+    buildInLine (NodeSource { tag, functionName, nodeAddr }) = put tag <> put functionName <> put nodeAddr

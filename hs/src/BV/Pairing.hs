@@ -125,3 +125,7 @@ instance ParseInLine Tag where
         "C" -> Just C
         "ASM" -> Just Asm
         _ -> Nothing
+
+instance BuildInLine Tag where
+    buildInLine C = "C"
+    buildInLine Asm = "ASM"

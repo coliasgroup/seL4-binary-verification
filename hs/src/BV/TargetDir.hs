@@ -17,9 +17,9 @@ import System.FilePath ((</>))
 import Text.Megaparsec (Parsec, eof, errorBundlePretty, parse)
 
 import BV.ObjDump
-import BV.Problem
 import BV.Pairing
 import BV.Parsing
+import BV.Problem
 import BV.Program
 
 data TargetDir

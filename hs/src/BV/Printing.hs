@@ -8,6 +8,8 @@ module BV.Printing
     , BuildToFile (..)
     , LineBuilder
     , buildBlock
+    , buildBlocksFile
+    , buildBlocksFileWithTypicalKeyFormat
     , buildFile
     , buildLine
     , intersperse
@@ -26,6 +28,17 @@ import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Builder.Int (decimal, hexadecimal)
 
 import BV.Utils
+
+buildBlocksFile :: (k -> Builder) -> (v -> BlockBuilder) -> [(k, v)] -> Builder
+buildBlocksFile bk bv = mconcat . map bkv
+  where
+    bkv (k, v) = bk k <> " {\n" <> buildBlock (bv v) <> "}\n"
+
+buildBlocksFileWithTypicalKeyFormat :: [String] -> (k -> Builder) -> (v -> BlockBuilder) -> [(k, v)] -> Builder
+buildBlocksFileWithTypicalKeyFormat nesting = buildBlocksFile . bk' nesting
+  where
+    bk' [] bk k = bk k
+    bk' (x:xs) kb k = fromString x <> " (" <> bk' xs kb k <> ")"
 
 class BuildToFile a where
     buildToFile :: a -> Builder

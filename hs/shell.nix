@@ -23,6 +23,8 @@ pkgs.mkShell {
     haskellPackages.floskell
     haskellPackages.stylish-haskell
 
+    haskellPackages.cabal-fmt
+
     haskellPackages.haskell-debug-adapter
     haskellPackages.haskell-dap
     haskellPackages.ghci-dap
