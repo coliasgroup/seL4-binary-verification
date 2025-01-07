@@ -2,26 +2,31 @@
 
 module BV.Parsing where
 
-import Data.Attoparsec.Text
+import Control.Applicative ()
 import Data.Char
+import Data.Functor (void)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (isJust)
 import Data.Monoid (Endo (Endo, appEndo))
 import Data.String (IsString (fromString))
-import Data.Text as T
+import qualified Data.Text as T
+import Data.Void (Void)
 import GHC.Generics (Generic)
 import Numeric (readDec, readHex)
 import Optics.Core
+import Text.Megaparsec
+import Text.Megaparsec.Char
+import Text.Megaparsec.Char.Lexer
 
 import BV.Inputs
 import BV.Problem
 import BV.Program
-import Control.Applicative
-import Data.Functor (void)
-import Data.Maybe (isJust)
+
+type Parser = Parsec Void T.Text
 
 tok :: Parser String
-tok = many1 (satisfy (not . isSpace))
+tok = some (satisfy (not . isSpace))
 
 tokWith :: (String -> Either String a) -> Parser a
 tokWith f = do
@@ -34,18 +39,18 @@ tokWithOr :: String -> (String -> Maybe a) -> Parser a
 tokWithOr msg f = tokWith (maybe (Left msg) Right . f)
 
 tokSep :: Parser ()
-tokSep = void $ many1 (satisfy isHorizontalSpace)
+tokSep = hspace1
 
 lineSep :: Parser ()
-lineSep = void $ many1 undefined
+lineSep = void $ some undefined
 
 class ParseInLine a where
     parseInLine :: Parser a
 
 instance ParseInLine Integer where
     parseInLine = do
-        isNegative <- isJust <$> optional (satisfy (inClass "-~"))
-        isHex <- isJust <$> optional (string "0x")
+        isNegative <- try $ isJust <$> optional (satisfy (`elem` ("-~" :: String)))
+        isHex <- try $ isJust <$> optional "0x"
         (if isNegative then negate else id) <$> (if isHex then hexadecimal else decimal)
 
 instance ParseInLine Op where
@@ -108,7 +113,7 @@ matchOp s = case s of
 
 type T = Integer
 
-testString = "x-0x32a"
+testString = "-0x32a"
 
 x :: IO ()
 x = parseTest (parseInLine :: Parser T) (fromString testString)

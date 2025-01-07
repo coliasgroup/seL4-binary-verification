@@ -10,13 +10,17 @@ module BV.ObjDump
     , parseObjDumpInfo
     ) where
 
-import Data.Attoparsec.Text
 import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Monoid (Endo (Endo, appEndo))
+import Data.Text (Text)
+import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics.Core
+import Text.Megaparsec
+import Text.Megaparsec.Char
+import Text.Megaparsec.Char.Lexer
 
 data ObjDumpInfo
   = ObjDumpInfo
@@ -46,28 +50,28 @@ symbolEnd = (+) <$> view #addr <*> view #size
 sectionEnd :: Section -> Integer
 sectionEnd = (+) <$> view #addr <*> view #size
 
-parseLines :: Parser [(String, Symbol)]
+parseLines :: Parsec Void Text [(String, Symbol)]
 parseLines = do
-    _ <- manyTill anyChar (string "SYMBOL TABLE:" *> endOfLine)
-    lines <- many' $ do
+    _ <- skipManyTill anySingle (string "SYMBOL TABLE:" *> eol)
+    lines <- many $ do
         addr <- hexadecimal
-        _ <- char ' ' >> count 7 anyChar >> char ' '
+        _ <- char ' ' *> skipCount 7 anySingle *> char ' '
         section <- ident
         _ <- char '\t'
         size <- hexadecimal
         _ <- char ' '
         name <- ident
-        _ <- endOfLine
+        _ <- eol
         let symbol = Symbol
                 { addr
                 , size
                 , section
                 }
         return (name, symbol)
-    _ <- many' endOfLine
+    _ <- skipSome eol
     return lines
   where
-    ident = many1 (satisfy (not . isSpace))
+    ident = some (satisfy (not . isSpace))
 
 makeObjDumpInfo :: [(String, Symbol)] -> ObjDumpInfo
 makeObjDumpInfo lines =
@@ -92,5 +96,5 @@ makeObjDumpInfo lines =
                 , size = view #size symbol
                 }
 
-parseObjDumpInfo :: Parser ObjDumpInfo
+parseObjDumpInfo :: Parsec Void Text ObjDumpInfo
 parseObjDumpInfo = makeObjDumpInfo <$> parseLines

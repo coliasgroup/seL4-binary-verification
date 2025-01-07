@@ -44,7 +44,7 @@ library
     text,
     containers,
     optics-core,
-    attoparsec,
+    megaparsec,
     filepath,
     -- TODO prune
     pretty-show,
