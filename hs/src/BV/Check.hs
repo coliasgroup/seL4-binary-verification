@@ -4,6 +4,7 @@ module BV.Check
     ( Input
     ) where
 
+import Control.Monad.Logger (MonadLogger)
 import GHC.Generics (Generic)
 import Optics.Core
 
@@ -13,7 +14,7 @@ import BV.Pairing
 import BV.Problem
 import BV.Program
 import BV.ProofChecks
-import Control.Monad.Logger (MonadLogger)
+import BV.SMTSolverInteraction (MonadSolver)
 
 data Input
   = Input
@@ -24,11 +25,53 @@ data Input
       }
   deriving (Eq, Generic, Ord, Show)
 
+data Result
+  = Pass
+  | Fail
+  deriving (Eq, Generic, Ord, Show)
+
 data IntermediateArtifact
   = IntermediateArtifactFunctions Program
   | IntermediateArtifactPairings Pairings
   | IntermediateArtifactProblems Problems
   | IntermediateArtifactProofChecks (ProofChecks String)
+  deriving (Eq, Generic, Ord, Show)
+
+class Monad m => MonadRegisterIntermediateArtifacts m where
+    registerIntermediateArtifact :: IntermediateArtifact -> m ()
+
+class Monad m => MonadCache m where
+    checkCache :: Pairings -> PairingId -> ProblemAndProof -> m (Maybe Result)
+
+class Monad m => MonadSneakyIO m where
+    liftSneakyIO :: IO () -> m ()
+
+class (Monad m, MonadSolver n) => MonadSolvers n m | m -> n where
+    liftIntoSolver :: m a -> n a
+    withOnlineSolver :: (OnlineSolverConfig -> n a) -> m a
+    withOfflineSolvers :: (OfflineSolverConfig -> n a) -> [m a]
+
+data OnlineSolverConfig
+  = OnlineSolverConfig
+      { common :: CommonSolverConfig
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+data OfflineSolverConfig
+  = OfflineSolverConfig
+      { common :: CommonSolverConfig
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+data CommonSolverConfig
+  = CommonSolverConfig
+      { memoryMode :: SolverMemoryMode
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+data SolverMemoryMode
+  = SolverMemoryModeWord8
+  | SolverMemoryModeWord32
   deriving (Eq, Generic, Ord, Show)
 
 class ( Monad m
@@ -39,15 +82,7 @@ class ( Monad m
 
 class ( Monad m
       , MonadCheckWriteOnly m
-      , MonadSolver m
-      ) => MonadCheck m where
-
-class Monad m => MonadRegisterIntermediateArtifacts m where
-    registerIntermediateArtifact :: IntermediateArtifact -> m ()
-
-class Monad m => MonadSneakyIO m where
-    liftSneakyIO :: IO () -> m ()
-
-class Monad m => MonadSolver m where
-    -- TODO refine and abstract
-    doSomethingWithSolver :: IO a -> m a
+      , MonadCache m
+      , MonadSolvers n m
+      , MonadSolver n
+      ) => MonadCheck n m where

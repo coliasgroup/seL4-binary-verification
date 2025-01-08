@@ -4,6 +4,8 @@ module BV.SMTSExpr
     , S.readSExpr
     , S.showsSExpr
       --
+    , S.named
+      --
     , S.abs
     , S.add
     , S.addMany
