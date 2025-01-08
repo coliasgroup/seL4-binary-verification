@@ -19,12 +19,17 @@ common common
     OverloadedLabels
     OverloadedRecordDot
     -- GHC2024
+    DeriveFoldable
+    DeriveFunctor
     DeriveGeneric
+    DeriveTraversable
     DisambiguateRecordFields
     FlexibleContexts
     FlexibleInstances
     LambdaCase
     NamedFieldPuns
+    TypeApplications
+    ScopedTypeVariables
   ghc-options:
     -Wall
     -Wno-unused-do-bind
@@ -69,6 +74,8 @@ library
     dlist,
     async,
     monad-logger,
+    attoparsec,
+    attoparsec-aeson,
     -- TODO assess
     simple-smt,
     -- TODO prune

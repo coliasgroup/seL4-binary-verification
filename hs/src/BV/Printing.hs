@@ -12,6 +12,8 @@ module BV.Printing
     , buildBlocksFileWithTypicalKeyFormat
     , buildFile
     , buildLine
+    , buildStandaloneLine
+    , buildTypicalKeyFormat
     , intersperse
     , lineInBlock
     , put
@@ -34,11 +36,14 @@ buildBlocksFile bk bv = mconcat . map bkv
   where
     bkv (k, v) = bk k <> " {\n" <> buildBlock (bv v) <> "}\n"
 
-buildBlocksFileWithTypicalKeyFormat :: [String] -> (k -> Builder) -> (v -> BlockBuilder) -> [(k, v)] -> Builder
-buildBlocksFileWithTypicalKeyFormat nesting = buildBlocksFile . bk' nesting
+buildTypicalKeyFormat :: [String] -> Builder -> Builder
+buildTypicalKeyFormat = f
   where
-    bk' [] bk k = bk k
-    bk' (x:xs) kb k = fromString x <> " (" <> bk' xs kb k <> ")"
+    f [] k = k
+    f (x:xs) k = fromString x <> " (" <> f xs k <> ")"
+
+buildBlocksFileWithTypicalKeyFormat :: [String] -> (k -> Builder) -> (v -> BlockBuilder) -> [(k, v)] -> Builder
+buildBlocksFileWithTypicalKeyFormat nesting = buildBlocksFile . (buildTypicalKeyFormat nesting .)
 
 class BuildToFile a where
     buildToFile :: a -> Builder
@@ -56,6 +61,7 @@ buildBlock blockBuilder = mconcat (map buildLine (D.toList blockBuilder.unwrapBl
 lineInBlock :: LineBuilder -> BlockBuilder
 lineInBlock = BlockBuilder . D.singleton
 
+
 class BuildInBlock a where
     buildInBlock :: a -> BlockBuilder
 
@@ -67,7 +73,10 @@ instance IsString LineBuilder where
     fromString = putWord
 
 buildLine :: LineBuilder -> Builder
-buildLine lineBuilder = intersperse " " (D.toList lineBuilder.unwrapLineBuilder) <> "\n"
+buildLine lineBuilder = buildStandaloneLine lineBuilder <> "\n"
+
+buildStandaloneLine :: LineBuilder -> Builder
+buildStandaloneLine lineBuilder = intersperse " " (D.toList lineBuilder.unwrapLineBuilder)
 
 put :: BuildInLine a => a -> LineBuilder
 put = buildInLine

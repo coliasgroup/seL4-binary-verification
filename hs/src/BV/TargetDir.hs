@@ -7,6 +7,7 @@ module BV.TargetDir
     , readPairings
     , readProblems
     , readProblemsAndProofs
+    , readProofChecks
     , readStackBounds
     ) where
 
@@ -67,4 +68,6 @@ readProblemsAndProofs :: TargetDir -> IO (Either String ProblemsAndProofs)
 readProblemsAndProofs = readAndParseFile "proofs.txt"
 
 readProofChecks :: TargetDir -> IO (Either String (ProofChecks String))
-readProofChecks = readAndParseFile "proof-checks.txt"
+readProofChecks targetDir = parseProofChecksForManyFile <$> T.readFile path
+  where
+    path = targetDirPath targetDir "proof-checks.txt"

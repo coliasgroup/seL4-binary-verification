@@ -11,6 +11,7 @@ module BV.Parsing
     , line
     , parseBlocksFile
     , parseBlocksFileWithTypicalKeyFormat
+    , parseTypicalKeyFormat
     , parseWholeFile
     , parseWholeFileWith
     , unterminatedLine
@@ -86,12 +87,16 @@ parseBlocksFile pk pv = do
         ignoredLines
         return (k, v)
 
-parseBlocksFileWithTypicalKeyFormat :: [String] -> Parser k -> Parser v -> Parser [(k, v)]
-parseBlocksFileWithTypicalKeyFormat nesting = parseBlocksFile . wrap nesting
+parseTypicalKeyFormat :: [String] -> Parser k -> Parser k
+parseTypicalKeyFormat nesting = wrap nesting
   where
     wrap :: [String] -> Parser k -> Parser k
     wrap [] pk = pk
     wrap (x:xs) pk = hspace *> fromString x *> hspace *> "(" *> wrap xs pk <* hspace <* ")" <* hspace
+
+
+parseBlocksFileWithTypicalKeyFormat :: [String] -> Parser k -> Parser v -> Parser [(k, v)]
+parseBlocksFileWithTypicalKeyFormat nesting = parseBlocksFile . parseTypicalKeyFormat nesting
 
 class ParseFile a where
     parseFile :: Parser a

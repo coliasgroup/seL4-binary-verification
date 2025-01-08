@@ -1,6 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 module BV.Test.Main
     ( main
@@ -9,6 +7,7 @@ module BV.Test.Main
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
+import qualified Data.Text.Lazy.Builder as B
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -17,9 +16,11 @@ import BV.ObjDump
 import BV.Parsing (ParseFile, parseInLine, parseWholeFile, parseWholeFileWith)
 import BV.Printing (BuildToFile, buildFile)
 import BV.Program
+import BV.ProofChecks
 import BV.ProofScript (ProofNode)
 import BV.TargetDir
 import BV.Test.Utils
+import qualified Data.Text.Internal.Builder as T
 import System.FilePath ((</>))
 
 main :: IO ()
@@ -47,16 +48,19 @@ testReaderSeL4 f = testReader (f testSeL4TargetDir)
 testReaderPath :: forall a. ParseFile a => FilePath -> IO ()
 testReaderPath path = (testReader @a) $ parseWholeFile path <$> T.readFile path
 
-testRoundTrip :: (Eq a, ParseFile a, BuildToFile a) => IO (Either String a) -> IO ()
-testRoundTrip m = do
+testRoundTripWith :: Eq a => (T.Text -> Either String a) -> (a -> L.Text) -> IO (Either String a) -> IO ()
+testRoundTripWith parse build m = do
     r <- m
     case r of
         Left err -> assertFailure err
         Right x -> do
-            let t = buildFile x
-            case parseWholeFile "second trip" (L.toStrict t) of
+            let t = build x
+            case parse (L.toStrict t) of
                 Left err -> assertFailure err
                 Right x' -> assertBool "equal" (x == x')
+
+testRoundTrip :: (Eq a, ParseFile a, BuildToFile a) => IO (Either String a) -> IO ()
+testRoundTrip = testRoundTripWith (parseWholeFile "second trip") buildFile
 
 testRoundTripSeL4 :: (Eq a, ParseFile a, BuildToFile a) => (TargetDir -> IO (Either String a)) -> IO ()
 testRoundTripSeL4 f = testRoundTrip (f testSeL4TargetDir)
@@ -74,7 +78,11 @@ parsePrintSeL4 = testGroup "seL4"
     , testCase "stack bounds" $ testRoundTripSeL4 readStackBounds
     , testCase "pairings" $ testRoundTripSeL4 readPairings
     , testCase "problems and proofs" $ testRoundTripSeL4 readProblemsAndProofs
-    -- , testCase "proof checks" $ testRoundTripSeL4 readProofChecks
+    , testCase "proof checks" $
+        testRoundTripWith
+            parseProofChecksForManyFile
+            (B.toLazyText . buildProofChecksForManyFile)
+            (readProofChecks testSeL4TargetDir)
     ]
 
 parsePrintGraphRefine :: TestTree
