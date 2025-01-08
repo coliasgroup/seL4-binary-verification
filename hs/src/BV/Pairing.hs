@@ -33,6 +33,7 @@ import BV.Printing
 import BV.Program
 import BV.Utils
 import Data.Char (isSpace)
+import Data.Either (partitionEithers)
 import Data.Functor (void)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (indentBlock)
@@ -128,6 +129,53 @@ parsePythonPairingName = do
 
 --
 
+instance ParseFile Pairings where
+    parseFile =
+        Pairings . M.fromList
+            <$> parseBlocksFileWithTypicalKeyFormat ["Pairing"] parsePrettyPairingId parseInBlock
+
+instance BuildToFile Pairings where
+    buildToFile (Pairings pairings) =
+        buildBlocksFileWithTypicalKeyFormat
+            ["Pairing"]
+            (fromString . prettyPairingId)
+            buildInBlock
+            (M.toList pairings)
+
+instance ParseInBlock Pairing where
+    parseInBlock = do
+        line $ inLineSymbol "Pairing"
+        (inEqs, outEqs) <- partitionEqs <$> manyTill eqLine (try endLine)
+        return $ Pairing { inEqs, outEqs }
+      where
+        eqLine = line $ (,) <$> parseInLine <*> parseInLine
+        endLine = line $ inLineSymbol "EndPairing"
+        partitionEqs :: [(PairingEqDirection, PairingEq)] -> ([PairingEq], [PairingEq])
+        partitionEqs = partitionEithers . map (\(direction, eq) -> eq & (case direction of
+            PairingEqDirectionIn -> Left
+            PairingEqDirectionOut -> Right))
+
+instance BuildInBlock Pairing where
+    buildInBlock pairing =
+           lineInBlock "Pairing"
+        <> mconcat (map (eqLine PairingEqDirectionIn) pairing.inEqs)
+        <> mconcat (map (eqLine PairingEqDirectionOut) pairing.outEqs)
+        <> lineInBlock "EndPairing"
+      where
+        eqLine direction eq = lineInBlock $ put direction <> put eq
+
+instance ParseInLine PairingEq where
+    parseInLine = PairingEq <$> parseInLine <*> parseInLine
+
+instance BuildInLine PairingEq where
+    buildInLine eq = put eq.lhs <> put eq.rhs
+
+instance ParseInLine PairingEqSide where
+    parseInLine = PairingEqSide <$> parseInLine <*> parseInLine
+
+instance BuildInLine PairingEqSide where
+    buildInLine side = put side.quadrant <> put side.expr
+
 instance ParseInLine Tag where
     parseInLine = wordWithOr "invalid tag" $ \case
         "C" -> Just C
@@ -135,5 +183,36 @@ instance ParseInLine Tag where
         _ -> Nothing
 
 instance BuildInLine Tag where
-    buildInLine C = "C"
-    buildInLine Asm = "ASM"
+    buildInLine = putWord . prettyTag
+
+prettyTag :: Tag ->  String
+prettyTag C = "C"
+prettyTag Asm = "ASM"
+
+instance ParseInLine PairingEqSideQuadrant where
+    parseInLine = wordWithOr "invalid pairing eq side quadrant" $ \case
+        "ASM_IN" -> Just asmIn
+        "ASM_OUT" -> Just asmOut
+        "C_IN" -> Just cIn
+        "C_OUT" -> Just cOut
+        _ -> Nothing
+
+instance BuildInLine PairingEqSideQuadrant where
+    buildInLine = putWord . prettyPairingEqSideQuadrant
+
+prettyPairingEqSideQuadrant :: PairingEqSideQuadrant ->  String
+prettyPairingEqSideQuadrant (PairingEqSideQuadrant { tag, direction }) =
+    prettyTag tag <> "_" <> prettyPairingEqDirection direction
+
+instance ParseInLine PairingEqDirection where
+    parseInLine = wordWithOr "invalid pairing eq direction" $ \case
+        "IN" -> Just PairingEqDirectionIn
+        "OUT" -> Just PairingEqDirectionOut
+        _ -> Nothing
+
+instance BuildInLine PairingEqDirection where
+    buildInLine = putWord . prettyPairingEqDirection
+
+prettyPairingEqDirection :: PairingEqDirection ->  String
+prettyPairingEqDirection PairingEqDirectionIn = "IN"
+prettyPairingEqDirection PairingEqDirectionOut = "OUT"

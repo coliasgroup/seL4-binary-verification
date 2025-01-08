@@ -116,6 +116,9 @@ parseManyInLineWith p = do
 instance ParseInLine a => ParseInLine [a] where
     parseInLine = parseManyInLineWith parseInLine
 
+instance (ParseInLine a, ParseInLine b) => ParseInLine (a, b) where
+    parseInLine = (,) <$> parseInLine <*> parseInLine
+
 -- type T = Program
 
 -- testString = "Struct Kernel_C.finaliseSlot_ret_C 16 4\n"

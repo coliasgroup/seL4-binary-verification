@@ -1,9 +1,17 @@
 module BV.ProofChecks where
 
+import Control.Applicative (many, optional, (<|>))
+import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (maybeToList)
+import Data.String (fromString)
 import GHC.Generics (Generic)
+import Optics.Core
+import Text.Megaparsec (manyTill, manyTill_, try)
 
 import BV.Pairing
+import BV.Parsing
+import BV.Printing
 import BV.Program
 
 newtype ProofChecks a
@@ -87,3 +95,11 @@ data VisitCount
       , offsets :: [Integer]
       }
   deriving (Eq, Generic, Ord, Show)
+
+--
+
+instance ParseFile (ProofChecks String) where
+    parseFile = undefined
+
+instance BuildToFile (ProofChecks String) where
+    buildToFile = undefined

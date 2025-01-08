@@ -6,6 +6,7 @@ module BV.Test.Main
     ( main
     ) where
 
+import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
 import Test.Tasty
@@ -50,11 +51,11 @@ testRoundTrip :: (Eq a, ParseFile a, BuildToFile a) => IO (Either String a) -> I
 testRoundTrip m = do
     r <- m
     case r of
-        Left err -> assertFailure (show err)
+        Left err -> assertFailure err
         Right x -> do
             let t = buildFile x
             case parseWholeFile "second trip" (L.toStrict t) of
-                Left err -> assertFailure (show err)
+                Left err -> assertFailure err
                 Right x' -> assertBool "equal" (x == x')
 
 testRoundTripSeL4 :: (Eq a, ParseFile a, BuildToFile a) => (TargetDir -> IO (Either String a)) -> IO ()
@@ -71,9 +72,9 @@ parsePrintSeL4 = testGroup "seL4"
     , testCase "functions" $ testRoundTripSeL4 readFunctions
     , testCase "problems" $ testRoundTripSeL4 readProblems
     , testCase "stack bounds" $ testRoundTripSeL4 readStackBounds
-    -- , testCase "pairings" $ testRoundTripSeL4 readPairings
-    -- , testCase "proofs" $ testRoundTripSeL4 readProofs
-    -- , testCase "proof-checks" $ testRoundTripSeL4 readProofChecks
+    , testCase "pairings" $ testRoundTripSeL4 readPairings
+    , testCase "problems and proofs" $ testRoundTripSeL4 readProblemsAndProofs
+    -- , testCase "proof checks" $ testRoundTripSeL4 readProofChecks
     ]
 
 parsePrintGraphRefine :: TestTree
@@ -81,9 +82,9 @@ parsePrintGraphRefine = testGroup "graph-refine" $
     [ f @Program $ "example" </> "Functions.txt"
     , f @Program $ "loop-example" </> "CFuns-annotated.txt"
     , f @Program $ "loop-example" </> "synth" </> "Functions.txt"
-    -- , let rel = "loop-example" </> "O2" </> "proof"
-    --       abs = graphRefineDir </> rel
-    --    in testCase rel $ testReaderPath @(InBlockAsFile (InLineAsInBlock ProofNode)) (graphRefineDir </> rel)
+    , let rel = "loop-example" </> "O2" </> "proof"
+          abs = graphRefineDir </> rel
+       in testCase rel $ testRoundTripPath @(InBlockAsFile (InLineAsInBlock ProofNode)) (graphRefineDir </> rel)
     ] ++ concatMap g ["O1", "O2"]
   where
     f :: forall a. (Eq a, ParseFile a, BuildToFile a) => FilePath -> TestTree
@@ -96,6 +97,19 @@ parsePrintGraphRefine = testGroup "graph-refine" $
         , let rel = "loop-example" </> opt </> ("loop-" ++ opt ++ ".elf.symtab")
            in testCase rel $ testReaderPath @ObjDumpInfo (graphRefineDir </> rel)
         ]
+
+-- ttt :: IO ()
+-- ttt = do
+--         ttt = tt
+--         r = parseWholeFile "" ttt
+--     case r of
+--         Left err -> do
+--             putStrLn err
+--             error ""
+--         Right ex -> do
+--             let x :: InBlockAsFile (InLineAsInBlock ProofNode) = ex
+--             -- let x :: InBlockAsFile (InLineAsInBlock Expr) = ex
+--             print ex
 
 -- ttt :: IO ()
 -- ttt = do

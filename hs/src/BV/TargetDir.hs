@@ -4,7 +4,9 @@ module BV.TargetDir
     , readCFunctions
     , readFunctions
     , readObjDumpInfo
+    , readPairings
     , readProblems
+    , readProblemsAndProofs
     , readStackBounds
     ) where
 
@@ -23,6 +25,7 @@ import BV.Pairing
 import BV.Parsing
 import BV.Problem
 import BV.Program
+import BV.ProofChecks
 
 data TargetDir
   = TargetDir
@@ -56,3 +59,12 @@ readProblems = readAndParseFile "problems.txt"
 
 readStackBounds :: TargetDir -> IO (Either String StackBounds)
 readStackBounds = readAndParseFile "StackBounds.txt"
+
+readPairings :: TargetDir -> IO (Either String Pairings)
+readPairings = readAndParseFile "pairings.txt"
+
+readProblemsAndProofs :: TargetDir -> IO (Either String ProblemsAndProofs)
+readProblemsAndProofs = readAndParseFile "proofs.txt"
+
+readProofChecks :: TargetDir -> IO (Either String (ProofChecks String))
+readProofChecks = readAndParseFile "proof-checks.txt"

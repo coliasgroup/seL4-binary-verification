@@ -95,3 +95,6 @@ class BuildInLine a where
 
 instance BuildInLine a => BuildInLine [a] where
     buildInLine = putManyWith buildInLine
+
+instance (BuildInLine a, BuildInLine b) => BuildInLine (a, b) where
+    buildInLine (a, b)= put a <> put b
