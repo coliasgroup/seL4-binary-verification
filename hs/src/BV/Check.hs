@@ -35,6 +35,10 @@ class ( Monad m
       , MonadLogger m
       , MonadRegisterIntermediateArtifacts m
       , MonadSneakyIO m
+      ) => MonadCheckWriteOnly m where
+
+class ( Monad m
+      , MonadCheckWriteOnly m
       , MonadSolver m
       ) => MonadCheck m where
 
@@ -42,7 +46,8 @@ class Monad m => MonadRegisterIntermediateArtifacts m where
     registerIntermediateArtifact :: IntermediateArtifact -> m ()
 
 class Monad m => MonadSneakyIO m where
-    sneakilyPerfomIO :: IO () -> m ()
+    liftSneakyIO :: IO () -> m ()
 
 class Monad m => MonadSolver m where
-    doSomethingWithSolver :: something -> m (Maybe failure)
+    -- TODO refine and abstract
+    doSomethingWithSolver :: IO a -> m a
