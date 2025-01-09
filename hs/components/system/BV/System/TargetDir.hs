@@ -21,7 +21,6 @@ import BV.Core.Types
 data TargetDir
   = TargetDir
       { path :: FilePath
-      , asmFunctionFilter :: Ident -> Bool
       }
   deriving (Generic)
 

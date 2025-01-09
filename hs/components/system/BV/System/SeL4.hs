@@ -1,6 +1,6 @@
 module BV.System.SeL4
-    ( defaultSeL4AsmFunctionFilter
-    , defaultTestSeL4TargetDir
+    ( defaultTestSeL4TargetDir
+    , defaultSeL4AsmFunctionFilter
     ) where
 
 import BV.Core.Types
@@ -19,5 +19,4 @@ defaultSeL4AsmFunctionFilter = not . (`elem` ignore)
 defaultTestSeL4TargetDir :: FilePath -> TargetDir
 defaultTestSeL4TargetDir path = TargetDir
     { path
-    , asmFunctionFilter = defaultSeL4AsmFunctionFilter
     }

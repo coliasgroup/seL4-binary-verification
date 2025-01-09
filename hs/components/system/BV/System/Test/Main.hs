@@ -76,12 +76,12 @@ parsePrintSeL4 = testGroup "seL4"
     , testCase "stack bounds" $ testRoundTripSeL4 readStackBounds
     , testCase "pairings" $ testRoundTripSeL4 readPairings
     , testCase "problems and proofs" $ testRoundTripSeL4 readProblemsAndProofs
-    -- , testCase "proof checks" $
-    --     testRoundTripWith
-    --         parseProofChecksForManyFile
-    --         (B.toLazyText . buildProofChecksForManyFile)
-    --         (readProofChecks testSeL4TargetDir)
-    , testCase "proof checks size" proofChecksSize
+    , testCase "proof checks" $
+        testRoundTripWith
+            parseProofChecksForManyFile
+            (B.toLazyText . buildProofChecksForManyFile)
+            (readProofChecks testSeL4TargetDir)
+    -- , testCase "proof checks size" proofChecksSize
     ]
 
 parsePrintGraphRefine :: TestTree
