@@ -25,8 +25,16 @@ ghc-options:
 dependencies:
   - base
 
+# TODO
+# library:
+#   source-dirs: components/dummy
+#   dependencies:
+#     - bv-system
+#     - abstract-simple-smt
+
 internal-libraries:
   bv-system:
+    visibility: public
     source-dirs: components/system
     # exposed-modules: # TODO
     dependencies:
@@ -57,6 +65,7 @@ internal-libraries:
       - tasty
       - tasty-hunit
   abstract-simple-smt:
+    visibility: public
     source-dirs: components/abstract-simple-smt
     # exposed-modules: # TODO
     dependencies:
@@ -64,16 +73,24 @@ internal-libraries:
       - transformers
       - mtl
 
-executable:
-  source-dirs: components/app
-  main: Main.hs
-  dependencies:
-    - bv-system
-  ghc-options:
-    # TODO probably unnecessary here
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+# TODO
+# executable:
+#   source-dirs: components/dummy
+#   dependencies:
+#     - bv-system
+#     - abstract-simple-smt
+
+executables:
+  bv-cli:
+    source-dirs: components/app
+    main: Main.hs
+    dependencies:
+      - bv-system
+    ghc-options:
+      # TODO probably unnecessary here
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
 
 tests:
   test:

@@ -1,4 +1,4 @@
-cabal-version: 2.2
+cabal-version: 3.0
 
 -- This file has been generated from package.yaml by hpack version 0.37.0.
 --
@@ -15,6 +15,7 @@ license:        BSD-2-Clause
 build-type:     Simple
 
 library abstract-simple-smt
+  visibility: public
   exposed-modules:
       SimpleSMT.Abstract
       SimpleSMT.Abstract.SExpr
@@ -36,6 +37,7 @@ library abstract-simple-smt
   default-language: GHC2021
 
 library bv-system
+  visibility: public
   exposed-modules:
       BV
       BV.BuildProblem
@@ -96,7 +98,7 @@ library bv-system
     , text
   default-language: GHC2021
 
-executable bv
+executable bv-cli
   main-is: Main.hs
   hs-source-dirs:
       components/app
