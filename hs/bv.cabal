@@ -47,9 +47,9 @@ library abstract-simple-smt
     simple-smt,
     transformers,
     mtl,
-  hs-source-dirs: abstract-simple-smt
+  hs-source-dirs: components/abstract-simple-smt
 
-library
+library bv-system
   import: common
   exposed-modules:
     BV,
@@ -103,11 +103,11 @@ library
     -- TODO hack
     tasty,
     tasty-hunit,
-  hs-source-dirs: src
+  hs-source-dirs: components/system
 
 executable bv
   import: common
-  hs-source-dirs: app
+  hs-source-dirs: components/app
   main-is: Main.hs
   ghc-options:
     -- TODO probably unnecessary here
@@ -115,16 +115,16 @@ executable bv
     -rtsopts
     -with-rtsopts=-N
   build-depends:
-    bv,
+    bv-system,
 
 test-suite bv-test
   import: common
   type: exitcode-stdio-1.0
-  hs-source-dirs: test
+  hs-source-dirs: components/test
   main-is: Main.hs
   build-depends:
     -- text,
     -- filepath,
     -- tasty,
     -- tasty-hunit,
-    bv,
+    bv-system,
