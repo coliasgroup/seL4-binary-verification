@@ -12,4 +12,4 @@ nix:
     - "xdg-utils"
     - "haskellPackages.hoogle"
   path:
-    - "nixpkgs=nixpkgs.nix"
+    - "nixpkgs=nix/nixpkgs.nix"
