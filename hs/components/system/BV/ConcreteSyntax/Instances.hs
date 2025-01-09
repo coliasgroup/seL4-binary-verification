@@ -33,13 +33,7 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
-import BV.Core.Inputs
-import BV.Core.ObjDump
-import BV.Core.Pairing
-import BV.Core.Problem
-import BV.Core.Program
-import BV.Core.ProofChecks
-import BV.Core.ProofScript
+import BV.Core.Types
 
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing

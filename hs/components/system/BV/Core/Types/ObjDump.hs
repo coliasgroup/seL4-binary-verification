@@ -1,4 +1,4 @@
-module BV.Core.ObjDump
+module BV.Core.Types.ObjDump
     ( ObjDumpInfo (..)
     , Section (..)
     , Symbol (..)

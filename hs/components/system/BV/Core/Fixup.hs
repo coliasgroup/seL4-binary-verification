@@ -4,7 +4,7 @@ module BV.Core.Fixup
 
 import Optics.Core
 
-import BV.Core.Program
+import BV.Core.Types
 
 fixupProgram :: Program -> Program
 fixupProgram = undefined

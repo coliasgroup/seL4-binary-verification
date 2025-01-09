@@ -15,10 +15,7 @@ import Test.Tasty.HUnit
 import BV.ConcreteSyntax (BuildToFile, InBlockAsFile, InLineAsInBlock,
                           ParseFile, buildFile, buildProofChecksForManyFile,
                           parseProofChecksForManyFile, parseWholeFile)
-import BV.Core.Inputs
-import BV.Core.ObjDump
-import BV.Core.Program
-import BV.Core.ProofScript (ProofNode)
+import BV.Core.Types
 import BV.System.TargetDir
 import BV.System.Test.Utils
 

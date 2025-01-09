@@ -3,7 +3,7 @@ module BV.System.SeL4
     , defaulttestSeL4TargetDir
     ) where
 
-import BV.Core.Program
+import BV.Core.Types
 import BV.System.TargetDir
 
 defaultSeL4AsmFunctionFilter :: Ident -> Bool

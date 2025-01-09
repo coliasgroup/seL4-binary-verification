@@ -16,12 +16,7 @@ import GHC.Generics (Generic)
 import System.FilePath ((</>))
 
 import BV.ConcreteSyntax
-import BV.Core.Inputs
-import BV.Core.ObjDump
-import BV.Core.Pairing
-import BV.Core.Problem
-import BV.Core.Program
-import BV.Core.ProofChecks
+import BV.Core.Types
 
 data TargetDir
   = TargetDir

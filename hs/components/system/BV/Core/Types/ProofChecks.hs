@@ -1,10 +1,10 @@
-module BV.Core.ProofChecks where
+module BV.Core.Types.ProofChecks where
 
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-import BV.Core.Pairing
-import BV.Core.Program
+import BV.Core.Types.Pairing
+import BV.Core.Types.Program
 
 newtype ProofChecks a
   = ProofChecks { unwrap :: M.Map PairingId [ProofCheck a] }

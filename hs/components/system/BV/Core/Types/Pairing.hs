@@ -1,6 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
-
-module BV.Core.Pairing
+module BV.Core.Types.Pairing
     ( Pairing (..)
     , PairingEq (..)
     , PairingEqDirection (..)
@@ -23,7 +21,7 @@ module BV.Core.Pairing
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-import BV.Core.Program
+import BV.Core.Types.Program
 
 data PairingOf a
   = PairingOf

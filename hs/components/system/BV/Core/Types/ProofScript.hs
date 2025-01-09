@@ -1,9 +1,9 @@
-module BV.Core.ProofScript where
+module BV.Core.Types.ProofScript where
 
 import GHC.Generics (Generic)
 
-import BV.Core.Pairing
-import BV.Core.Program
+import BV.Core.Types.Pairing
+import BV.Core.Types.Program
 
 data ProofNode
   = ProofNodeLeaf

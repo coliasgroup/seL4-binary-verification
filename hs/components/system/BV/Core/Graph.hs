@@ -7,7 +7,7 @@ import qualified GHC.Arr as A
 import GHC.Generics (Generic)
 import Optics.Core
 
-import BV.Core.Program
+import BV.Core.Types
 
 data NodeGraph
   = NodeGraph

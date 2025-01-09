@@ -1,14 +1,12 @@
-{-# LANGUAGE OverloadedStrings #-}
-
-module BV.Core.Inputs where
+module BV.Core.Types.Inputs where
 
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-import BV.Core.Pairing
-import BV.Core.Problem
-import BV.Core.Program
-import BV.Core.ProofScript
+import BV.Core.Types.Pairing
+import BV.Core.Types.Problem
+import BV.Core.Types.Program
+import BV.Core.Types.ProofScript
 
 newtype StackBounds
   = StackBounds (M.Map Ident Expr)

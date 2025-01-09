@@ -4,10 +4,7 @@ module BV.Core.BuildProblem
 
 import Optics.Core
 
-import BV.Core.Inputs
-import BV.Core.Pairing
-import BV.Core.Problem
-import BV.Core.Program
+import BV.Core.Types
 
 buildProblem :: PairingOf (Named Function) -> InlineScript -> (Ident -> Function) -> Problem
 buildProblem = undefined

@@ -1,4 +1,4 @@
-module BV.Core.Program
+module BV.Core.Types.Program
     ( Argument (..)
     , ConstGlobal (..)
     , Expr (..)

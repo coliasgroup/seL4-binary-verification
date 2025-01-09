@@ -1,10 +1,10 @@
-module BV.Core.Problem where
+module BV.Core.Types.Problem where
 
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-import BV.Core.Pairing
-import BV.Core.Program
+import BV.Core.Types.Pairing
+import BV.Core.Types.Program
 
 data Problem
   = Problem

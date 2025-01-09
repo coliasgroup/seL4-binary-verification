@@ -4,10 +4,7 @@ module BV.Core.FormulatePairing
 
 import Optics.Core
 
-import BV.Core.Inputs
-import BV.Core.Pairing
-import BV.Core.Problem
-import BV.Core.Program
+import BV.Core.Types
 
 formulatePairing :: Expr -> [Argument] -> [Argument] -> Pairing
 formulatePairing = undefined

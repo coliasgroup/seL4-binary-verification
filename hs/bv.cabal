@@ -73,14 +73,15 @@ library bv-system
       BV.Core.Fixup
       BV.Core.FormulatePairing
       BV.Core.Graph
-      BV.Core.Inputs
-      BV.Core.ObjDump
-      BV.Core.Pairing
-      BV.Core.Problem
-      BV.Core.Program
-      BV.Core.ProofChecks
-      BV.Core.ProofScript
       BV.Core.PseudoCompile
+      BV.Core.Types
+      BV.Core.Types.Inputs
+      BV.Core.Types.ObjDump
+      BV.Core.Types.Pairing
+      BV.Core.Types.Problem
+      BV.Core.Types.Program
+      BV.Core.Types.ProofChecks
+      BV.Core.Types.ProofScript
       BV.Core.Utils
       BV.System.Glue
       BV.System.SeL4
