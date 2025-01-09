@@ -1,6 +1,6 @@
 module BV.System.SeL4
-    ( defaultTestSeL4TargetDir
-    , defaultSeL4AsmFunctionFilter
+    ( defaultSeL4AsmFunctionFilter
+    , defaultTestSeL4TargetDir
     ) where
 
 import BV.Core.Types

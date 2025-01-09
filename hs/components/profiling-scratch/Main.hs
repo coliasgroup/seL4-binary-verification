@@ -2,9 +2,9 @@ module Main
     ( main
     ) where
 
-import System.Environment
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Builder as B
+import System.Environment
 
 import BV.ConcreteSyntax
 import BV.Core.Types
