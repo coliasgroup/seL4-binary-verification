@@ -13,12 +13,20 @@ tmpDir = "tmp"
 parentTmpDir :: FilePath
 parentTmpDir = "../tmp"
 
-testSeL4TargetDir' :: FilePath
-testSeL4TargetDir' = parentTmpDir </> "target"
--- testSeL4TargetDir' = tmpDir </> "target"
+testSeL4TargetDirDefault :: TargetDir
+testSeL4TargetDirDefault = testSeL4TargetDirBig
 
-testSeL4TargetDir :: TargetDir
-testSeL4TargetDir = defaultTestSeL4TargetDir testSeL4TargetDir'
+testSeL4TargetDirBig :: TargetDir
+testSeL4TargetDirBig = defaultTestSeL4TargetDir testSeL4TargetDirBig'
+
+testSeL4TargetDirSmall :: TargetDir
+testSeL4TargetDirSmall = defaultTestSeL4TargetDir testSeL4TargetDirSmall'
+
+testSeL4TargetDirBig' :: FilePath
+testSeL4TargetDirBig' = tmpDir </> "target-big"
+
+testSeL4TargetDirSmall' :: FilePath
+testSeL4TargetDirSmall' = tmpDir </> "target-small"
 
 testHtmlPagesDir :: FilePath
 testHtmlPagesDir = tmpDir </> "html" </> "pages"

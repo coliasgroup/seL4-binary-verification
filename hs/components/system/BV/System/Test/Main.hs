@@ -41,7 +41,7 @@ testReader m = do
         _ -> return ()
 
 testReaderSeL4 :: (TargetDir -> IO (Either String a)) -> IO ()
-testReaderSeL4 f = testReader (f testSeL4TargetDir)
+testReaderSeL4 f = testReader (f testSeL4TargetDirDefault)
 
 testReaderPath :: forall a. ParseFile a => FilePath -> IO ()
 testReaderPath path = (testReader @a) $ parseWholeFile path <$> T.readFile path
@@ -61,7 +61,7 @@ testRoundTrip :: (Eq a, ParseFile a, BuildToFile a) => IO (Either String a) -> I
 testRoundTrip = testRoundTripWith (parseWholeFile "second trip") buildFile
 
 testRoundTripSeL4 :: (Eq a, ParseFile a, BuildToFile a) => (TargetDir -> IO (Either String a)) -> IO ()
-testRoundTripSeL4 f = testRoundTrip (f testSeL4TargetDir)
+testRoundTripSeL4 f = testRoundTrip (f testSeL4TargetDirDefault)
 
 testRoundTripPath :: forall a. (Eq a, ParseFile a, BuildToFile a) => FilePath -> IO ()
 testRoundTripPath path = (testRoundTrip @a) $ parseWholeFile path <$> T.readFile path
@@ -80,7 +80,7 @@ parsePrintSeL4 = testGroup "seL4"
         testRoundTripWith
             parseProofChecksForManyFile
             (B.toLazyText . buildProofChecksForManyFile)
-            (readProofChecks testSeL4TargetDir)
+            (readProofChecks testSeL4TargetDirSmall)
     -- , testCase "proof checks size" proofChecksSize
     ]
 
@@ -107,7 +107,7 @@ parsePrintGraphRefine = testGroup "graph-refine" $
 
 proofChecksSize :: IO ()
 proofChecksSize = do
-    r <- readProofChecks testSeL4TargetDir
+    r <- readProofChecks testSeL4TargetDirBig
     case r of
         Left err -> assertFailure err
         Right x -> do
