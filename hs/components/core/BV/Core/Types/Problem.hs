@@ -1,5 +1,8 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.Problem where
 
+import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
@@ -12,7 +15,7 @@ data Problem
       , asm :: ProblemSide
       , nodes :: NodeMap
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data ProblemSide
   = ProblemSide
@@ -21,14 +24,14 @@ data ProblemSide
       , output :: [Argument]
       , entryPoint :: NodeId
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data NodeBySource
   = NodeBySource
       { nodeSource :: NodeSource
       , indexInProblem :: Integer
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data NodeSource
   = NodeSource
@@ -36,8 +39,9 @@ data NodeSource
       , functionName :: Ident
       , nodeAddr :: NodeAddr
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 newtype Problems
   = Problems (M.Map PairingId Problem)
   deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)

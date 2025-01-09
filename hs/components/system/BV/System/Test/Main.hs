@@ -4,14 +4,15 @@ module BV.System.Test.Main
     ( main
     ) where
 
+import Control.DeepSeq (($!!))
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
 import qualified Data.Text.Lazy.Builder as B
+import qualified GHC.DataSize
 import System.FilePath ((</>))
 import Test.Tasty
 import Test.Tasty.HUnit
-import qualified GHC.DataSize
 
 import BV.ConcreteSyntax (BuildToFile, InBlockAsFile, InLineAsInBlock,
                           ParseFile, buildFile, buildProofChecksForManyFile,
@@ -110,7 +111,7 @@ proofChecksSize = do
     case r of
         Left err -> assertFailure err
         Right x -> do
-            n <- GHC.DataSize.recursiveSize $! x
+            n <- GHC.DataSize.recursiveSize $!! x
             putStrLn $ "proof checks size: " <> show n
 
 -- ttt :: IO ()

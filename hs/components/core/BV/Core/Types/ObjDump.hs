@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.ObjDump
     ( ObjDumpInfo (..)
     , Section (..)
@@ -6,6 +8,7 @@ module BV.Core.Types.ObjDump
     , symbolEnd
     ) where
 
+import Control.DeepSeq (NFData)
 import Data.Map (Map)
 import GHC.Generics (Generic)
 import Optics.Core
@@ -15,7 +18,7 @@ data ObjDumpInfo
       { symbols :: Map String Symbol
       , sections :: Map String Section
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Symbol
   = Symbol
@@ -23,14 +26,14 @@ data Symbol
       , size :: Integer
       , section :: String
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Section
   = Section
       { addr :: Integer
       , size :: Integer
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 symbolEnd :: Symbol -> Integer
 symbolEnd = (+) <$> view #addr <*> view #size

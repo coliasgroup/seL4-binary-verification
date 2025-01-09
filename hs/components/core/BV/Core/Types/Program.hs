@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.Program
     ( Argument (..)
     , ConstGlobal (..)
@@ -26,6 +28,7 @@ module BV.Core.Types.Program
     , toListOfNamed
     ) where
 
+import Control.DeepSeq (NFData)
 import Data.Map (Map)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
@@ -36,13 +39,14 @@ import BV.Core.Utils
 newtype Ident
   = Ident { unwrapIdent :: String }
   deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
 
 data Named a
   = Named
       { name :: Ident
       , value :: a
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 toListOfNamed :: Map Ident a -> [Named a]
 toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toList
@@ -56,7 +60,7 @@ data Program
       , constGlobals :: Map Ident ConstGlobal
       , functions :: Map Ident Function
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Struct
   = Struct
@@ -64,20 +68,20 @@ data Struct
       , align :: Integer
       , fields :: Map Ident StructField
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data StructField
   = StructField
       { ty :: ExprType
       , offset :: Integer
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data ConstGlobal
   = ConstGlobal
       { value :: Expr
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Function
   = Function
@@ -85,7 +89,7 @@ data Function
       , output :: [Argument]
       , body :: Maybe FunctionBody
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 type NodeMap = Map NodeAddr Node
 
@@ -94,24 +98,24 @@ data FunctionBody
       { entryPoint :: NodeId
       , nodes :: NodeMap
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Argument
   = Argument
       { name :: Ident
       , ty :: ExprType
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 newtype NodeAddr
   = NodeAddr { unwrapNodeAddr :: Integer }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data NodeId
   = Ret
   | Err
   | Addr NodeAddr
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Node
   = BasicNode
@@ -129,7 +133,7 @@ data Node
       , input :: [Expr]
       , output :: [Argument]
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data VarUpdate
   = VarUpdate
@@ -137,14 +141,14 @@ data VarUpdate
       , ty :: ExprType
       , expr :: Expr
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Expr
   = Expr
       { ty :: ExprType
       , value :: ExprValue
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data ExprType
   = ExprTypeBool
@@ -169,7 +173,7 @@ data ExprType
       }
   | ExprTypeStruct Ident
   | ExprTypePtr ExprType
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data ExprValue
   = ExprValueVar Ident
@@ -178,7 +182,7 @@ data ExprValue
   | ExprValueType ExprType
   | ExprValueSymbol Ident
   | ExprValueToken Ident
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Op
   = OpPlus
@@ -233,7 +237,7 @@ data Op
   | OpToFloatingPointSigned
   | OpToFloatingPointUnsigned
   | OpFloatingPointCast
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 class HasExprs a where
     exprsOf :: Traversal' a Expr

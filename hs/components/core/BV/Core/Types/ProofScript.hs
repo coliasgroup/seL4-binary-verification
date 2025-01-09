@@ -1,5 +1,8 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.ProofScript where
 
+import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
 
 import BV.Core.Types.Pairing
@@ -11,7 +14,7 @@ data ProofNode
   | ProofNodeCaseSplit CaseSplitProofNode
   | ProofNodeSplit SplitProofNode
   | ProofNodeSingleRevInduct SingleRevInductProofNode
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data RestrProofNode
   = RestrProofNode
@@ -20,7 +23,7 @@ data RestrProofNode
       , range :: RestrProofNodeRange
       , child :: ProofNode
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data RestrProofNodeRange
   = RestrProofNodeRange
@@ -28,12 +31,12 @@ data RestrProofNodeRange
       , x :: Integer
       , y :: Integer
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data RestrProofNodeRangeKind
   = RestrProofNodeRangeKindNumber
   | RestrProofNodeRangeKindOffset
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data CaseSplitProofNode
   = CaseSplitProofNode
@@ -42,7 +45,7 @@ data CaseSplitProofNode
       , left :: ProofNode
       , right :: ProofNode
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data SplitProofNode
   = SplitProofNode
@@ -54,7 +57,7 @@ data SplitProofNode
       , p1 :: ProofNode
       , p2 :: ProofNode
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data SplitProofNodeDetails
   = SplitProofNodeDetails
@@ -63,7 +66,7 @@ data SplitProofNodeDetails
       , step :: Integer
       , eqs :: [Lambda]
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data SingleRevInductProofNode
   = SingleRevInductProofNode
@@ -75,7 +78,7 @@ data SingleRevInductProofNode
       , nBounds :: Integer
       , child :: ProofNode
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Lambda
   = Lambda
@@ -83,4 +86,4 @@ data Lambda
       , freeVarTy :: ExprType
       , expr :: Expr
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)

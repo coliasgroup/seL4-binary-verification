@@ -1,5 +1,8 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.ProofChecks where
 
+import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
@@ -9,6 +12,7 @@ import BV.Core.Types.Program
 newtype ProofChecks a
   = ProofChecks { unwrap :: M.Map PairingId [ProofCheck a] }
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
+  deriving newtype (NFData)
 
 data ProofCheck a
   = ProofCheck
@@ -16,7 +20,7 @@ data ProofCheck a
       , hyps :: [Hyp]
       , hyp :: Hyp
       }
-  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
 data Hyp
   = HypPcImp PcImpHyp
@@ -24,19 +28,19 @@ data Hyp
       { ifAt :: Bool
       , eq :: EqHyp
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data PcImpHyp
   = PcImpHyp
       { lhs :: PcImpHypSide
       , rhs :: PcImpHypSide
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data PcImpHypSide
   = PcImpHypSideBool Bool
   | PcImpHypSidePc VisitWithTag
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data EqHyp
   = EqHyp
@@ -44,46 +48,46 @@ data EqHyp
       , rhs :: EqHypSide
       , induct :: Maybe EqHypInduct
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data EqHypSide
   = EqHypSide
       { expr :: Expr
       , visit :: VisitWithTag
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data EqHypInduct
   = EqHypInduct
       { a :: Integer
       , b :: Integer
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data VisitWithTag
   = VisitWithTag
       { visit :: Visit
       , tag :: Tag
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Visit
   = Visit
       { nodeId :: NodeId
       , restrs :: [Restr]
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Restr
   = Restr
       { nodeId :: NodeId
       , visitCount :: VisitCount
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data VisitCount
   = VisitCount
       { numbers :: [Integer]
       , offsets :: [Integer]
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
