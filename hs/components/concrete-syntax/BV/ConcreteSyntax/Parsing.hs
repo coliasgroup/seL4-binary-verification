@@ -88,7 +88,7 @@ parseBlocksFile pk pv = do
         return (k, v)
 
 parseTypicalKeyFormat :: [String] -> Parser k -> Parser k
-parseTypicalKeyFormat nesting = wrap nesting
+parseTypicalKeyFormat = wrap
   where
     wrap :: [String] -> Parser k -> Parser k
     wrap [] pk = pk

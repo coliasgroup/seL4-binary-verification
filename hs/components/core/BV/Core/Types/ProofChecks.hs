@@ -91,3 +91,10 @@ data VisitCount
       , offsets :: [Integer]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+--
+
+newtype InterpretedProofChecks
+  = InterpretedProofChecks { unwrap :: M.Map PairingId [Expr] }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)

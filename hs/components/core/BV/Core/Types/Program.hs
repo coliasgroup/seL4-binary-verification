@@ -6,9 +6,9 @@ module BV.Core.Types.Program
     , Expr (..)
     , ExprType (..)
     , ExprValue (..)
+    , FoldExprs (..)
     , Function (..)
     , FunctionBody (..)
-    , HasExprs (..)
     , HasVarBindings (..)
     , HasVarNames (..)
     , Ident (..)
@@ -21,11 +21,13 @@ module BV.Core.Types.Program
     , Program (..)
     , Struct (..)
     , StructField (..)
+    , TraverseTopLevelExprs (..)
     , VarUpdate (..)
     , fromListOfNamed
     , nodeConts
     , renameVars
     , toListOfNamed
+    , walkExprs
     ) where
 
 import Control.DeepSeq (NFData)
@@ -182,6 +184,7 @@ data ExprValue
   | ExprValueType ExprType
   | ExprValueSymbol Ident
   | ExprValueToken Ident
+  | ExprValueSmtExpr String
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data Op
@@ -237,22 +240,44 @@ data Op
   | OpToFloatingPointSigned
   | OpToFloatingPointUnsigned
   | OpFloatingPointCast
+  | OpImpliesROData
+  | OpImpliesStackEquals
+  | OpStackEqualsImplies
   deriving (Eq, Generic, NFData, Ord, Show)
 
-class HasExprs a where
-    exprsOf :: Traversal' a Expr
+class TraverseTopLevelExprs a where
+    traverseTopLevelLevelExprs :: Traversal' a Expr
 
-instance HasExprs Node where
-    exprsOf =
-        (#_BasicNode % _2 % traversed % exprsOf)
+instance TraverseTopLevelExprs Node where
+    traverseTopLevelLevelExprs =
+        (#_BasicNode % _2 % traversed % traverseTopLevelLevelExprs)
             `adjoin` (#_CondNode % _3)
             `adjoin` (#_CallNode % _3 % traversed)
 
-instance HasExprs VarUpdate where
-    exprsOf = castOptic #expr
+instance TraverseTopLevelExprs VarUpdate where
+    traverseTopLevelLevelExprs = castOptic #expr
 
-instance HasExprs Expr where
-    exprsOf = castOptic simple
+instance TraverseTopLevelExprs Expr where
+    traverseTopLevelLevelExprs = castOptic simple
+
+class FoldExprs a where
+    foldExprs :: Fold a Expr
+
+instance FoldExprs Node where
+    foldExprs = traverseTopLevelLevelExprs % foldExprs
+
+instance FoldExprs VarUpdate where
+    foldExprs = traverseTopLevelLevelExprs % foldExprs
+
+instance FoldExprs Expr where
+    foldExprs = simple `summing` (#value % #_ExprValueOp % _2 % folded % foldExprs)
+
+walkExprs :: Monad m => (Expr -> m Expr) -> Expr -> m Expr
+walkExprs f expr = do
+    expr' <- f expr
+    flip (traverseOf #value) expr' $ \case
+        ExprValueOp op args -> ExprValueOp op <$> traverse f args
+        v -> return v
 
 class HasVarNames a where
     varNamesOf :: Traversal' a Ident
@@ -270,7 +295,7 @@ instance HasVarNames VarUpdate where
     varNamesOf = #varName `adjoin` #expr % varNamesOf
 
 instance HasVarNames Expr where
-    varNamesOf = #value % varNamesOf
+    varNamesOf = #value % (#_ExprValueVar `adjoin` (#_ExprValueOp % _2 % traversed % varNamesOf))
 
 instance HasVarNames ExprValue where
     varNamesOf = castOptic #_ExprValueVar

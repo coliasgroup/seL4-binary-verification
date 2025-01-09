@@ -7,6 +7,7 @@
 
 module BV.ConcreteSyntax.Instances
     ( buildProofChecksForManyFile
+    , parseInterpretedProofChecksForManyFile
     , parseProofChecksForManyFile
     ) where
 
@@ -14,7 +15,7 @@ import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Text as A
 import Data.Bifunctor (first)
-import Data.Char (isSpace)
+import Data.Char (chr, isSpace, ord)
 import Data.Either (partitionEithers)
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
@@ -38,6 +39,7 @@ import BV.Core.Types
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing
 import BV.ConcreteSyntax.Utils
+import Data.Bits (shiftL, (.|.))
 
 --
 
@@ -212,7 +214,7 @@ decodeAdapterEntry entry = do
         "a pairing id"
         (T.pack entry.problem_name)
     checks <- traverse (decodeAdapterCheck pairingId) entry.checks
-    return $ (pairingId, checks)
+    return (pairingId, checks)
 
 decodeAdapterCheck :: PairingId -> ProofChecksJsonAdapterEntryChecks -> Either String (ProofCheck String)
 decodeAdapterCheck pairingId check = do
@@ -240,6 +242,36 @@ buildProofChecksForOneFile pairingId checksForOne = A.encodeToTextBuilder entry 
         , hyps = map f check.hyps
         }
     f = L.unpack . B.toLazyText . buildStandaloneLine . buildInLine
+
+--
+
+data InterpretedProofChecksJsonAdapterEntry
+  = InterpretedProofChecksJsonAdapterEntry
+      { problem_name :: String
+      , checks :: [String]
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+instance ToJSON InterpretedProofChecksJsonAdapterEntry where
+instance FromJSON InterpretedProofChecksJsonAdapterEntry where
+
+parseInterpretedProofChecksForManyFile :: T.Text -> Either String InterpretedProofChecks
+parseInterpretedProofChecksForManyFile s = do
+    adapterEntries <- decodeMany @InterpretedProofChecksJsonAdapterEntry s
+    InterpretedProofChecks . M.fromList <$> traverse decodeInterpretedAdapterEntry adapterEntries
+
+decodeInterpretedAdapterEntry :: InterpretedProofChecksJsonAdapterEntry -> Either String (PairingId, [Expr])
+decodeInterpretedAdapterEntry entry = do
+    pairingId <- parseWithin
+        (parseTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId)
+        "a pairing id"
+        (T.pack entry.problem_name)
+    checks <- traverse (decodeInterpretedAdapterCheck pairingId) entry.checks
+    return (pairingId, checks)
+
+decodeInterpretedAdapterCheck :: PairingId -> String -> Either String Expr
+decodeInterpretedAdapterCheck pairingId check =
+    parseWithin parseInLine (prettyPairingId pairingId ++ " check") (T.pack check)
 
 --
 
@@ -678,12 +710,30 @@ instance ParseInLine Expr where
                 return $ Expr { ty = ExprTypeType, value = ExprValueType ty' }
             "Symbol" -> typical ExprValueSymbol
             "Token" -> typical ExprValueToken
+            "SMTExpr" -> typicalWith hexEncodedString ExprValueSmtExpr
             _ -> fail "invalid value"
       where
-        typical f = do
-            value <- f <$> parseInLine
+        typical :: (ParseInLine a) => (a -> ExprValue) -> Parser Expr
+        typical = typicalWith parseInLine
+        typicalWith p f = do
+            value <- f <$> p
             ty <- parseInLine
             return $ Expr { ty, value }
+
+hexEncodedString :: Parser String
+hexEncodedString = inLineLexeme $ some (chr <$> hexByte)
+  where
+    hexByte = do
+        d1 <- hexDigitValue
+        d2 <- hexDigitValue
+        return $ (d1 `shiftL` 4) .|. d2
+    hexDigitValue = hexDigitToValue <$> hexDigitChar
+
+hexDigitToValue :: Char -> Int
+hexDigitToValue d = ord d - (case d of
+    _ | '0' <= d && d <= '9' -> ord '0'
+    _ | 'a' <= d && d <= 'f' -> ord 'a' - 10
+    _ | 'A' <= d && d <= 'F' -> ord 'A' - 10)
 
 instance ParseInLine ExprType where
     parseInLine = do
@@ -706,60 +756,63 @@ instance ParseInLine ExprType where
             _ -> fail "invalid type"
 
 instance ParseInLine Op where
-    parseInLine = wordWithOr "invalid operation" $ \case
-        "Plus" -> Just OpPlus
-        "Minus" -> Just OpMinus
-        "Times" -> Just OpTimes
-        "Modulus" -> Just OpModulus
-        "DividedBy" -> Just OpDividedBy
-        "BWAnd" -> Just OpBWAnd
-        "BWOr" -> Just OpBWOr
-        "BWXOR" -> Just OpBWXOR
-        "And" -> Just OpAnd
-        "Or" -> Just OpOr
-        "Implies" -> Just OpImplies
-        "Equals" -> Just OpEquals
-        "Less" -> Just OpLess
-        "LessEquals" -> Just OpLessEquals
-        "SignedLess" -> Just OpSignedLess
-        "SignedLessEquals" -> Just OpSignedLessEquals
-        "ShiftLeft" -> Just OpShiftLeft
-        "ShiftRight" -> Just OpShiftRight
-        "CountLeadingZeroes" -> Just OpCountLeadingZeroes
-        "CountTrailingZeroes" -> Just OpCountTrailingZeroes
-        "WordReverse" -> Just OpWordReverse
-        "SignedShiftRight" -> Just OpSignedShiftRight
-        "Not" -> Just OpNot
-        "BWNot" -> Just OpBWNot
-        "WordCast" -> Just OpWordCast
-        "WordCastSigned" -> Just OpWordCastSigned
-        "True" -> Just OpTrue
-        "False" -> Just OpFalse
-        "UnspecifiedPrecond" -> Just OpUnspecifiedPrecond
-        "MemUpdate" -> Just OpMemUpdate
-        "MemAcc" -> Just OpMemAcc
-        "IfThenElse" -> Just OpIfThenElse
-        "ArrayIndex" -> Just OpArrayIndex
-        "ArrayUpdate" -> Just OpArrayUpdate
-        "MemDom" -> Just OpMemDom
-        "PValid" -> Just OpPValid
-        "PWeakValid" -> Just OpPWeakValid
-        "PAlignValid" -> Just OpPAlignValid
-        "PGlobalValid" -> Just OpPGlobalValid
-        "PArrayValid" -> Just OpPArrayValid
-        "HTDUpdate" -> Just OpHTDUpdate
-        "WordArrayAccess" -> Just OpWordArrayAccess
-        "WordArrayUpdate" -> Just OpWordArrayUpdate
-        "TokenWordsAccess" -> Just OpTokenWordsAccess
-        "TokenWordsUpdate" -> Just OpTokenWordsUpdate
-        "ROData" -> Just OpROData
-        "StackWrapper" -> Just OpStackWrapper
-        "EqSelectiveWrapper" -> Just OpEqSelectiveWrapper
-        "ToFloatingPoint" -> Just OpToFloatingPoint
-        "ToFloatingPointSigned" -> Just OpToFloatingPointSigned
-        "ToFloatingPointUnsigned" -> Just OpToFloatingPointUnsigned
-        "FloatingPointCast" -> Just OpFloatingPointCast
-        _ -> Nothing
+    parseInLine = wordWith $ \case
+        "Plus" -> Right OpPlus
+        "Minus" -> Right OpMinus
+        "Times" -> Right OpTimes
+        "Modulus" -> Right OpModulus
+        "DividedBy" -> Right OpDividedBy
+        "BWAnd" -> Right OpBWAnd
+        "BWOr" -> Right OpBWOr
+        "BWXOR" -> Right OpBWXOR
+        "And" -> Right OpAnd
+        "Or" -> Right OpOr
+        "Implies" -> Right OpImplies
+        "Equals" -> Right OpEquals
+        "Less" -> Right OpLess
+        "LessEquals" -> Right OpLessEquals
+        "SignedLess" -> Right OpSignedLess
+        "SignedLessEquals" -> Right OpSignedLessEquals
+        "ShiftLeft" -> Right OpShiftLeft
+        "ShiftRight" -> Right OpShiftRight
+        "CountLeadingZeroes" -> Right OpCountLeadingZeroes
+        "CountTrailingZeroes" -> Right OpCountTrailingZeroes
+        "WordReverse" -> Right OpWordReverse
+        "SignedShiftRight" -> Right OpSignedShiftRight
+        "Not" -> Right OpNot
+        "BWNot" -> Right OpBWNot
+        "WordCast" -> Right OpWordCast
+        "WordCastSigned" -> Right OpWordCastSigned
+        "True" -> Right OpTrue
+        "False" -> Right OpFalse
+        "UnspecifiedPrecond" -> Right OpUnspecifiedPrecond
+        "MemUpdate" -> Right OpMemUpdate
+        "MemAcc" -> Right OpMemAcc
+        "IfThenElse" -> Right OpIfThenElse
+        "ArrayIndex" -> Right OpArrayIndex
+        "ArrayUpdate" -> Right OpArrayUpdate
+        "MemDom" -> Right OpMemDom
+        "PValid" -> Right OpPValid
+        "PWeakValid" -> Right OpPWeakValid
+        "PAlignValid" -> Right OpPAlignValid
+        "PGlobalValid" -> Right OpPGlobalValid
+        "PArrayValid" -> Right OpPArrayValid
+        "HTDUpdate" -> Right OpHTDUpdate
+        "WordArrayAccess" -> Right OpWordArrayAccess
+        "WordArrayUpdate" -> Right OpWordArrayUpdate
+        "TokenWordsAccess" -> Right OpTokenWordsAccess
+        "TokenWordsUpdate" -> Right OpTokenWordsUpdate
+        "ROData" -> Right OpROData
+        "StackWrapper" -> Right OpStackWrapper
+        "EqSelectiveWrapper" -> Right OpEqSelectiveWrapper
+        "ToFloatingPoint" -> Right OpToFloatingPoint
+        "ToFloatingPointSigned" -> Right OpToFloatingPointSigned
+        "ToFloatingPointUnsigned" -> Right OpToFloatingPointUnsigned
+        "FloatingPointCast" -> Right OpFloatingPointCast
+        "ImpliesROData" -> Right OpImpliesROData
+        "ImpliesStackEquals" -> Right OpImpliesStackEquals
+        "StackEqualsImplies" -> Right OpStackEqualsImplies
+        w -> Left $ "invalid operation: " ++ w
 
 --
 
@@ -821,6 +874,7 @@ instance BuildInLine Expr where
         ExprValueType ty' -> "Type" <> put ty'
         ExprValueSymbol ident -> "Symbol" <> put ident <> put ty
         ExprValueToken ident -> "Token" <> put ident <> put ty
+        ExprValueSmtExpr _s -> "SMTExpr" <> undefined <> put ty
 
 instance BuildInLine ExprType where
     buildInLine a = case a of

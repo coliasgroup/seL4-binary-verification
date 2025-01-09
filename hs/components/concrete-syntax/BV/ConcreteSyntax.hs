@@ -8,6 +8,7 @@ module BV.ConcreteSyntax
     , buildFile
     , buildProofChecksForManyFile
     , parseInLine
+    , parseInterpretedProofChecksForManyFile
     , parseProofChecksForManyFile
     , parseWholeFile
     , parseWholeFileWith
