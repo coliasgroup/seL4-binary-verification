@@ -43,8 +43,8 @@ enumerate-transitive-deps:
 
 .PHONY: i
 i:
-	stack ghci
+	stack repl
 
 .PHONY: it
 it:
-	stack ghci bv:test:bv-test
+	stack repl bv:test:bv-test

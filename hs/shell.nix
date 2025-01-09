@@ -28,7 +28,5 @@ pkgs.mkShell {
     haskellPackages.haskell-debug-adapter
     haskellPackages.haskell-dap
     haskellPackages.ghci-dap
-
-    xdg-utils
   ];
 }
