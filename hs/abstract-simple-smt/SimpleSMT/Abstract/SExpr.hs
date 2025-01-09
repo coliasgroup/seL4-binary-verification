@@ -1,4 +1,4 @@
-module BV.SMTSExpr
+module SimpleSMT.Abstract.SExpr
     ( S.SExpr (..)
     , S.ppSExpr
     , S.readSExpr

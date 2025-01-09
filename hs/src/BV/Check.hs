@@ -8,13 +8,14 @@ import Control.Monad.Logger (MonadLogger)
 import GHC.Generics (Generic)
 import Optics.Core
 
+import SimpleSMT.Abstract (MonadSolver)
+
 import BV.Inputs
 import BV.ObjDump
 import BV.Pairing
 import BV.Problem
 import BV.Program
 import BV.ProofChecks
-import BV.SMTSolverInteraction (MonadSolver)
 
 data Input
   = Input

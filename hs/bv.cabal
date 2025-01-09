@@ -38,6 +38,17 @@ common common
   build-depends:
     base,
 
+library abstract-simple-smt
+  import: common
+  exposed-modules:
+    SimpleSMT.Abstract,
+    SimpleSMT.Abstract.SExpr,
+  build-depends:
+    simple-smt,
+    transformers,
+    mtl,
+  hs-source-dirs: abstract-simple-smt
+
 library
   import: common
   exposed-modules:
@@ -61,13 +72,13 @@ library
     BV.SeL4,
     BV.TargetDir,
     BV.Utils,
-    BV.SMTSExpr,
-    BV.SMTSolverInteraction,
     -- TODO hack
     BV.Test.Main,
     BV.Test.Scratch,
     BV.Test.Utils,
   build-depends:
+    abstract-simple-smt,
+    --
     aeson,
     async,
     attoparsec-aeson,

@@ -1,4 +1,4 @@
-module BV.SMTSolverInteraction
+module SimpleSMT.Abstract
     ( MonadSolver (..)
     , Result (..)
     , SolverT (..)
