@@ -1,14 +1,14 @@
 resolver: lts-22.43
 
 extra-deps:
-- simple-smt-0.9.8@sha256:d0b06f24372c0a15d4d6296708a349e837924274fa4b6d9dc0d148d5554cfec7,736
+  - simple-smt-0.9.8@sha256:d0b06f24372c0a15d4d6296708a349e837924274fa4b6d9dc0d148d5554cfec7,736
 
 nix:
   enable: true
   pure: true
   packages:
-  - "zlib"
-  - "xdg-utils"
-  - "haskellPackages.hoogle"
+    - "zlib"
+    - "xdg-utils"
+    - "haskellPackages.hoogle"
   path:
-  - "nixpkgs=nixpkgs.nix"
+    - "nixpkgs=nixpkgs.nix"
