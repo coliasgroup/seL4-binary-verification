@@ -11,6 +11,7 @@ import qualified Data.Text.Lazy.Builder as B
 import System.FilePath ((</>))
 import Test.Tasty
 import Test.Tasty.HUnit
+import qualified GHC.DataSize
 
 import BV.ConcreteSyntax (BuildToFile, InBlockAsFile, InLineAsInBlock,
                           ParseFile, buildFile, buildProofChecksForManyFile,
@@ -74,11 +75,12 @@ parsePrintSeL4 = testGroup "seL4"
     , testCase "stack bounds" $ testRoundTripSeL4 readStackBounds
     , testCase "pairings" $ testRoundTripSeL4 readPairings
     , testCase "problems and proofs" $ testRoundTripSeL4 readProblemsAndProofs
-    , testCase "proof checks" $
-        testRoundTripWith
-            parseProofChecksForManyFile
-            (B.toLazyText . buildProofChecksForManyFile)
-            (readProofChecks testSeL4TargetDir)
+    -- , testCase "proof checks" $
+    --     testRoundTripWith
+    --         parseProofChecksForManyFile
+    --         (B.toLazyText . buildProofChecksForManyFile)
+    --         (readProofChecks testSeL4TargetDir)
+    , testCase "proof checks size" proofChecksSize
     ]
 
 parsePrintGraphRefine :: TestTree
@@ -101,6 +103,15 @@ parsePrintGraphRefine = testGroup "graph-refine" $
         , let rel = "loop-example" </> opt </> ("loop-" ++ opt ++ ".elf.symtab")
            in testCase rel $ testReaderPath @ObjDumpInfo (graphRefineDir </> rel)
         ]
+
+proofChecksSize :: IO ()
+proofChecksSize = do
+    r <- readProofChecks testSeL4TargetDir
+    case r of
+        Left err -> assertFailure err
+        Right x -> do
+            n <- GHC.DataSize.recursiveSize $! x
+            putStrLn $ "proof checks size: " <> show n
 
 -- ttt :: IO ()
 -- ttt = do

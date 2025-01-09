@@ -97,6 +97,8 @@ internal-libraries:
       # TODO hack
       - tasty
       - tasty-hunit
+      # TODO temporary
+      - ghc-datasize
   abstract-simple-smt:
     visibility: public
     source-dirs: components/abstract-simple-smt

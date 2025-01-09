@@ -164,6 +164,7 @@ library bv-system
     , extensible-effects
     , filepath
     , free
+    , ghc-datasize
     , kan-extensions
     , megaparsec
     , monad-logger
