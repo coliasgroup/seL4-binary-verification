@@ -15,9 +15,10 @@ parentTmpDir = "../tmp"
 
 testSeL4TargetDir' :: FilePath
 testSeL4TargetDir' = parentTmpDir </> "target"
+-- testSeL4TargetDir' = tmpDir </> "target"
 
 testSeL4TargetDir :: TargetDir
-testSeL4TargetDir = defaulttestSeL4TargetDir testSeL4TargetDir'
+testSeL4TargetDir = defaultTestSeL4TargetDir testSeL4TargetDir'
 
 testHtmlPagesDir :: FilePath
 testHtmlPagesDir = tmpDir </> "html" </> "pages"

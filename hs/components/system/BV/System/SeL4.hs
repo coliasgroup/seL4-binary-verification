@@ -1,6 +1,6 @@
 module BV.System.SeL4
     ( defaultSeL4AsmFunctionFilter
-    , defaulttestSeL4TargetDir
+    , defaultTestSeL4TargetDir
     ) where
 
 import BV.Core.Types
@@ -16,8 +16,8 @@ defaultSeL4AsmFunctionFilter = not . (`elem` ignore)
         , "arm_swi_syscall"
         ]
 
-defaulttestSeL4TargetDir :: FilePath -> TargetDir
-defaulttestSeL4TargetDir path = TargetDir
+defaultTestSeL4TargetDir :: FilePath -> TargetDir
+defaultTestSeL4TargetDir path = TargetDir
     { path
     , asmFunctionFilter = defaultSeL4AsmFunctionFilter
     }
