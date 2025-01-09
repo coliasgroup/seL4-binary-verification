@@ -14,9 +14,8 @@ module BV.Core.Pairing
     , asmOut
     , cIn
     , cOut
-    , parsePrettyPairingId
-    , parsePythonPairingName
     , prettyPairingId
+    , parsePrettyPairingId
     ) where
 
 import Control.Applicative (many, optional, (<|>))
@@ -30,8 +29,8 @@ import Text.Megaparsec (manyTill, manyTill_, satisfy, some, try)
 
 import BV.Core.Program
 import BV.Core.Utils
-import BV.System.Parsing
-import BV.System.Printing
+import BV.ConcreteSyntax.Parsing
+import BV.ConcreteSyntax.Printing
 import Data.Char (isSpace)
 import Data.Either (partitionEithers)
 import Data.Functor (void)

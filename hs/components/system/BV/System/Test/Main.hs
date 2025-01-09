@@ -16,9 +16,9 @@ import BV.Core.ObjDump
 import BV.Core.Program
 import BV.Core.ProofChecks
 import BV.Core.ProofScript (ProofNode)
-import BV.System.Parsing (ParseFile, parseInLine, parseWholeFile,
+import BV.ConcreteSyntax.Parsing (ParseFile, parseInLine, parseWholeFile,
                           parseWholeFileWith)
-import BV.System.Printing (BuildToFile, buildFile)
+import BV.ConcreteSyntax.Printing (BuildToFile, buildFile)
 import BV.System.TargetDir
 import BV.System.Test.Utils
 import qualified Data.Text.Internal.Builder as T

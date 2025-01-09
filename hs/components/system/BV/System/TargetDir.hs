@@ -26,7 +26,7 @@ import BV.Core.Pairing
 import BV.Core.Problem
 import BV.Core.Program
 import BV.Core.ProofChecks
-import BV.System.Parsing
+import BV.ConcreteSyntax.Parsing
 
 data TargetDir
   = TargetDir

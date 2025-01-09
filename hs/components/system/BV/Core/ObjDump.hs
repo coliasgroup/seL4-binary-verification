@@ -22,7 +22,7 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer
 
-import BV.System.Parsing
+import BV.ConcreteSyntax.Parsing
 
 data ObjDumpInfo
   = ObjDumpInfo

@@ -4,8 +4,8 @@ import Data.Maybe (fromJust)
 import System.FilePath
 import qualified Text.Show.Pretty as H
 
-import BV.System.Parsing
-import BV.System.Printing
+import BV.ConcreteSyntax.Parsing
+import BV.ConcreteSyntax.Printing
 import BV.System.SeL4
 import BV.System.TargetDir
 import GHC.Generics (Generic)

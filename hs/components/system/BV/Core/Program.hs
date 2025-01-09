@@ -41,8 +41,8 @@ import Optics.Core
 import Text.Megaparsec (manyTill_, try)
 
 import BV.Core.Utils
-import BV.System.Parsing
-import BV.System.Printing
+import BV.ConcreteSyntax.Parsing
+import BV.ConcreteSyntax.Printing
 
 newtype Ident
   = Ident { unwrapIdent :: String }

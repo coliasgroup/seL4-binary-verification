@@ -9,8 +9,8 @@ import BV.Core.Pairing
 import BV.Core.Problem
 import BV.Core.Program
 import BV.Core.ProofScript
-import BV.System.Parsing
-import BV.System.Printing
+import BV.ConcreteSyntax.Parsing
+import BV.ConcreteSyntax.Printing
 import Control.Applicative (many, optional)
 import Data.String (fromString)
 

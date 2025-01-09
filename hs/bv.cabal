@@ -63,6 +63,9 @@ library bv-core
 library bv-system
   visibility: public
   exposed-modules:
+      BV.ConcreteSyntax
+      BV.ConcreteSyntax.Parsing
+      BV.ConcreteSyntax.Printing
       BV.Core.BuildProblem
       BV.Core.Check
       BV.Core.Fixup
@@ -78,8 +81,6 @@ library bv-system
       BV.Core.PseudoCompile
       BV.Core.Utils
       BV.System.Glue
-      BV.System.Parsing
-      BV.System.Printing
       BV.System.SeL4
       BV.System.TargetDir
       BV.System.Test.Main

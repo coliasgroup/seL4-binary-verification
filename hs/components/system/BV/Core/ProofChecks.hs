@@ -21,8 +21,8 @@ import Text.Megaparsec (eof, manyTill, manyTill_, parse, try)
 import BV.Core.Inputs (ProblemAndProof (problem))
 import BV.Core.Pairing
 import BV.Core.Program
-import BV.System.Parsing
-import BV.System.Printing
+import BV.ConcreteSyntax.Parsing
+import BV.ConcreteSyntax.Printing
 import BV.System.Utils
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Bifunctor (first)

@@ -13,8 +13,8 @@ import Text.Megaparsec (manyTill, manyTill_, try)
 
 import BV.Core.Pairing
 import BV.Core.Program
-import BV.System.Parsing
-import BV.System.Printing
+import BV.ConcreteSyntax.Parsing
+import BV.ConcreteSyntax.Printing
 
 data ProofNode
   = ProofNodeLeaf

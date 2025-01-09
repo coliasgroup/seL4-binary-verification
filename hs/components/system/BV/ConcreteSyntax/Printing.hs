@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.System.Printing
+module BV.ConcreteSyntax.Printing
     ( BlockBuilder
     , BuildInBlock (..)
     , BuildInLine (..)
