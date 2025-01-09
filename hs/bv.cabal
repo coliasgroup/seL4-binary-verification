@@ -1,117 +1,132 @@
-cabal-version: 3.0
-name: bv
-version: 0.1.0.0
-synopsis: TODO
-description: TODO
-license: BSD-2-Clause
-author: Nick Spinale (Colias Group, LLC)
-maintainer: Nick Spinale <nick@nickspinale.com>
-copyright: Copyright (c) 2025 Colias Group, LLC
-build-type: Simple
-tested-with: GHC == 9.6.6
+cabal-version: 2.2
 
-common common
-  default-language: GHC2021
-  default-extensions:
-    DuplicateRecordFields
-    FunctionalDependencies
-    LambdaCase
-    NoFieldSelectors
-    OverloadedLabels
-    OverloadedRecordDot
-  ghc-options:
-    -Wall
-    -Wno-unused-do-bind
-  build-depends:
-    base,
+-- This file has been generated from package.yaml by hpack version 0.37.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           bv
+version:        0.1.0.0
+synopsis:       TODO
+description:    TODO
+author:         Nick Spinale (Colias Group, LLC)
+maintainer:     Nick Spinale <nick@nickspinale.com>
+copyright:      Copyright (c) 2025 Colias Group, LLC
+license:        BSD-2-Clause
+build-type:     Simple
 
 library abstract-simple-smt
-  import: common
   exposed-modules:
-    SimpleSMT.Abstract,
-    SimpleSMT.Abstract.SExpr,
+      SimpleSMT.Abstract
+      SimpleSMT.Abstract.SExpr
+  hs-source-dirs:
+      components/abstract-simple-smt
+  default-extensions:
+      DuplicateRecordFields
+      FunctionalDependencies
+      LambdaCase
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-    simple-smt,
-    transformers,
-    mtl,
-  hs-source-dirs: components/abstract-simple-smt
+      base
+    , mtl
+    , simple-smt
+    , transformers
+  default-language: GHC2021
 
 library bv-system
-  import: common
   exposed-modules:
-    BV,
-    BV.BuildProblem,
-    BV.Check,
-    BV.Fixup,
-    BV.FormulatePairing,
-    BV.Glue,
-    BV.Graph,
-    BV.Inputs,
-    BV.ObjDump,
-    BV.Pairing,
-    BV.Parsing,
-    BV.Printing,
-    BV.Problem,
-    BV.Program,
-    BV.ProofChecks,
-    BV.ProofScript,
-    BV.PseudoCompile,
-    BV.SeL4,
-    BV.TargetDir,
-    BV.Utils,
-    -- TODO hack
-    BV.Test.Main,
-    BV.Test.Scratch,
-    BV.Test.Utils,
+      BV
+      BV.BuildProblem
+      BV.Check
+      BV.Fixup
+      BV.FormulatePairing
+      BV.Glue
+      BV.Graph
+      BV.Inputs
+      BV.ObjDump
+      BV.Pairing
+      BV.Parsing
+      BV.Printing
+      BV.Problem
+      BV.Program
+      BV.ProofChecks
+      BV.ProofScript
+      BV.PseudoCompile
+      BV.SeL4
+      BV.TargetDir
+      BV.Test.Main
+      BV.Test.Scratch
+      BV.Test.Utils
+      BV.Utils
+  hs-source-dirs:
+      components/system
+  default-extensions:
+      DuplicateRecordFields
+      FunctionalDependencies
+      LambdaCase
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-    abstract-simple-smt,
-    --
-    aeson,
-    async,
-    attoparsec-aeson,
-    attoparsec,
-    containers,
-    dlist,
-    filepath,
-    megaparsec,
-    monad-logger,
-    mtl,
-    optics-core,
-    simple-smt,
-    stm,
-    text,
-    -- TODO assess
-    extensible-effects,
-    free,
-    kan-extensions,
-    -- TODO prune
-    pretty-show,
-    pretty-simple,
-    -- TODO hack
-    tasty,
-    tasty-hunit,
-  hs-source-dirs: components/system
+      abstract-simple-smt
+    , aeson
+    , async
+    , attoparsec
+    , attoparsec-aeson
+    , base
+    , containers
+    , dlist
+    , extensible-effects
+    , filepath
+    , free
+    , kan-extensions
+    , megaparsec
+    , monad-logger
+    , mtl
+    , optics-core
+    , pretty-show
+    , pretty-simple
+    , simple-smt
+    , stm
+    , tasty
+    , tasty-hunit
+    , text
+  default-language: GHC2021
 
 executable bv
-  import: common
-  hs-source-dirs: components/app
   main-is: Main.hs
-  ghc-options:
-    -- TODO probably unnecessary here
-    -threaded
-    -rtsopts
-    -with-rtsopts=-N
+  hs-source-dirs:
+      components/app
+  default-extensions:
+      DuplicateRecordFields
+      FunctionalDependencies
+      LambdaCase
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-    bv-system,
+      base
+    , bv-system
+  default-language: GHC2021
 
-test-suite bv-test
-  import: common
+test-suite test
   type: exitcode-stdio-1.0
-  hs-source-dirs: components/test
   main-is: Main.hs
+  hs-source-dirs:
+      components/test
+  default-extensions:
+      DuplicateRecordFields
+      FunctionalDependencies
+      LambdaCase
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-    -- text,
-    -- filepath,
-    -- tasty,
-    -- tasty-hunit,
-    bv-system,
+      base
+    , bv-system
+  default-language: GHC2021

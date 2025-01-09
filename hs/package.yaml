@@ -1,0 +1,83 @@
+spec-version: 0.36.0
+name: bv
+version: 0.1.0.0
+synopsis: TODO
+description: TODO
+license: BSD-2-Clause
+author: Nick Spinale (Colias Group, LLC)
+maintainer: Nick Spinale <nick@nickspinale.com>
+copyright: Copyright (c) 2025 Colias Group, LLC
+
+language: GHC2021
+
+default-extensions:
+  - DuplicateRecordFields
+  - FunctionalDependencies
+  - LambdaCase
+  - NoFieldSelectors
+  - OverloadedLabels
+  - OverloadedRecordDot
+
+ghc-options:
+  - -Wall
+  - -Wno-unused-do-bind
+
+dependencies:
+  - base
+
+internal-libraries:
+  bv-system:
+    source-dirs: components/system
+    # exposed-modules: # TODO
+    dependencies:
+      - abstract-simple-smt
+      #
+      - aeson
+      - async
+      - attoparsec-aeson
+      - attoparsec
+      - containers
+      - dlist
+      - filepath
+      - megaparsec
+      - monad-logger
+      - mtl
+      - optics-core
+      - simple-smt
+      - stm
+      - text
+      # TODO assess
+      - extensible-effects
+      - free
+      - kan-extensions
+      # TODO prune
+      - pretty-show
+      - pretty-simple
+      # TODO hack
+      - tasty
+      - tasty-hunit
+  abstract-simple-smt:
+    source-dirs: components/abstract-simple-smt
+    # exposed-modules: # TODO
+    dependencies:
+      - simple-smt
+      - transformers
+      - mtl
+
+executable:
+  source-dirs: components/app
+  main: Main.hs
+  dependencies:
+    - bv-system
+  ghc-options:
+    # TODO probably unnecessary here
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+
+tests:
+  test:
+    source-dirs: components/test
+    main: Main.hs
+    dependencies:
+      - bv-system
