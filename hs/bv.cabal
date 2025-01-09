@@ -14,6 +14,25 @@ copyright:      Copyright (c) 2025 Colias Group, LLC
 license:        BSD-2-Clause
 build-type:     Simple
 
+library
+  hs-source-dirs:
+      components/dummy
+  default-extensions:
+      DuplicateRecordFields
+      FunctionalDependencies
+      LambdaCase
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      abstract-simple-smt
+    , base
+    , bv-concrete-syntax
+    , bv-core
+    , bv-system
+  default-language: GHC2021
+
 library abstract-simple-smt
   visibility: public
   exposed-modules:
@@ -36,10 +55,60 @@ library abstract-simple-smt
     , transformers
   default-language: GHC2021
 
+library bv-concrete-syntax
+  visibility: public
+  exposed-modules:
+      BV.ConcreteSyntax
+  other-modules:
+      BV.ConcreteSyntax.Instances
+      BV.ConcreteSyntax.Parsing
+      BV.ConcreteSyntax.Printing
+      BV.ConcreteSyntax.Utils
+  hs-source-dirs:
+      components/concrete-syntax
+  default-extensions:
+      DuplicateRecordFields
+      FunctionalDependencies
+      LambdaCase
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      aeson
+    , attoparsec
+    , attoparsec-aeson
+    , base
+    , bv-core
+    , containers
+    , dlist
+    , megaparsec
+    , optics-core
+    , text
+  default-language: GHC2021
+
 library bv-core
   visibility: public
   exposed-modules:
       BV.Core
+      BV.Core.BuildProblem
+      BV.Core.Check
+      BV.Core.Environment
+      BV.Core.Fixup
+      BV.Core.FormulatePairing
+      BV.Core.Graph
+      BV.Core.InlineAssembly
+      BV.Core.ProofChecks
+      BV.Core.PseudoCompile
+      BV.Core.Types
+      BV.Core.Types.Inputs
+      BV.Core.Types.ObjDump
+      BV.Core.Types.Pairing
+      BV.Core.Types.Problem
+      BV.Core.Types.Program
+      BV.Core.Types.ProofChecks
+      BV.Core.Types.ProofScript
+      BV.Core.Utils
   hs-source-dirs:
       components/core
   default-extensions:
@@ -54,6 +123,7 @@ library bv-core
       abstract-simple-smt
     , base
     , containers
+    , monad-logger
     , mtl
     , optics-core
     , pretty-show
@@ -63,26 +133,6 @@ library bv-core
 library bv-system
   visibility: public
   exposed-modules:
-      BV.ConcreteSyntax
-      BV.ConcreteSyntax.Instances
-      BV.ConcreteSyntax.Parsing
-      BV.ConcreteSyntax.Printing
-      BV.ConcreteSyntax.Utils
-      BV.Core.BuildProblem
-      BV.Core.Check
-      BV.Core.Fixup
-      BV.Core.FormulatePairing
-      BV.Core.Graph
-      BV.Core.PseudoCompile
-      BV.Core.Types
-      BV.Core.Types.Inputs
-      BV.Core.Types.ObjDump
-      BV.Core.Types.Pairing
-      BV.Core.Types.Problem
-      BV.Core.Types.Program
-      BV.Core.Types.ProofChecks
-      BV.Core.Types.ProofScript
-      BV.Core.Utils
       BV.System.Glue
       BV.System.SeL4
       BV.System.TargetDir
@@ -107,6 +157,7 @@ library bv-system
     , attoparsec
     , attoparsec-aeson
     , base
+    , bv-concrete-syntax
     , bv-core
     , containers
     , dlist
@@ -130,7 +181,7 @@ library bv-system
 executable bv-cli
   main-is: Main.hs
   hs-source-dirs:
-      components/app
+      components/cli
   default-extensions:
       DuplicateRecordFields
       FunctionalDependencies

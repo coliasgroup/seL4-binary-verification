@@ -25,12 +25,13 @@ ghc-options:
 dependencies:
   - base
 
-# TODO
-# library:
-#   source-dirs: components/dummy
-#   dependencies:
-#     - bv-system
-#     - abstract-simple-smt
+library:
+  source-dirs: components/dummy
+  dependencies:
+    - bv-core
+    - bv-concrete-syntax
+    - bv-system
+    - abstract-simple-smt
 
 internal-libraries:
   bv-core:
@@ -41,17 +42,35 @@ internal-libraries:
       - abstract-simple-smt
       #
       - containers
+      - monad-logger
       - mtl
       - optics-core
       # TODO prune
       - pretty-show
       - pretty-simple
+  bv-concrete-syntax:
+    visibility: public
+    source-dirs: components/concrete-syntax
+    exposed-modules:
+      - BV.ConcreteSyntax
+    dependencies:
+      - bv-core
+      #
+      - aeson
+      - attoparsec
+      - attoparsec-aeson
+      - containers
+      - dlist
+      - megaparsec
+      - optics-core
+      - text
   bv-system:
     visibility: public
     source-dirs: components/system
     # exposed-modules: # TODO
     dependencies:
       - bv-core
+      - bv-concrete-syntax
       - abstract-simple-smt
       #
       - aeson
@@ -81,11 +100,10 @@ internal-libraries:
   abstract-simple-smt:
     visibility: public
     source-dirs: components/abstract-simple-smt
-    # exposed-modules: # TODO
     dependencies:
+      - mtl
       - simple-smt
       - transformers
-      - mtl
 
 # TODO
 # executable:
@@ -96,7 +114,7 @@ internal-libraries:
 
 executables:
   bv-cli:
-    source-dirs: components/app
+    source-dirs: components/cli
     main: Main.hs
     dependencies:
       - bv-system

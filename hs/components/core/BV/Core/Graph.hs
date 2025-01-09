@@ -1,4 +1,7 @@
-module BV.Core.Graph where
+module BV.Core.Graph
+    ( NodeGraph (..)
+    , makeNodeGraph
+    ) where
 
 import Data.Graph (Graph, Vertex, graphFromEdges)
 import Data.Map (Map)
