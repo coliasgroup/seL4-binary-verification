@@ -1,4 +1,4 @@
-module BV.SeL4
+module BV.System.SeL4
     ( defaultSeL4AsmFunctionFilter
     , defaulttestSeL4TargetDir
     ) where
@@ -6,8 +6,8 @@ module BV.SeL4
 import GHC.Generics (Generic)
 import System.FilePath
 
-import BV.Program
-import BV.TargetDir
+import BV.Core.Program
+import BV.System.TargetDir
 
 defaultSeL4AsmFunctionFilter :: Ident -> Bool
 defaultSeL4AsmFunctionFilter = not . (`elem` ignore)

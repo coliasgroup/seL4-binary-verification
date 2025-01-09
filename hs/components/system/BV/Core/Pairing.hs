@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.Pairing
+module BV.Core.Pairing
     ( Pairing (..)
     , PairingEq (..)
     , PairingEqDirection (..)
@@ -28,10 +28,10 @@ import GHC.Generics (Generic)
 import Optics.Core
 import Text.Megaparsec (manyTill, manyTill_, satisfy, some, try)
 
-import BV.Parsing
-import BV.Printing
-import BV.Program
-import BV.Utils
+import BV.Core.Program
+import BV.Core.Utils
+import BV.System.Parsing
+import BV.System.Printing
 import Data.Char (isSpace)
 import Data.Either (partitionEithers)
 import Data.Functor (void)

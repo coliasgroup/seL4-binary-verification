@@ -1,9 +1,9 @@
-module BV.PseudoCompile
+module BV.Core.PseudoCompile
     ( pseudoCompile
     ) where
 
-import BV.ObjDump
-import BV.Program
+import BV.Core.ObjDump
+import BV.Core.Program
 
 pseudoCompile :: ObjDumpInfo -> Program -> Program
 pseudoCompile = undefined

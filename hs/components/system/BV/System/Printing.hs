@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.Printing
+module BV.System.Printing
     ( BlockBuilder
     , BuildInBlock (..)
     , BuildInLine (..)
@@ -29,7 +29,7 @@ import qualified Data.Text.Lazy as L
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Builder.Int (decimal, hexadecimal)
 
-import BV.Utils
+import BV.Core.Utils
 
 buildBlocksFile :: (k -> Builder) -> (v -> BlockBuilder) -> [(k, v)] -> Builder
 buildBlocksFile bk bv = mconcat . map bkv

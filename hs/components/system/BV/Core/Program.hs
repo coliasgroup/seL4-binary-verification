@@ -3,7 +3,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module BV.Program
+module BV.Core.Program
     ( Argument (..)
     , ConstGlobal (..)
     , Expr (..)
@@ -40,9 +40,9 @@ import GHC.Generics (Generic)
 import Optics.Core
 import Text.Megaparsec (manyTill_, try)
 
-import BV.Parsing
-import BV.Printing
-import BV.Utils
+import BV.Core.Utils
+import BV.System.Parsing
+import BV.System.Printing
 
 newtype Ident
   = Ident { unwrapIdent :: String }

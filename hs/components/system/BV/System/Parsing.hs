@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.Parsing
+module BV.System.Parsing
     ( ParseFile (..)
     , ParseInBlock (..)
     , ParseInLine (..)

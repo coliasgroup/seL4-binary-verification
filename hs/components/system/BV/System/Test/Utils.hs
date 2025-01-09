@@ -1,13 +1,13 @@
-module BV.Test.Utils where
+module BV.System.Test.Utils where
 
 import Data.Maybe (fromJust)
 import System.FilePath
 import qualified Text.Show.Pretty as H
 
-import BV.Parsing
-import BV.Printing
-import BV.SeL4
-import BV.TargetDir
+import BV.System.Parsing
+import BV.System.Printing
+import BV.System.SeL4
+import BV.System.TargetDir
 import GHC.Generics (Generic)
 
 tmpDir :: FilePath

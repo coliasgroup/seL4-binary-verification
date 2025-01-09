@@ -1,4 +1,4 @@
-module BV.TargetDir
+module BV.System.TargetDir
     ( TargetDir (..)
     , readAsmFunctions
     , readCFunctions
@@ -20,13 +20,13 @@ import Optics.Core
 import System.FilePath ((</>))
 import Text.Megaparsec (Parsec, eof, errorBundlePretty, parse)
 
-import BV.Inputs
-import BV.ObjDump
-import BV.Pairing
-import BV.Parsing
-import BV.Problem
-import BV.Program
-import BV.ProofChecks
+import BV.Core.Inputs
+import BV.Core.ObjDump
+import BV.Core.Pairing
+import BV.Core.Problem
+import BV.Core.Program
+import BV.Core.ProofChecks
+import BV.System.Parsing
 
 data TargetDir
   = TargetDir

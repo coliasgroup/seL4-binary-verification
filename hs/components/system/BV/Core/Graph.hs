@@ -1,4 +1,4 @@
-module BV.Graph where
+module BV.Core.Graph where
 
 import Data.Graph (Graph, Vertex, graphFromEdges)
 import Data.Map (Map)
@@ -8,7 +8,7 @@ import qualified GHC.Arr as A
 import GHC.Generics (Generic)
 import Optics.Core
 
-import BV.Program
+import BV.Core.Program
 
 data NodeGraph
   = NodeGraph

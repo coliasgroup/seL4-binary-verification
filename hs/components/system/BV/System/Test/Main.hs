@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module BV.Test.Main
+module BV.System.Test.Main
     ( main
     ) where
 
@@ -11,15 +11,16 @@ import qualified Data.Text.Lazy.Builder as B
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import BV.Inputs
-import BV.ObjDump
-import BV.Parsing (ParseFile, parseInLine, parseWholeFile, parseWholeFileWith)
-import BV.Printing (BuildToFile, buildFile)
-import BV.Program
-import BV.ProofChecks
-import BV.ProofScript (ProofNode)
-import BV.TargetDir
-import BV.Test.Utils
+import BV.Core.Inputs
+import BV.Core.ObjDump
+import BV.Core.Program
+import BV.Core.ProofChecks
+import BV.Core.ProofScript (ProofNode)
+import BV.System.Parsing (ParseFile, parseInLine, parseWholeFile,
+                          parseWholeFileWith)
+import BV.System.Printing (BuildToFile, buildFile)
+import BV.System.TargetDir
+import BV.System.Test.Utils
 import qualified Data.Text.Internal.Builder as T
 import System.FilePath ((</>))
 

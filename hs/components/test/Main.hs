@@ -2,4 +2,4 @@ module Main
     ( main
     ) where
 
-import BV.Test.Main (main)
+import BV.System.Test.Main (main)

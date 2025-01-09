@@ -3,7 +3,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module BV.ObjDump
+module BV.Core.ObjDump
     ( ObjDumpInfo (..)
     , Section (..)
     , Symbol (..)
@@ -22,7 +22,7 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer
 
-import BV.Parsing
+import BV.System.Parsing
 
 data ObjDumpInfo
   = ObjDumpInfo

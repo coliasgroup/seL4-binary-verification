@@ -1,13 +1,13 @@
-module BV.FormulatePairing
+module BV.Core.FormulatePairing
     ( formulatePairing
     ) where
 
 import Optics.Core
 
-import BV.Inputs
-import BV.Pairing
-import BV.Problem
-import BV.Program
+import BV.Core.Inputs
+import BV.Core.Pairing
+import BV.Core.Problem
+import BV.Core.Program
 
 formulatePairing :: Expr -> [Argument] -> [Argument] -> Pairing
 formulatePairing = undefined

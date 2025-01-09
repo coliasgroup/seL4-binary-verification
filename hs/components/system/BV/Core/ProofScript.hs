@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.ProofScript where
+module BV.Core.ProofScript where
 
 import Control.Applicative (many, optional, (<|>))
 import Data.Map (Map)
@@ -11,10 +11,10 @@ import GHC.Generics (Generic)
 import Optics.Core
 import Text.Megaparsec (manyTill, manyTill_, try)
 
-import BV.Pairing
-import BV.Parsing
-import BV.Printing
-import BV.Program
+import BV.Core.Pairing
+import BV.Core.Program
+import BV.System.Parsing
+import BV.System.Printing
 
 data ProofNode
   = ProofNodeLeaf

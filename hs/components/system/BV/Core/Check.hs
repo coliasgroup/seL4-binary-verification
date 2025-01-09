@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module BV.Check
+module BV.Core.Check
     ( Input
     ) where
 
@@ -10,12 +10,12 @@ import Optics.Core
 
 import SimpleSMT.Abstract (MonadSolver)
 
-import BV.Inputs
-import BV.ObjDump
-import BV.Pairing
-import BV.Problem
-import BV.Program
-import BV.ProofChecks
+import BV.Core.Inputs
+import BV.Core.ObjDump
+import BV.Core.Pairing
+import BV.Core.Problem
+import BV.Core.Program
+import BV.Core.ProofChecks
 
 data Input
   = Input

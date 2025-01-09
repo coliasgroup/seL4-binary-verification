@@ -63,28 +63,29 @@ library bv-core
 library bv-system
   visibility: public
   exposed-modules:
-      BV.BuildProblem
-      BV.Check
-      BV.Fixup
-      BV.FormulatePairing
-      BV.Glue
-      BV.Graph
-      BV.Inputs
-      BV.ObjDump
-      BV.Pairing
-      BV.Parsing
-      BV.Printing
-      BV.Problem
-      BV.Program
-      BV.ProofChecks
-      BV.ProofScript
-      BV.PseudoCompile
-      BV.SeL4
-      BV.TargetDir
-      BV.Test.Main
-      BV.Test.Scratch
-      BV.Test.Utils
-      BV.Utils
+      BV.Core.BuildProblem
+      BV.Core.Check
+      BV.Core.Fixup
+      BV.Core.FormulatePairing
+      BV.Core.Graph
+      BV.Core.Inputs
+      BV.Core.ObjDump
+      BV.Core.Pairing
+      BV.Core.Problem
+      BV.Core.Program
+      BV.Core.ProofChecks
+      BV.Core.ProofScript
+      BV.Core.PseudoCompile
+      BV.Core.Utils
+      BV.System.Glue
+      BV.System.Parsing
+      BV.System.Printing
+      BV.System.SeL4
+      BV.System.TargetDir
+      BV.System.Test.Main
+      BV.System.Test.Scratch
+      BV.System.Test.Utils
+      BV.System.Utils
   hs-source-dirs:
       components/system
   default-extensions:

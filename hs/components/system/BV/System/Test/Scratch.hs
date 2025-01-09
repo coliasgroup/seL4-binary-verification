@@ -1,11 +1,11 @@
-module BV.Test.Scratch
+module BV.System.Test.Scratch
     (
     ) where
 
 import Text.Pretty.Simple
 
-import BV.TargetDir
-import BV.Test.Utils
+import BV.System.TargetDir
+import BV.System.Test.Utils
 
 foo = do
     info <- readObjDumpInfo testSeL4TargetDir

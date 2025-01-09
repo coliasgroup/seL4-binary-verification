@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.ProofChecks where
+module BV.Core.ProofChecks where
 
 import Control.Applicative (many, optional, (<|>))
 import qualified Data.Aeson as A
 import qualified Data.Aeson.Text as A
+import Data.Functor ((<&>))
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
@@ -17,12 +18,12 @@ import GHC.Generics (Generic)
 import Optics.Core
 import Text.Megaparsec (eof, manyTill, manyTill_, parse, try)
 
-import BV.Inputs (ProblemAndProof (problem))
-import BV.Pairing
-import BV.Parsing
-import BV.Printing
-import BV.Program
-import BV.Utils
+import BV.Core.Inputs (ProblemAndProof (problem))
+import BV.Core.Pairing
+import BV.Core.Program
+import BV.System.Parsing
+import BV.System.Printing
+import BV.System.Utils
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Bifunctor (first)
 import Data.Text.Internal.Builder (Builder)

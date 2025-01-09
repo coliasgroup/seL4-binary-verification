@@ -1,16 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.Inputs where
+module BV.Core.Inputs where
 
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-import BV.Pairing
-import BV.Parsing
-import BV.Printing
-import BV.Problem
-import BV.Program
-import BV.ProofScript
+import BV.Core.Pairing
+import BV.Core.Problem
+import BV.Core.Program
+import BV.Core.ProofScript
+import BV.System.Parsing
+import BV.System.Printing
 import Control.Applicative (many, optional)
 import Data.String (fromString)
 
