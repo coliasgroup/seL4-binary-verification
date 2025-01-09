@@ -33,11 +33,25 @@ dependencies:
 #     - abstract-simple-smt
 
 internal-libraries:
+  bv-core:
+    visibility: public
+    source-dirs: components/core
+    # exposed-modules: # TODO
+    dependencies:
+      - abstract-simple-smt
+      #
+      - containers
+      - mtl
+      - optics-core
+      # TODO prune
+      - pretty-show
+      - pretty-simple
   bv-system:
     visibility: public
     source-dirs: components/system
     # exposed-modules: # TODO
     dependencies:
+      - bv-core
       - abstract-simple-smt
       #
       - aeson

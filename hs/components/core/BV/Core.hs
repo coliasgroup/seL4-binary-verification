@@ -1,3 +1,3 @@
-module BV
+module BV.Core
     (
     ) where

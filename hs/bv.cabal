@@ -36,10 +36,33 @@ library abstract-simple-smt
     , transformers
   default-language: GHC2021
 
+library bv-core
+  visibility: public
+  exposed-modules:
+      BV.Core
+  hs-source-dirs:
+      components/core
+  default-extensions:
+      DuplicateRecordFields
+      FunctionalDependencies
+      LambdaCase
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      abstract-simple-smt
+    , base
+    , containers
+    , mtl
+    , optics-core
+    , pretty-show
+    , pretty-simple
+  default-language: GHC2021
+
 library bv-system
   visibility: public
   exposed-modules:
-      BV
       BV.BuildProblem
       BV.Check
       BV.Fixup
@@ -79,6 +102,7 @@ library bv-system
     , attoparsec
     , attoparsec-aeson
     , base
+    , bv-core
     , containers
     , dlist
     , extensible-effects
