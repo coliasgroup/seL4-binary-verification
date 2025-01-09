@@ -64,8 +64,10 @@ library bv-system
   visibility: public
   exposed-modules:
       BV.ConcreteSyntax
+      BV.ConcreteSyntax.Instances
       BV.ConcreteSyntax.Parsing
       BV.ConcreteSyntax.Printing
+      BV.ConcreteSyntax.Utils
       BV.Core.BuildProblem
       BV.Core.Check
       BV.Core.Fixup

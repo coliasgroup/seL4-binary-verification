@@ -11,22 +11,17 @@ module BV.System.TargetDir
     , readStackBounds
     ) where
 
-import Data.Bifunctor (first)
-import Data.Text (Text)
 import qualified Data.Text.IO as T
-import Data.Void (Void)
 import GHC.Generics (Generic)
-import Optics.Core
 import System.FilePath ((</>))
-import Text.Megaparsec (Parsec, eof, errorBundlePretty, parse)
 
+import BV.ConcreteSyntax
 import BV.Core.Inputs
 import BV.Core.ObjDump
 import BV.Core.Pairing
 import BV.Core.Problem
 import BV.Core.Program
 import BV.Core.ProofChecks
-import BV.ConcreteSyntax.Parsing
 
 data TargetDir
   = TargetDir

@@ -3,7 +3,6 @@ module BV.Core.Graph where
 import Data.Graph (Graph, Vertex, graphFromEdges)
 import Data.Map (Map)
 import qualified Data.Map as M
-import GHC.Arr (Array)
 import qualified GHC.Arr as A
 import GHC.Generics (Generic)
 import Optics.Core

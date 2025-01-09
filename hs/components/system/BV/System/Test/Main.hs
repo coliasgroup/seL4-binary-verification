@@ -8,21 +8,19 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
 import qualified Data.Text.Lazy.Builder as B
+import System.FilePath ((</>))
 import Test.Tasty
 import Test.Tasty.HUnit
 
+import BV.ConcreteSyntax (BuildToFile, InBlockAsFile, InLineAsInBlock,
+                          ParseFile, buildFile, buildProofChecksForManyFile,
+                          parseProofChecksForManyFile, parseWholeFile)
 import BV.Core.Inputs
 import BV.Core.ObjDump
 import BV.Core.Program
-import BV.Core.ProofChecks
 import BV.Core.ProofScript (ProofNode)
-import BV.ConcreteSyntax.Parsing (ParseFile, parseInLine, parseWholeFile,
-                          parseWholeFileWith)
-import BV.ConcreteSyntax.Printing (BuildToFile, buildFile)
 import BV.System.TargetDir
 import BV.System.Test.Utils
-import qualified Data.Text.Internal.Builder as T
-import System.FilePath ((</>))
 
 main :: IO ()
 main = defaultMain tests

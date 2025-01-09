@@ -3,9 +3,6 @@ module BV.System.SeL4
     , defaulttestSeL4TargetDir
     ) where
 
-import GHC.Generics (Generic)
-import System.FilePath
-
 import BV.Core.Program
 import BV.System.TargetDir
 

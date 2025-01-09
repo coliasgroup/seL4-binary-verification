@@ -4,11 +4,8 @@ import Data.Maybe (fromJust)
 import System.FilePath
 import qualified Text.Show.Pretty as H
 
-import BV.ConcreteSyntax.Parsing
-import BV.ConcreteSyntax.Printing
 import BV.System.SeL4
 import BV.System.TargetDir
-import GHC.Generics (Generic)
 
 tmpDir :: FilePath
 tmpDir = "tmp"
@@ -44,23 +41,3 @@ tmpOutPath = (tmpOutDir </>)
 
 graphRefineDir :: FilePath
 graphRefineDir = "../../graph-refine"
-
-newtype InBlockAsFile a
-  = InBlockAsFile { unwrap :: a }
-  deriving (Eq, Generic, Ord, Show)
-
-instance ParseInBlock a => ParseFile (InBlockAsFile a) where
-    parseFile = InBlockAsFile <$> parseInBlock
-
-instance BuildInBlock a => BuildToFile (InBlockAsFile a) where
-    buildToFile = buildBlock . buildInBlock . (.unwrap)
-
-newtype InLineAsInBlock a
-  = InLineAsInBlock { unwrap :: a }
-  deriving (Eq, Generic, Ord, Show)
-
-instance ParseInLine a => ParseInBlock (InLineAsInBlock a) where
-    parseInBlock = InLineAsInBlock <$> line parseInLine
-
-instance BuildInLine a => BuildInBlock (InLineAsInBlock a) where
-    buildInBlock = lineInBlock . buildInLine . (.unwrap)
