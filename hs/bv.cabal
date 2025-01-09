@@ -11,27 +11,14 @@ build-type: Simple
 tested-with: GHC == 9.6.6
 
 common common
-  default-language: Haskell2010
+  default-language: GHC2021
   default-extensions:
     DuplicateRecordFields
-    GeneralizedNewtypeDeriving
+    FunctionalDependencies
+    LambdaCase
     NoFieldSelectors
     OverloadedLabels
     OverloadedRecordDot
-    -- GHC2024
-    DeriveFoldable
-    DeriveFunctor
-    DeriveGeneric
-    DeriveTraversable
-    DisambiguateRecordFields
-    FlexibleContexts
-    FlexibleInstances
-    FunctionalDependencies
-    LambdaCase
-    MultiParamTypeClasses
-    NamedFieldPuns
-    TypeApplications
-    ScopedTypeVariables
   ghc-options:
     -Wall
     -Wno-unused-do-bind
