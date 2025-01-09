@@ -37,6 +37,10 @@ fmt:
 hlint:
 	hlint src app test
 
+.PHONY: nix
+nix:
+	nix-build -A package
+
 .PHONY: enumerate-transitive-deps
 enumerate-transitive-deps:
 	stack dot --external --include-base | cut -d ' ' -f 1 | grep '"' | sort | uniq
