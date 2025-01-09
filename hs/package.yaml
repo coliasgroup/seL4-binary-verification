@@ -118,11 +118,25 @@ internal-libraries:
 #     - abstract-simple-smt
 
 executables:
-  bv-cli:
-    source-dirs: components/cli
+  # bv-cli:
+  #   source-dirs: components/cli
+  #   main: Main.hs
+  #   dependencies:
+  #     - bv-system
+  #   ghc-options:
+  #     # TODO probably unnecessary here
+  #     - -threaded
+  #     - -rtsopts
+  #     - -with-rtsopts=-N
+  profiling-scratch:
+    source-dirs: components/profiling-scratch
     main: Main.hs
     dependencies:
+      - bv-core
+      - bv-concrete-syntax
       - bv-system
+      #
+      - text
     ghc-options:
       # TODO probably unnecessary here
       - -threaded

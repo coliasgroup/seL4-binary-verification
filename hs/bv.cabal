@@ -186,10 +186,10 @@ library bv-system
     , text
   default-language: GHC2021
 
-executable bv-cli
+executable profiling-scratch
   main-is: Main.hs
   hs-source-dirs:
-      components/cli
+      components/profiling-scratch
   default-extensions:
       DerivingStrategies
       DuplicateRecordFields
@@ -201,7 +201,10 @@ executable bv-cli
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
+    , bv-concrete-syntax
+    , bv-core
     , bv-system
+    , text
   default-language: GHC2021
 
 test-suite test
