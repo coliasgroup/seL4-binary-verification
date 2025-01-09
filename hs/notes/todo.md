@@ -1,0 +1,1 @@
+- filter source for nix build
