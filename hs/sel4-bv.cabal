@@ -132,8 +132,6 @@ library bv-core
     , monad-logger
     , mtl
     , optics-core
-    , pretty-show
-    , pretty-simple
   default-language: GHC2021
 
 library bv-system
@@ -186,6 +184,55 @@ library bv-system
     , tasty
     , tasty-hunit
     , text
+  default-language: GHC2021
+
+library smtlib2
+  visibility: public
+  exposed-modules:
+      BV.SMTLIB2
+      BV.SMTLIB2.Builder
+      BV.SMTLIB2.Parser.Attoparsec
+      BV.SMTLIB2.Parser.Common
+      BV.SMTLIB2.Parser.Megaparsec
+  hs-source-dirs:
+      components/smtlib2
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      attoparsec
+    , base
+    , conduit
+    , conduit-extra
+    , megaparsec
+    , sel4-bv:smtlib2-types
+    , text
+  default-language: GHC2021
+
+library smtlib2-types
+  visibility: public
+  exposed-modules:
+      BV.SMTLIB2.Types
+  hs-source-dirs:
+      components/smtlib2-types
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      base
+    , deepseq
   default-language: GHC2021
 
 executable profiling-scratch

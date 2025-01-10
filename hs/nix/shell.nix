@@ -32,6 +32,9 @@ pkgs.mkShell {
     haskellPackages.haskell-debug-adapter
     haskellPackages.haskell-dap
     haskellPackages.ghci-dap
+
+    yices
+    z3
   ];
 
   shellHook = ''

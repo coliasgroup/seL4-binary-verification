@@ -37,6 +37,23 @@ library:
     # - abstract-simple-smt
 
 internal-libraries:
+  smtlib2-types:
+    visibility: public
+    source-dirs: components/smtlib2-types
+    # exposed-modules: # TODO
+    dependencies:
+      - deepseq
+  smtlib2:
+    visibility: public
+    source-dirs: components/smtlib2
+    # exposed-modules: # TODO
+    dependencies:
+      - sel4-bv:smtlib2-types
+      - text
+      - attoparsec
+      - megaparsec
+      - conduit
+      - conduit-extra
   bv-core:
     visibility: public
     source-dirs: components/core
@@ -47,9 +64,8 @@ internal-libraries:
       - monad-logger
       - mtl
       - optics-core
-      # TODO prune
-      - pretty-show
-      - pretty-simple
+      # - pretty-show
+      # - pretty-simple
   bv-concrete-syntax:
     visibility: public
     source-dirs: components/concrete-syntax

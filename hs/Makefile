@@ -7,6 +7,10 @@ clean:
 	cabal clean
 	stack clean --full
 
+.PHONY: hpack
+hpack:
+	hpack
+
 .PHONY: build
 build:
 	hpack
