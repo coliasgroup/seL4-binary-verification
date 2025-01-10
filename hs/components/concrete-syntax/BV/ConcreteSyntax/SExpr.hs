@@ -58,7 +58,7 @@ parseSExpr = spaceConsumer *>  go
     go = choice
         [ List <$> between (symbol "(") (symbol ")") (many' go)
         , Atom <$> ("|" *> manyTill anyChar "|")
-        , Atom <$> many' (satisfy isAtomChar)
+        , Atom <$> many1' (satisfy isAtomChar)
         ] <* spaceConsumer
 
 isAtomChar :: Char -> Bool
@@ -69,7 +69,7 @@ buildSExpr = \case
     Atom x -> buildAtom x
     List [] -> "()"
     List (x:xs) ->
-        "(" <> buildSExpr x <> ")"
+        "(" <> buildSExpr x
             <> foldr (\x' acc -> " " <> buildSExpr x' <> acc) ")" xs
 
 buildAtom :: String -> Builder

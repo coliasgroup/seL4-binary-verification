@@ -36,7 +36,7 @@ readAndParseFile rel targetDir = parseWholeFile path <$> T.readFile path
     path = targetDirPath targetDir rel
 
 readAndParseFileFast :: ParseFileFast a => FilePath -> TargetDir -> IO (Either String a)
-readAndParseFileFast rel targetDir = parseWholeFileFast <$> B.readFile path
+readAndParseFileFast rel targetDir = parseWholeFileFast <$> T.readFile path
   where
     path = targetDirPath targetDir rel
 
@@ -68,4 +68,4 @@ readProofChecks :: TargetDir -> IO (Either String (ProofChecks String))
 readProofChecks = readAndParseFileFast "proof-checks.txt"
 
 readSmtProofChecks :: TargetDir -> IO (Either String SmtProofChecks)
-readSmtProofChecks = readAndParseFileFast "smt-proof-checks.json"
+readSmtProofChecks = readAndParseFileFast "smt-proof-checks.txt"

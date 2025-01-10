@@ -75,17 +75,16 @@ parsePrintSeL4 = testGroup "seL4"
     , testCase "stack bounds" $ testRoundTripSeL4 readStackBounds
     , testCase "pairings" $ testRoundTripSeL4 readPairings
     , testCase "problems and proofs" $ testRoundTripSeL4 readProblemsAndProofs
-    -- TODO performance issue
-    -- , testCase "smt proof checks" $
+    , testCase "smt proof checks" $
+        testRoundTripWith
+            parseWholeFileFast
+            buildFile
+            (readSmtProofChecks testSeL4TargetDirBigSmt)
+    -- , testCase "proof checks" $
     --     testRoundTripWith
     --         (parseWholeFileFast . T.encodeUtf8)
     --         buildFile
-    --         (readSmtProofChecks testSeL4TargetDirSmallSmt)
-    , testCase "proof checks" $
-        testRoundTripWith
-            (parseWholeFileFast . T.encodeUtf8)
-            buildFile
-            (readProofChecks testSeL4TargetDirSmall)
+    --         (readProofChecks testSeL4TargetDirSmall)
     -- , testCase "proof checks size" proofChecksSize
     ]
 
