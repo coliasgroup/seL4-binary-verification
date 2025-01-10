@@ -18,20 +18,17 @@ library
   hs-source-dirs:
       components/dummy
   default-extensions:
-      DerivingStrategies
-      DuplicateRecordFields
       FunctionalDependencies
-      LambdaCase
+      DuplicateRecordFields
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      abstract-simple-smt
-    , base
+      base
     , bv-concrete-syntax
-    , bv-core
-    , bv-system
   default-language: GHC2021
 
 library abstract-simple-smt
@@ -42,13 +39,13 @@ library abstract-simple-smt
   hs-source-dirs:
       components/abstract-simple-smt
   default-extensions:
-      DerivingStrategies
-      DuplicateRecordFields
       FunctionalDependencies
-      LambdaCase
+      DuplicateRecordFields
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       base
@@ -62,20 +59,21 @@ library bv-concrete-syntax
   exposed-modules:
       BV.ConcreteSyntax
   other-modules:
+      BV.ConcreteSyntax.FastInstances
+      BV.ConcreteSyntax.FastParsing
       BV.ConcreteSyntax.Instances
       BV.ConcreteSyntax.Parsing
       BV.ConcreteSyntax.Printing
-      BV.ConcreteSyntax.Utils
   hs-source-dirs:
       components/concrete-syntax
   default-extensions:
-      DerivingStrategies
-      DuplicateRecordFields
       FunctionalDependencies
-      LambdaCase
+      DuplicateRecordFields
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
@@ -83,6 +81,7 @@ library bv-concrete-syntax
     , attoparsec-aeson
     , base
     , bv-core
+    , bytestring
     , containers
     , dlist
     , megaparsec
@@ -115,13 +114,13 @@ library bv-core
   hs-source-dirs:
       components/core
   default-extensions:
-      DerivingStrategies
-      DuplicateRecordFields
       FunctionalDependencies
-      LambdaCase
+      DuplicateRecordFields
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       abstract-simple-smt
@@ -148,13 +147,13 @@ library bv-system
   hs-source-dirs:
       components/system
   default-extensions:
-      DerivingStrategies
-      DuplicateRecordFields
       FunctionalDependencies
-      LambdaCase
+      DuplicateRecordFields
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       abstract-simple-smt
@@ -165,6 +164,7 @@ library bv-system
     , base
     , bv-concrete-syntax
     , bv-core
+    , bytestring
     , containers
     , deepseq
     , dlist
@@ -191,13 +191,13 @@ executable profiling-scratch
   hs-source-dirs:
       components/profiling-scratch
   default-extensions:
-      DerivingStrategies
-      DuplicateRecordFields
       FunctionalDependencies
-      LambdaCase
+      DuplicateRecordFields
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
@@ -213,13 +213,13 @@ test-suite test
   hs-source-dirs:
       components/test
   default-extensions:
-      DerivingStrategies
-      DuplicateRecordFields
       FunctionalDependencies
-      LambdaCase
+      DuplicateRecordFields
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       base

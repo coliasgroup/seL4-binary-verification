@@ -1,6 +1,21 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Types.ProofChecks where
+module BV.Core.Types.ProofChecks
+    ( EqHyp (..)
+    , EqHypInduct (..)
+    , EqHypSide (..)
+    , Hyp (..)
+    , PcImpHyp (..)
+    , PcImpHypSide (..)
+    , ProofCheck (..)
+    , ProofChecks (..)
+    , Restr (..)
+    , SmtProofCheckGroup (..)
+    , SmtProofChecks (..)
+    , Visit (..)
+    , VisitCount (..)
+    , VisitWithTag (..)
+    ) where
 
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
@@ -94,7 +109,14 @@ data VisitCount
 
 --
 
-newtype InterpretedProofChecks
-  = InterpretedProofChecks { unwrap :: M.Map PairingId [Expr] }
+newtype SmtProofChecks
+  = SmtProofChecks { unwrap :: M.Map PairingId [SmtProofCheckGroup] }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
+
+data SmtProofCheckGroup
+  = SmtProofCheckGroup
+      { setup :: [String]
+      , imps :: [String]
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)

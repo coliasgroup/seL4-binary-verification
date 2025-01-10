@@ -18,6 +18,6 @@ main = do
     case r of
         Left err -> error err
         Right x -> do
-            let t = (B.toLazyText . buildProofChecksForManyFile) x
+            let t = buildFile x
             print t
             print $ T.length t `div` 1024

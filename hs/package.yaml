@@ -31,10 +31,10 @@ dependencies:
 library:
   source-dirs: components/dummy
   dependencies:
-    - bv-core
+    # - bv-core
     - bv-concrete-syntax
-    - bv-system
-    - abstract-simple-smt
+    # - bv-system
+    # - abstract-simple-smt
 
 internal-libraries:
   bv-core:
@@ -68,6 +68,7 @@ internal-libraries:
       - megaparsec
       - optics-core
       - text
+      - bytestring
   bv-system:
     visibility: public
     source-dirs: components/system
@@ -92,6 +93,7 @@ internal-libraries:
       - simple-smt
       - stm
       - text
+      - bytestring
       # TODO assess
       - extensible-effects
       - free

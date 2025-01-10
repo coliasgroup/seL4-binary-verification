@@ -6,9 +6,7 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.ConcreteSyntax.Instances
-    ( buildProofChecksForManyFile
-    , parseInterpretedProofChecksForManyFile
-    , parseProofChecksForManyFile
+    ( parsePrettyPairingId
     ) where
 
 import Data.Aeson (FromJSON, ToJSON)
@@ -38,7 +36,6 @@ import BV.Core.Types
 
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing
-import BV.ConcreteSyntax.Utils
 import Data.Bits (shiftL, (.|.))
 
 --
@@ -170,108 +167,6 @@ instance ParseInLine VisitCount where
 
 instance BuildInLine VisitCount where
     buildInLine visitCount = "VC" <> putManyWith putDec visitCount.numbers <> putManyWith putDec visitCount.offsets
-
---
-
-data ProofChecksJsonAdapterEntry
-  = ProofChecksJsonAdapterEntry
-      { problem_name :: String
-      , checks :: [ProofChecksJsonAdapterEntryChecks]
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-instance ToJSON ProofChecksJsonAdapterEntry where
-instance FromJSON ProofChecksJsonAdapterEntry where
-
-data ProofChecksJsonAdapterEntryChecks
-  = ProofChecksJsonAdapterEntryChecks
-      { name :: String
-      , hyp :: String
-      , hyps :: [String]
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-instance ToJSON ProofChecksJsonAdapterEntryChecks where
-instance FromJSON ProofChecksJsonAdapterEntryChecks where
-
-parseProofChecksForOneFile :: T.Text -> Either String (PairingId, [ProofCheck String])
-parseProofChecksForOneFile s = do
-    adapterEntry <- A.eitherDecodeStrict @ProofChecksJsonAdapterEntry (T.encodeUtf8 s)
-    decodeAdapterEntry adapterEntry
-
-parseProofChecksForManyFile :: T.Text -> Either String (ProofChecks String)
-parseProofChecksForManyFile s = do
-    adapterEntries <- decodeMany @ProofChecksJsonAdapterEntry s
-    ProofChecks . M.fromList <$> traverse decodeAdapterEntry adapterEntries
-
-parseWithin :: Parser a -> String -> T.Text -> Either String a
-parseWithin p path = first errorBundlePretty . parse (p <* eof) path
-
-decodeAdapterEntry :: ProofChecksJsonAdapterEntry -> Either String (PairingId, [ProofCheck String])
-decodeAdapterEntry entry = do
-    pairingId <- parseWithin
-        (parseTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId)
-        "a pairing id"
-        (T.pack entry.problem_name)
-    checks <- traverse (decodeAdapterCheck pairingId) entry.checks
-    return (pairingId, checks)
-
-decodeAdapterCheck :: PairingId -> ProofChecksJsonAdapterEntryChecks -> Either String (ProofCheck String)
-decodeAdapterCheck pairingId check = do
-    hyp <- parseWithin parseInLine (prettyPairingId pairingId ++ " hyp") (T.pack check.hyp)
-    hyps <- traverse (parseWithin parseInLine (prettyPairingId pairingId ++ " hyps") . T.pack) check.hyps
-    return $ ProofCheck
-        { meta = check.name
-        , hyp
-        , hyps
-        }
-
-buildProofChecksForManyFile :: ProofChecks String -> Builder
-buildProofChecksForManyFile checks = mconcat (map (uncurry buildProofChecksForOneFile) (M.toList checks.unwrap))
-
-buildProofChecksForOneFile :: PairingId -> [ProofCheck String] -> Builder
-buildProofChecksForOneFile pairingId checksForOne = A.encodeToTextBuilder entry <> "\n"
-  where
-    entry = ProofChecksJsonAdapterEntry
-        { problem_name = L.unpack . B.toLazyText $ buildTypicalKeyFormat ["Problem", "Pairing"] (fromString (prettyPairingId pairingId))
-        , checks = map g checksForOne
-        }
-    g check = ProofChecksJsonAdapterEntryChecks
-        { name = check.meta
-        , hyp = f check.hyp
-        , hyps = map f check.hyps
-        }
-    f = L.unpack . B.toLazyText . buildStandaloneLine . buildInLine
-
---
-
-data InterpretedProofChecksJsonAdapterEntry
-  = InterpretedProofChecksJsonAdapterEntry
-      { problem_name :: String
-      , checks :: [String]
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-instance ToJSON InterpretedProofChecksJsonAdapterEntry where
-instance FromJSON InterpretedProofChecksJsonAdapterEntry where
-
-parseInterpretedProofChecksForManyFile :: T.Text -> Either String InterpretedProofChecks
-parseInterpretedProofChecksForManyFile s = do
-    adapterEntries <- decodeMany @InterpretedProofChecksJsonAdapterEntry s
-    InterpretedProofChecks . M.fromList <$> traverse decodeInterpretedAdapterEntry adapterEntries
-
-decodeInterpretedAdapterEntry :: InterpretedProofChecksJsonAdapterEntry -> Either String (PairingId, [Expr])
-decodeInterpretedAdapterEntry entry = do
-    pairingId <- parseWithin
-        (parseTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId)
-        "a pairing id"
-        (T.pack entry.problem_name)
-    checks <- traverse (decodeInterpretedAdapterCheck pairingId) entry.checks
-    return (pairingId, checks)
-
-decodeInterpretedAdapterCheck :: PairingId -> String -> Either String Expr
-decodeInterpretedAdapterCheck pairingId check =
-    parseWithin parseInLine (prettyPairingId pairingId ++ " check") (T.pack check)
 
 --
 

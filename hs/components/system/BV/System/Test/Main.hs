@@ -6,6 +6,7 @@ module BV.System.Test.Main
 
 import Control.DeepSeq (($!!))
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
 import qualified Data.Text.Lazy.Builder as B
@@ -14,9 +15,7 @@ import System.FilePath ((</>))
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import BV.ConcreteSyntax (BuildToFile, InBlockAsFile, InLineAsInBlock,
-                          ParseFile, buildFile, buildProofChecksForManyFile,
-                          parseProofChecksForManyFile, parseWholeFile)
+import BV.ConcreteSyntax
 import BV.Core.Types
 import BV.System.TargetDir
 import BV.System.Test.Utils
@@ -76,10 +75,15 @@ parsePrintSeL4 = testGroup "seL4"
     , testCase "stack bounds" $ testRoundTripSeL4 readStackBounds
     , testCase "pairings" $ testRoundTripSeL4 readPairings
     , testCase "problems and proofs" $ testRoundTripSeL4 readProblemsAndProofs
+    , testCase "smt proof checks" $
+        testRoundTripWith
+            (parseWholeFileFast . T.encodeUtf8)
+            buildFile
+            (readSmtProofChecks testSeL4TargetDirSmallSmt)
     , testCase "proof checks" $
         testRoundTripWith
-            parseProofChecksForManyFile
-            (B.toLazyText . buildProofChecksForManyFile)
+            (parseWholeFileFast . T.encodeUtf8)
+            buildFile
             (readProofChecks testSeL4TargetDirSmall)
     -- , testCase "proof checks size" proofChecksSize
     ]

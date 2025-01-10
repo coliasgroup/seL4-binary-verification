@@ -8,15 +8,18 @@ module BV.System.TargetDir
     , readProblems
     , readProblemsAndProofs
     , readProofChecks
+    , readSmtProofChecks
     , readStackBounds
     ) where
 
+import qualified Data.ByteString as B
 import qualified Data.Text.IO as T
 import GHC.Generics (Generic)
 import System.FilePath ((</>))
 
 import BV.ConcreteSyntax
 import BV.Core.Types
+import Debug.Trace (traceShowId)
 
 data TargetDir
   = TargetDir
@@ -29,6 +32,11 @@ targetDirPath targetDir rel = targetDir.path </> rel
 
 readAndParseFile :: ParseFile a => FilePath -> TargetDir -> IO (Either String a)
 readAndParseFile rel targetDir = parseWholeFile path <$> T.readFile path
+  where
+    path = targetDirPath targetDir rel
+
+readAndParseFileFast :: ParseFileFast a => FilePath -> TargetDir -> IO (Either String a)
+readAndParseFileFast rel targetDir = parseWholeFileFast <$> B.readFile path
   where
     path = targetDirPath targetDir rel
 
@@ -57,6 +65,7 @@ readProblemsAndProofs :: TargetDir -> IO (Either String ProblemsAndProofs)
 readProblemsAndProofs = readAndParseFile "proofs.txt"
 
 readProofChecks :: TargetDir -> IO (Either String (ProofChecks String))
-readProofChecks targetDir = parseProofChecksForManyFile <$> T.readFile path
-  where
-    path = targetDirPath targetDir "proof-checks.txt"
+readProofChecks = readAndParseFileFast "proof-checks.txt"
+
+readSmtProofChecks :: TargetDir -> IO (Either String SmtProofChecks)
+readSmtProofChecks = readAndParseFileFast "smt-proof-checks.json"

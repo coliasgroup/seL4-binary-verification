@@ -3,19 +3,21 @@ module BV.ConcreteSyntax
     , BuildToFile (..)
     , InBlockAsFile (..)
     , InLineAsInBlock (..)
-    , ParseFile
-    , ParseInBlock
+    , ParseFile (..)
+    , ParseFileFast (..)
+    , ParseInBlock (..)
     , buildFile
-    , buildProofChecksForManyFile
     , parseInLine
-    , parseInterpretedProofChecksForManyFile
-    , parseProofChecksForManyFile
     , parseWholeFile
+    , parseWholeFileFast
+    , parseWholeFileFastWith
     , parseWholeFileWith
     ) where
 
 import GHC.Generics (Generic)
 
+import BV.ConcreteSyntax.FastInstances
+import BV.ConcreteSyntax.FastParsing
 import BV.ConcreteSyntax.Instances
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing

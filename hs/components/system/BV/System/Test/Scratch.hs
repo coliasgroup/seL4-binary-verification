@@ -11,19 +11,23 @@ import BV.System.SeL4
 import BV.System.TargetDir
 import BV.System.Test.Utils
 import Control.Monad
+import Data.Attoparsec (parseOnly)
+import qualified Data.ByteString as B
+import qualified Data.Map as M
 import qualified Data.Text.IO as T
 
 foo = do
-    r <- readInterpretedProofChecks "/home/x/i/v/seL4-verification-reproducibility/projects/bv-sandbox/hs/tmp/target-big-interpreted/interpreted-proof-checks.txt"
+    -- r <- readSmtProofChecks testSeL4TargetDirBigSmt
+    -- x <- B.readFile "/home/x/i/v/seL4-verification-reproducibility/projects/bv-sandbox/hs/tmp/target-small-smt/smt-proof-checks.json"
+    x <- B.readFile "/home/x/i/v/seL4-verification-reproducibility/projects/bv-sandbox/hs/tmp/target-small/proof-checks.txt"
+    let r = parseWholeFileFast @(ProofChecks String) x
     case r of
         Left err -> error err
         Right x -> do
-            let smt :: [String]
-                smt = x ^.. #unwrap % folded % folded % foldExprs % #value % #_ExprValueSmtExpr
-            print (length smt)
-            writeFile "tmp/out/foo.txt" (mconcat (map (++ "\n") smt))
+            -- let smt :: [String]
+            --     smt = x ^.. #unwrap % folded % folded % #setup % folded
+            -- print (length smt)
+            print (M.size x.unwrap)
+            -- writeFile "tmp/out/foo.txt" (mconcat (map (++ "\n") smt))
             -- forM_ smt putStrLn
             putStrLn "success"
-
-readInterpretedProofChecks :: String -> IO (Either String InterpretedProofChecks)
-readInterpretedProofChecks path = parseInterpretedProofChecksForManyFile <$> T.readFile path
