@@ -1,0 +1,4 @@
+packages: .
+with-compiler: ghc-9.6.6
+
+import: https://www.stackage.org/lts-22.43/cabal.config

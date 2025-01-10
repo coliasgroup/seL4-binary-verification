@@ -44,5 +44,5 @@ in rec {
 
   stacklockPkgSet = stacklock.pkgSet;
 
-  package = stacklockPkgSet.bv;
+  package = stacklockPkgSet.sel4-bv;
 }

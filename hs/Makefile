@@ -3,23 +3,26 @@ none:
 
 .PHONY: clean
 clean:
+	hpack
+	cabal clean
 	stack clean --full
 
 .PHONY: build
 build:
-	stack build
+	hpack
+	cabal build
 
 .PHONY: check
 check:
-	# TODO
-	stack build --fast
+	hpack
+	cabal build
 
 .PHONY: test
 test:
-	stack test
+	cabal test
 
 # TODO still seems to document some deps
-haddock_cmd := stack haddock --haddock-internal --no-haddock-deps --only-locals bv
+haddock_cmd := cabal haddock-project
 
 .PHONY: doc
 doc:
@@ -27,7 +30,8 @@ doc:
 
 .PHONY: odoc
 odoc:
-	$(haddock_cmd) --open
+	$(haddock_cmd)
+	xdg-open haddocks/index.html
 
 .PHONY: fmt
 fmt:
@@ -47,8 +51,8 @@ enumerate-transitive-deps:
 
 .PHONY: i
 i:
-	stack repl
+	cabal repl
 
 .PHONY: it
 it:
-	stack repl bv:test:bv-test
+	cabal repl sel4-bv:test:bv-test

@@ -15,8 +15,12 @@ pkgs.mkShell {
     stack
     hls
     ghc
+    cabal-install
+    hpack
 
     hlint
+
+    libz
 
     haskellPackages.ormolu
     haskellPackages.fourmolu
@@ -29,4 +33,8 @@ pkgs.mkShell {
     haskellPackages.haskell-dap
     haskellPackages.ghci-dap
   ];
+
+  shellHook = ''
+    mkdir -p $TMPDIR
+  '';
 }

@@ -13,7 +13,7 @@ stacklock2nix {
       inherit (haskell.lib.compose) dontCheck;
     in
       hfinal: hprev: {
-        bv = dontCheck hprev.bv;
+        sel4-bv = dontCheck hprev.sel4-bv;
         # external
         prettyprinter = dontCheck hprev.prettyprinter;
         lifted-base = dontCheck hprev.lifted-base;
