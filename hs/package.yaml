@@ -28,33 +28,29 @@ ghc-options:
 dependencies:
   - base
 
-library:
-  source-dirs: components/dummy
-  dependencies:
-    # - bv-core
-    - bv-concrete-syntax
-    # - bv-system
-    # - abstract-simple-smt
-
 internal-libraries:
+
   smtlib2-types:
     visibility: public
     source-dirs: components/smtlib2-types
     # exposed-modules: # TODO
     dependencies:
       - deepseq
+
   smtlib2:
     visibility: public
     source-dirs: components/smtlib2
     # exposed-modules: # TODO
     dependencies:
       - sel4-bv:smtlib2-types
+      # external
       - text
       - attoparsec
       - megaparsec
       - conduit
       - conduit-extra
-  bv-core:
+
+  core:
     visibility: public
     source-dirs: components/core
     # exposed-modules: # TODO
@@ -66,51 +62,52 @@ internal-libraries:
       - optics-core
       # - pretty-show
       # - pretty-simple
-  bv-concrete-syntax:
+
+  concrete-syntax:
     visibility: public
     source-dirs: components/concrete-syntax
     exposed-modules:
       - BV.ConcreteSyntax
     dependencies:
-      - bv-core
-      #
-      - aeson
-      - attoparsec
-      - attoparsec-aeson
+      - sel4-bv:core
+      # external
       - containers
       - dlist
-      - megaparsec
       - optics-core
       - text
+      - attoparsec
+      - megaparsec
+      # TODO remove
       - bytestring
-  bv-system:
+      - aeson
+      - attoparsec-aeson
+
+  system:
     visibility: public
     source-dirs: components/system
     # exposed-modules: # TODO
     dependencies:
-      - bv-core
-      - bv-concrete-syntax
-      - abstract-simple-smt
-      #
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:abstract-simple-smt
+      # external
       - deepseq
-      - aeson
-      - async
-      - attoparsec-aeson
-      - attoparsec
       - containers
-      - dlist
-      - filepath
-      - megaparsec
-      - monad-logger
       - mtl
+      - transformers
       - optics-core
-      - simple-smt
+      - async
       - stm
-      - text
       - bytestring
+      - text
+      - attoparsec
+      - megaparsec
+      - filepath
+      - monad-logger
+      - simple-smt
       # TODO assess
-      - extensible-effects
       - free
+      - extensible-effects
       - kan-extensions
       # TODO prune
       - pretty-show
@@ -120,39 +117,35 @@ internal-libraries:
       - tasty-hunit
       # TODO temporary
       - ghc-datasize
+
   abstract-simple-smt:
     visibility: public
     source-dirs: components/abstract-simple-smt
     dependencies:
+      - transformers
       - mtl
       - simple-smt
-      - transformers
-
-# TODO
-# executable:
-#   source-dirs: components/dummy
-#   dependencies:
-#     - bv-system
-#     - abstract-simple-smt
 
 executables:
-  # bv-cli:
-  #   source-dirs: components/cli
-  #   main: Main.hs
-  #   dependencies:
-  #     - bv-system
-  #   ghc-options:
-  #     # TODO probably unnecessary here
-  #     - -threaded
-  #     - -rtsopts
-  #     - -with-rtsopts=-N
+
+  cli:
+    source-dirs: components/cli
+    main: Main.hs
+    dependencies:
+      - sel4-bv:system
+    ghc-options:
+      # TODO probably unnecessary here
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+
   profiling-scratch:
     source-dirs: components/profiling-scratch
     main: Main.hs
     dependencies:
-      - bv-core
-      - bv-concrete-syntax
-      - bv-system
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:system
       #
       - text
     ghc-options:
@@ -166,4 +159,4 @@ tests:
     source-dirs: components/test
     main: Main.hs
     dependencies:
-      - bv-system
+      - sel4-bv:system

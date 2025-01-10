@@ -14,23 +14,6 @@ copyright:      Copyright (c) 2025 Colias Group, LLC
 license:        BSD-2-Clause
 build-type:     Simple
 
-library
-  hs-source-dirs:
-      components/dummy
-  default-extensions:
-      FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
-      OverloadedLabels
-      OverloadedRecordDot
-      DerivingStrategies
-      LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind
-  build-depends:
-      base
-    , bv-concrete-syntax
-  default-language: GHC2021
-
 library abstract-simple-smt
   visibility: public
   exposed-modules:
@@ -54,7 +37,7 @@ library abstract-simple-smt
     , transformers
   default-language: GHC2021
 
-library bv-concrete-syntax
+library concrete-syntax
   visibility: public
   exposed-modules:
       BV.ConcreteSyntax
@@ -82,16 +65,16 @@ library bv-concrete-syntax
     , attoparsec
     , attoparsec-aeson
     , base
-    , bv-core
     , bytestring
     , containers
     , dlist
     , megaparsec
     , optics-core
+    , sel4-bv:core
     , text
   default-language: GHC2021
 
-library bv-core
+library core
   visibility: public
   exposed-modules:
       BV.Core
@@ -132,58 +115,6 @@ library bv-core
     , monad-logger
     , mtl
     , optics-core
-  default-language: GHC2021
-
-library bv-system
-  visibility: public
-  exposed-modules:
-      BV.System.Glue
-      BV.System.SeL4
-      BV.System.TargetDir
-      BV.System.Test.Main
-      BV.System.Test.Scratch
-      BV.System.Test.Utils
-      BV.System.Utils
-  hs-source-dirs:
-      components/system
-  default-extensions:
-      FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
-      OverloadedLabels
-      OverloadedRecordDot
-      DerivingStrategies
-      LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind
-  build-depends:
-      abstract-simple-smt
-    , aeson
-    , async
-    , attoparsec
-    , attoparsec-aeson
-    , base
-    , bv-concrete-syntax
-    , bv-core
-    , bytestring
-    , containers
-    , deepseq
-    , dlist
-    , extensible-effects
-    , filepath
-    , free
-    , ghc-datasize
-    , kan-extensions
-    , megaparsec
-    , monad-logger
-    , mtl
-    , optics-core
-    , pretty-show
-    , pretty-simple
-    , simple-smt
-    , stm
-    , tasty
-    , tasty-hunit
-    , text
   default-language: GHC2021
 
 library smtlib2
@@ -235,6 +166,74 @@ library smtlib2-types
     , deepseq
   default-language: GHC2021
 
+library system
+  visibility: public
+  exposed-modules:
+      BV.System.Glue
+      BV.System.SeL4
+      BV.System.TargetDir
+      BV.System.Test.Main
+      BV.System.Test.Scratch
+      BV.System.Test.Utils
+      BV.System.Utils
+  hs-source-dirs:
+      components/system
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      async
+    , attoparsec
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , extensible-effects
+    , filepath
+    , free
+    , ghc-datasize
+    , kan-extensions
+    , megaparsec
+    , monad-logger
+    , mtl
+    , optics-core
+    , pretty-show
+    , pretty-simple
+    , sel4-bv:abstract-simple-smt
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , simple-smt
+    , stm
+    , tasty
+    , tasty-hunit
+    , text
+    , transformers
+  default-language: GHC2021
+
+executable cli
+  main-is: Main.hs
+  hs-source-dirs:
+      components/cli
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base
+    , sel4-bv:system
+  default-language: GHC2021
+
 executable profiling-scratch
   main-is: Main.hs
   hs-source-dirs:
@@ -250,9 +249,9 @@ executable profiling-scratch
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
-    , bv-concrete-syntax
-    , bv-core
-    , bv-system
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , sel4-bv:system
     , text
   default-language: GHC2021
 
@@ -272,5 +271,5 @@ test-suite test
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       base
-    , bv-system
+    , sel4-bv:system
   default-language: GHC2021
