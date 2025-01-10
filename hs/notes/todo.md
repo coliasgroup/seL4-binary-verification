@@ -1,1 +1,2 @@
 - filter source for nix build
+- switch from stack to cabal
