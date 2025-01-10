@@ -5,13 +5,13 @@ module BV.ConcreteSyntax.SExpr
     , parseSExpr
     ) where
 
+import qualified Data.Attoparsec.Text as A
 import Data.Char
 import Data.String (fromString)
 import Data.Text (Text)
 import qualified Data.Text as T (unpack)
 import Data.Text.Lazy.Builder (Builder)
 import Data.Void (Void)
-import qualified Data.Attoparsec.Text as A
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
