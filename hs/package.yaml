@@ -11,13 +11,15 @@ copyright: Copyright (c) 2025 Colias Group, LLC
 language: GHC2021
 
 default-extensions:
-  - DerivingStrategies
-  - DuplicateRecordFields
   - FunctionalDependencies
-  - LambdaCase
+  # records
+  - DuplicateRecordFields
   - NoFieldSelectors
   - OverloadedLabels
   - OverloadedRecordDot
+  # GHC2024
+  - DerivingStrategies
+  - LambdaCase
 
 ghc-options:
   - -Wall
