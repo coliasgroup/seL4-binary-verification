@@ -28,7 +28,7 @@ import BV.ConcreteSyntax.FastParsing
 import qualified BV.ConcreteSyntax.Instances as Slow
 import qualified BV.ConcreteSyntax.Parsing as Slow
 import BV.ConcreteSyntax.Printing
-import BV.ConcreteSyntax.SExpr
+import BV.ConcreteSyntax.SExprFast
 import Data.Char (isSpace)
 
 parsePrettyPairingId :: Parser PairingId
@@ -63,21 +63,8 @@ instance ParseFileFast SmtProofChecks where
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- decimal <* endOfLine
             impsLen <- decimal <* endOfLine
-            setup <- count setupLen parseSExpr
-            imps <- count impsLen parseSExpr
+            setup <- count setupLen parseSExprFast
+            imps <- count impsLen parseSExprFast
             return $ SmtProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
         return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
-
-instance BuildToFile SmtProofChecks where
-    buildToFile checks = mconcat $ mconcat (map (\(k, v) -> map (buildGroup k) v) (M.toList checks.unwrap))
-      where
-        buildGroup pairingId (SmtProofCheckGroup { setup, imps }) =
-            mconcat . (map (<> "\n")) $
-                [ buildTypicalKeyFormat ["Problem", "Pairing"] (TB.fromString (prettyPairingId pairingId)) <> " {"
-                , TB.decimal (length setup)
-                , TB.decimal (length imps)
-                ] ++ f setup ++ f imps ++
-                [ "}"
-                ]
-        f ss = map buildSExpr ss

@@ -69,3 +69,4 @@ readProofChecks = readAndParseFileFast "proof-checks.txt"
 
 readSmtProofChecks :: TargetDir -> IO (Either String SmtProofChecks)
 readSmtProofChecks = readAndParseFileFast "smt-proof-checks.txt"
+-- readSmtProofChecks = readAndParseFile "smt-proof-checks.txt"

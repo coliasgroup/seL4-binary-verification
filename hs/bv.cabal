@@ -65,6 +65,7 @@ library bv-concrete-syntax
       BV.ConcreteSyntax.Parsing
       BV.ConcreteSyntax.Printing
       BV.ConcreteSyntax.SExpr
+      BV.ConcreteSyntax.SExprFast
   hs-source-dirs:
       components/concrete-syntax
   default-extensions:

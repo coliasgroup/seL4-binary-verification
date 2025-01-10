@@ -25,6 +25,7 @@ import qualified Data.Text.Encoding as T
 import Data.Text.Internal.Builder (Builder)
 import qualified Data.Text.Lazy as L
 import qualified Data.Text.Lazy.Builder as B
+import qualified Data.Text.Lazy.Builder.Int as B
 import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics.Core (at, (%), (&), (?~))
@@ -32,10 +33,13 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
+import qualified Data.Attoparsec.Text as AT
+
 import BV.Core.Types
 
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing
+import BV.ConcreteSyntax.SExpr
 import Data.Bits (shiftL, (.|.))
 
 --
@@ -842,3 +846,29 @@ instance BuildInLine Op where
         OpToFloatingPointSigned -> "ToFloatingPointSigned"
         OpToFloatingPointUnsigned -> "ToFloatingPointUnsigned"
         OpFloatingPointCast -> "FloatingPointCast"
+
+--
+
+instance ParseFile SmtProofChecks where
+    parseFile = do
+        blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
+            setupLen <- L.decimal <* eol
+            impsLen <- L.decimal <* eol
+            setup <- count setupLen parseSExpr
+            imps <- count impsLen parseSExpr
+            return $ SmtProofCheckGroup { setup, imps }
+        let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
+        return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
+
+instance BuildToFile SmtProofChecks where
+    buildToFile checks = mconcat $ mconcat (map (\(k, v) -> map (buildGroup k) v) (M.toList checks.unwrap))
+      where
+        buildGroup pairingId (SmtProofCheckGroup { setup, imps }) =
+            mconcat . (map (<> "\n")) $
+                [ buildTypicalKeyFormat ["Problem", "Pairing"] (fromString (prettyPairingId pairingId)) <> " {"
+                , B.decimal (length setup)
+                , B.decimal (length imps)
+                ] ++ f setup ++ f imps ++
+                [ "}"
+                ]
+        f ss = map buildSExpr ss

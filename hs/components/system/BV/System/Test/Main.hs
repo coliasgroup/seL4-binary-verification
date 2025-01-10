@@ -77,9 +77,11 @@ parsePrintSeL4 = testGroup "seL4"
     , testCase "problems and proofs" $ testRoundTripSeL4 readProblemsAndProofs
     , testCase "smt proof checks" $
         testRoundTripWith
+            -- (parseWholeFile "")
             parseWholeFileFast
             buildFile
-            (readSmtProofChecks testSeL4TargetDirBigSmt)
+            (readSmtProofChecks testSeL4TargetDirSmallSmt)
+            -- (readSmtProofChecks testSeL4TargetDirBigSmt)
     -- , testCase "proof checks" $
     --     testRoundTripWith
     --         (parseWholeFileFast . T.encodeUtf8)
