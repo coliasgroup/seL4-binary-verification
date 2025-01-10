@@ -42,8 +42,6 @@ internal-libraries:
     source-dirs: components/core
     # exposed-modules: # TODO
     dependencies:
-      - abstract-simple-smt
-      #
       - deepseq
       - containers
       - monad-logger

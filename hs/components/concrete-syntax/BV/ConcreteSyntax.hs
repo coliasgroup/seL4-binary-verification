@@ -8,6 +8,7 @@ module BV.ConcreteSyntax
     , ParseInBlock (..)
     , buildFile
     , parseInLine
+    , parseSExpr
     , parseWholeFile
     , parseWholeFileFast
     , parseWholeFileFastWith
@@ -16,11 +17,12 @@ module BV.ConcreteSyntax
 
 import GHC.Generics (Generic)
 
-import BV.ConcreteSyntax.FastInstances
+import BV.ConcreteSyntax.FastInstances ()
 import BV.ConcreteSyntax.FastParsing
-import BV.ConcreteSyntax.Instances
+import BV.ConcreteSyntax.Instances ()
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing
+import BV.ConcreteSyntax.SExpr
 
 newtype InBlockAsFile a
   = InBlockAsFile { unwrap :: a }

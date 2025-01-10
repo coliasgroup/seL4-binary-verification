@@ -21,6 +21,7 @@ import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
+import BV.Core.SExpr
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
 
@@ -116,7 +117,7 @@ newtype SmtProofChecks
 
 data SmtProofCheckGroup
   = SmtProofCheckGroup
-      { setup :: [String]
-      , imps :: [String]
+      { setup :: [SExpr]
+      , imps :: [SExpr]
       }
   deriving (Eq, Generic, NFData, Ord, Show)

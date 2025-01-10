@@ -6,8 +6,7 @@ import Control.Monad.Logger (MonadLogger)
 import GHC.Generics (Generic)
 import Optics.Core
 
-import SimpleSMT.Abstract (MonadSolver)
-
+import BV.Core.SExpr
 import BV.Core.Types
 
 data Result
@@ -30,6 +29,9 @@ class Monad m => MonadCache m where
 
 class Monad m => MonadSneakyIO m where
     liftSneakyIO :: IO () -> m ()
+
+class Monad m => MonadSolver m where
+    interact :: SExpr -> m SExpr
 
 class (Monad m, MonadSolver n) => MonadSolvers n m | m -> n where
     liftIntoSolver :: m a -> n a

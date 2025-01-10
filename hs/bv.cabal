@@ -64,6 +64,7 @@ library bv-concrete-syntax
       BV.ConcreteSyntax.Instances
       BV.ConcreteSyntax.Parsing
       BV.ConcreteSyntax.Printing
+      BV.ConcreteSyntax.SExpr
   hs-source-dirs:
       components/concrete-syntax
   default-extensions:
@@ -102,6 +103,7 @@ library bv-core
       BV.Core.InlineAssembly
       BV.Core.ProofChecks
       BV.Core.PseudoCompile
+      BV.Core.SExpr
       BV.Core.Types
       BV.Core.Types.Inputs
       BV.Core.Types.ObjDump
@@ -123,8 +125,7 @@ library bv-core
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      abstract-simple-smt
-    , base
+      base
     , containers
     , deepseq
     , monad-logger

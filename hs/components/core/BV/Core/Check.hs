@@ -8,8 +8,6 @@ import Control.Monad.Logger (MonadLogger)
 import GHC.Generics (Generic)
 import Optics.Core
 
-import SimpleSMT.Abstract (MonadSolver)
-
 import BV.Core.Environment
 import BV.Core.Types
 
