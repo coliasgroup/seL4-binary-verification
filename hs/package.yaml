@@ -55,6 +55,8 @@ internal-libraries:
     source-dirs: components/core
     # exposed-modules: # TODO
     dependencies:
+      - sel4-bv:smtlib2-types
+      # external
       - deepseq
       - containers
       - monad-logger
@@ -70,6 +72,7 @@ internal-libraries:
       - BV.ConcreteSyntax
     dependencies:
       - sel4-bv:core
+      - sel4-bv:smtlib2-types
       # external
       - containers
       - dlist
@@ -89,6 +92,7 @@ internal-libraries:
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
+      - sel4-bv:smtlib2
       - sel4-bv:abstract-simple-smt
       # external
       - deepseq

@@ -125,6 +125,7 @@ library smtlib2
       BV.SMTLIB2.Parser.Attoparsec
       BV.SMTLIB2.Parser.Common
       BV.SMTLIB2.Parser.Megaparsec
+      BV.SMTLIB2.Process
   hs-source-dirs:
       components/smtlib2
   default-extensions:
@@ -150,6 +151,7 @@ library smtlib2-types
   visibility: public
   exposed-modules:
       BV.SMTLIB2.Types
+      BV.SMTLIB2.Types.SExpr
   hs-source-dirs:
       components/smtlib2-types
   default-extensions:
