@@ -255,6 +255,32 @@ executable profiling-scratch
     , text
   default-language: GHC2021
 
+test-suite smtlib2-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs:
+      components/smtlib2-test
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      attoparsec
+    , base
+    , conduit
+    , conduit-extra
+    , megaparsec
+    , sel4-bv:smtlib2
+    , tasty
+    , tasty-hunit
+    , text
+  default-language: GHC2021
+
 test-suite test
   type: exitcode-stdio-1.0
   main-is: Main.hs
@@ -272,4 +298,6 @@ test-suite test
   build-depends:
       base
     , sel4-bv:system
+    , tasty
+    , tasty-hunit
   default-language: GHC2021

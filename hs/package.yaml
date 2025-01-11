@@ -49,7 +49,7 @@ internal-libraries:
       - megaparsec
       - conduit
       - conduit-extra
-
+  
   core:
     visibility: public
     source-dirs: components/core
@@ -155,8 +155,27 @@ executables:
       - -with-rtsopts=-N
 
 tests:
+
+  smtlib2-test:
+    source-dirs: components/smtlib2-test
+    main: Main.hs
+    dependencies:
+      - sel4-bv:smtlib2
+      # external
+      - text
+      - attoparsec
+      - megaparsec
+      - conduit
+      - conduit-extra
+      # external
+      - tasty
+      - tasty-hunit
+
   test:
     source-dirs: components/test
     main: Main.hs
     dependencies:
       - sel4-bv:system
+      # external
+      - tasty
+      - tasty-hunit
