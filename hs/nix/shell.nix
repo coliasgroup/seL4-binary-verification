@@ -33,6 +33,8 @@ pkgs.mkShell {
     haskellPackages.haskell-dap
     haskellPackages.ghci-dap
 
+    inotify-tools
+
     yices
     z3
   ];

@@ -8,6 +8,17 @@ none:
 $(cabal_pkg_desc): package.yaml
 	hpack
 
+.PHONY: hpack
+hpack: $(cabal_pkg_desc)
+
+.PHONY: hpack-watch
+hpack-watch:
+	set -eu -o pipefail; \
+	inotifywait -e create,move,move_self,delete,delete_self -r components -m | \
+		while read _line; do \
+			hpack; \
+		done
+
 .PHONY: clean
 clean: $(cabal_pkg_desc)
 	cabal clean
