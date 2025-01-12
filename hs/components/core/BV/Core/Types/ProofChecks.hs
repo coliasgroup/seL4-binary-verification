@@ -10,6 +10,8 @@ module BV.Core.Types.ProofChecks
     , ProofCheck (..)
     , ProofChecks (..)
     , Restr (..)
+    , SExprPlaceholder (..)
+    , SExprWithPlaceholders
     , SmtProofCheckGroup (..)
     , SmtProofChecks (..)
     , Visit (..)
@@ -118,7 +120,14 @@ newtype SmtProofChecks
 
 data SmtProofCheckGroup
   = SmtProofCheckGroup
-      { setup :: [SExpr]
-      , imps :: [SExpr]
+      { setup :: [SExprWithPlaceholders]
+      , imps :: [SExprWithPlaceholders]
       }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+type SExprWithPlaceholders = GenericSExpr (Either SExprPlaceholder Atom)
+
+data SExprPlaceholder
+  = SExprPlaceholderMemSort
+  | SExprPlaceholderMemDomSort
   deriving (Eq, Generic, NFData, Ord, Show)

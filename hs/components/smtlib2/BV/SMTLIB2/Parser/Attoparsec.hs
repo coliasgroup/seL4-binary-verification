@@ -1,19 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module BV.SMTLIB2.Parser.Attoparsec
-    ( parseSExpr
+    ( parseAtom
+    , parseGenericSExpr
+    , parseSExpr
     ) where
 
 import Control.Applicative ((<|>))
 import Control.Monad (void)
 import Data.Attoparsec.Text as A
-import Data.Char
+import Data.Char (isSpace)
 import Data.Text (Text)
 import qualified Data.Text as T (unpack)
 import Numeric (readBin)
 import Text.Megaparsec (between)
 
-import BV.SMTLIB2.Parser.Common
 import BV.SMTLIB2.Types
 
 skipLineComment :: Char -> Parser ()
@@ -25,46 +28,49 @@ spaceConsumer = skipMany $ void (takeWhile1 isSpace) <|> skipLineComment ';'
 symbol :: Text -> Parser Text
 symbol s = string s <* spaceConsumer
 
+binary :: (Eq a, Num a) => Parser a
+binary = do
+    s <- T.unpack <$> A.takeWhile1 (\c -> c == '0' || c == '1')
+    let [(n, "")] = readBin s
+    return n
+
 parseSExpr :: Parser SExpr
-parseSExpr = spaceConsumer *>  go
+parseSExpr = parseGenericSExpr parseAtom
+
+parseGenericSExpr :: Parser a -> Parser (GenericSExpr a)
+parseGenericSExpr p = spaceConsumer *> go
   where
-    go = choice
-        [ numeralSExpr <$> decimal
-        , hexadecimalSExpr <$> ("#x" *> hexadecimal)
-        , binaryP
-        , stringP
-        , symbolP
-        , keywordP
-        , listSExpr <$> between (symbol "(") (symbol ")") (many' go)
-        ] <* spaceConsumer
+    go = (Atom <$> p <|> List <$> between (symbol "(") (symbol ")") (many' go)) <* spaceConsumer
 
-binaryP :: Parser SExpr
-binaryP = do
-    "#b"
-    s <- T.unpack <$> A.takeWhile (\c -> c == '0' || c == '1')
-    let [(n,"")] = readBin s
-    return $ binarySExpr n
+parseAtom :: Parser Atom
+parseAtom = unsafeAtom <$> choice
+    [ NumeralAtom <$> decimal
+    , HexadecimalAtom <$> ("#x" *> hexadecimal)
+    , BinaryAtom <$> ("#b" *> binary)
+    , stringP
+    , symbolP
+    , keywordP
+    ]
 
-trySExpr :: (a -> Maybe SExpr) -> String -> Parser a -> Parser SExpr
-trySExpr constructor msg p = p >>= \x -> case constructor x of
-    Just ex -> return ex
-    Nothing -> fail msg
-
-stringP :: Parser SExpr
-stringP = trySExpr tryStringSExpr "invalid string constant" (char '"' *> go)
+stringP :: Parser UncheckedAtom
+stringP = StringAtom <$> (char '"' *> go)
   where
-    go = stringCharP >>= \c -> case c of
-            '\\' -> stringCharP >>= \c' -> case c' of
-                '\"' -> (c':) <$> go
-                _ -> (c:) . (c':) <$> go
+    go = do
+        c <- stringCharP
+        case c of
+            '\\' -> do
+                c' <- stringCharP
+                case c' of
+                    '\"' -> (c':) <$> go
+                    _ -> (c:) . (c':) <$> go
             _ -> (c:) <$> go
-    stringCharP = satisfy $ \c -> isAscii c && isPrint c
+    stringCharP = satisfy isValidStringAtomChar
 
-symbolP :: Parser SExpr
-symbolP = trySExpr trySymbolSExpr "invalid symbol" $
-    (:) <$> satisfy (\c -> isValidSExprKeywordChar c && not (isDigit c))
-        <*> (T.unpack <$> A.takeWhile isValidSExprKeywordChar)
+keywordP :: Parser UncheckedAtom
+keywordP = fmap KeywordAtom $
+    ":" *> (T.unpack <$> A.takeWhile1 isValidKeywordAtomChar)
 
-keywordP :: Parser SExpr
-keywordP = trySExpr tryKeywordSExpr "invalid keyword" $
-    T.unpack <$> A.takeWhile isValidSExprKeywordChar
+symbolP :: Parser UncheckedAtom
+symbolP = fmap SymbolAtom $
+    (:) <$> satisfy isValidSymbolAtomFirstChar
+        <*> (T.unpack <$> A.takeWhile isValidSymbolAtomSubsequentChar)

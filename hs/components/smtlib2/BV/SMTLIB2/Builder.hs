@@ -1,7 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.SMTLIB2.Builder
-    ( buildSExpr
+    ( buildAtom
+    , buildGenericSExpr
+    , buildSExpr
+    , buildUncheckedAtom
+    , buildUncheckedSExpr
     ) where
 
 import Data.Text.Lazy.Builder
@@ -10,28 +14,35 @@ import Numeric (showBin)
 
 import BV.SMTLIB2.Types
 
-buildSExpr :: SExpr -> Builder
-buildSExpr = buildSExprView . viewSExpr
-
-buildSExprView :: SExprView -> Builder
-buildSExprView = \case
-    SExprConstant c -> buildSExprConstantView c
-    SExprSymbol s -> fromString s
-    SExprKeyword s -> singleton ':' <> fromString s
-    SExprList [] -> "()"
-    SExprList (x:xs) ->
+buildGenericSExpr :: (a -> Builder) -> GenericSExpr a -> Builder
+buildGenericSExpr f = \case
+    Atom a -> f a
+    List [] -> "()"
+    List (x:xs) ->
            singleton '('
-        <> buildSExprView x
-        <> foldMap ((singleton ' ' <>) . buildSExprView) xs
+        <> buildGenericSExpr f x
+        <> foldMap ((singleton ' ' <>) . buildGenericSExpr f) xs
         <> singleton ')'
 
-buildSExprConstantView :: SExprConstantView -> Builder
-buildSExprConstantView = \case
-    SExprConstantNumeral n -> decimal n
-    SExprConstantHexadecimal n -> "#x" <> hexadecimal n
-    SExprConstantBinary n -> "#b" <> fromString (showBin n "")
-    SExprConstantString s -> singleton '\"' <> foldMap escapeChar s <> singleton '\"'
+buildSExpr :: SExpr -> Builder
+buildSExpr = buildGenericSExpr buildAtom
+
+buildUncheckedSExpr :: UncheckedSExpr -> Builder
+buildUncheckedSExpr = buildGenericSExpr buildUncheckedAtom
+
+buildAtom :: Atom -> Builder
+buildAtom = buildUncheckedAtom . viewAtom
+
+buildUncheckedAtom :: UncheckedAtom -> Builder
+buildUncheckedAtom = \case
+    NumeralAtom n -> decimal n
+    HexadecimalAtom n -> "#x" <> hexadecimal n
+    BinaryAtom n -> "#b" <> fromString (showBin n "")
+    StringAtom s -> singleton '\"' <> foldMap escapeChar s <> singleton '\"'
+    SymbolAtom s -> fromString s
+    KeywordAtom s -> singleton ':' <> fromString s
   where
-    escapeChar '"' = "\\\""
-    escapeChar '\\' = "\\\\"
-    escapeChar c = singleton c
+    escapeChar = \case
+        '"' -> "\\\""
+        '\\' -> "\\\\"
+        c -> singleton c

@@ -1,174 +1,205 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.SMTLIB2.Types.SExpr
-    ( SExpr
-    , SExprConstant
-    , SExprConstantView (..)
-    , SExprShallowView (..)
-    , SExprView (..)
-    , binarySExpr
-    , hexadecimalSExpr
-    , keywordSExpr
-    , listSExpr
-    , numeralSExpr
-    , showSExpr
-    , showsSExpr
-    , stringSExpr
-    , symbolSExpr
-    , tryKeywordSExpr
-    , trySExprFromView
-    , tryStringSExpr
-    , trySymbolSExpr
+    ( Atom
+    , GenericSExpr (..)
+    , SExpr
+    , UncheckedAtom (..)
+    , UncheckedSExpr
+      --
+    , checkAtom
+    , checkSExpr
+    , unsafeAtom
+    , viewAtom
     , viewSExpr
-    , viewSExprConstant
-    , viewSExprShallow
+      --
+    , binaryAtom
+    , hexadecimalAtom
+    , keywordAtom
+    , numeralAtom
+    , stringAtom
+    , symbolAtom
+    , tryKeywordAtom
+    , tryStringAtom
+    , trySymbolAtom
+      --
+    , isValidKeywordAtom
+    , isValidKeywordAtomChar
+    , isValidStringAtomChar
+    , isValidSymbolAtom
+    , isValidSymbolAtomFirstChar
+    , isValidSymbolAtomSubsequentChar
+      --
+    , showGenericSExpr
+    , showSExpr
+    , showUncheckedSExpr
+    , showsAtom
+    , showsGenericSExpr
+    , showsSExpr
+    , showsUncheckedAtom
+    , showsUncheckedSExpr
     ) where
 
 import Control.DeepSeq (NFData)
-import Data.Char
+import Data.Char (isAscii, isDigit, isLetter, isPrint)
 import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
+import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import GHC.Natural (Natural)
 import Numeric (showBin, showHex, showInt)
 
-data SExprConstant
-  = InternalSExprConstantNumeral Natural
-  | InternalSExprConstantHexadecimal Natural
-  | InternalSExprConstantBinary Natural
-  | InternalSExprConstantString String
+data GenericSExpr a
+  = Atom a
+  | List [GenericSExpr a]
+  deriving (Eq, Functor, Generic, NFData, Ord, Show)
+
+instance Applicative GenericSExpr where
+    pure = Atom
+    ff <*> fx = do
+        f <- ff
+        x <- fx
+        return $ f x
+
+instance Foldable GenericSExpr where
+    foldMap = foldMapDefault
+
+instance Traversable GenericSExpr where
+    traverse f = \case
+        Atom a -> Atom <$> f a
+        List xs -> List <$> traverse (traverse f) xs
+
+instance Monad GenericSExpr where
+    ma >>= f = case ma of
+        Atom a -> f a
+        List xs -> List (map (>>= f) xs)
+
+type SExpr = GenericSExpr Atom
+
+type UncheckedSExpr = GenericSExpr UncheckedAtom
+
+newtype Atom
+  = CheckedAtom { unwrap :: UncheckedAtom }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
+
+data UncheckedAtom
+  = NumeralAtom Natural
+  | HexadecimalAtom Natural
+  | BinaryAtom Natural
+  | StringAtom String
+  | SymbolAtom String
+  | KeywordAtom String
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data SExpr
-  = InternalSExprConstant SExprConstant
-  | InternalSExprSymbol String
-  | InternalSExprKeyword String
-  | InternalSExprList [SExpr]
-  deriving (Eq, Generic, NFData, Ord, Show)
+checkSExpr :: UncheckedSExpr -> Maybe SExpr
+checkSExpr = traverse checkAtom
 
-numeralSExpr :: Natural -> SExpr
-numeralSExpr = InternalSExprConstant . InternalSExprConstantNumeral
-
-hexadecimalSExpr :: Natural -> SExpr
-hexadecimalSExpr = InternalSExprConstant . InternalSExprConstantHexadecimal
-
-binarySExpr :: Natural -> SExpr
-binarySExpr = InternalSExprConstant . InternalSExprConstantBinary
-
-tryStringSExpr :: String -> Maybe SExpr
-tryStringSExpr = (InternalSExprConstant . InternalSExprConstantString) `checking` isValidSExprString
-
-stringSExpr :: String -> SExpr
-stringSExpr = fromJust . tryStringSExpr
-
-trySymbolSExpr :: String -> Maybe SExpr
-trySymbolSExpr = InternalSExprSymbol `checking` isValidSExprSymbol
-
-symbolSExpr :: String -> SExpr
-symbolSExpr = fromJust . trySymbolSExpr
-
-tryKeywordSExpr :: String -> Maybe SExpr
-tryKeywordSExpr = InternalSExprKeyword `checking` isValidSExprKeyword
-
-keywordSExpr :: String -> SExpr
-keywordSExpr = fromJust . tryKeywordSExpr
-
-listSExpr :: [SExpr] -> SExpr
-listSExpr = InternalSExprList
-
-checking :: (a -> b) -> (a -> Bool) -> a -> Maybe b
-checking f p x = if p x then Just (f x) else Nothing
-
-isValidSExprString :: String -> Bool
-isValidSExprString = all $ \c -> isAscii c && isPrint c
-
-isValidSExprSymbol :: String -> Bool
-isValidSExprSymbol s = isValidSExprKeyword s && case s of
-    (c:_) -> not (isDigit c)
-    _ -> True
-
-isValidSExprKeyword :: String -> Bool
-isValidSExprKeyword = all p
+checkAtom :: UncheckedAtom -> Maybe Atom
+checkAtom unchecked = if ok then Just (CheckedAtom unchecked) else Nothing
   where
-    p c = isLetter c || isDigit c || c `elem` ("~!@$%^&*_-+=<>.?/" :: String)
+    ok = case unchecked of
+        StringAtom s -> isValidStringAtom s
+        SymbolAtom s -> isValidSymbolAtom s
+        KeywordAtom s -> isValidKeywordAtom s
+        _ -> True
 
-data SExprConstantView
-  = SExprConstantNumeral Natural
-  | SExprConstantHexadecimal Natural
-  | SExprConstantBinary Natural
-  | SExprConstantString String
-  deriving (Eq, Generic, NFData, Ord, Show)
+unsafeAtom :: UncheckedAtom -> Atom
+unsafeAtom = CheckedAtom
 
-data SExprShallowView
-  = SExprShallowConstant SExprConstant
-  | SExprShallowSymbol String
-  | SExprShallowKeyword String
-  | SExprShallowList [SExpr]
-  deriving (Eq, Generic, NFData, Ord, Show)
+viewSExpr :: SExpr -> UncheckedSExpr
+viewSExpr = fmap viewAtom
 
-data SExprView
-  = SExprConstant SExprConstantView
-  | SExprSymbol String
-  | SExprKeyword String
-  | SExprList [SExprView]
-  deriving (Eq, Generic, NFData, Ord, Show)
+viewAtom :: Atom -> UncheckedAtom
+viewAtom = (.unwrap)
 
-viewSExprShallow :: SExpr -> SExprShallowView
-viewSExprShallow = \case
-    InternalSExprConstant c -> SExprShallowConstant c
-    InternalSExprSymbol s -> SExprShallowSymbol s
-    InternalSExprKeyword s -> SExprShallowKeyword s
-    InternalSExprList xs -> SExprShallowList xs
+numeralAtom :: Natural -> Atom
+numeralAtom = unsafeAtom . NumeralAtom
 
-viewSExpr :: SExpr -> SExprView
-viewSExpr = \case
-    InternalSExprConstant c -> SExprConstant (viewSExprConstant c)
-    InternalSExprSymbol s -> SExprSymbol s
-    InternalSExprKeyword s -> SExprKeyword s
-    InternalSExprList xs -> SExprList (map viewSExpr xs)
+hexadecimalAtom :: Natural -> Atom
+hexadecimalAtom = unsafeAtom . HexadecimalAtom
 
-viewSExprConstant :: SExprConstant -> SExprConstantView
-viewSExprConstant = \case
-    InternalSExprConstantNumeral n -> SExprConstantNumeral n
-    InternalSExprConstantHexadecimal n -> SExprConstantHexadecimal n
-    InternalSExprConstantBinary n -> SExprConstantBinary n
-    InternalSExprConstantString s -> SExprConstantString s
+binaryAtom :: Natural -> Atom
+binaryAtom = unsafeAtom . BinaryAtom
 
-trySExprFromView :: SExprView -> Maybe SExpr
-trySExprFromView = \case
-    SExprConstant c -> trySExprConstantFromView c
-    SExprSymbol s -> trySymbolSExpr s
-    SExprKeyword s -> tryKeywordSExpr s
-    SExprList xs -> listSExpr <$> traverse trySExprFromView xs
+tryStringAtom :: String -> Maybe Atom
+tryStringAtom = checkAtom . StringAtom
 
-trySExprConstantFromView :: SExprConstantView -> Maybe SExpr
-trySExprConstantFromView = \case
-    SExprConstantNumeral n -> return $ numeralSExpr n
-    SExprConstantHexadecimal n -> return $ hexadecimalSExpr n
-    SExprConstantBinary n -> return $ binarySExpr n
-    SExprConstantString s -> tryStringSExpr s
+stringAtom :: String -> Atom
+stringAtom = fromJust . tryStringAtom
+
+trySymbolAtom :: String -> Maybe Atom
+trySymbolAtom = checkAtom . SymbolAtom
+
+symbolAtom :: String -> Atom
+symbolAtom = fromJust . trySymbolAtom
+
+tryKeywordAtom :: String -> Maybe Atom
+tryKeywordAtom = checkAtom . KeywordAtom
+
+keywordAtom :: String -> Atom
+keywordAtom = fromJust . tryKeywordAtom
+
+isValidStringAtom :: String -> Bool
+isValidStringAtom = all isValidStringAtomChar
+
+isValidStringAtomChar :: Char -> Bool
+isValidStringAtomChar c = isAscii c && isPrint c
+
+isValidSymbolAtom :: String -> Bool
+isValidSymbolAtom = \case
+    [] -> False
+    (c:cs) -> isValidSymbolAtomFirstChar c && all isValidSymbolAtomSubsequentChar cs
+
+isValidSymbolAtomFirstChar :: Char -> Bool
+isValidSymbolAtomFirstChar c = isValidSymbolAtomSubsequentChar c && not (isDigit c)
+
+isValidSymbolAtomSubsequentChar :: Char -> Bool
+isValidSymbolAtomSubsequentChar = isValidKeywordAtomChar
+
+isValidKeywordAtom :: String -> Bool
+isValidKeywordAtom s = not (null s) && all isValidKeywordAtomChar s
+
+isValidKeywordAtomChar :: Char -> Bool
+isValidKeywordAtomChar c = isLetter c || isDigit c || c `elem` "~!@$%^&*_-+=<>.?/"
 
 showSExpr :: SExpr -> String
-showSExpr = ($ "") . showsSExpr
+showSExpr = showGenericSExpr showsAtom
 
 showsSExpr :: SExpr -> ShowS
-showsSExpr = \case
-    InternalSExprConstant c -> showsSExprConstant c
-    InternalSExprSymbol s -> showString s
-    InternalSExprKeyword s -> showString ":" . showString s
-    InternalSExprList [] -> showString "()"
-    InternalSExprList (x:xs) ->
-          showChar '('
-        . showsSExpr x
-        . foldr (\x' acc -> showChar ' ' . showsSExpr x' . acc) (showChar ')') xs
+showsSExpr = showsGenericSExpr showsAtom
 
-showsSExprConstant :: SExprConstant -> ShowS
-showsSExprConstant = \case
-    InternalSExprConstantNumeral n -> showInt n
-    InternalSExprConstantHexadecimal n -> showString "#x" . showHex n
-    InternalSExprConstantBinary n -> showString "#b" . showBin n
-    InternalSExprConstantString s -> showChar '\"' . appEndo (mconcat (map (Endo . escapeChar) s)) . showChar '\"'
+showUncheckedSExpr :: UncheckedSExpr -> String
+showUncheckedSExpr = showGenericSExpr showsUncheckedAtom
+
+showsUncheckedSExpr :: UncheckedSExpr -> ShowS
+showsUncheckedSExpr = showsGenericSExpr showsUncheckedAtom
+
+showGenericSExpr :: (a -> ShowS) -> GenericSExpr a -> String
+showGenericSExpr f = ($ "") . showsGenericSExpr f
+
+showsGenericSExpr ::  (a -> ShowS) -> GenericSExpr a -> ShowS
+showsGenericSExpr f = \case
+    Atom a -> f a
+    List [] -> showString "()"
+    List (x:xs) ->
+          showChar '('
+        . showsGenericSExpr f x
+        . foldr (\x' acc -> showChar ' ' . showsGenericSExpr f x' . acc) (showChar ')') xs
+
+showsAtom :: Atom -> ShowS
+showsAtom = showsUncheckedAtom . viewAtom
+
+showsUncheckedAtom :: UncheckedAtom -> ShowS
+showsUncheckedAtom = \case
+    NumeralAtom n -> showInt n
+    HexadecimalAtom n -> showString "#x" . showHex n
+    BinaryAtom n -> showString "#b" . showBin n
+    StringAtom s -> showChar '\"' . appEndo (mconcat (map (Endo . escapeChar) s)) . showChar '\"'
+    SymbolAtom s -> showString s
+    KeywordAtom s -> showString ":" . showString s
   where
-    escapeChar '"' = showString "\\\""
-    escapeChar '\\' = showString "\\\\"
-    escapeChar c = showChar c
+    escapeChar = \case
+        '"' -> showString "\\\""
+        '\\' -> showString "\\\\"
+        c -> showChar c

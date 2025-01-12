@@ -21,6 +21,7 @@ import qualified Data.Text.Lazy.Builder.Int as TB
 import Data.Void (Void)
 import GHC.Generics
 import qualified Text.Megaparsec as MP
+import Text.Megaparsec (between)
 
 import BV.Core.Types
 
@@ -29,6 +30,7 @@ import qualified BV.ConcreteSyntax.Instances as Slow
 import qualified BV.ConcreteSyntax.Parsing as Slow
 import BV.ConcreteSyntax.Printing
 import BV.SMTLIB2.Parser.Attoparsec
+import Control.Applicative ((<|>))
 import Data.Char (isSpace)
 
 parsePrettyPairingId :: Parser PairingId
@@ -63,8 +65,16 @@ instance ParseFileFast SmtProofChecks where
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- decimal <* endOfLine
             impsLen <- decimal <* endOfLine
-            setup <- count setupLen parseSExpr
-            imps <- count impsLen parseSExpr
+            setup <- count setupLen parseSExprWithPlaceholders
+            imps <- count impsLen parseSExprWithPlaceholders
             return $ SmtProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
         return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
+
+parseSExprWithPlaceholders :: Parser SExprWithPlaceholders
+parseSExprWithPlaceholders = parseGenericSExpr $
+    Left <$> parseSExprPlaceholder <|> Right <$> parseAtom
+
+parseSExprPlaceholder :: Parser SExprPlaceholder
+parseSExprPlaceholder = between "{" "}" $
+    try (SExprPlaceholderMemSort <$ "MemSort") <|> try (SExprPlaceholderMemDomSort <$ "MemDomSort")

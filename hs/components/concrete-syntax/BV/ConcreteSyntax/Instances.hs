@@ -855,8 +855,8 @@ instance ParseFile SmtProofChecks where
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- L.decimal <* eol
             impsLen <- L.decimal <* eol
-            setup <- count setupLen parseSExpr
-            imps <- count impsLen parseSExpr
+            setup <- count setupLen parseSExprWithPlaceholders
+            imps <- count impsLen parseSExprWithPlaceholders
             return $ SmtProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
         return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
@@ -872,4 +872,22 @@ instance BuildToFile SmtProofChecks where
                 ] ++ f setup ++ f imps ++
                 [ "}"
                 ]
-        f ss = map buildSExpr ss
+        f ss = map buildSExprWithPlaceholders ss
+
+parseSExprWithPlaceholders :: Parser SExprWithPlaceholders
+parseSExprWithPlaceholders = parseGenericSExpr $
+    Left <$> parseSExprPlaceholder <|> Right <$> parseAtom
+
+parseSExprPlaceholder :: Parser SExprPlaceholder
+parseSExprPlaceholder = between "{" "}" $
+    try (SExprPlaceholderMemSort <$ "MemSort") <|> try (SExprPlaceholderMemDomSort <$ "MemDomSort")
+
+buildSExprWithPlaceholders :: SExprWithPlaceholders -> Builder
+buildSExprWithPlaceholders = buildGenericSExpr $ either buildSExprPlaceholder buildAtom
+
+buildSExprPlaceholder :: SExprPlaceholder -> Builder
+buildSExprPlaceholder placeholder = "{" <> inner <> "}"
+  where
+    inner = case placeholder of
+        SExprPlaceholderMemSort -> "MemSort"
+        SExprPlaceholderMemDomSort -> "MemDomSort"
