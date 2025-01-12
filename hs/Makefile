@@ -1,11 +1,12 @@
 
+package_yaml := package.yaml
 cabal_pkg_name := sel4-bv
 cabal_pkg_desc := $(cabal_pkg_name).cabal
 
 .PHONY: none
 none:
 
-$(cabal_pkg_desc): package.yaml
+$(cabal_pkg_desc): $(package_yaml)
 	hpack
 
 .PHONY: hpack
@@ -13,8 +14,9 @@ hpack: $(cabal_pkg_desc)
 
 .PHONY: hpack-watch
 hpack-watch:
+	hpack
 	set -eu -o pipefail; \
-	inotifywait -e create,move,move_self,delete,delete_self -r components -m | \
+	inotifywait -e create,move,move_self,delete,delete_self -mr components | \
 		while read _line; do \
 			hpack; \
 		done

@@ -19,10 +19,16 @@ module BV.SMTLIB2.Types.SExpr
     , numeralAtom
     , stringAtom
     , symbolAtom
+    , tryBinaryAtom
+    , tryHexadecimalAtom
     , tryKeywordAtom
     , tryStringAtom
     , trySymbolAtom
       --
+    , isValidBinaryAtom
+    , isValidBinaryAtomChar
+    , isValidHexadecimalAtom
+    , isValidHexadecimalAtomChar
     , isValidKeywordAtom
     , isValidKeywordAtomChar
     , isValidStringAtomChar
@@ -41,13 +47,14 @@ module BV.SMTLIB2.Types.SExpr
     ) where
 
 import Control.DeepSeq (NFData)
-import Data.Char (isAscii, isDigit, isLetter, isPrint)
+import Data.Char (isAscii, isDigit, isHexDigit, isLetter, isPrint)
 import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
+import Data.String (IsString, fromString)
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import GHC.Natural (Natural)
-import Numeric (showBin, showHex, showInt)
+import Numeric (showInt)
 
 data GenericSExpr a
   = Atom a
@@ -79,14 +86,14 @@ type SExpr = GenericSExpr Atom
 type UncheckedSExpr = GenericSExpr UncheckedAtom
 
 newtype Atom
-  = CheckedAtom { unwrap :: UncheckedAtom }
+  = CheckedAtom UncheckedAtom
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
 data UncheckedAtom
   = NumeralAtom Natural
-  | HexadecimalAtom Natural
-  | BinaryAtom Natural
+  | HexadecimalAtom String
+  | BinaryAtom String
   | StringAtom String
   | SymbolAtom String
   | KeywordAtom String
@@ -99,6 +106,8 @@ checkAtom :: UncheckedAtom -> Maybe Atom
 checkAtom unchecked = if ok then Just (CheckedAtom unchecked) else Nothing
   where
     ok = case unchecked of
+        HexadecimalAtom s -> isValidHexadecimalAtom s
+        BinaryAtom s -> isValidBinaryAtom s
         StringAtom s -> isValidStringAtom s
         SymbolAtom s -> isValidSymbolAtom s
         KeywordAtom s -> isValidKeywordAtom s
@@ -111,16 +120,22 @@ viewSExpr :: SExpr -> UncheckedSExpr
 viewSExpr = fmap viewAtom
 
 viewAtom :: Atom -> UncheckedAtom
-viewAtom = (.unwrap)
+viewAtom (CheckedAtom atom) = atom
 
 numeralAtom :: Natural -> Atom
 numeralAtom = unsafeAtom . NumeralAtom
 
-hexadecimalAtom :: Natural -> Atom
-hexadecimalAtom = unsafeAtom . HexadecimalAtom
+tryHexadecimalAtom :: String -> Maybe Atom
+tryHexadecimalAtom = checkAtom . HexadecimalAtom
 
-binaryAtom :: Natural -> Atom
-binaryAtom = unsafeAtom . BinaryAtom
+hexadecimalAtom :: String -> Atom
+hexadecimalAtom = fromJust . tryHexadecimalAtom
+
+tryBinaryAtom :: String -> Maybe Atom
+tryBinaryAtom = checkAtom . BinaryAtom
+
+binaryAtom :: String -> Atom
+binaryAtom = fromJust . tryBinaryAtom
 
 tryStringAtom :: String -> Maybe Atom
 tryStringAtom = checkAtom . StringAtom
@@ -139,6 +154,18 @@ tryKeywordAtom = checkAtom . KeywordAtom
 
 keywordAtom :: String -> Atom
 keywordAtom = fromJust . tryKeywordAtom
+
+isValidHexadecimalAtom :: String -> Bool
+isValidHexadecimalAtom = all isValidHexadecimalAtomChar
+
+isValidHexadecimalAtomChar :: Char -> Bool
+isValidHexadecimalAtomChar = isHexDigit
+
+isValidBinaryAtom :: String -> Bool
+isValidBinaryAtom = all isValidBinaryAtomChar
+
+isValidBinaryAtomChar :: Char -> Bool
+isValidBinaryAtomChar c = c == '0' || c == '1'
 
 isValidStringAtom :: String -> Bool
 isValidStringAtom = all isValidStringAtomChar
@@ -193,8 +220,8 @@ showsAtom = showsUncheckedAtom . viewAtom
 showsUncheckedAtom :: UncheckedAtom -> ShowS
 showsUncheckedAtom = \case
     NumeralAtom n -> showInt n
-    HexadecimalAtom n -> showString "#x" . showHex n
-    BinaryAtom n -> showString "#b" . showBin n
+    HexadecimalAtom s -> showString "#x" . showString s
+    BinaryAtom s -> showString "#b" . showString s
     StringAtom s -> showChar '\"' . appEndo (mconcat (map (Endo . escapeChar) s)) . showChar '\"'
     SymbolAtom s -> showString s
     KeywordAtom s -> showString ":" . showString s
@@ -203,3 +230,15 @@ showsUncheckedAtom = \case
         '"' -> showString "\\\""
         '\\' -> showString "\\\\"
         c -> showChar c
+
+instance IsString Atom where
+    fromString = symbolAtom
+
+instance IsString UncheckedAtom where
+    fromString = SymbolAtom
+
+instance IsString SExpr where
+    fromString = Atom . fromString
+
+instance IsString UncheckedSExpr where
+    fromString = Atom . fromString

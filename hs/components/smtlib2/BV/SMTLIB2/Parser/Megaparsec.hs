@@ -1,11 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.SMTLIB2.Parser.Megaparsec
-    ( parseAtom
+    ( consumeAnySExprWhitespace
+    , consumeSomeSExprWhitespace
+    , parseAtom
     , parseGenericSExpr
     , parseSExpr
     ) where
 
+import Control.Monad (void)
+import Data.Char (isSpace)
 import Data.Text (Text)
 import qualified Data.Text as T (unpack)
 import Data.Void (Void)
@@ -17,25 +21,31 @@ import BV.SMTLIB2.Types
 
 type Parser = Parsec Void Text
 
-spaceConsumer :: Parser ()
-spaceConsumer = L.space space1 (L.skipLineComment ";") empty
+skipLineComment :: Char -> Parser ()
+skipLineComment prefix = char prefix *> void (takeWhileP (Just "line comment") (/= '\n'))
 
-symbol :: Text -> Parser Text
-symbol = L.symbol spaceConsumer
+consumeSomeSExprWhitespace :: Parser ()
+consumeSomeSExprWhitespace = skipSome $ void (takeWhile1P (Just "space") isSpace) <|> skipLineComment ';'
+
+consumeAnySExprWhitespace :: Parser ()
+consumeAnySExprWhitespace = option () consumeSomeSExprWhitespace
 
 parseSExpr :: Parser SExpr
 parseSExpr = parseGenericSExpr parseAtom
 
 parseGenericSExpr :: Parser a -> Parser (GenericSExpr a)
-parseGenericSExpr p = spaceConsumer *> go
+parseGenericSExpr p = go
   where
-    go = (Atom <$> p <|> List <$> between (symbol "(") (symbol ")") (many go)) <* spaceConsumer
+    go = Atom <$> p
+        <|> List <$> between (string "(" <* consumeAnySExprWhitespace)
+                             (string ")")
+                             (many (go <* consumeAnySExprWhitespace))
 
 parseAtom :: Parser Atom
 parseAtom = unsafeAtom <$> choice
     [ NumeralAtom <$> L.decimal
-    , HexadecimalAtom <$> ("#x" *> L.hexadecimal)
-    , BinaryAtom <$> ("#b" *> L.binary)
+    , HexadecimalAtom . T.unpack <$> ("#x" *> takeWhile1P (Just "hexadecimal digit") isValidHexadecimalAtomChar)
+    , BinaryAtom . T.unpack <$> ("#b" *> takeWhile1P (Just "binary digit") isValidBinaryAtomChar)
     , stringP
     , symbolP
     , keywordP
@@ -47,6 +57,7 @@ stringP = StringAtom <$> (char '"' *> go)
     go = do
         c <- stringCharP
         case c of
+            '"' -> return ""
             '\\' -> do
                 c' <- stringCharP
                 case c' of

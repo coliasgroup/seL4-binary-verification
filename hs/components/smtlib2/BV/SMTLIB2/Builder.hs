@@ -10,7 +10,6 @@ module BV.SMTLIB2.Builder
 
 import Data.Text.Lazy.Builder
 import Data.Text.Lazy.Builder.Int
-import Numeric (showBin)
 
 import BV.SMTLIB2.Types
 
@@ -36,8 +35,8 @@ buildAtom = buildUncheckedAtom . viewAtom
 buildUncheckedAtom :: UncheckedAtom -> Builder
 buildUncheckedAtom = \case
     NumeralAtom n -> decimal n
-    HexadecimalAtom n -> "#x" <> hexadecimal n
-    BinaryAtom n -> "#b" <> fromString (showBin n "")
+    HexadecimalAtom s -> "#x" <> fromString s
+    BinaryAtom s -> "#b" <> fromString s
     StringAtom s -> singleton '\"' <> foldMap escapeChar s <> singleton '\"'
     SymbolAtom s -> fromString s
     KeywordAtom s -> singleton ':' <> fromString s

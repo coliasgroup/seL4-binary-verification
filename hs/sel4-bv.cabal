@@ -23,8 +23,6 @@ library abstract-simple-smt
       components/abstract-simple-smt
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -51,12 +49,12 @@ library concrete-syntax
       components/concrete-syntax
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
@@ -99,12 +97,12 @@ library core
       components/core
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       base
@@ -119,52 +117,56 @@ library core
 library smtlib2
   visibility: public
   exposed-modules:
-      BV.SMTLIB2
       BV.SMTLIB2.Builder
       BV.SMTLIB2.Parser.Attoparsec
-      BV.SMTLIB2.Parser.Common
       BV.SMTLIB2.Parser.Megaparsec
       BV.SMTLIB2.Process
   hs-source-dirs:
       components/smtlib2
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      attoparsec
+      async
+    , attoparsec
     , base
     , conduit
     , conduit-extra
+    , exceptions
     , megaparsec
+    , mtl
+    , process
     , sel4-bv:smtlib2-types
     , text
+    , unliftio-core
   default-language: GHC2021
 
 library smtlib2-types
   visibility: public
   exposed-modules:
       BV.SMTLIB2.Types
+      BV.SMTLIB2.Types.Command
       BV.SMTLIB2.Types.SExpr
+      BV.SMTLIB2.Types.SExpr.Read
   hs-source-dirs:
       components/smtlib2-types
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       base
     , deepseq
+    , mtl
   default-language: GHC2021
 
 library system
@@ -181,12 +183,11 @@ library system
       components/system
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       LambdaCase
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -223,8 +224,6 @@ executable cli
       components/cli
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -241,8 +240,6 @@ executable profiling-scratch
       components/profiling-scratch
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -263,34 +260,33 @@ test-suite smtlib2-test
       components/smtlib2-test
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      attoparsec
+      Glob
+    , attoparsec
     , base
-    , conduit
-    , conduit-extra
+    , filepath
     , megaparsec
+    , mtl
+    , process
     , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-types
     , tasty
     , tasty-hunit
     , text
   default-language: GHC2021
 
-test-suite test
+test-suite system-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   hs-source-dirs:
-      components/test
+      components/system-test
   default-extensions:
       FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -299,6 +295,4 @@ test-suite test
   build-depends:
       base
     , sel4-bv:system
-    , tasty
-    , tasty-hunit
   default-language: GHC2021

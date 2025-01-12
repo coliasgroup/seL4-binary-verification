@@ -26,6 +26,7 @@ import Text.Megaparsec (between)
 import BV.Core.Types
 
 import BV.ConcreteSyntax.FastParsing
+import BV.ConcreteSyntax.FastParsing (ignoredLines)
 import qualified BV.ConcreteSyntax.Instances as Slow
 import qualified BV.ConcreteSyntax.Parsing as Slow
 import BV.ConcreteSyntax.Printing
@@ -65,8 +66,8 @@ instance ParseFileFast SmtProofChecks where
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- decimal <* endOfLine
             impsLen <- decimal <* endOfLine
-            setup <- count setupLen parseSExprWithPlaceholders
-            imps <- count impsLen parseSExprWithPlaceholders
+            setup <- count setupLen (parseSExprWithPlaceholders <* ignoredLines)
+            imps <- count impsLen (parseSExprWithPlaceholders <* ignoredLines)
             return $ SmtProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
         return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x

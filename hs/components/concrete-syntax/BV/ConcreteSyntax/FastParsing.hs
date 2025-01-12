@@ -4,6 +4,7 @@ module BV.ConcreteSyntax.FastParsing
     ( ParseFileFast (..)
     , hspace
     , hspace1
+    , ignoredLines
     , parseBlocksFile
     , parseBlocksFileWithTypicalKeyFormat
     , parseTypicalKeyFormat

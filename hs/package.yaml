@@ -13,8 +13,6 @@ language: GHC2021
 default-extensions:
   - FunctionalDependencies
   # records
-  - DuplicateRecordFields
-  - NoFieldSelectors
   - OverloadedLabels
   - OverloadedRecordDot
   # GHC2024
@@ -33,9 +31,14 @@ internal-libraries:
   smtlib2-types:
     visibility: public
     source-dirs: components/smtlib2-types
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
+      # external
       - deepseq
+      - mtl
 
   smtlib2:
     visibility: public
@@ -44,15 +47,23 @@ internal-libraries:
     dependencies:
       - sel4-bv:smtlib2-types
       # external
+      - mtl
       - text
       - attoparsec
       - megaparsec
+      - exceptions
+      - process
+      - async
+      - unliftio-core
       - conduit
       - conduit-extra
   
   core:
     visibility: public
     source-dirs: components/core
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
       - sel4-bv:smtlib2-types
@@ -68,6 +79,9 @@ internal-libraries:
   concrete-syntax:
     visibility: public
     source-dirs: components/concrete-syntax
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     exposed-modules:
       - BV.ConcreteSyntax
     dependencies:
@@ -88,6 +102,8 @@ internal-libraries:
   system:
     visibility: public
     source-dirs: components/system
+    default-extensions:
+      - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
       - sel4-bv:core
@@ -163,22 +179,26 @@ tests:
     source-dirs: components/smtlib2-test
     main: Main.hs
     dependencies:
+      - sel4-bv:smtlib2-types
       - sel4-bv:smtlib2
       # external
+      - mtl
       - text
       - attoparsec
       - megaparsec
-      - conduit
-      - conduit-extra
-      # external
+      - filepath
+      - process
+      - Glob
       - tasty
       - tasty-hunit
+    ghc-options:
+      # TODO
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
 
-  test:
-    source-dirs: components/test
+  system-test:
+    source-dirs: components/system-test
     main: Main.hs
     dependencies:
       - sel4-bv:system
-      # external
-      - tasty
-      - tasty-hunit

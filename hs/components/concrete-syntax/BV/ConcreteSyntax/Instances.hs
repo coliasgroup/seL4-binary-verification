@@ -855,8 +855,8 @@ instance ParseFile SmtProofChecks where
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- L.decimal <* eol
             impsLen <- L.decimal <* eol
-            setup <- count setupLen parseSExprWithPlaceholders
-            imps <- count impsLen parseSExprWithPlaceholders
+            setup <- count setupLen (parseSExprWithPlaceholders <* ignoredLines)
+            imps <- count impsLen (parseSExprWithPlaceholders <* ignoredLines)
             return $ SmtProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
         return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
