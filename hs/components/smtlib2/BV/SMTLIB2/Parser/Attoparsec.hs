@@ -10,8 +10,8 @@ import Data.Attoparsec.Text as A
 import Data.Char
 import Data.Text (Text)
 import qualified Data.Text as T (unpack)
-import Text.Megaparsec (between)
 import Numeric (readBin)
+import Text.Megaparsec (between)
 
 import BV.SMTLIB2.Parser.Common
 import BV.SMTLIB2.Types

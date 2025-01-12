@@ -28,7 +28,7 @@ import BV.ConcreteSyntax.FastParsing
 import qualified BV.ConcreteSyntax.Instances as Slow
 import qualified BV.ConcreteSyntax.Parsing as Slow
 import BV.ConcreteSyntax.Printing
-import BV.ConcreteSyntax.SExprFast
+import BV.SMTLIB2.Parser.Attoparsec
 import Data.Char (isSpace)
 
 parsePrettyPairingId :: Parser PairingId
@@ -63,8 +63,8 @@ instance ParseFileFast SmtProofChecks where
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- decimal <* endOfLine
             impsLen <- decimal <* endOfLine
-            setup <- count setupLen parseSExprFast
-            imps <- count impsLen parseSExprFast
+            setup <- count setupLen parseSExpr
+            imps <- count impsLen parseSExpr
             return $ SmtProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
         return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x

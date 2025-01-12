@@ -8,7 +8,6 @@ module BV.ConcreteSyntax
     , ParseInBlock (..)
     , buildFile
     , parseInLine
-    , parseSExpr
     , parseWholeFile
     , parseWholeFileFast
     , parseWholeFileFastWith
@@ -22,7 +21,6 @@ import BV.ConcreteSyntax.FastParsing
 import BV.ConcreteSyntax.Instances ()
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing
-import BV.ConcreteSyntax.SExpr
 
 newtype InBlockAsFile a
   = InBlockAsFile { unwrap :: a }

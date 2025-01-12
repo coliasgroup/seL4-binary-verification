@@ -72,7 +72,7 @@ internal-libraries:
       - BV.ConcreteSyntax
     dependencies:
       - sel4-bv:core
-      - sel4-bv:smtlib2-types
+      - sel4-bv:smtlib2
       # external
       - containers
       - dlist
@@ -93,7 +93,6 @@ internal-libraries:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:smtlib2
-      - sel4-bv:abstract-simple-smt
       # external
       - deepseq
       - containers

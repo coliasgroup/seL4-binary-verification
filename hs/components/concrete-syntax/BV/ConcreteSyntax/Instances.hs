@@ -36,10 +36,11 @@ import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Data.Attoparsec.Text as AT
 
 import BV.Core.Types
+import BV.SMTLIB2.Builder
+import BV.SMTLIB2.Parser.Megaparsec
 
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing
-import BV.ConcreteSyntax.SExpr
 import Data.Bits (shiftL, (.|.))
 
 --

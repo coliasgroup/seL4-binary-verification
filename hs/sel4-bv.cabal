@@ -47,8 +47,6 @@ library concrete-syntax
       BV.ConcreteSyntax.Instances
       BV.ConcreteSyntax.Parsing
       BV.ConcreteSyntax.Printing
-      BV.ConcreteSyntax.SExpr
-      BV.ConcreteSyntax.SExprFast
   hs-source-dirs:
       components/concrete-syntax
   default-extensions:
@@ -71,6 +69,7 @@ library concrete-syntax
     , megaparsec
     , optics-core
     , sel4-bv:core
+    , sel4-bv:smtlib2
     , text
   default-language: GHC2021
 
@@ -87,7 +86,6 @@ library core
       BV.Core.InlineAssembly
       BV.Core.ProofChecks
       BV.Core.PseudoCompile
-      BV.Core.SExpr
       BV.Core.Types
       BV.Core.Types.Inputs
       BV.Core.Types.ObjDump
@@ -115,6 +113,7 @@ library core
     , monad-logger
     , mtl
     , optics-core
+    , sel4-bv:smtlib2-types
   default-language: GHC2021
 
 library smtlib2
@@ -207,9 +206,9 @@ library system
     , optics-core
     , pretty-show
     , pretty-simple
-    , sel4-bv:abstract-simple-smt
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , sel4-bv:smtlib2
     , simple-smt
     , stm
     , tasty

@@ -21,7 +21,8 @@ import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-import BV.Core.SExpr
+import BV.SMTLIB2.Types.SExpr
+
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
 

@@ -58,4 +58,10 @@ symbolP = trySExpr trySymbolSExpr "invalid symbol" $
 
 keywordP :: Parser SExpr
 keywordP = trySExpr tryKeywordSExpr "invalid keyword" $
-    T.unpack <$> takeWhileP (Just "symbol suffix character") isValidSExprKeywordChar
+    T.unpack <$> (":" *> takeWhileP (Just "symbol suffix character") isValidSExprKeywordChar)
+
+x = "(declare-fun rodata-witness () (_ BitVec 32))"
+-- x = ""
+
+foo :: IO ()
+foo = parseTest parseSExpr x
