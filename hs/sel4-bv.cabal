@@ -1,6 +1,6 @@
 cabal-version: 3.0
 
--- This file has been generated from package.yaml by hpack version 0.36.1.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -263,7 +263,7 @@ test-suite system-test
       OverloadedRecordDot
       DerivingStrategies
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
     , sel4-bv:system

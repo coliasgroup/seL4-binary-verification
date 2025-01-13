@@ -147,7 +147,7 @@ executables:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:system
-      #
+      # external
       - text
     ghc-options:
       # TODO probably unnecessary here
@@ -184,3 +184,8 @@ tests:
     main: Main.hs
     dependencies:
       - sel4-bv:system
+    ghc-options:
+      # TODO
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
