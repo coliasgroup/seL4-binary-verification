@@ -9,9 +9,9 @@ import qualified Data.Text.Lazy.Builder as B
 import System.Environment
 
 import BV.ConcreteSyntax
+import BV.ConcreteSyntax.TargetDir
 import BV.Core.Types
-import BV.System.TargetDir
-import BV.System.Test.Utils
+import BV.Test.Utils
 
 main :: IO ()
 main = do

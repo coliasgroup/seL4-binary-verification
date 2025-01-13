@@ -85,6 +85,7 @@ internal-libraries:
       - NoFieldSelectors
     exposed-modules:
       - BV.ConcreteSyntax
+      - BV.ConcreteSyntax.TargetDir
     dependencies:
       - sel4-bv:core
       - sel4-bv:smtlib2
@@ -95,6 +96,7 @@ internal-libraries:
       - text
       - megaparsec
       - attoparsec
+      - filepath
 
   system:
     visibility: public
@@ -127,6 +129,20 @@ internal-libraries:
       - tasty
       - tasty-hunit
 
+  test-utils:
+    source-dirs: components/test-utils
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
+    dependencies:
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      # external
+      - filepath
+      # TODO prune
+      - pretty-show
+      - pretty-simple
+
 executables:
 
   cli:
@@ -147,6 +163,7 @@ executables:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:system
+      - sel4-bv:test-utils
       # external
       - text
     ghc-options:
@@ -163,6 +180,29 @@ tests:
     dependencies:
       - sel4-bv:smtlib2-types
       - sel4-bv:smtlib2
+      # external
+      - mtl
+      - text
+      - attoparsec
+      - megaparsec
+      - filepath
+      - process
+      - Glob
+      - tasty
+      - tasty-hunit
+    ghc-options:
+      # TODO
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+
+  concrete-syntax-test:
+    source-dirs: components/concrete-syntax-test
+    main: Main.hs
+    dependencies:
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:test-utils
       # external
       - mtl
       - text

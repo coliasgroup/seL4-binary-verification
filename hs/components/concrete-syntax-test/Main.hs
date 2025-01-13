@@ -4,7 +4,7 @@
 {-# OPTIONS_GHC -Wno-unused-local-binds #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module BV.System.Test.Main
+module Main
     ( main
     ) where
 
@@ -16,9 +16,9 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import BV.ConcreteSyntax
+import BV.ConcreteSyntax.TargetDir
 import BV.Core.Types
-import BV.System.TargetDir
-import BV.System.Test.Utils
+import BV.Test.Utils
 
 main :: IO ()
 main = defaultMain tests

@@ -1,4 +1,4 @@
-module BV.System.TargetDir
+module BV.ConcreteSyntax.TargetDir
     ( TargetDir (..)
     , readAsmFunctions
     , readCFunctions

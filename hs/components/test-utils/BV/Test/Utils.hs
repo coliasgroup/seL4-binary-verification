@@ -1,11 +1,10 @@
-module BV.System.Test.Utils where
+module BV.Test.Utils where
 
 import Data.Maybe (fromJust)
 import System.FilePath
 import qualified Text.Show.Pretty as H
 
-import BV.System.SeL4
-import BV.System.TargetDir
+import BV.ConcreteSyntax.TargetDir
 
 tmpDir :: FilePath
 tmpDir = "tmp"
@@ -17,16 +16,16 @@ testSeL4TargetDirDefault :: TargetDir
 testSeL4TargetDirDefault = testSeL4TargetDirBig
 
 testSeL4TargetDirBig :: TargetDir
-testSeL4TargetDirBig = defaultTestSeL4TargetDir testSeL4TargetDirBig'
+testSeL4TargetDirBig = TargetDir testSeL4TargetDirBig'
 
 testSeL4TargetDirBigSmt :: TargetDir
-testSeL4TargetDirBigSmt = defaultTestSeL4TargetDir testSeL4TargetDirBigSmt'
+testSeL4TargetDirBigSmt = TargetDir testSeL4TargetDirBigSmt'
 
 testSeL4TargetDirSmall :: TargetDir
-testSeL4TargetDirSmall = defaultTestSeL4TargetDir testSeL4TargetDirSmall'
+testSeL4TargetDirSmall = TargetDir testSeL4TargetDirSmall'
 
 testSeL4TargetDirSmallSmt :: TargetDir
-testSeL4TargetDirSmallSmt = defaultTestSeL4TargetDir testSeL4TargetDirSmallSmt'
+testSeL4TargetDirSmallSmt = TargetDir testSeL4TargetDirSmallSmt'
 
 testSeL4TargetDirBig' :: FilePath
 testSeL4TargetDirBig' = tmpDir </> "target-big"
