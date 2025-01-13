@@ -14,7 +14,7 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB
 import System.FilePath ((</>))
 import System.FilePath.Glob (compile, globDir1)
-import System.Process (proc)
+import System.Process (CreateProcess, proc)
 import Test.Tasty
 import Test.Tasty.HUnit
 import qualified Text.Megaparsec as M
@@ -25,6 +25,18 @@ import BV.SMTLIB2.Parser.Megaparsec as SM
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.Types
 import BV.SMTLIB2.Types.Command
+
+-- config
+
+configCreateProc :: CreateProcess
+configCreateProc = proc "yices-smt2" ["--incremental"]
+
+configTestPairs :: IO [(FilePath, FilePath)]
+configTestPairs = map f <$> globDir1 (compile ("tmp" </> "target-small-trace" </> "trace" </> "*")) "."
+  where
+    f d = (d </> "in.smt2", d </> "out.smt2")
+
+--
 
 main :: IO ()
 main = defaultMain tests
@@ -38,14 +50,9 @@ tests = testGroup "Tests"
 
 runSolverSimple :: ExceptT CommandError (SolverT IO) a -> IO (Either CommandError a)
 runSolverSimple m = runSolver
-    (proc "yices-smt2" ["--incremental"])
+    configCreateProc
     T.putStrLn
     (runExceptT m)
-
-testPairs :: IO [(FilePath, FilePath)]
-testPairs = map f <$> globDir1 (compile ("tmp" </> "target-small-trace" </> "trace" </> "*")) "."
-  where
-    f d = (d </> "in.smt2", d </> "out.smt2")
 
 parsersAndBuildersAgreePath :: FilePath -> IO [SExpr]
 parsersAndBuildersAgreePath path = T.readFile path >>= parsersAndBuildersAgree path
@@ -89,7 +96,7 @@ solverAgrees inPath sexprsIn sexprsOut = do
 
 testTracePairs :: IO ()
 testTracePairs = do
-    pairs <- testPairs
+    pairs <- configTestPairs
     forM_ pairs $ \(inPath, outPath) -> do
         -- putStrLn $ "checking " ++ inPath
         sexprsIn <- parsersAndBuildersAgreePath inPath
