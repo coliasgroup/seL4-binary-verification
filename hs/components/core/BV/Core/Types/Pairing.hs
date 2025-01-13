@@ -92,7 +92,8 @@ cOut = PairingEqSideQuadrant C PairingEqDirectionOut
 
 newtype Pairings
   = Pairings (M.Map PairingId Pairing)
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
 
 prettyPairingId :: PairingId -> String
 prettyPairingId (PairingId { c, asm }) = asm.unwrapIdent ++ " (ASM)" ++ " <= " ++ c.unwrapIdent ++ " (C)"

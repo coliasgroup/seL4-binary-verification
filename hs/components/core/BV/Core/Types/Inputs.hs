@@ -13,11 +13,13 @@ import BV.Core.Types.ProofScript
 
 newtype StackBounds
   = StackBounds (M.Map Ident Expr)
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
 
 newtype InlineScripts
   = InlineScripts (M.Map PairingId [InlineScriptEntry])
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
 
 type InlineScript = [InlineScriptEntry]
 
@@ -30,7 +32,8 @@ data InlineScriptEntry
 
 newtype ProblemsAndProofs
   = ProblemsAndProofs (M.Map PairingId ProblemAndProof)
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
 
 data ProblemAndProof
   = ProblemAndProof

@@ -111,7 +111,8 @@ data Argument
 
 newtype NodeAddr
   = NodeAddr { unwrapNodeAddr :: Integer }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
 
 data NodeId
   = Ret

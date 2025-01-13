@@ -4,7 +4,6 @@ module BV.Core.Environment where
 
 import Control.Monad.Logger (MonadLogger)
 import GHC.Generics (Generic)
-import Optics.Core
 
 import BV.SMTLIB2.Types
 
