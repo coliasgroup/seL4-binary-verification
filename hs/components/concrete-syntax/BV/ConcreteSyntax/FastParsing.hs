@@ -9,7 +9,6 @@ module BV.ConcreteSyntax.FastParsing
     , parseBlocksFileWithTypicalKeyFormat
     , parseTypicalKeyFormat
     , parseWholeFileFast
-    , parseWholeFileFastWith
     ) where
 
 import Control.Applicative

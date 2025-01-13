@@ -13,7 +13,6 @@ module BV.ConcreteSyntax.Parsing
     , parseBlocksFileWithTypicalKeyFormat
     , parseTypicalKeyFormat
     , parseWholeFile
-    , parseWholeFileWith
     , unterminatedLine
     , word
     , wordWith

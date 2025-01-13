@@ -1,17 +1,16 @@
 module BV.ConcreteSyntax
-    ( BuildInBlock (..)
+    ( BuildInBlock
+    , BuildInLine
     , BuildToFile (..)
     , InBlockAsFile (..)
     , InLineAsInBlock (..)
     , ParseFile (..)
     , ParseFileFast (..)
-    , ParseInBlock (..)
+    , ParseInBlock
+    , ParseInLine
     , buildFile
-    , parseInLine
     , parseWholeFile
     , parseWholeFileFast
-    , parseWholeFileFastWith
-    , parseWholeFileWith
     ) where
 
 import GHC.Generics (Generic)
