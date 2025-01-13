@@ -1,15 +1,17 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 module BV.System.Test.Main
     ( main
     ) where
 
 import Control.DeepSeq (($!!))
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
-import qualified Data.Text.Lazy.Builder as B
 import qualified GHC.DataSize
 import System.FilePath ((</>))
 import Test.Tasty

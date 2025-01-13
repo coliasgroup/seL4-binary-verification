@@ -12,14 +12,12 @@ module BV.System.TargetDir
     , readStackBounds
     ) where
 
-import qualified Data.ByteString as B
 import qualified Data.Text.IO as T
 import GHC.Generics (Generic)
 import System.FilePath ((</>))
 
 import BV.ConcreteSyntax
 import BV.Core.Types
-import Debug.Trace (traceShowId)
 
 data TargetDir
   = TargetDir

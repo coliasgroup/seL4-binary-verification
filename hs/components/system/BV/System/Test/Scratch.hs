@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
 module BV.System.Test.Scratch
     (
     ) where

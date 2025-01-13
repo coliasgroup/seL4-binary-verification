@@ -9,31 +9,21 @@ module BV.ConcreteSyntax.Instances
     ( parsePrettyPairingId
     ) where
 
-import Data.Aeson (FromJSON, ToJSON)
-import qualified Data.Aeson as A
-import qualified Data.Aeson.Text as A
-import Data.Bifunctor (first)
-import Data.Char (chr, isSpace, ord)
+import Data.Bits (shiftL, (.|.))
+import Data.Char (chr, isDigit, isSpace, ord)
 import Data.Either (partitionEithers)
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
 import Data.Monoid (Endo (Endo, appEndo))
 import Data.String (fromString)
 import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import Data.Text.Internal.Builder (Builder)
-import qualified Data.Text.Lazy as L
-import qualified Data.Text.Lazy.Builder as B
 import qualified Data.Text.Lazy.Builder.Int as B
 import Data.Void (Void)
-import GHC.Generics (Generic)
 import Optics.Core (at, (%), (&), (?~))
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
-
-import qualified Data.Attoparsec.Text as AT
 
 import BV.Core.Types
 import BV.SMTLIB2.Builder
@@ -41,7 +31,6 @@ import BV.SMTLIB2.Parser.Megaparsec
 
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing
-import Data.Bits (shiftL, (.|.))
 
 --
 
@@ -630,10 +619,13 @@ hexEncodedString = inLineLexeme $ some (chr <$> hexByte)
     hexDigitValue = hexDigitToValue <$> hexDigitChar
 
 hexDigitToValue :: Char -> Int
-hexDigitToValue d = ord d - (case d of
-    _ | '0' <= d && d <= '9' -> ord '0'
-    _ | 'a' <= d && d <= 'f' -> ord 'a' - 10
-    _ | 'A' <= d && d <= 'F' -> ord 'A' - 10)
+hexDigitToValue d = ord d - sub
+  where
+    sub = case d of
+        _ | isDigit d -> ord '0'
+        _ | 'a' <= d && d <= 'f' -> ord 'a' - 10
+        _ | 'A' <= d && d <= 'F' -> ord 'A' - 10
+        _ -> error "unreachable"
 
 instance ParseInLine ExprType where
     parseInLine = do
@@ -847,6 +839,9 @@ instance BuildInLine Op where
         OpToFloatingPointSigned -> "ToFloatingPointSigned"
         OpToFloatingPointUnsigned -> "ToFloatingPointUnsigned"
         OpFloatingPointCast -> "FloatingPointCast"
+        OpImpliesROData -> "ImpliesROData"
+        OpImpliesStackEquals -> "ImpliesStackEquals"
+        OpStackEqualsImplies -> "StackEqualsImplies"
 
 --
 
