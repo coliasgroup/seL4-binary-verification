@@ -11,12 +11,13 @@ import Control.Exception (Exception)
 import Control.Exception.Base (throw)
 import Control.Monad.Catch (MonadThrow, finally)
 import Control.Monad.Catch.Pure (MonadMask)
-import Control.Monad.Except (MonadError)
+import Control.Monad.Free (liftF)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO))
 import Control.Monad.Reader (MonadTrans (lift), ReaderT (..), ask, runReaderT)
-import Data.Conduit (ConduitT, Flush (Chunk, Flush), await, runConduit,
-                     toProducer, yield, (.|))
+import Control.Monad.Trans.Free.Church (FT, iterT)
+import Data.Conduit (ConduitT, Flush (Chunk, Flush), await, runConduit, yield,
+                     (.|))
 import Data.Conduit.Attoparsec (conduitParser)
 import qualified Data.Conduit.List as CL
 import Data.Conduit.Process (FlushInput (FlushInput), streamingProcess,
@@ -36,16 +37,26 @@ import BV.SMTLIB2.Builder
 import BV.SMTLIB2.Parser.Attoparsec
 import BV.SMTLIB2.Types
 
-newtype SolverT m a
-  = SolverT { runSolverT :: ReaderT (SExpr -> m ()) (ConduitT SExpr Void m) a }
-  deriving (Applicative, Functor, Generic, Monad, MonadError e, MonadIO)
+data SolverDSL a
+  = Send SExpr a
+  | Recv (SExpr -> a)
+  deriving (Functor, Generic)
 
-instance Monad m => MonadSolver (SolverT m) where
-    send msg = SolverT $ do
+instance Monad m => MonadSolver (FT SolverDSL m) where
+    send msg = liftF $ Send msg ()
+    recv = liftF $ Recv id
+
+type SolverT m = FT SolverDSL (SolverTInner m)
+
+type SolverTInner m = ReaderT (SExpr -> m ()) (ConduitT SExpr Void m)
+
+runSolverT :: Monad m => SolverT m a -> SolverTInner m a
+runSolverT = iterT $ \case
+    Send msg m -> do
         sink <- ask
         lift . lift $ sink msg
-    recv = SolverT $ do
-        fromMaybe (throw NoResponseException) <$> lift await
+        m
+    Recv f -> lift await >>= f . fromMaybe (throw NoResponseException)
 
 runSolver
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)

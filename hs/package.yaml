@@ -48,6 +48,7 @@ internal-libraries:
       - sel4-bv:smtlib2-types
       # external
       - mtl
+      - free
       - text
       - attoparsec
       - megaparsec
