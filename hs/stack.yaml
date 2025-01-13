@@ -2,7 +2,6 @@ resolver: lts-22.43
 
 extra-deps:
   - simple-smt-0.9.8@sha256:d0b06f24372c0a15d4d6296708a349e837924274fa4b6d9dc0d148d5554cfec7,736
-  - ghc-datasize-0.2.7@sha256:3397b0306f179836a0f5912e9888b5a0d2c40c2a6bba12965e82144a22de15a3,1132
 
 nix:
   enable: true

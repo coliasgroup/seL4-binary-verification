@@ -93,12 +93,8 @@ internal-libraries:
       - dlist
       - optics-core
       - text
-      - attoparsec
       - megaparsec
-      # TODO remove
-      - bytestring
-      - aeson
-      - attoparsec-aeson
+      - attoparsec
 
   system:
     visibility: public
@@ -125,18 +121,12 @@ internal-libraries:
       - filepath
       - monad-logger
       - simple-smt
-      # TODO assess
-      - free
-      - extensible-effects
-      - kan-extensions
       # TODO prune
       - pretty-show
       - pretty-simple
       # TODO hack
       - tasty
       - tasty-hunit
-      # TODO temporary
-      - ghc-datasize
 
   abstract-simple-smt:
     visibility: public

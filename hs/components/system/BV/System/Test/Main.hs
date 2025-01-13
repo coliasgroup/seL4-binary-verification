@@ -8,11 +8,9 @@ module BV.System.Test.Main
     ( main
     ) where
 
-import Control.DeepSeq (($!!))
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
-import qualified GHC.DataSize
 import System.FilePath ((</>))
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -112,15 +110,6 @@ parsePrintGraphRefine = testGroup "graph-refine" $
         , let rel = "loop-example" </> opt </> ("loop-" ++ opt ++ ".elf.symtab")
            in testCase rel $ testReaderPath @ObjDumpInfo (graphRefineDir </> rel)
         ]
-
-proofChecksSize :: IO ()
-proofChecksSize = do
-    r <- readProofChecks testSeL4TargetDirBig
-    case r of
-        Left err -> assertFailure err
-        Right x -> do
-            n <- GHC.DataSize.recursiveSize $!! x
-            putStrLn $ "proof checks size: " <> show n
 
 -- ttt :: IO ()
 -- ttt = do

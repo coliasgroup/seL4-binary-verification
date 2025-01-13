@@ -57,11 +57,8 @@ library concrete-syntax
       NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      aeson
-    , attoparsec
-    , attoparsec-aeson
+      attoparsec
     , base
-    , bytestring
     , containers
     , dlist
     , megaparsec
@@ -197,11 +194,7 @@ library system
     , bytestring
     , containers
     , deepseq
-    , extensible-effects
     , filepath
-    , free
-    , ghc-datasize
-    , kan-extensions
     , megaparsec
     , monad-logger
     , mtl
