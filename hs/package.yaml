@@ -120,21 +120,12 @@ internal-libraries:
       - megaparsec
       - filepath
       - monad-logger
-      - simple-smt
       # TODO prune
       - pretty-show
       - pretty-simple
       # TODO hack
       - tasty
       - tasty-hunit
-
-  abstract-simple-smt:
-    visibility: public
-    source-dirs: components/abstract-simple-smt
-    dependencies:
-      - transformers
-      - mtl
-      - simple-smt
 
 executables:
 

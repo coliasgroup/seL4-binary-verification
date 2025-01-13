@@ -14,27 +14,6 @@ copyright:      Copyright (c) 2025 Colias Group, LLC
 license:        BSD-2-Clause
 build-type:     Simple
 
-library abstract-simple-smt
-  visibility: public
-  exposed-modules:
-      SimpleSMT.Abstract
-      SimpleSMT.Abstract.SExpr
-  hs-source-dirs:
-      components/abstract-simple-smt
-  default-extensions:
-      FunctionalDependencies
-      OverloadedLabels
-      OverloadedRecordDot
-      DerivingStrategies
-      LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind
-  build-depends:
-      base
-    , mtl
-    , simple-smt
-    , transformers
-  default-language: GHC2021
-
 library concrete-syntax
   visibility: public
   exposed-modules:
@@ -204,7 +183,6 @@ library system
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:smtlib2
-    , simple-smt
     , stm
     , tasty
     , tasty-hunit
