@@ -1,8 +1,26 @@
-{ fetchurl
+{ lib
+, fetchurl
 , stacklock2nix
 , haskell
 }:
 
+let
+  localSrc = src: lib.cleanSourceWith {
+    inherit src;
+    filter = name: type:
+      let
+        root = src.origSrc or src;
+        rel = lib.removePrefix "${toString root}/" (toString name);
+      in
+        lib.elem rel [
+          "cabal.project"
+          "cabal.project.freeze"
+          "sel4-bv.cabal"
+          "components"
+        ] || lib.hasPrefix "components/" rel;
+  };
+
+in
 stacklock2nix {
   stackYaml = ../stack.yaml;
 
@@ -13,7 +31,9 @@ stacklock2nix {
       inherit (haskell.lib.compose) dontCheck;
     in
       hfinal: hprev: {
-        sel4-bv = dontCheck hprev.sel4-bv;
+        sel4-bv = (dontCheck hprev.sel4-bv).overrideAttrs (attrs: {
+          src = localSrc (attrs.src);
+        });
         # external
         prettyprinter = dontCheck hprev.prettyprinter;
         lifted-base = dontCheck hprev.lifted-base;
