@@ -84,10 +84,9 @@ parsePrintSeL4 = testGroup "seL4"
             -- (readSmtProofChecks testSeL4TargetDirBigSmt)
     -- , testCase "proof checks" $
     --     testRoundTripWith
-    --         (parseWholeFileFast . T.encodeUtf8)
+    --         parseWholeFileFast
     --         buildFile
     --         (readProofChecks testSeL4TargetDirSmall)
-    -- , testCase "proof checks size" proofChecksSize
     ]
 
 parsePrintGraphRefine :: TestTree
@@ -110,35 +109,3 @@ parsePrintGraphRefine = testGroup "graph-refine" $
         , let rel = "loop-example" </> opt </> ("loop-" ++ opt ++ ".elf.symtab")
            in testCase rel $ testReaderPath @ObjDumpInfo (graphRefineDir </> rel)
         ]
-
--- ttt :: IO ()
--- ttt = do
---         ttt = tt
---         r = parseWholeFile "" ttt
---     case r of
---         Left err -> do
---             putStrLn err
---             error ""
---         Right ex -> do
---             let x :: InBlockAsFile (InLineAsInBlock ProofNode) = ex
---             -- let x :: InBlockAsFile (InLineAsInBlock Expr) = ex
---             print ex
-
--- ttt :: IO ()
--- ttt = do
---     r <- readProblems testSeL4TargetDir
---     case r of
---         Left err -> putStrLn err
---         _ -> return ()
-
--- ttt :: IO ()
--- ttt = do
---     r <- readCFunctions testSeL4TargetDir
---     case r of
---         Left err -> putStrLn err
---         Right x -> do
---             let t = buildFile x
---             L.writeFile (tmpOutPath "snd.txt") t
---             case parseWholeFile "second trip" (L.toStrict t) of
---                 Left err -> putStrLn err
---                 Right x' -> print $ x == x'
