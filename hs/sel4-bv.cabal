@@ -61,13 +61,13 @@ library core
       BV.Core.ProofChecks
       BV.Core.PseudoCompile
       BV.Core.Types
-      BV.Core.Types.Inputs
       BV.Core.Types.ObjDump
       BV.Core.Types.Pairing
       BV.Core.Types.Problem
       BV.Core.Types.Program
       BV.Core.Types.ProofChecks
       BV.Core.Types.ProofScript
+      BV.Core.Types.SearchOutputs
       BV.Core.Utils
   hs-source-dirs:
       components/core

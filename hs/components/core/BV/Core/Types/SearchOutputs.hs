@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Types.Inputs where
+module BV.Core.Types.SearchOutputs where
 
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
