@@ -55,9 +55,12 @@ library core
       BV.Core.GluedStages
   other-modules:
       BV.Core
+      BV.Core.Arch
       BV.Core.ConfigureSMT
       BV.Core.ExecuteSMTProofChecks
+      BV.Core.ExprConstruction
       BV.Core.Graph
+      BV.Core.Logic
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks

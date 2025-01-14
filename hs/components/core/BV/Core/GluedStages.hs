@@ -21,7 +21,7 @@ data Input
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts
       , problemsAndProofs :: ProblemsAndProofs
-      , skip :: [Ident]
+      , asmIgnore :: [Ident]
       }
   deriving (Eq, Generic, Ord, Show)
 

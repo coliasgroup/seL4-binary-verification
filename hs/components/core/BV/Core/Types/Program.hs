@@ -28,9 +28,11 @@ module BV.Core.Types.Program
     , renameVars
     , toListOfNamed
     , walkExprs
+    , walkExprsI
     ) where
 
 import Control.DeepSeq (NFData)
+import Control.Monad.Identity (Identity (Identity, runIdentity))
 import Data.Map (Map)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
@@ -39,7 +41,7 @@ import Optics.Core
 import BV.Core.Utils
 
 newtype Ident
-  = Ident { unwrapIdent :: String }
+  = Ident { unwrap :: String }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
@@ -110,9 +112,9 @@ data Argument
   deriving (Eq, Generic, NFData, Ord, Show)
 
 newtype NodeAddr
-  = NodeAddr { unwrapNodeAddr :: Integer }
-  deriving (Eq, Generic, Ord, Show)
-  deriving newtype (NFData)
+  = NodeAddr { unwrap :: Integer }
+  deriving (Enum, Eq, Generic, Ord, Show)
+  deriving newtype (Integral, NFData, Num, Real)
 
 data NodeId
   = Ret
@@ -279,6 +281,9 @@ walkExprs f expr = do
     flip (traverseOf #value) expr' $ \case
         ExprValueOp op args -> ExprValueOp op <$> traverse f args
         v -> return v
+
+walkExprsI :: (Expr -> Expr) -> Expr -> Expr
+walkExprsI f = runIdentity . walkExprs (fmap Identity f)
 
 class HasVarNames a where
     varNamesOf :: Traversal' a Ident

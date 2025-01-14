@@ -737,7 +737,7 @@ instance BuildInBlock (Named Function) where
         buildNode (addr, node) = lineInBlock $ put addr <> put node
 
 instance BuildInLine Ident where
-    buildInLine = fromString . (.unwrapIdent)
+    buildInLine = fromString . (.unwrap)
 
 instance BuildInLine Argument where
     buildInLine (Argument { name, ty }) = put name <> put ty
@@ -748,7 +748,7 @@ instance BuildInLine NodeId where
     buildInLine (Addr addr) = put addr
 
 instance BuildInLine NodeAddr where
-    buildInLine = putHex . (.unwrapNodeAddr)
+    buildInLine = putHex . (.unwrap)
 
 instance BuildInLine Node where
     buildInLine (BasicNode { next, varUpdates }) = "Basic" <> put next <> put varUpdates

@@ -96,7 +96,7 @@ newtype Pairings
   deriving newtype (NFData)
 
 prettyPairingId :: PairingId -> String
-prettyPairingId (PairingId { c, asm }) = asm.unwrapIdent ++ " (ASM)" ++ " <= " ++ c.unwrapIdent ++ " (C)"
+prettyPairingId (PairingId { c, asm }) = asm.unwrap++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
 
 prettyTag :: Tag ->  String
 prettyTag C = "C"
