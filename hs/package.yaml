@@ -77,6 +77,7 @@ internal-libraries:
       - monad-logger
       - mtl
       - optics-core
+      - optics
       - file-embed
       # - pretty-show
       # - pretty-simple
