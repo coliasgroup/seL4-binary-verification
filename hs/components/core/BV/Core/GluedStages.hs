@@ -3,7 +3,7 @@
 module BV.Core.GluedStages
     ( Input (..)
     , IntermediateArtifact (..)
-    , MonadPureStages (..)
+    , MonadPureStages
     , MonadRegisterIntermediateArtifacts (..)
     , gluedStages
     ) where
