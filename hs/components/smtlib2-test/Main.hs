@@ -18,6 +18,8 @@ import System.Process (CreateProcess, proc)
 import Test.Tasty
 import Test.Tasty.HUnit
 import qualified Text.Megaparsec as M
+import Optics.Core
+import Data.Maybe (fromJust)
 
 import BV.SMTLIB2.Builder as SB
 import BV.SMTLIB2.Parser.Attoparsec as SA
@@ -44,6 +46,7 @@ main = defaultMain tests
 tests :: TestTree
 tests = testGroup "Tests"
     [ testCase "trivial" $ return ()
+    , testCase "chosen pairs" testChosenPairs
     , testCase "trace pairs" testTracePairs
     , testCase "demo" demo
     ]
@@ -93,6 +96,18 @@ solverAgrees inPath sexprsIn sexprsOut = do
     case r of
         Left err -> assertFailure $ show err
         Right _x -> return ()
+
+chosenPairs :: [(T.Text, [SExpr])]
+chosenPairs = map (_2 % traversed %~ (fromJust . checkSExpr))
+    [ ("", [])
+    , ("\"xyz\"\"abc\"", [Atom (StringAtom "xyz\"abc")])
+    -- , ("\"xyz\"\"abc", [Atom (StringAtom "xyz\"abc")])
+    ]
+
+testChosenPairs :: IO ()
+testChosenPairs = forM_ chosenPairs $ \(s, ex) -> do
+    ex' <- parsersAndBuildersAgree "" s
+    assertEqual "" ex ex'
 
 testTracePairs :: IO ()
 testTracePairs = do

@@ -10,7 +10,7 @@ module BV.SMTLIB2.Types.SExpr.Read
 import Control.Applicative ((<|>))
 import Data.Char (isDigit, isSpace)
 import Data.Functor (void)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, listToMaybe)
 import GHC.Natural (Natural)
 import Numeric (readDec)
 import Text.ParserCombinators.ReadP
@@ -84,16 +84,14 @@ stringP :: ReadP UncheckedAtom
 stringP = StringAtom <$> (char '"' *> go)
   where
     go = do
-        c <- stringCharP
+        c <- satisfy isValidStringAtomChar
         case c of
-            '"' -> return ""
-            '\\' -> do
-                c' <- stringCharP
-                case c' of
-                    '\"' -> (c':) <$> go
-                    _ -> (c:) . (c':) <$> go
+            '"' -> do
+                next <- listToMaybe <$> look
+                case next of
+                    Just '"' -> char '"' *> (('"':) <$> go)
+                    _ -> return []
             _ -> (c:) <$> go
-    stringCharP = satisfy isValidStringAtomChar
 
 keywordP :: ReadP UncheckedAtom
 keywordP = fmap KeywordAtom $ char ':' *> munch1 isValidKeywordAtomChar

@@ -47,7 +47,7 @@ module BV.SMTLIB2.Types.SExpr
     ) where
 
 import Control.DeepSeq (NFData)
-import Data.Char (isAscii, isDigit, isHexDigit, isLetter, isPrint)
+import Data.Char (isDigit, isHexDigit, isLetter, isPrint, isSpace)
 import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
 import Data.String (IsString, fromString)
@@ -171,7 +171,7 @@ isValidStringAtom :: String -> Bool
 isValidStringAtom = all isValidStringAtomChar
 
 isValidStringAtomChar :: Char -> Bool
-isValidStringAtomChar c = isAscii c && isPrint c
+isValidStringAtomChar c = isPrint c || isSpace c
 
 isValidSymbolAtom :: String -> Bool
 isValidSymbolAtom = \case
@@ -188,7 +188,7 @@ isValidKeywordAtom :: String -> Bool
 isValidKeywordAtom s = not (null s) && all isValidKeywordAtomChar s
 
 isValidKeywordAtomChar :: Char -> Bool
-isValidKeywordAtomChar c = isLetter c || isDigit c || c `elem` "~!@$%^&*_-+=<>.?/"
+isValidKeywordAtomChar c = isLetter c || isDigit c || c `elem` ("~!@$%^&*_-+=<>.?/" :: String)
 
 showSExpr :: SExpr -> String
 showSExpr = showGenericSExpr showsAtom
@@ -227,8 +227,7 @@ showsUncheckedAtom = \case
     KeywordAtom s -> showString ":" . showString s
   where
     escapeChar = \case
-        '"' -> showString "\\\""
-        '\\' -> showString "\\\\"
+        '"' -> showString "\"\""
         c -> showChar c
 
 instance IsString Atom where

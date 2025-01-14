@@ -217,6 +217,7 @@ tests:
       - sel4-bv:smtlib2
       - sel4-bv:target-dir
       # external
+      - optics-core
       - mtl
       - text
       - attoparsec

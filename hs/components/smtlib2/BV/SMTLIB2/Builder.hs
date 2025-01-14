@@ -42,6 +42,5 @@ buildUncheckedAtom = \case
     KeywordAtom s -> singleton ':' <> fromString s
   where
     escapeChar = \case
-        '"' -> "\\\""
-        '\\' -> "\\\\"
+        '"' -> "\"\""
         c -> singleton c

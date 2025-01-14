@@ -344,6 +344,7 @@ test-suite smtlib2-test
     , filepath
     , megaparsec
     , mtl
+    , optics-core
     , process
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-types

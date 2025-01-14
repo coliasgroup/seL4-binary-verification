@@ -53,16 +53,14 @@ stringP :: Parser UncheckedAtom
 stringP = StringAtom <$> (char '"' *> go)
   where
     go = do
-        c <- stringCharP
+        c <- satisfy isValidStringAtomChar
         case c of
-            '"' -> return ""
-            '\\' -> do
-                c' <- stringCharP
-                case c' of
-                    '\"' -> (c':) <$> go
-                    _ -> (c:) . (c':) <$> go
+            '"' -> do
+                next <- peekChar
+                case next of
+                    Just '"' -> char '"' *> (('"':) <$> go)
+                    _ -> return []
             _ -> (c:) <$> go
-    stringCharP = satisfy isValidStringAtomChar
 
 keywordP :: Parser UncheckedAtom
 keywordP = fmap KeywordAtom $
