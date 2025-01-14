@@ -1,7 +1,12 @@
 module BV.SMTLIB2.Types
     ( module BV.SMTLIB2.Types.SExpr
-    , module BV.SMTLIB2.Types.SExpr.Read
     , MonadSolver (..)
+    , readAtom
+    , readSExpr
+    , readSExprs
+    , tryReadAtom
+    , tryReadSExpr
+    , tryReadSExprs
     ) where
 
 import Control.Monad.Except (ExceptT)

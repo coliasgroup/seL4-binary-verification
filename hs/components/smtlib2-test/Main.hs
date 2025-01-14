@@ -8,18 +8,18 @@ import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Attoparsec.Text as A
+import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB
+import Optics.Core
 import System.FilePath ((</>))
 import System.FilePath.Glob (compile, globDir1)
 import System.Process (CreateProcess, proc)
 import Test.Tasty
 import Test.Tasty.HUnit
 import qualified Text.Megaparsec as M
-import Optics.Core
-import Data.Maybe (fromJust)
 
 import BV.SMTLIB2.Builder as SB
 import BV.SMTLIB2.Parser.Attoparsec as SA
