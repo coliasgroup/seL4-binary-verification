@@ -1,7 +1,12 @@
 module BV.SMTLIB2.Types.SExpr.Read
-    ( readAtom
+    ( anySExprWhitespaceP
+    , atomP
+    , genericSExprP
+    , readAtom
     , readSExpr
     , readSExprs
+    , sexprP
+    , someSExprWhitespaceP
     , tryReadAtom
     , tryReadSExpr
     , tryReadSExprs
@@ -57,9 +62,12 @@ anySExprWhitespaceP :: ReadP ()
 anySExprWhitespaceP = option () someSExprWhitespaceP
 
 sexprP :: ReadP SExpr
-sexprP = go
+sexprP = genericSExprP atomP
+
+genericSExprP :: ReadP a -> ReadP (GenericSExpr a)
+genericSExprP p = go
   where
-    go = Atom <$> atomP
+    go = Atom <$> p
         <|> List <$> between (string "(" <* anySExprWhitespaceP)
                              (string ")")
                              (many (go <* anySExprWhitespaceP))
