@@ -13,6 +13,7 @@ module BV.Core.Types.ProofChecks
     , SExprPlaceholder (..)
     , SExprWithPlaceholders
     , SmtProofCheckGroup (..)
+    , SmtProofCheckImp (..)
     , SmtProofChecks (..)
     , Visit (..)
     , VisitCount (..)
@@ -113,17 +114,24 @@ data VisitCount
 
 --
 
-newtype SmtProofChecks
-  = SmtProofChecks { unwrap :: M.Map PairingId [SmtProofCheckGroup] }
+newtype SmtProofChecks a
+  = SmtProofChecks { unwrap :: M.Map PairingId [SmtProofCheckGroup a] }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-data SmtProofCheckGroup
+data SmtProofCheckGroup a
   = SmtProofCheckGroup
       { setup :: [SExprWithPlaceholders]
-      , imps :: [SExprWithPlaceholders]
+      , imps :: [SmtProofCheckImp a]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+data SmtProofCheckImp a
+  = SmtProofCheckImp
+      { meta :: a
+      , term :: SExprWithPlaceholders
+      }
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
 type SExprWithPlaceholders = GenericSExpr (Either SExprPlaceholder Atom)
 

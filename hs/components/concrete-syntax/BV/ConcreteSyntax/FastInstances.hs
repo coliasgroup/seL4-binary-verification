@@ -40,13 +40,13 @@ instance BuildToFile (ProofChecks String) where
 
 -- --
 
-instance ParseFileFast SmtProofChecks where
+instance ParseFileFast (SmtProofChecks ()) where
     parseFileFast = do
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- decimal <* endOfLine
             impsLen <- decimal <* endOfLine
             setup <- count setupLen (parseSExprWithPlaceholders <* ignoredLines)
-            imps <- count impsLen (parseSExprWithPlaceholders <* ignoredLines)
+            imps <- count impsLen (SmtProofCheckImp () <$> parseSExprWithPlaceholders <* ignoredLines)
             return $ SmtProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
         return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x

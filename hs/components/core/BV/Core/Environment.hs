@@ -19,7 +19,7 @@ data IntermediateArtifact
   | IntermediateArtifactPairings Pairings
   | IntermediateArtifactProblems Problems
   | IntermediateArtifactProofChecks (ProofChecks String)
-  | IntermediateArtifactSmtProofChecks SmtProofChecks
+  | IntermediateArtifactSmtProofChecks (SmtProofChecks ())
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadRegisterIntermediateArtifacts m where

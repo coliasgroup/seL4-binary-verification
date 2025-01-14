@@ -845,18 +845,18 @@ instance BuildInLine Op where
 
 --
 
-instance ParseFile SmtProofChecks where
+instance ParseFile (SmtProofChecks ()) where
     parseFile = do
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- L.decimal <* eol
             impsLen <- L.decimal <* eol
             setup <- count setupLen (parseSExprWithPlaceholders <* ignoredLines)
-            imps <- count impsLen (parseSExprWithPlaceholders <* ignoredLines)
+            imps <- count impsLen (SmtProofCheckImp () <$> parseSExprWithPlaceholders <* ignoredLines)
             return $ SmtProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
         return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
 
-instance BuildToFile SmtProofChecks where
+instance BuildToFile (SmtProofChecks ()) where
     buildToFile checks = mconcat $ mconcat (map (\(k, v) -> map (buildGroup k) v) (M.toList checks.unwrap))
       where
         buildGroup pairingId (SmtProofCheckGroup { setup, imps }) =
@@ -864,7 +864,7 @@ instance BuildToFile SmtProofChecks where
                 [ buildTypicalKeyFormat ["Problem", "Pairing"] (fromString (prettyPairingId pairingId)) <> " {"
                 , B.decimal (length setup)
                 , B.decimal (length imps)
-                ] ++ f setup ++ f imps ++
+                ] ++ f setup ++ f (map (.term) imps) ++
                 [ "}"
                 ]
         f ss = map buildSExprWithPlaceholders ss
