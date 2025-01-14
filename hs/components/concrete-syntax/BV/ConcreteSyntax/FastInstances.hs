@@ -49,7 +49,7 @@ instance ParseFileFast (SMTProofChecks ()) where
             imps <- count impsLen (SMTProofCheckImp () <$> parseSExprWithPlaceholders <* ignoredLines)
             return $ SMTProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
-        return . SMTProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
+        return . SMTProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
 
 parseSExprWithPlaceholders :: Parser SExprWithPlaceholders
 parseSExprWithPlaceholders = parseGenericSExpr $

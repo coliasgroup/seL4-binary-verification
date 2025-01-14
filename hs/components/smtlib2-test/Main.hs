@@ -63,7 +63,7 @@ parsersAndBuildersAgreePath path = T.readFile path >>= parsersAndBuildersAgree p
 parsersAndBuildersAgree :: String -> T.Text -> IO [SExpr]
 parsersAndBuildersAgree src s = do
     parsed <- parsersAgree src s
-    let built = TL.toStrict . TB.toLazyText . mconcat . map ((<> "\n") . buildSExpr) $ parsed
+    let built = TL.toStrict . TB.toLazyText . foldMap ((<> "\n") . buildSExpr) $ parsed
     let shown = T.pack $ concatMap ((++ "\n") . showSExpr) parsed
     parsedBuilt <- parsersAgree (src ++ " (built)") built
     parsedShown <- parsersAgree (src ++ " (shown)") shown

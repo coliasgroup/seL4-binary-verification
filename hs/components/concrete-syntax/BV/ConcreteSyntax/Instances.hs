@@ -65,7 +65,7 @@ makeObjDumpInfo lines =
         }
   where
     symbols = M.fromList lines
-    sections = appEndo (mconcat (map (Endo . f) (M.elems symbols))) M.empty
+    sections = appEndo (foldMap (Endo . f) (M.elems symbols)) M.empty
     f symbol = flip M.alter symbol.section $ \entry -> Just $ case entry of
         Just section ->
             let addr = min section.addr symbol.addr
@@ -314,7 +314,7 @@ instance ParseFile StackBounds where
             (,) <$> parseInLine <*> parseInLine
 
 instance BuildToFile StackBounds where
-    buildToFile (StackBounds stackBounds) = buildBlock $ mconcat (map f (M.toList stackBounds))
+    buildToFile (StackBounds stackBounds) = buildBlock $ foldMap f (M.toList stackBounds)
       where
         f (ident, expr) = lineInBlock $ "StackBound" <> put ident <> put expr
 
@@ -386,7 +386,7 @@ instance BuildInBlock Problem where
         lineInBlock "Problem"
             <> problemSideLine C c
             <> problemSideLine Asm asm
-            <> mconcat (map nodeLine (M.toList nodes))
+            <> foldMap nodeLine (M.toList nodes)
             <> lineInBlock "EndProblem"
       where
         problemSideLine tag (ProblemSide { name, input, output, entryPoint }) = lineInBlock $
@@ -452,8 +452,8 @@ instance ParseInBlock Pairing where
 instance BuildInBlock Pairing where
     buildInBlock pairing =
            lineInBlock "Pairing"
-        <> mconcat (map (eqLine PairingEqDirectionIn) pairing.inEqs)
-        <> mconcat (map (eqLine PairingEqDirectionOut) pairing.outEqs)
+        <> foldMap (eqLine PairingEqDirectionIn) pairing.inEqs
+        <> foldMap (eqLine PairingEqDirectionOut) pairing.outEqs
         <> lineInBlock "EndPairing"
       where
         eqLine direction eq = lineInBlock $ put direction <> put eq
@@ -718,7 +718,7 @@ instance BuildToFile Program where
 instance BuildInBlock (Named Struct) where
     buildInBlock (Named name (Struct { size, align, fields })) =
         lineInBlock ("Struct" <> put name <> putDec size <> putDec align)
-            <> mconcat (map buildField (M.toList fields))
+            <> foldMap buildField (M.toList fields)
       where
         buildField (fieldName, StructField { ty, offset }) = lineInBlock $
             "StructField" <> put fieldName <> put ty <> putDec offset
@@ -732,7 +732,7 @@ instance BuildInBlock (Named Function) where
             <> mconcat (maybeToList (buildBody <$> body))
       where
         buildBody (FunctionBody { entryPoint, nodes }) =
-            mconcat (map buildNode (M.toList nodes))
+            foldMap buildNode (M.toList nodes)
                 <> lineInBlock ("EntryPoint" <> put entryPoint)
         buildNode (addr, node) = lineInBlock $ put addr <> put node
 
@@ -854,10 +854,10 @@ instance ParseFile (SMTProofChecks ()) where
             imps <- count impsLen (SMTProofCheckImp () <$> parseSExprWithPlaceholders <* ignoredLines)
             return $ SMTProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
-        return . SMTProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
+        return . SMTProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
 
 instance BuildToFile (SMTProofChecks ()) where
-    buildToFile checks = mconcat $ mconcat (map (\(k, v) -> map (buildGroup k) v) (M.toList checks.unwrap))
+    buildToFile checks = mconcat $ foldMap (\(k, v) -> map (buildGroup k) v) (M.toList checks.unwrap)
       where
         buildGroup pairingId (SMTProofCheckGroup { setup, imps }) =
             mconcat . (map (<> "\n")) $

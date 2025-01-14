@@ -31,10 +31,10 @@ import Data.Text.Lazy.Builder.Int (decimal, hexadecimal)
 
 intersperse :: Monoid a => a -> [a] -> a
 intersperse _ [] = mempty
-intersperse sep (x:xs) = x <> mconcat (map (sep <>) xs)
+intersperse sep (x:xs) = x <> foldMap (sep <>) xs
 
 buildBlocksFile :: (k -> Builder) -> (v -> BlockBuilder) -> [(k, v)] -> Builder
-buildBlocksFile bk bv = mconcat . map bkv
+buildBlocksFile bk bv = foldMap bkv
   where
     bkv (k, v) = bk k <> " {\n" <> buildBlock (bv v) <> "}\n"
 
@@ -58,7 +58,7 @@ newtype BlockBuilder
   deriving (Monoid, Semigroup)
 
 buildBlock :: BlockBuilder -> Builder
-buildBlock blockBuilder = mconcat (map buildLine (D.toList blockBuilder.unwrapBlockBuilder))
+buildBlock blockBuilder = foldMap buildLine (D.toList blockBuilder.unwrapBlockBuilder)
 
 lineInBlock :: LineBuilder -> BlockBuilder
 lineInBlock = BlockBuilder . D.singleton
@@ -99,7 +99,7 @@ putIntegralWith :: Integral a => (a -> Builder) -> a -> LineBuilder
 putIntegralWith putAbs n = putBuilder $ (if n < 0 then "-" else mempty) <> putAbs (abs n)
 
 putManyWith :: (a -> LineBuilder) -> [a] -> LineBuilder
-putManyWith f xs = putDec (length xs) <> mconcat (map f xs)
+putManyWith f xs = putDec (length xs) <> foldMap f xs
 
 class BuildInLine a where
     buildInLine :: a -> LineBuilder

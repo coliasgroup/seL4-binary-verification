@@ -222,7 +222,7 @@ showsUncheckedAtom = \case
     NumeralAtom n -> showInt n
     HexadecimalAtom s -> showString "#x" . showString s
     BinaryAtom s -> showString "#b" . showString s
-    StringAtom s -> showChar '\"' . appEndo (mconcat (map (Endo . escapeChar) s)) . showChar '\"'
+    StringAtom s -> showChar '\"' . appEndo (foldMap (Endo . escapeChar) s) . showChar '\"'
     SymbolAtom s -> showString s
     KeywordAtom s -> showString ":" . showString s
   where
