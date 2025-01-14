@@ -8,7 +8,7 @@ module BV.TargetDir
     , readProblems
     , readProblemsAndProofs
     , readProofChecks
-    , readSmtProofChecks
+    , readSMTProofChecks
     , readStackBounds
     ) where
 
@@ -65,6 +65,6 @@ readProblemsAndProofs = readAndParseFile "proofs.txt"
 readProofChecks :: TargetDir -> IO (Either String (ProofChecks String))
 readProofChecks = readAndParseFileFast "proof-checks.txt"
 
-readSmtProofChecks :: TargetDir -> IO (Either String (SmtProofChecks ()))
-readSmtProofChecks = readAndParseFileFast "smt-proof-checks.txt"
--- readSmtProofChecks = readAndParseFile "smt-proof-checks.txt"
+readSMTProofChecks :: TargetDir -> IO (Either String (SMTProofChecks ()))
+readSMTProofChecks = readAndParseFileFast "smt-proof-checks.txt"
+-- readSMTProofChecks = readAndParseFile "smt-proof-checks.txt"

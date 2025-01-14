@@ -1,4 +1,4 @@
-module BV.Core.ConfigureSmt
+module BV.Core.ConfigureSMT
     ( SolverConfig (..)
     , SolverMemoryMode (..)
     , configureSExpr

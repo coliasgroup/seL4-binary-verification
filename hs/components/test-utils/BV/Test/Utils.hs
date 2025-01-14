@@ -18,26 +18,26 @@ testSeL4TargetDirDefault = testSeL4TargetDirBig
 testSeL4TargetDirBig :: TargetDir
 testSeL4TargetDirBig = TargetDir testSeL4TargetDirBig'
 
-testSeL4TargetDirBigSmt :: TargetDir
-testSeL4TargetDirBigSmt = TargetDir testSeL4TargetDirBigSmt'
+testSeL4TargetDirBigSMT :: TargetDir
+testSeL4TargetDirBigSMT = TargetDir testSeL4TargetDirBigSMT'
 
 testSeL4TargetDirSmall :: TargetDir
 testSeL4TargetDirSmall = TargetDir testSeL4TargetDirSmall'
 
-testSeL4TargetDirSmallSmt :: TargetDir
-testSeL4TargetDirSmallSmt = TargetDir testSeL4TargetDirSmallSmt'
+testSeL4TargetDirSmallSMT :: TargetDir
+testSeL4TargetDirSmallSMT = TargetDir testSeL4TargetDirSmallSMT'
 
 testSeL4TargetDirBig' :: FilePath
 testSeL4TargetDirBig' = tmpDir </> "target-big"
 
-testSeL4TargetDirBigSmt' :: FilePath
-testSeL4TargetDirBigSmt' = tmpDir </> "target-big-smt"
+testSeL4TargetDirBigSMT' :: FilePath
+testSeL4TargetDirBigSMT' = tmpDir </> "target-big-smt"
 
 testSeL4TargetDirSmall' :: FilePath
 testSeL4TargetDirSmall' = tmpDir </> "target-small"
 
-testSeL4TargetDirSmallSmt' :: FilePath
-testSeL4TargetDirSmallSmt' = tmpDir </> "target-small-smt"
+testSeL4TargetDirSmallSMT' :: FilePath
+testSeL4TargetDirSmallSMT' = tmpDir </> "target-small-smt"
 
 testHtmlPagesDir :: FilePath
 testHtmlPagesDir = tmpDir </> "html" </> "pages"

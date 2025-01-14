@@ -185,7 +185,7 @@ data ExprValue
   | ExprValueType ExprType
   | ExprValueSymbol Ident
   | ExprValueToken Ident
-  | ExprValueSmtExpr String
+  | ExprValueSMTExpr String
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data Op

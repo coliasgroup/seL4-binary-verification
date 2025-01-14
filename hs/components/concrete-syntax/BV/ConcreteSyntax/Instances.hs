@@ -599,7 +599,7 @@ instance ParseInLine Expr where
                 return $ Expr { ty = ExprTypeType, value = ExprValueType ty' }
             "Symbol" -> typical ExprValueSymbol
             "Token" -> typical ExprValueToken
-            "SMTExpr" -> typicalWith hexEncodedString ExprValueSmtExpr
+            "SMTExpr" -> typicalWith hexEncodedString ExprValueSMTExpr
             _ -> fail "invalid value"
       where
         typical :: (ParseInLine a) => (a -> ExprValue) -> Parser Expr
@@ -766,7 +766,7 @@ instance BuildInLine Expr where
         ExprValueType ty' -> "Type" <> put ty'
         ExprValueSymbol ident -> "Symbol" <> put ident <> put ty
         ExprValueToken ident -> "Token" <> put ident <> put ty
-        ExprValueSmtExpr _s -> "SMTExpr" <> undefined <> put ty
+        ExprValueSMTExpr _s -> "SMTExpr" <> undefined <> put ty
 
 instance BuildInLine ExprType where
     buildInLine a = case a of
@@ -845,21 +845,21 @@ instance BuildInLine Op where
 
 --
 
-instance ParseFile (SmtProofChecks ()) where
+instance ParseFile (SMTProofChecks ()) where
     parseFile = do
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- L.decimal <* eol
             impsLen <- L.decimal <* eol
             setup <- count setupLen (parseSExprWithPlaceholders <* ignoredLines)
-            imps <- count impsLen (SmtProofCheckImp () <$> parseSExprWithPlaceholders <* ignoredLines)
-            return $ SmtProofCheckGroup { setup, imps }
+            imps <- count impsLen (SMTProofCheckImp () <$> parseSExprWithPlaceholders <* ignoredLines)
+            return $ SMTProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
-        return . SmtProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
+        return . SMTProofChecks . ($ M.empty) . appEndo . mconcat . map Endo $ x
 
-instance BuildToFile (SmtProofChecks ()) where
+instance BuildToFile (SMTProofChecks ()) where
     buildToFile checks = mconcat $ mconcat (map (\(k, v) -> map (buildGroup k) v) (M.toList checks.unwrap))
       where
-        buildGroup pairingId (SmtProofCheckGroup { setup, imps }) =
+        buildGroup pairingId (SMTProofCheckGroup { setup, imps }) =
             mconcat . (map (<> "\n")) $
                 [ buildTypicalKeyFormat ["Problem", "Pairing"] (fromString (prettyPairingId pairingId)) <> " {"
                 , B.decimal (length setup)

@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module BV.Core.ExecuteSmtProofChecks
-    ( executeSmtProofChecks
+module BV.Core.ExecuteSMTProofChecks
+    ( executeSMTProofChecks
     ) where
 
 import Control.Monad.Logger (MonadLogger)
@@ -9,15 +9,15 @@ import GHC.Generics (Generic)
 
 import BV.SMTLIB2.Types
 
-import BV.Core.ConfigureSmt
+import BV.Core.ConfigureSMT
 import BV.Core.Types
 
 data Report
   = Report
   deriving (Eq, Generic, Ord, Show)
 
-executeSmtProofChecks :: MonadSolvers n m => SmtProofChecks String -> m Report
-executeSmtProofChecks = undefined
+executeSMTProofChecks :: MonadSolvers n m => SMTProofChecks String -> m Report
+executeSMTProofChecks = undefined
 
 data Result
   = Pass
@@ -28,10 +28,10 @@ class ( Monad m
       , MonadLogger m
       , MonadCache m
       , MonadSolvers n m
-      ) => MonadExecuteSmtProofChecks n m where
+      ) => MonadExecuteSMTProofChecks n m where
 
 class Monad m => MonadCache m where
-    queryCache :: SmtProofCheckGroup () -> m (Maybe Result)
+    queryCache :: SMTProofCheckGroup () -> m (Maybe Result)
 
 class (Monad m, MonadLogger m, MonadSolver n) => MonadSolvers n m | m -> n where
     liftIntoSolver :: m a -> n a

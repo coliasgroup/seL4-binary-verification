@@ -30,7 +30,7 @@ data IntermediateArtifact
   | IntermediateArtifactPairings Pairings
   | IntermediateArtifactProblems Problems
   | IntermediateArtifactProofChecks (ProofChecks String)
-  | IntermediateArtifactSmtProofChecks (SmtProofChecks ())
+  | IntermediateArtifactSMTProofChecks (SMTProofChecks ())
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadRegisterIntermediateArtifacts m where
@@ -41,7 +41,7 @@ class ( Monad m
       , MonadRegisterIntermediateArtifacts m
       ) => MonadPureStages m where
 
-gluedStages :: MonadPureStages m => Input -> m (SmtProofChecks ())
+gluedStages :: MonadPureStages m => Input -> m (SMTProofChecks ())
 gluedStages = undefined
   where
     x = undefined
