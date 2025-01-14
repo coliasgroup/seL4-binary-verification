@@ -7,7 +7,7 @@ module Main
 -- import System.Environment
 
 -- import BV.ConcreteSyntax
--- import BV.ConcreteSyntax.TargetDir
+-- import BV.TargetDir
 -- import BV.Core.Types
 -- import BV.Test.Utils
 

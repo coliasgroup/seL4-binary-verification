@@ -16,8 +16,8 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import BV.ConcreteSyntax
-import BV.ConcreteSyntax.TargetDir
 import BV.Core.Types
+import BV.TargetDir
 import BV.Test.Utils
 
 main :: IO ()

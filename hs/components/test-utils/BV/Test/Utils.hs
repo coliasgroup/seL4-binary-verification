@@ -4,7 +4,7 @@ import Data.Maybe (fromJust)
 import System.FilePath
 import qualified Text.Show.Pretty as H
 
-import BV.ConcreteSyntax.TargetDir
+import BV.TargetDir
 
 tmpDir :: FilePath
 tmpDir = "tmp"

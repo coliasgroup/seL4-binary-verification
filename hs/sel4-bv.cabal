@@ -18,7 +18,6 @@ library concrete-syntax
   visibility: public
   exposed-modules:
       BV.ConcreteSyntax
-      BV.ConcreteSyntax.TargetDir
   other-modules:
       BV.ConcreteSyntax.FastInstances
       BV.ConcreteSyntax.FastParsing
@@ -41,7 +40,6 @@ library concrete-syntax
     , base
     , containers
     , dlist
-    , filepath
     , megaparsec
     , optics-core
     , sel4-bv:core
@@ -181,11 +179,35 @@ library system
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:smtlib2
+    , sel4-bv:target-dir
     , stm
     , tasty
     , tasty-hunit
     , text
     , transformers
+  default-language: GHC2021
+
+library target-dir
+  visibility: public
+  exposed-modules:
+      BV.TargetDir
+  hs-source-dirs:
+      components/target-dir
+  default-extensions:
+      FunctionalDependencies
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      base
+    , filepath
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , text
   default-language: GHC2021
 
 library test-utils
@@ -209,6 +231,7 @@ library test-utils
     , pretty-simple
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , sel4-bv:target-dir
   default-language: GHC2021
 
 executable cli
@@ -269,6 +292,7 @@ test-suite concrete-syntax-test
     , process
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , sel4-bv:target-dir
     , sel4-bv:test-utils
     , tasty
     , tasty-hunit
@@ -291,6 +315,7 @@ test-suite core-test
       base
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , sel4-bv:target-dir
     , sel4-bv:test-utils
     , tasty
     , tasty-hunit
@@ -318,6 +343,7 @@ test-suite smtlib2-test
     , process
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-types
+    , sel4-bv:target-dir
     , tasty
     , tasty-hunit
     , text

@@ -85,7 +85,6 @@ internal-libraries:
       - NoFieldSelectors
     exposed-modules:
       - BV.ConcreteSyntax
-      - BV.ConcreteSyntax.TargetDir
     dependencies:
       - sel4-bv:core
       - sel4-bv:smtlib2
@@ -96,6 +95,20 @@ internal-libraries:
       - text
       - megaparsec
       - attoparsec
+
+  target-dir:
+    visibility: public
+    source-dirs: components/target-dir
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
+    exposed-modules:
+      - BV.TargetDir
+    dependencies:
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      # external
+      - text
       - filepath
 
   system:
@@ -105,9 +118,10 @@ internal-libraries:
       - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
+      - sel4-bv:smtlib2
       - sel4-bv:core
       - sel4-bv:concrete-syntax
-      - sel4-bv:smtlib2
+      - sel4-bv:target-dir
       # external
       - deepseq
       - containers
@@ -137,6 +151,7 @@ internal-libraries:
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
+      - sel4-bv:target-dir
       # external
       - filepath
       # TODO prune
@@ -180,6 +195,7 @@ tests:
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
+      - sel4-bv:target-dir
       - sel4-bv:test-utils
       # external
       - tasty
@@ -196,6 +212,7 @@ tests:
     dependencies:
       - sel4-bv:smtlib2-types
       - sel4-bv:smtlib2
+      - sel4-bv:target-dir
       # external
       - mtl
       - text
@@ -218,6 +235,7 @@ tests:
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
+      - sel4-bv:target-dir
       - sel4-bv:test-utils
       # external
       - mtl
