@@ -1,16 +1,10 @@
 
-package_yaml := package.yaml
-cabal_pkg_name := sel4-bv
-cabal_pkg_desc := $(cabal_pkg_name).cabal
-
 .PHONY: none
 none:
 
-$(cabal_pkg_desc): $(package_yaml)
-	hpack
-
 .PHONY: hpack
-hpack: $(cabal_pkg_desc)
+hpack:
+	hpack
 
 .PHONY: hpack-watch
 hpack-watch:
@@ -22,41 +16,41 @@ hpack-watch:
 		done
 
 .PHONY: clean
-clean: $(cabal_pkg_desc)
+clean: hpack
 	cabal clean
 	rm -rf haddocks
 	stack clean --full
 
 .PHONY: build
-build: $(cabal_pkg_desc)
+build: hpack
 	cabal build
 
 .PHONY: check
-check: $(cabal_pkg_desc)
+check: hpack
 	cabal build
 
 .PHONY:
-test: $(cabal_pkg_desc)
+test: hpack
 	cabal test
 
 # TODO still seems to document some deps
 haddock_cmd := cabal haddock-project
 
 .PHONY: doc
-doc: $(cabal_pkg_desc)
+doc: hpack
 	$(haddock_cmd)
 
 .PHONY: odoc
-odoc: $(cabal_pkg_desc)
+odoc: hpack
 	$(haddock_cmd)
 	xdg-open haddocks/index.html
 
 .PHONY: fmt
-fmt: $(cabal_pkg_desc)
+fmt: hpack
 	stylish-haskell -i $$(find . -name '*.hs')
 
 .PHONY: hlint
-hlint: $(cabal_pkg_desc)
+hlint: hpack
 	hlint components
 
 .PHONY: nix
@@ -64,13 +58,13 @@ nix:
 	nix-build -A package
 
 .PHONY: enumerate-transitive-deps
-enumerate-transitive-deps: $(cabal_pkg_desc)
+enumerate-transitive-deps: hpack
 	false
 
 .PHONY: i
-i: $(cabal_pkg_desc)
+i: hpack
 	cabal repl --enable-multi-repl
 
 .PHONY: it
-it: $(cabal_pkg_desc)
+it: hpack
 	cabal repl sel4-bv:test:test
