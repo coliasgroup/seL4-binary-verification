@@ -19,13 +19,14 @@ data IntermediateArtifact
   | IntermediateArtifactPairings Pairings
   | IntermediateArtifactProblems Problems
   | IntermediateArtifactProofChecks (ProofChecks String)
+  | IntermediateArtifactSmtProofChecks SmtProofChecks
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadRegisterIntermediateArtifacts m where
     registerIntermediateArtifact :: IntermediateArtifact -> m ()
 
 class Monad m => MonadCache m where
-    checkCache :: Pairings -> PairingId -> ProblemAndProof -> m (Maybe Result)
+    queryCache :: Pairings -> PairingId -> ProblemAndProof -> m (Maybe Result)
 
 class Monad m => MonadSneakyIO m where
     liftSneakyIO :: IO () -> m ()
