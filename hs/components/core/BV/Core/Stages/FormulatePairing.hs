@@ -1,4 +1,4 @@
-module BV.Core.FormulatePairing
+module BV.Core.Stages.FormulatePairing
     ( formulatePairing
     ) where
 

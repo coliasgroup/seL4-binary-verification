@@ -1,4 +1,4 @@
-module BV.Core.PseudoCompile
+module BV.Core.Stages.PseudoCompile
     ( pseudoCompile
     ) where
 

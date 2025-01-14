@@ -51,15 +51,17 @@ library core
   visibility: public
   exposed-modules:
       BV.Core
-      BV.Core.BuildProblem
-      BV.Core.Check
       BV.Core.Environment
-      BV.Core.Fixup
-      BV.Core.FormulatePairing
+      BV.Core.Glue
       BV.Core.Graph
-      BV.Core.InlineAssembly
-      BV.Core.ProofChecks
-      BV.Core.PseudoCompile
+      BV.Core.Stages
+      BV.Core.Stages.BuildProblem
+      BV.Core.Stages.CompileProofChecks
+      BV.Core.Stages.EnumerateProofChecks
+      BV.Core.Stages.Fixup
+      BV.Core.Stages.FormulatePairing
+      BV.Core.Stages.InlineAssembly
+      BV.Core.Stages.PseudoCompile
       BV.Core.Types
       BV.Core.Types.ObjDump
       BV.Core.Types.Pairing

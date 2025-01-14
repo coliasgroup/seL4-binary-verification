@@ -1,4 +1,4 @@
-module BV.Core.BuildProblem
+module BV.Core.Stages.BuildProblem
     ( buildProblem
     ) where
 

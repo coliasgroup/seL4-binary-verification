@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module BV.Core.Check
+module BV.Core.Glue
     ( Input
     ) where
 

@@ -1,4 +1,4 @@
-module BV.Core.ProofChecks
+module BV.Core.Stages.EnumerateProofChecks
     ( enumerateProofChecks
     ) where
 

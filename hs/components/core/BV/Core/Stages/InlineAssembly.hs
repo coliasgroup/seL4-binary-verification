@@ -1,4 +1,4 @@
-module BV.Core.InlineAssembly
+module BV.Core.Stages.InlineAssembly
     ( addInlineAssemblySpecs
     ) where
 
