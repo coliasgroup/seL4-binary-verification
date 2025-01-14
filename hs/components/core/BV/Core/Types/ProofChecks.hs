@@ -179,5 +179,5 @@ atomOrPlaceholderP :: R.ReadP AtomOrPlaceholder
 atomOrPlaceholderP = Left <$> placeholderP <|> Right <$> atomP
 
 placeholderP :: R.ReadP SExprPlaceholder
-placeholderP = R.between (R.char '{') (R.char ')') $
+placeholderP = R.between (R.char '{') (R.char '}') $
     SExprPlaceholderMemSort <$ R.string "MemSort" <|> SExprPlaceholderMemDomSort <$ R.string "MemDomSort"
