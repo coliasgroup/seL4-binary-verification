@@ -275,6 +275,27 @@ test-suite concrete-syntax-test
     , text
   default-language: GHC2021
 
+test-suite core-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs:
+      components/core-test
+  default-extensions:
+      FunctionalDependencies
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , sel4-bv:test-utils
+    , tasty
+    , tasty-hunit
+  default-language: GHC2021
+
 test-suite smtlib2-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
