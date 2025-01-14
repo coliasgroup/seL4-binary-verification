@@ -50,11 +50,14 @@ library concrete-syntax
 library core
   visibility: public
   exposed-modules:
-      BV.Core
-      BV.Core.Environment
-      BV.Core.Glue
-      BV.Core.Graph
+      BV.Core.Types
       BV.Core.Stages
+      BV.Core.GluedStages
+  other-modules:
+      BV.Core
+      BV.Core.ConfigureSmt
+      BV.Core.ExecuteSmtProofChecks
+      BV.Core.Graph
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks
@@ -62,7 +65,6 @@ library core
       BV.Core.Stages.FormulatePairing
       BV.Core.Stages.InlineAssembly
       BV.Core.Stages.PseudoCompile
-      BV.Core.Types
       BV.Core.Types.ObjDump
       BV.Core.Types.Pairing
       BV.Core.Types.Problem

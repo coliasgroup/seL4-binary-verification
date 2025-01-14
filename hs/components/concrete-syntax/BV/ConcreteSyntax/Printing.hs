@@ -29,7 +29,9 @@ import qualified Data.Text.Lazy as L
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Builder.Int (decimal, hexadecimal)
 
-import BV.Core.Utils
+intersperse :: Monoid a => a -> [a] -> a
+intersperse _ [] = mempty
+intersperse sep (x:xs) = x <> mconcat (map (sep <>) xs)
 
 buildBlocksFile :: (k -> Builder) -> (v -> BlockBuilder) -> [(k, v)] -> Builder
 buildBlocksFile bk bv = mconcat . map bkv

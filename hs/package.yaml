@@ -65,7 +65,10 @@ internal-libraries:
     default-extensions:
       - DuplicateRecordFields
       - NoFieldSelectors
-    # exposed-modules: # TODO
+    exposed-modules:
+      - BV.Core.Types
+      - BV.Core.Stages
+      - BV.Core.GluedStages
     dependencies:
       - sel4-bv:smtlib2-types
       # external

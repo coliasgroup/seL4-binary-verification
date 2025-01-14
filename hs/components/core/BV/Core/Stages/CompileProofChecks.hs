@@ -4,5 +4,5 @@ module BV.Core.Stages.CompileProofChecks
 
 import BV.Core.Types
 
-compileProofChecks :: (PairingEqSideQuadrant -> Ident -> Ident) -> Pairing -> Problem -> [ProofCheck a] -> [SmtProofCheckGroup a]
+compileProofChecks :: Problem -> [ProofCheck a] -> [SmtProofCheckGroup a]
 compileProofChecks = undefined
