@@ -159,6 +159,7 @@ library system
   visibility: public
   exposed-modules:
       BV.System.Glue
+      BV.System.IntermediateArtifacts
       BV.System.SeL4
       BV.System.Utils
   hs-source-dirs:
@@ -178,7 +179,9 @@ library system
     , bytestring
     , containers
     , deepseq
+    , directory
     , filepath
+    , free
     , megaparsec
     , monad-logger
     , mtl
@@ -214,6 +217,7 @@ library target-dir
   build-depends:
       base
     , filepath
+    , mtl
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , text
@@ -322,8 +326,13 @@ test-suite core-test
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
+    , filepath
+    , free
+    , monad-logger
+    , mtl
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , sel4-bv:system
     , sel4-bv:target-dir
     , sel4-bv:test-utils
     , tasty

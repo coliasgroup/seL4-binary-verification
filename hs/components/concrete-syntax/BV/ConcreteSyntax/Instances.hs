@@ -339,6 +339,46 @@ instance BuildInBlock ProblemAndProof where
 
 --
 
+instance ParseFile InlineScripts where
+    parseFile =
+        InlineScripts . M.fromList
+            <$> parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId parseInBlock
+
+instance ParseInBlock [InlineScriptEntry] where
+    parseInBlock = do
+        _ <- line $ inLineSymbol "InlineScript"
+        manyTill (line parseInLine) (try endLine)
+      where
+        endLine = line $ inLineSymbol "EndInlineScript"
+
+instance ParseInLine InlineScriptEntry where
+    parseInLine = InlineScriptEntry <$> parseInLine <*> parseInLine
+
+instance ParseInLine NodeBySource where
+    parseInLine = NodeBySource <$> parseInLine <*> parseInLine
+
+instance BuildToFile InlineScripts where
+    buildToFile (InlineScripts scripts) =
+        buildBlocksFileWithTypicalKeyFormat
+            ["Problem", "Pairing"]
+            (fromString . prettyPairingId)
+            buildInBlock
+            (M.toList scripts)
+
+instance BuildInBlock InlineScript where
+    buildInBlock entries =
+        lineInBlock "InlineScript"
+            <> foldMap (lineInBlock . put) entries
+            <> lineInBlock "EndInlineScript"
+
+instance BuildInLine InlineScriptEntry where
+    buildInLine (InlineScriptEntry { nodeBySource, inlinedFunctionName }) = put nodeBySource <> put inlinedFunctionName
+
+instance BuildInLine NodeBySource where
+    buildInLine (NodeBySource { nodeSource, indexInProblem }) = put nodeSource <> putDec indexInProblem
+
+--
+
 instance ParseFile Problems where
     parseFile =
         Problems . M.fromList
@@ -565,7 +605,7 @@ instance ParseInLine Argument where
 instance ParseInLine NodeId where
     parseInLine =
         (Addr <$> try parseInLine)
-            <|> (Ret <$ try (inLineSymbol "Err"))
+            <|> (Err <$ try (inLineSymbol "Err"))
             <|> (Ret <$ try (inLineSymbol "Ret"))
 
 instance ParseInLine NodeAddr where

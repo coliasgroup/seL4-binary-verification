@@ -3,6 +3,7 @@ module BV.Core.Stages.PseudoCompile
     ) where
 
 import Control.Exception (assert)
+import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Optics
 
@@ -12,7 +13,8 @@ import BV.Core.Logic
 import BV.Core.Types
 
 pseudoCompile :: ObjDumpInfo -> Program -> Program
-pseudoCompile objDumpInfo = compilePValidAlignExprs . compileSymbolReferences objDumpInfo
+pseudoCompile objDumpInfo prog = assert (M.null prog.structs && M.null prog.constGlobals) $
+    (compilePValidAlignExprs . compileSymbolReferences objDumpInfo) prog
 
 compileSymbolReferences :: ObjDumpInfo -> Program -> Program
 compileSymbolReferences objDumpInfo = walkFunctionExprs (over #value f)

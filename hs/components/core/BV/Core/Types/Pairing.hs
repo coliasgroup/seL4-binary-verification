@@ -31,7 +31,7 @@ data PairingOf a
       { c :: a
       , asm :: a
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Functor, Generic, NFData, Ord, Show)
 
 data Tag
   = C

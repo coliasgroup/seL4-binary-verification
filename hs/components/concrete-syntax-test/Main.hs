@@ -73,6 +73,7 @@ parsePrintSeL4 = testGroup "seL4"
     , testCase "functions" $ testRoundTripSeL4 readFunctions
     , testCase "problems" $ testRoundTripSeL4 readProblems
     , testCase "stack bounds" $ testRoundTripSeL4 readStackBounds
+    , testCase "inline scripts" $ testRoundTripSeL4 readInlineScripts
     , testCase "pairings" $ testRoundTripSeL4 readPairings
     , testCase "problems and proofs" $ testRoundTripSeL4 readProblemsAndProofs
     , testCase "smt proof checks" $

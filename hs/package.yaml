@@ -113,6 +113,7 @@ internal-libraries:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       # external
+      - mtl
       - text
       - filepath
 
@@ -130,8 +131,9 @@ internal-libraries:
       # external
       - deepseq
       - containers
-      - mtl
       - transformers
+      - mtl
+      - free
       - optics-core
       - async
       - stm
@@ -140,6 +142,7 @@ internal-libraries:
       - attoparsec
       - megaparsec
       - filepath
+      - directory
       - monad-logger
       # TODO prune
       - pretty-show
@@ -201,8 +204,13 @@ tests:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
+      - sel4-bv:system
       - sel4-bv:test-utils
       # external
+      - mtl
+      - free
+      - monad-logger
+      - filepath
       - tasty
       - tasty-hunit
     ghc-options:

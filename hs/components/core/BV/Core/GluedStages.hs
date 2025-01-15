@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Core.GluedStages
@@ -6,13 +8,17 @@ module BV.Core.GluedStages
     , MonadPureStages
     , MonadRegisterIntermediateArtifacts (..)
     , gluedStages
+    , gluedStages_
     ) where
 
-import Control.Monad.Logger (MonadLogger)
+import Control.Monad.Logger
+import qualified Data.Map as M
 import GHC.Generics (Generic)
+import Optics
 
 import BV.Core.Stages
 import BV.Core.Types
+import Control.Exception (assert)
 
 data Input
   = Input
@@ -21,9 +27,9 @@ data Input
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts
       , problemsAndProofs :: ProblemsAndProofs
-      , asmIgnore :: [Ident]
+      , asmFunctionFilter :: Ident -> Bool
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Generic)
 
 data IntermediateArtifact
   = IntermediateArtifactFunctions Program
@@ -36,12 +42,30 @@ data IntermediateArtifact
 class Monad m => MonadRegisterIntermediateArtifacts m where
     registerIntermediateArtifact :: IntermediateArtifact -> m ()
 
-class ( Monad m
-      , MonadLogger m
-      , MonadRegisterIntermediateArtifacts m
-      ) => MonadPureStages m where
+type MonadPureStages m =
+    ( Monad m
+    , MonadLogger m
+    , MonadRegisterIntermediateArtifacts m
+    )
 
 gluedStages :: MonadPureStages m => Input -> m (SMTProofChecks ())
 gluedStages = undefined
+
+gluedStages_ :: MonadPureStages m => Input -> m ()
+gluedStages_ input = do
+    -- logDebugN "foo"
+    registerIntermediateArtifact $ IntermediateArtifactFunctions collectedFunctions
+    return ()
   where
-    x = undefined
+    altered = fixupProgram <$> PairingOf
+        { asm = input.programs.asm & #functions %~ M.filterWithKey (const . input.asmFunctionFilter)
+        , c = pseudoCompile input.objDumpInfo input.programs.c
+        }
+    (inlineAsmPairings, alteredWithInlineAsm) = addInlineAssemblySpecs altered
+    collectedFunctions = Program
+        { structs = M.empty
+        , constGlobals = M.empty
+        , functions =
+            assert (M.disjoint alteredWithInlineAsm.c.functions alteredWithInlineAsm.asm.functions) $
+            M.union alteredWithInlineAsm.c.functions alteredWithInlineAsm.asm.functions
+        }
