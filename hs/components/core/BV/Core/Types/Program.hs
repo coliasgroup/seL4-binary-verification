@@ -279,7 +279,7 @@ walkExprs :: Monad m => (Expr -> m Expr) -> Expr -> m Expr
 walkExprs f expr = do
     expr' <- f expr
     flip (traverseOf #value) expr' $ \case
-        ExprValueOp op args -> ExprValueOp op <$> traverse f args
+        ExprValueOp op args -> ExprValueOp op <$> traverse (walkExprs f) args
         v -> return v
 
 walkExprsI :: (Expr -> Expr) -> Expr -> Expr
