@@ -37,6 +37,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics.Core
+import Data.String (IsString(..))
 
 import BV.Core.Utils
 
@@ -44,6 +45,9 @@ newtype Ident
   = Ident { unwrap :: String }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
+
+instance IsString Ident where
+    fromString = Ident
 
 data Named a
   = Named

@@ -25,7 +25,7 @@ parsePrettyPairingId = do
     hspace *> "(ASM)" *> hspace *> "<=" *> hspace
     c <- ident
     hspace *> "(C)"
-    return $ PairingId { asm, c }
+    return $ PairingOf { asm, c }
   where
     ident = Ident <$> many1 (satisfy isIdentChar)
     isIdentChar c = not (isSpace c || c == '(' || c == ')')

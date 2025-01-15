@@ -33,17 +33,31 @@ data PairingOf a
       }
   deriving (Eq, Functor, Generic, NFData, Ord, Show)
 
+instance Semigroup a => Semigroup (PairingOf a) where
+    x <> y = PairingOf
+        { c = x.c <> y.c
+        , asm = x.asm <> y.asm
+        }
+
+instance Monoid a => Monoid (PairingOf a) where
+    mempty = PairingOf
+        { c = mempty
+        , asm = mempty
+        }
+
+instance Applicative PairingOf where
+    pure x = PairingOf x x
+    ff <*> fx = PairingOf
+        { c = ff.c fx.c
+        , asm = ff.asm fx.asm
+        }
+
 data Tag
   = C
   | Asm
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data PairingId
-  = PairingId
-      { c :: Ident
-      , asm :: Ident
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
+type PairingId = PairingOf Ident
 
 data Pairing
   = Pairing
@@ -91,12 +105,12 @@ cOut :: PairingEqSideQuadrant
 cOut = PairingEqSideQuadrant C PairingEqDirectionOut
 
 newtype Pairings
-  = Pairings (M.Map PairingId Pairing)
+  = Pairings { unwrap :: M.Map PairingId Pairing }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
 prettyPairingId :: PairingId -> String
-prettyPairingId (PairingId { c, asm }) = asm.unwrap++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
+prettyPairingId (PairingOf { c, asm }) = asm.unwrap++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
 
 prettyTag :: Tag ->  String
 prettyTag C = "C"
