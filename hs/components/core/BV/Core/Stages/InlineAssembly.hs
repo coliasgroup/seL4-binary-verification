@@ -241,11 +241,11 @@ parseInstFun argP = do
     crP = (:) <$> (char 'c' <* optional (char 'r')) <*> digits1P
     mcrP = do
         s1 <- sepThenP $ optional (char 'p') *> digits1P
-        s2 <- sepThenP $ digits1P
-        r <- sepThenP $ argP
-        s3 <- sepThenP $ crP
-        s4 <- sepThenP $ crP
-        s5 <- sepThenP $ digits1P
+        s2 <- sepThenP digits1P
+        r <- sepThenP argP
+        s3 <- sepThenP crP
+        s4 <- sepThenP crP
+        s5 <- sepThenP digits1P
         return ([r], [s1, s2, "argv1", s3, s4, s5])
     mrcP = mcrP
     barrierP = do
