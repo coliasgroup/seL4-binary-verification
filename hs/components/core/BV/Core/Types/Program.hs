@@ -56,7 +56,7 @@ data Named a
       { name :: Ident
       , value :: a
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Functor, Generic, NFData, Ord, Show)
 
 toListOfNamed :: Map Ident a -> [Named a]
 toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toList

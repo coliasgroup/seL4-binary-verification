@@ -11,6 +11,7 @@ module BV.Core.Types.Pairing
     , PairingOf (..)
     , Pairings (..)
     , Tag (..)
+    , WithTag (..)
     , asmIn
     , asmOut
     , cIn
@@ -21,6 +22,7 @@ module BV.Core.Types.Pairing
     , prettyPairingEqSideQuadrant
     , prettyPairingId
     , prettyTag
+    , withTag
     ) where
 
 import Control.DeepSeq (NFData)
@@ -60,6 +62,16 @@ data Tag
   = C
   | Asm
   deriving (Eq, Generic, NFData, Ord, Show)
+
+data WithTag a
+  = WithTag
+      { tag :: Tag
+      , value :: a
+      }
+  deriving (Eq, Functor, Generic, NFData, Ord, Show)
+
+withTag :: (Tag -> a -> b) -> WithTag a -> b
+withTag f (WithTag tag value) = f tag value
 
 pairingSide :: Tag -> PairingOf a -> a
 pairingSide tag = view (intoPairingSide tag)
