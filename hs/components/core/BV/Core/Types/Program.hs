@@ -26,11 +26,11 @@ module BV.Core.Types.Program
     , fromListOfNamed
     , nodeConts
     , programFromFunctions
-    , programFromNamedFunction
     , renameVars
     , toListOfNamed
     , walkExprs
     , walkExprsI
+    , withNamed
     ) where
 
 import Control.DeepSeq (NFData)
@@ -64,6 +64,9 @@ toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toList
 fromListOfNamed :: [Named a] -> Map Ident a
 fromListOfNamed = M.fromList . map (\Named { name, value } -> (name, value))
 
+withNamed :: (Ident -> a -> b) -> Named a -> b
+withNamed f (Named named value) = f named value
+
 data Program
   = Program
       { structs :: Map Ident Struct
@@ -88,10 +91,6 @@ instance Monoid Program where
 
 programFromFunctions :: M.Map Ident Function -> Program
 programFromFunctions functions = mempty & #functions .~ functions
-
-programFromNamedFunction :: Named Function -> Program
-programFromNamedFunction namedFunction =
-    programFromFunctions (M.singletion namedFunction.name namedFunction.value)
 
 data Struct
   = Struct

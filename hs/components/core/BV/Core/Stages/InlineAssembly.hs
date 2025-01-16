@@ -56,20 +56,19 @@ addInlineAssemblySpecs progs =
                 tell ([instFun], [])
                 return $ fun & #body ?~ funBody
 
-    explodeInst :: InstFunction -> (PairingId, PairingOf Function, Pairing)
-    explodeInst instFun = (pairingId, pairOfNewFuns, pairing)
+    explodeInst :: InstFunction -> (PairingOf Program, Pairings)
+    explodeInst instFun =
+        ( (.) programFromFunctions . M.singleton <$> pairingId <*> pairOfNewFuns
+        , Pairings (M.singleton pairingId pairing)
+        )
       where
         pairingId = instFunctionName instFun
         pairOfNewFuns = pure (elaborateInstFunction instFun)
         pairing = pairingForInstFunction instFun
 
-    (finalProgs, pairings) = foldr
-        (\(pairingId, pairOfNewFuns, pairing) (accProg, accPairings) ->
-            ( (\funName fun prg -> prg & #functions % at funName ?~ fun) <$> pairingId <*> pairOfNewFuns <*> accProg
-            , accPairings & #unwrap % at pairingId ?~ pairing
-            ))
-        (intermediateProgs, Pairings M.empty)
-        (map explodeInst requiredInstFuns)
+    (progsOfNewFuns, pairings) = foldMap explodeInst requiredInstFuns
+
+    finalProgs = intermediateProgs <> progsOfNewFuns
 
 --
 
