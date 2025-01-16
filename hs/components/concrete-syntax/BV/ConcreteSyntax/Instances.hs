@@ -394,7 +394,10 @@ instance ParseInBlock Problem where
                 (Asm, C) -> return (sideB, sideA)
                 _ -> fail "invalid problem side tags"
         nodes <- M.fromList <$> manyTill nodeLine (try endLine)
-        return $ Problem { c, asm, nodes }
+        return $ Problem
+            { sides = PairingOf { c, asm }
+            , nodes
+            }
       where
         nodeLine = line $ (,) <$> parseInLine <*> parseInLine
         endLine = line $ inLineSymbol "EndProblem"
@@ -422,10 +425,10 @@ instance BuildToFile Problems where
             (M.toList problems)
 
 instance BuildInBlock Problem where
-    buildInBlock (Problem { c, asm, nodes }) =
+    buildInBlock (Problem { sides, nodes }) =
         lineInBlock "Problem"
-            <> problemSideLine C c
-            <> problemSideLine Asm asm
+            <> problemSideLine C sides.c
+            <> problemSideLine Asm sides.asm
             <> foldMap nodeLine (M.toList nodes)
             <> lineInBlock "EndProblem"
       where

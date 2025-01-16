@@ -4,5 +4,8 @@ module BV.Core.Stages.FormulatePairing
 
 import BV.Core.Types
 
-formulatePairing :: Expr -> PairingOf [Argument] -> Pairing
-formulatePairing stackBound args = undefined
+formulatePairing :: Expr -> [Argument] -> [Argument] -> Pairing
+formulatePairing stackBound cInput cOutpuit = Pairing { inEqs, outEqs }
+  where
+    inEqs = []
+    outEqs = []

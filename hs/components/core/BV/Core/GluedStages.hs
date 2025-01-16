@@ -8,17 +8,19 @@ module BV.Core.GluedStages
     , MonadPureStages
     , MonadRegisterIntermediateArtifacts (..)
     , gluedStages
-    , gluedStages_
     ) where
 
+import Control.Exception (assert)
 import Control.Monad.Logger
+import Data.Functor (void)
 import qualified Data.Map as M
+import Data.Maybe (catMaybes, fromJust)
+import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
 import BV.Core.Stages
 import BV.Core.Types
-import Control.Exception (assert)
 
 data Input
   = Input
@@ -49,23 +51,75 @@ type MonadPureStages m =
     )
 
 gluedStages :: MonadPureStages m => Input -> m (SMTProofChecks ())
-gluedStages = undefined
-
-gluedStages_ :: MonadPureStages m => Input -> m ()
-gluedStages_ input = do
-    -- logDebugN "foo"
+gluedStages input = do
     registerIntermediateArtifact $ IntermediateArtifactFunctions collectedFunctions
-    return ()
+    registerIntermediateArtifact $ IntermediateArtifactPairings pairings
+    registerIntermediateArtifact $ IntermediateArtifactProblems problems
+    registerIntermediateArtifact $ IntermediateArtifactProofChecks proofChecks
+    registerIntermediateArtifact $ IntermediateArtifactSMTProofChecks smtProofChecks
+    return smtProofChecks
+
   where
+
     altered = fixupProgram <$> PairingOf
         { asm = input.programs.asm & #functions %~ M.filterWithKey (const . input.asmFunctionFilter)
         , c = pseudoCompile input.objDumpInfo input.programs.c
         }
+
     (inlineAsmPairings, alteredWithInlineAsm, _unhandledAsmFuns) = addInlineAssemblySpecs altered
+
+    finalPrograms = alteredWithInlineAsm
+
     collectedFunctions = Program
         { structs = M.empty
         , constGlobals = M.empty
         , functions =
-            assert (M.disjoint alteredWithInlineAsm.c.functions alteredWithInlineAsm.asm.functions) $
-            M.union alteredWithInlineAsm.c.functions alteredWithInlineAsm.asm.functions
+            assert (M.disjoint finalPrograms.c.functions finalPrograms.asm.functions) $
+            M.union finalPrograms.c.functions finalPrograms.asm.functions
         }
+
+    pairingIds = catMaybes . flip map (M.keys finalPrograms.asm.functions) $ \asmFunName ->
+        let cFunName = asmFunNameToCFunName asmFunName
+         in if M.member cFunName finalPrograms.c.functions
+            then Just (PairingOf { c = cFunName, asm = asmFunName })
+            else Nothing
+
+    pairingsLessInlineAsm = flip M.fromSet (S.fromList pairingIds) $ \pairingId ->
+        let stackBound = input.stackBounds.unwrap M.! pairingId.asm
+            cFun = finalPrograms.c.functions M.! pairingId.c
+         in formulatePairing stackBound cFun.input cFun.output
+
+    pairings = Pairings $ pairingsLessInlineAsm `M.union` inlineAsmPairings.unwrap
+
+    lookupFunctionForProblem tag funName = (pairingSide tag finalPrograms).functions M.! funName
+
+    problems = Problems $ flip M.mapMaybeWithKey pairings.unwrap $ \pairingId _pairing -> do
+        let namedFuns = (\funName prog -> Named funName (prog.functions M.! funName)) <$> pairingId <*> finalPrograms
+        _ <- namedFuns.c.value.body
+        _ <- namedFuns.asm.value.body
+        let inlineScript = input.inlineScripts.unwrap M.! pairingId
+        return $ buildProblem lookupFunctionForProblem inlineScript namedFuns
+
+    proofChecks = ProofChecks $ flip M.mapWithKey problems.unwrap $ \pairingId problem ->
+        let pairing = pairings `atPairingId` pairingId
+            proofScript = (input.problemsAndProofs `atPairingId` pairingId).proof
+            lookupOrigVarName quadrant mangledName =
+                fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
+              where
+                fun = (pairingSide quadrant.tag finalPrograms).functions M.! pairingSide quadrant.tag pairingId
+                origArgs = case quadrant.direction of
+                    PairingEqDirectionIn -> fun.input
+                    PairingEqDirectionOut -> fun.output
+                probSide = pairingSide quadrant.tag problem.sides
+                mangledArgs = case quadrant.direction of
+                    PairingEqDirectionIn -> probSide.input
+                    PairingEqDirectionOut -> probSide.output
+         in enumerateProofChecks lookupOrigVarName pairing problem proofScript
+
+    smtProofChecks = SMTProofChecks $ flip M.mapWithKey problems.unwrap $ \pairingId problem ->
+        let theseProofChecks = void proofChecks `atPairingId` pairingId
+         in compileProofChecks problem theseProofChecks
+
+
+asmFunNameToCFunName :: Ident -> Ident
+asmFunNameToCFunName = #unwrap %~ ("Kernel_C." ++)

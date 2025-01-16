@@ -61,7 +61,7 @@ addInlineAssemblySpecs progs =
       where
         pairingId = instFunctionName instFun
         pairOfNewFuns = pure (elaborateInstFunction instFun)
-        pairing = undefined
+        pairing = pairingForInstFunction instFun
 
     (finalProgs, pairings) = foldr
         (\(pairingId, pairOfNewFuns, pairing) (accProg, accPairings) ->
@@ -136,6 +136,13 @@ elaborateInstFunction instFun =
         }
   where
     regSpec = regSpecForInstFunction instFun
+
+-- TODO
+pairingForInstFunction :: InstFunction -> Pairing
+pairingForInstFunction isntFun = Pairing
+    { inEqs = []
+    , outEqs = []
+    }
 
 --
 

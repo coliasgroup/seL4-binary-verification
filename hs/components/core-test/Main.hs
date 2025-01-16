@@ -10,6 +10,7 @@ import Control.Monad.Logger (MonadLogger (monadLoggerLog), runStderrLoggingT)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Free.Church (FT)
+import Data.Functor (void)
 import System.FilePath ((</>))
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -33,7 +34,7 @@ testGlued :: IO ()
 testGlued = do
     input <- either error id <$> readInput defaultSeL4AsmFunctionFilter targetDir
     runStderrLoggingT $ runReaderT
-        (runRegisterIntermediateArtifactsT (gluedStages_ input))
+        (runRegisterIntermediateArtifactsT (void $ gluedStages input))
         (RegisterIntermediateArtifactsTInnerContext targetDir mismatchDumpDir)
   where
     targetDir = testSeL4TargetDirBig

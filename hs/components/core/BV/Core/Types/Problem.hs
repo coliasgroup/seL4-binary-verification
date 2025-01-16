@@ -11,8 +11,7 @@ import BV.Core.Types.Program
 
 data Problem
   = Problem
-      { c :: ProblemSide
-      , asm :: ProblemSide
+      { sides :: PairingOf ProblemSide
       , nodes :: NodeMap
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -42,6 +41,9 @@ data NodeSource
   deriving (Eq, Generic, NFData, Ord, Show)
 
 newtype Problems
-  = Problems (M.Map PairingId Problem)
+  = Problems { unwrap :: M.Map PairingId Problem }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
+
+instance AtPairingId Problem Problems where
+    atPairingId = atPairingId . (.unwrap)

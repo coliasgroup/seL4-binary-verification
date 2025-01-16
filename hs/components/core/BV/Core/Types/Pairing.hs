@@ -1,7 +1,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.Core.Types.Pairing
-    ( Pairing (..)
+    ( AtPairingId (..)
+    , Pairing (..)
     , PairingEq (..)
     , PairingEqDirection (..)
     , PairingEqSide (..)
@@ -69,6 +70,12 @@ intoPairingSide Asm = #asm
 
 type PairingId = PairingOf Ident
 
+class AtPairingId a m | m -> a where
+    atPairingId :: m -> PairingId -> a
+
+instance AtPairingId a (M.Map PairingId a) where
+    atPairingId = (M.!)
+
 data Pairing
   = Pairing
       { inEqs :: [PairingEq]
@@ -118,6 +125,9 @@ newtype Pairings
   = Pairings { unwrap :: M.Map PairingId Pairing }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
+
+instance AtPairingId Pairing Pairings where
+    atPairingId = atPairingId . (.unwrap)
 
 prettyPairingId :: PairingId -> String
 prettyPairingId (PairingOf { c, asm }) = asm.unwrap++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
