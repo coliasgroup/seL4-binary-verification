@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
@@ -24,48 +25,36 @@ import Text.ParserCombinators.ReadP
 import BV.Core.ExprConstruction
 import BV.Core.Types
 
-addInlineAssemblySpecs :: PairingOf Program -> (Pairings, PairingOf Program)
+addInlineAssemblySpecs :: PairingOf Program -> (Pairings, PairingOf Program, PairingOf [Ident])
 addInlineAssemblySpecs progs =
-    -- traceShow (map (.unwrap) (S.toList cUnhandledFunNames)) .
-    -- traceShow (map (.unwrap) (S.toList asmUnhandledFunNames)) .
-    -- id $
-    (pairings, progs')
+    (pairings, finalProgs, unhandled)
   where
-    (cProg', cInstFuns, cUnhandledFunNames) = f decodeCInstFun progs.c
-    (asmProg', asmInstFuns, asmUnhandledFunNames) = f decodeAsmInstFun progs.asm
+    (cProg', (cInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun progs.c
+    (asmProg', (asmInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun progs.asm
 
-    f
-        :: (Ident -> Function -> Maybe (Either Unhandled (FunctionBody, InstFunction)))
-        -> Program
-        -> (Program, S.Set InstFunction, S.Set Ident)
-    f decode prog = (prog', S.fromList requiredInstFunsForSide, S.fromList unhandledFunNames)
-      where
-        (prog', (requiredInstFunsForSide, unhandledFunNames)) =
-            runWriter . iforOf (#functions % itraversed) prog $ \funName fun ->
-                case decode funName fun of
-                    Nothing -> do
-                        return fun
-                    Just (Left Unhandled) -> do
-                        tell ([], [funName])
-                        return fun
-                    Just (Right (funBody, instFun)) -> do
-                        tell ([instFun], [])
-                        return $ fun & #body ?~ funBody
-
-    progsInit = PairingOf
+    intermediateProgs = PairingOf
         { c = cProg'
         , asm = asmProg'
         }
 
     requiredInstFuns = S.toList (cInstFuns `S.union` asmInstFuns)
 
-    (progs', pairings) = foldr
-        (\(pairingId, pairOfNewFuns, pairing) (progs'', pairings') ->
-            ( (\name fun p -> p & #functions % at name ?~ fun) <$> pairingId <*> pairOfNewFuns <*> progs''
-            , pairings' & #unwrap % at pairingId ?~ pairing
-            ))
-        (progsInit, Pairings M.empty)
-        (map explodeInst requiredInstFuns)
+    unhandled = S.toList <$> PairingOf
+        { c = cUnhandledFunNames
+        , asm = asmUnhandledFunNames
+        }
+
+    applyDecoder :: InstFunDecoder -> Program -> (Program, (S.Set InstFunction, S.Set Ident))
+    applyDecoder decode prog = runWriter . iforOf (#functions % itraversed) prog $ \funName fun ->
+        case decode funName fun of
+            Nothing -> do
+                return fun
+            Just (Left Unhandled) -> do
+                tell ([], [funName])
+                return fun
+            Just (Right (funBody, instFun)) -> do
+                tell ([instFun], [])
+                return $ fun & #body ?~ funBody
 
     explodeInst :: InstFunction -> (PairingId, PairingOf Function, Pairing)
     explodeInst instFun = (pairingId, pairOfNewFuns, pairing)
@@ -73,6 +62,16 @@ addInlineAssemblySpecs progs =
         pairingId = instFunctionName instFun
         pairOfNewFuns = pure (elaborateInstFunction instFun)
         pairing = undefined
+
+    (finalProgs, pairings) = foldr
+        (\(pairingId, pairOfNewFuns, pairing) (accProg, accPairings) ->
+            ( (\funName fun prg -> prg & #functions % at funName ?~ fun) <$> pairingId <*> pairOfNewFuns <*> accProg
+            , accPairings & #unwrap % at pairingId ?~ pairing
+            ))
+        (intermediateProgs, Pairings M.empty)
+        (map explodeInst requiredInstFuns)
+
+--
 
 data InstFunction
   = MCR
@@ -138,105 +137,28 @@ elaborateInstFunction instFun =
   where
     regSpec = regSpecForInstFunction instFun
 
-decodeAsmInstFun :: Ident -> Function -> Maybe (Either Unhandled (FunctionBody, InstFunction))
+--
+
+type InstFunDecoder = Ident -> Function -> Maybe (Either Unhandled (FunctionBody, InstFunction))
+
+decodeAsmInstFun :: InstFunDecoder
 decodeAsmInstFun funName _fun = f <$> stripPrefix "instruction'" funName.unwrap
   where
     f funNameWithoutPrefix = case tryReadP parseAsmInstFun funNameWithoutPrefix of
         Nothing -> Left Unhandled
-        Just (instFun, regAssignments, token, _addr) -> Right $
+        Just (instFun, regAssignments, token) -> Right $
             let regSpec = regSpecForInstFunction instFun
-                funBody =
-                    FunctionBody
-                        { entryPoint = Addr 1
-                        , nodes = M.singleton 1 $ CallNode
-                            { next = Ret
-                            , functionName = (instFunctionName instFun).asm
-                            , input =
-                                [ machineWordVarE reg | (reg, RegRoleIn) <- zip regAssignments regSpec ]
-                                ++ [ tokenE token, varE memT "mem" ]
-                            , output =
-                                [ Argument reg machineWordT | (reg, RegRoleOut) <- zip regAssignments regSpec ]
-                                ++ [ Argument "mem" memT ]
-                            }
-                        }
+                input =
+                    [ machineWordVarE reg | (reg, RegRoleIn) <- zip regAssignments regSpec ]
+                    ++ [ tokenE token, varE memT "mem" ]
+                output =
+                    [ Argument reg machineWordT | (reg, RegRoleOut) <- zip regAssignments regSpec ]
+                    ++ [ Argument "mem" memT ]
+                funBody = trivialProxyFunctionBody (instFunctionName instFun).asm input output
              in (funBody, instFun)
 
-parseAsmInstFun :: P.ReadP (InstFunction, [Ident], Ident, String)
-parseAsmInstFun = do
-    (instFun, tokenHead) <- choice
-        [ (,) MCR <$> string "mcr"
-        , (,) MCR <$> string "mcr2"
-        , (,) MCRR <$> string "mcrr"
-        , (,) MCRR <$> string "mcrr2"
-        , (,) MRC <$> string "mrc"
-        , (,) MRC <$> string "mrc2"
-        , (,) MRRC <$> string "mrrc"
-        , (,) MRRC <$> string "mrrc2"
-        , (,) DSB <$> string "dsb"
-        , (,) DMB <$> string "dmb"
-        , (,) ISB <$> string "isb"
-        , (,) WFI <$> string "wfi"
-        ]
-    (regAssignments, tokenTail) <- case instFun of
-        MCR -> do
-            sep
-            s1 <- munch1 isDigit
-            sep
-            s2 <- munch1 isDigit
-            sep
-            r <- reg
-            sep
-            s3 <- cr
-            sep
-            s4 <- cr
-            sep
-            s5 <- munch1 isDigit
-            return ([r], [s1, s2, "argv1", s3, s4, s5])
-        MCRR -> error "TODO"
-        MRC -> do
-            sep
-            s1 <- munch1 isDigit
-            sep
-            s2 <- munch1 isDigit
-            sep
-            r <- reg
-            sep
-            s3 <- cr
-            sep
-            s4 <- cr
-            sep
-            s5 <- munch1 isDigit
-            return ([r], [s1, s2, "argv1", s3, s4, s5])
-        MRRC -> error "TODO"
-        DSB -> barrier
-        DMB -> barrier
-        ISB -> barrier
-        _ -> return ([], [])
-    sep
-    addr <- many1 (satisfy isHexDigit)
-    return (instFun, map Ident regAssignments, Ident (intercalate "_" (tokenHead:tokenTail)), addr)
-  where
-    sep = void $ char '_'
-    cr = (:) <$> (char 'c' <* char 'r') <*> munch1 isDigit
-    reg = choice
-        [ "r9" <$ string "sb"
-        , "r10" <$ string "sl"
-        , "r11" <$ string "fp"
-        , "r12" <$ string "ip"
-        , "r13" <$ string "sp"
-        , "r14" <$ string "lr"
-        , "r15" <$ string "pc"
-        , do
-            char 'r'
-            n :: Integer <- fromJust . tryReadS readDec <$> munch1 isDigit
-            unless (n < 16) pfail
-            return $ "r" ++ show n
-        ]
-    barrier = do
-        arg' <- option [] ((:[]) <$> (sep *> munch1 isAlphaNum))
-        return ([], filter (/= "sy") arg')
 
-decodeCInstFun :: Ident -> Function -> Maybe (Either Unhandled (FunctionBody, InstFunction))
+decodeCInstFun :: InstFunDecoder
 decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
   where
     f funNameWithoutPrefix = case tryReadP parseCInstFun funNameWithoutPrefix of
@@ -244,20 +166,9 @@ decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
         Just (instFun, token) -> Right $
             let (iscs, imems) = splitScalarPairs fun.input
                 (oscs, omems) = splitScalarPairs fun.output
-                funBody =
-                    FunctionBody
-                        { entryPoint = Addr 1
-                        , nodes = M.singleton 1 $ CallNode
-                            { next = Ret
-                            , functionName = (instFunctionName instFun).c
-                            , input =
-                                map varFromArgE iscs
-                                ++ [ tokenE token ]
-                                ++ map varFromArgE imems
-                            , output =
-                                oscs ++ omems
-                            }
-                        }
+                input = map varFromArgE iscs ++ [ tokenE token ] ++ map varFromArgE imems
+                output = oscs ++ omems
+                funBody = trivialProxyFunctionBody (instFunctionName instFun).c input output
              in (funBody, instFun)
 
 splitScalarPairs :: [Argument] -> ([Argument], [Argument])
@@ -266,8 +177,32 @@ splitScalarPairs args = (scalars, mems)
     (scalars, globals) = span (\arg -> isWordT arg.ty || isBoolT arg.ty) args
     mems = filter (\arg -> isMemT arg.ty) globals
 
+trivialProxyFunctionBody :: Ident -> [Expr] -> [Argument] -> FunctionBody
+trivialProxyFunctionBody functionName input output =
+    FunctionBody
+        { entryPoint = Addr 1
+        , nodes = M.singleton 1 $ CallNode
+            { next = Ret
+            , functionName
+            , input
+            , output
+            }
+        }
+
+--
+
+parseAsmInstFun :: P.ReadP (InstFunction, [Ident], Ident)
+parseAsmInstFun = parseInstFun registerP <* char '_' <* munch1 isHexDigit
+
 parseCInstFun :: P.ReadP (InstFunction, Ident)
 parseCInstFun = do
+    (instFun, _args, token) <- parseInstFun argP
+    return (instFun, token)
+  where
+    argP = char '%' *> munch1 isDigit
+
+parseInstFun :: ReadP a -> P.ReadP (InstFunction, [a], Ident)
+parseInstFun argP = do
     (instFun, tokenHead) <- choice
         [ (,) MCR <$> string "mcr"
         , (,) MCR <$> string "mcr2"
@@ -282,50 +217,49 @@ parseCInstFun = do
         , (,) ISB <$> string "isb"
         , (,) WFI <$> string "wfi"
         ]
-    tokenTail <- case instFun of
-        MCR -> do
-            sep
-            s1 <- p
-            sep
-            s2 <- munch1 isDigit
-            sep
-            arg
-            sep
-            s3 <- cr
-            sep
-            s4 <- cr
-            sep
-            s5 <- munch1 isDigit
-            return [s1, s2, "argv1", s3, s4, s5]
+    (args, tokenTail) <- case instFun of
+        MCR -> mcrP
         MCRR -> error "TODO"
-        MRC -> do
-            sep
-            s1 <- p
-            sep
-            s2 <- munch1 isDigit
-            sep
-            arg
-            sep
-            s3 <- cr
-            sep
-            s4 <- cr
-            sep
-            s5 <- munch1 isDigit
-            return [s1, s2, "argv1", s3, s4, s5]
+        MRC -> mrcP
         MRRC -> error "TODO"
-        DSB -> barrier
-        DMB -> barrier
-        ISB -> barrier
-        _ -> return []
-    return (instFun, Ident (intercalate "_" (tokenHead:tokenTail)))
+        DSB -> barrierP
+        DMB -> barrierP
+        ISB -> barrierP
+        _ -> return ([], [])
+    return (instFun, args, Ident (intercalate "_" (tokenHead:tokenTail)))
   where
-    sep = void $ munch1 (`elem` (",_" :: String))
-    p = char 'p' *> munch1 isDigit
-    cr = (:) <$> char 'c' <*> munch1 isDigit
-    arg = void $ char '%' *> munch1 isDigit
-    barrier = do
-        arg' <- option [] ((:[]) <$> (sep *> munch1 isAlphaNum))
-        return $ filter (/= "sy") arg'
+    sepP = void $ munch1 (`elem` (",_" :: String))
+    sepThenP = (sepP *>)
+    digits1P = munch1 isDigit
+    crP = (:) <$> (char 'c' <* optional (char 'r')) <*> digits1P
+    mcrP = do
+        s1 <- sepThenP $ optional (char 'p') *> digits1P
+        s2 <- sepThenP $ digits1P
+        r <- sepThenP $ argP
+        s3 <- sepThenP $ crP
+        s4 <- sepThenP $ crP
+        s5 <- sepThenP $ digits1P
+        return ([r], [s1, s2, "argv1", s3, s4, s5])
+    mrcP = mcrP
+    barrierP = do
+        arg' <- option [] ((:[]) <$> (sepP *> munch1 isAlphaNum))
+        return ([], filter (/= "sy") arg')
+
+registerP :: ReadP Ident
+registerP = Ident <$> choice
+    [ "r9" <$ string "sb"
+    , "r10" <$ string "sl"
+    , "r11" <$ string "fp"
+    , "r12" <$ string "ip"
+    , "r13" <$ string "sp"
+    , "r14" <$ string "lr"
+    , "r15" <$ string "pc"
+    , do
+        char 'r'
+        n :: Integer <- fromJust . tryReadS readDec <$> munch1 isDigit
+        unless (n < 16) pfail
+        return $ "r" ++ show n
+    ]
 
 tryReadP :: P.ReadP a -> String -> Maybe a
 tryReadP = tryReadS . P.readP_to_S

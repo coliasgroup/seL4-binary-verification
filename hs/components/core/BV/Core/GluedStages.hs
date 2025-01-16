@@ -61,7 +61,7 @@ gluedStages_ input = do
         { asm = input.programs.asm & #functions %~ M.filterWithKey (const . input.asmFunctionFilter)
         , c = pseudoCompile input.objDumpInfo input.programs.c
         }
-    (inlineAsmPairings, alteredWithInlineAsm) = addInlineAssemblySpecs altered
+    (inlineAsmPairings, alteredWithInlineAsm, _unhandledAsmFuns) = addInlineAssemblySpecs altered
     collectedFunctions = Program
         { structs = M.empty
         , constGlobals = M.empty
