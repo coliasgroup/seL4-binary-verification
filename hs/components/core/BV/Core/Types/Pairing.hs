@@ -6,7 +6,7 @@ module BV.Core.Types.Pairing
     , PairingEqDirection (..)
     , PairingEqSide (..)
     , PairingEqSideQuadrant (..)
-    , PairingId (..)
+    , PairingId
     , PairingOf (..)
     , Pairings (..)
     , Tag (..)
@@ -14,6 +14,8 @@ module BV.Core.Types.Pairing
     , asmOut
     , cIn
     , cOut
+    , intoPairingSide
+    , pairingSide
     , prettyPairingEqDirection
     , prettyPairingEqSideQuadrant
     , prettyPairingId
@@ -23,6 +25,7 @@ module BV.Core.Types.Pairing
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
+import Optics.Core (Lens', view)
 
 import BV.Core.Types.Program
 
@@ -56,6 +59,13 @@ data Tag
   = C
   | Asm
   deriving (Eq, Generic, NFData, Ord, Show)
+
+pairingSide :: Tag -> PairingOf a -> a
+pairingSide tag = view (intoPairingSide tag)
+
+intoPairingSide :: Tag -> Lens' (PairingOf a) a
+intoPairingSide C = #c
+intoPairingSide Asm = #asm
 
 type PairingId = PairingOf Ident
 

@@ -54,12 +54,12 @@ runRegisterIntermediateArtifactsT = iterT $ \case
                     Right x -> return x
                 when (actual /= expected) $ do
                     let d = ctx.mismatchDumpDir </> dumpDst
-                    -- logErrorN $ "intermediate artifact mismatch, writing to " <> T.pack d
-                    fail . T.unpack $ "intermediate artifact mismatch, writing to " <> T.pack d
+                    logErrorN $ "intermediate artifact mismatch, writing to " <> T.pack d
                     liftIO $ do
                         createDirectoryIfMissing True d
                         TL.writeFile (d </> "actual") (TB.toLazyText (buildToFile actual))
                         TL.writeFile (d </> "expected") (TB.toLazyText (buildToFile expected))
+                    fail . T.unpack $ "intermediate artifact mismatch, wrote to " <> T.pack d
         case artifact of
             IntermediateArtifactFunctions a -> check readFunctions "functions" a
             IntermediateArtifactPairings a -> check readPairings "pairings" a

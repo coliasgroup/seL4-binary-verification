@@ -35,9 +35,9 @@ import Control.DeepSeq (NFData)
 import Control.Monad.Identity (Identity (Identity, runIdentity))
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.String (IsString (..))
 import GHC.Generics (Generic)
 import Optics.Core
-import Data.String (IsString(..))
 
 import BV.Core.Utils
 
