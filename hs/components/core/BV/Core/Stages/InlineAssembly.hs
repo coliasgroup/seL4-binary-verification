@@ -136,12 +136,25 @@ elaborateInstFunction instFun =
   where
     regSpec = regSpecForInstFunction instFun
 
--- TODO
 pairingForInstFunction :: InstFunction -> Pairing
-pairingForInstFunction isntFun = Pairing
-    { inEqs = []
-    , outEqs = []
+pairingForInstFunction instFun = Pairing
+    { inEqs
+    , outEqs
     }
+  where
+    fun = elaborateInstFunction instFun
+    inEqs =
+        [ PairingEqSide asmIn (varFromArgE arg) `PairingEq` PairingEqSide cIn (varFromArgE arg)
+        | arg <- fun.input
+        ] ++
+        [ PairingEqSide asmIn (rodataE (varE memT "mem")) `PairingEq` PairingEqSide cIn trueE
+        ]
+    outEqs =
+        [ PairingEqSide asmOut (varFromArgE arg) `PairingEq` PairingEqSide cOut (varFromArgE arg)
+        | arg <- fun.output
+        ] ++
+        [ PairingEqSide asmOut (rodataE (varE memT "mem")) `PairingEq` PairingEqSide cOut trueE
+        ]
 
 --
 
