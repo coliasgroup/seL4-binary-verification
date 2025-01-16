@@ -25,6 +25,8 @@ module BV.Core.Types.Program
     , VarUpdate (..)
     , fromListOfNamed
     , nodeConts
+    , programFromFunctions
+    , programFromNamedFunction
     , renameVars
     , toListOfNamed
     , walkExprs
@@ -83,6 +85,13 @@ instance Monoid Program where
         , constGlobals = mempty
         , functions = mempty
         }
+
+programFromFunctions :: M.Map Ident Function -> Program
+programFromFunctions functions = mempty & #functions .~ functions
+
+programFromNamedFunction :: Named Function -> Program
+programFromNamedFunction namedFunction =
+    programFromFunctions (M.singletion namedFunction.name namedFunction.value)
 
 data Struct
   = Struct
