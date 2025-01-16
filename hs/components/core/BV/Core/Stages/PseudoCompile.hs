@@ -11,6 +11,7 @@ import BV.Core.Arch
 import BV.Core.ExprConstruction
 import BV.Core.Logic
 import BV.Core.Types
+import BV.Core.Utils
 
 pseudoCompile :: ObjDumpInfo -> Program -> Program
 pseudoCompile objDumpInfo prog = assert (M.null prog.structs && M.null prog.constGlobals) $
@@ -48,10 +49,7 @@ alignValidIneqE ty p =
     size = machineWordE (sizeOfType ty)
     align = alignOfType ty
     w0 = machineWordE 0
-    conj = optionalList (align > 1) [bitwiseAndE p (machineWordE (align - 1)) `eqE` w0] ++
+    conj = optionals (align > 1) [bitwiseAndE p (machineWordE (align - 1)) `eqE` w0] ++
         [ notE (p `eqE` w0)
         , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
         ]
-
-optionalList :: Bool -> [a] -> [a]
-optionalList p xs = if p then xs else []

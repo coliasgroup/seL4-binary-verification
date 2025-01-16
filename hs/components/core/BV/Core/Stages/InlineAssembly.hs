@@ -144,16 +144,16 @@ pairingForInstFunction instFun = Pairing
   where
     fun = elaborateInstFunction instFun
     inEqs =
-        [ PairingEqSide asmIn (varFromArgE arg) `PairingEq` PairingEqSide cIn (varFromArgE arg)
+        [ asmIn (varFromArgE arg) === cIn (varFromArgE arg)
         | arg <- fun.input
         ] ++
-        [ PairingEqSide asmIn (rodataE (varE memT "mem")) `PairingEq` PairingEqSide cIn trueE
+        [ asmIn (rodataE (varE memT "mem")) === cIn trueE
         ]
     outEqs =
-        [ PairingEqSide asmOut (varFromArgE arg) `PairingEq` PairingEqSide cOut (varFromArgE arg)
+        [ asmOut (varFromArgE arg) === cOut (varFromArgE arg)
         | arg <- fun.output
         ] ++
-        [ PairingEqSide asmOut (rodataE (varE memT "mem")) `PairingEq` PairingEqSide cOut trueE
+        [ asmOut (rodataE (varE memT "mem")) === cOut trueE
         ]
 
 --
@@ -190,6 +190,7 @@ decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
                 funBody = trivialProxyFunctionBody (instFunctionName instFun).c input output
              in (funBody, instFun)
 
+-- TODO join with one in FormulatePairings
 splitScalarPairs :: [Argument] -> ([Argument], [Argument])
 splitScalarPairs args = (scalars, mems)
   where

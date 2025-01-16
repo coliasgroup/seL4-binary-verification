@@ -524,10 +524,10 @@ instance BuildInLine Tag where
 
 instance ParseInLine PairingEqSideQuadrant where
     parseInLine = wordWithOr "invalid pairing eq side quadrant" $ \case
-        "ASM_IN" -> Just asmIn
-        "ASM_OUT" -> Just asmOut
-        "C_IN" -> Just cIn
-        "C_OUT" -> Just cOut
+        "ASM_IN" -> Just asmInQ
+        "ASM_OUT" -> Just asmOutQ
+        "C_IN" -> Just cInQ
+        "C_OUT" -> Just cOutQ
         _ -> Nothing
 
 instance BuildInLine PairingEqSideQuadrant where

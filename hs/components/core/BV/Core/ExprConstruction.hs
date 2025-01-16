@@ -141,7 +141,7 @@ alignedE :: Integer -> Expr -> Expr
 alignedE n expr = bitwiseAndE expr mask `eqE` numE ty 0
   where
     ty = assertType isWordT expr
-    mask = numE ty (1 `shiftL` fromInteger n)
+    mask = numE ty ((1 `shiftL` fromInteger n) - 1)
 
 castE :: ExprType -> Expr -> Expr
 castE ty expr =

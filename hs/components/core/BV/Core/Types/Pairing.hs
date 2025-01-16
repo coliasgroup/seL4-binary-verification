@@ -13,9 +13,13 @@ module BV.Core.Types.Pairing
     , Tag (..)
     , WithTag (..)
     , asmIn
+    , asmInQ
     , asmOut
+    , asmOutQ
     , cIn
+    , cInQ
     , cOut
+    , cOutQ
     , intoPairingSide
     , pairingSide
     , prettyPairingEqDirection
@@ -23,6 +27,7 @@ module BV.Core.Types.Pairing
     , prettyPairingId
     , prettyTag
     , withTag
+    , (===)
     ) where
 
 import Control.DeepSeq (NFData)
@@ -121,17 +126,34 @@ data PairingEqDirection
   | PairingEqDirectionOut
   deriving (Eq, Generic, NFData, Ord, Show)
 
-asmIn :: PairingEqSideQuadrant
-asmIn = PairingEqSideQuadrant Asm PairingEqDirectionIn
+asmInQ :: PairingEqSideQuadrant
+asmInQ = PairingEqSideQuadrant Asm PairingEqDirectionIn
 
-asmOut :: PairingEqSideQuadrant
-asmOut = PairingEqSideQuadrant Asm PairingEqDirectionOut
+asmOutQ :: PairingEqSideQuadrant
+asmOutQ = PairingEqSideQuadrant Asm PairingEqDirectionOut
 
-cIn :: PairingEqSideQuadrant
-cIn = PairingEqSideQuadrant C PairingEqDirectionIn
+cInQ :: PairingEqSideQuadrant
+cInQ = PairingEqSideQuadrant C PairingEqDirectionIn
 
-cOut :: PairingEqSideQuadrant
-cOut = PairingEqSideQuadrant C PairingEqDirectionOut
+cOutQ :: PairingEqSideQuadrant
+cOutQ = PairingEqSideQuadrant C PairingEqDirectionOut
+
+asmIn :: Expr -> PairingEqSide
+asmIn = PairingEqSide asmInQ
+
+asmOut :: Expr -> PairingEqSide
+asmOut = PairingEqSide asmOutQ
+
+cIn :: Expr -> PairingEqSide
+cIn = PairingEqSide cInQ
+
+cOut :: Expr -> PairingEqSide
+cOut = PairingEqSide cOutQ
+
+infix 4 ===
+
+(===) :: PairingEqSide -> PairingEqSide -> PairingEq
+(===) = PairingEq
 
 newtype Pairings
   = Pairings { unwrap :: M.Map PairingId Pairing }
