@@ -126,6 +126,12 @@ newtype Pairings
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
+instance Semigroup Pairings where
+    x <> y = Pairings (x.unwrap <> y.unwrap)
+
+instance Monoid Pairings where
+    mempty = Pairings mempty
+
 instance AtPairingId Pairing Pairings where
     atPairingId = atPairingId . (.unwrap)
 

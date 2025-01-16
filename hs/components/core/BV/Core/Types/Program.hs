@@ -70,6 +70,20 @@ data Program
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Semigroup Program where
+    x <> y = Program
+        { structs = x.structs <> y.structs
+        , constGlobals = x.constGlobals <> y.constGlobals
+        , functions = x.functions <> y.functions
+        }
+
+instance Monoid Program where
+    mempty = Program
+        { structs = mempty
+        , constGlobals = mempty
+        , functions = mempty
+        }
+
 data Struct
   = Struct
       { size :: Integer
