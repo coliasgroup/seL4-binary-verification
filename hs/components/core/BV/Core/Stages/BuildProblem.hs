@@ -115,13 +115,17 @@ nodeMapBuilderAddFunction (WithTag tag (Named funName fun)) retTarget = do
     origNodeAddrs = S.fromList $ reachable funGraph funBody.entryPoint ^.. traversed % #_Addr
     origVars = S.fromList . map fst $ fun ^.. varDeclsOf
 
-
 nodeMapBuilderInlineAtPoint
     :: NodeAddr -> Function -> State NodeMapBuilder ()
 nodeMapBuilderInlineAtPoint nodeAddr fun = do
     undefined
   where
     funBody = fun ^. #body % unwrap
+
+nodeMapBuilderInline
+    :: (Tag -> Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
+nodeMapBuilderInline lookupFun nodeBySource = do
+    undefined
 
 getFreshName :: Ident -> State NodeMapBuilder Ident
 getFreshName hint = do
