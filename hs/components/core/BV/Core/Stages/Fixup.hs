@@ -2,16 +2,16 @@ module BV.Core.Stages.Fixup
     ( fixupProgram
     ) where
 
+import Control.Monad (forM_)
 import Control.Monad.State
 import Data.Foldable (find)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
-import Control.Monad (forM_)
 import Optics
 
-import BV.Core.Types
 import BV.Core.Logic
+import BV.Core.Types
 
 fixupProgram :: Program -> Program
 fixupProgram = #functions % traversed % #body % traversed %~ fixupFunctionBody

@@ -6,19 +6,18 @@ module BV.Core.Stages.BuildProblem
     ) where
 
 import Control.Exception (assert)
-import Control.Monad (forM, when, unless)
+import Control.Monad (forM, unless, when)
 import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
-import Data.Foldable (forM_)
+import Data.Foldable (forM_, toList)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
+import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
-import Data.Traversable (for)
-import Data.Foldable (toList)
 
 import BV.Core.ExprConstruction
 import BV.Core.Graph
@@ -27,7 +26,11 @@ import BV.Core.Types
 import BV.Core.Utils
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
-buildProblem = undefined
+buildProblem lookupFun inlineScript funs = build builder
+  where
+    builder = flip execState (beginProblemBuilder funs) $ do
+        forM_ inlineScript $ \entry -> do
+            inline lookupFun entry.nodeBySource
 
 data ProblemBuilder
   = ProblemBuilder

@@ -33,9 +33,9 @@ module BV.Core.Types.Pairing
 
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
+import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import Optics.Core (Lens', view)
-import Data.Traversable (foldMapDefault)
 
 import BV.Core.Types.Program
 

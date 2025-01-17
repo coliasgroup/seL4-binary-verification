@@ -3,11 +3,11 @@
 module BV.Core.Graph
     ( NodeGraph (..)
     , NodeGraphEdges
-    , makeNodeGraph
-    , makeNodeGraphFromEdges
-    , makeNodeGraphEdges
-    , reachable
     , loopHeads
+    , makeNodeGraph
+    , makeNodeGraphEdges
+    , makeNodeGraphFromEdges
+    , reachable
     ) where
 
 import Data.Graph (Graph, Vertex)
@@ -20,9 +20,9 @@ import GHC.Generics (Generic)
 import Optics.Core
 
 import BV.Core.Types
+import BV.Core.Utils
 import Data.Foldable (fold, toList)
 import Data.List (find)
-import BV.Core.Utils
 
 data NodeGraph
   = NodeGraph
