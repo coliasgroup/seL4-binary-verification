@@ -16,11 +16,11 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Data.Foldable (forM_)
 
 import BV.Core.Graph
 import BV.Core.Types
 import BV.Core.Utils
-import Data.Foldable (forM_)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
