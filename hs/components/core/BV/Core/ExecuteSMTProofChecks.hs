@@ -31,7 +31,7 @@ class ( Monad m
       ) => MonadExecuteSMTProofChecks n m where
 
 class Monad m => MonadCache m where
-    queryCache :: SMTProofCheckGroup () -> m (Maybe Result)
+    queryCache :: SMTProofCheck () -> m (Maybe Result)
 
 class (Monad m, MonadLogger m, MonadSolver n) => MonadSolvers n m | m -> n where
     liftIntoSolver :: m a -> n a
