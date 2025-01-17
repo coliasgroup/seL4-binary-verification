@@ -168,12 +168,10 @@ nodeMapBuilderInline
     :: (Tag -> Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
 nodeMapBuilderInline lookupFun nodeBySource = do
     let tag = nodeBySource.nodeSource.tag
-    nodeAddr <-
-        -- TODO ugly
-        fmap fromJust . preuse $
-            #nodesBySource % at nodeBySource.nodeSource % to fromJust % ix nodeBySource.indexInProblem
-    node <- fmap (.node) . fmap fromJust . use $ #nodes % at nodeAddr % to fromJust
-    let Just funName = node ^? #_NodeCall % #functionName
+    nodeAddr <- use $
+        #nodesBySource % at nodeBySource.nodeSource % unwrapped
+            % expectingIx nodeBySource.indexInProblem
+    funName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
     nodeMapBuilderInlineAtPoint nodeAddr (lookupFun tag funName)
 
 nodeMapComputePreds
