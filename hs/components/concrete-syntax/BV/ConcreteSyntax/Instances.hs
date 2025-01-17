@@ -314,7 +314,7 @@ instance ParseFile StackBounds where
             (,) <$> parseInLine <*> parseInLine
 
 instance BuildToFile StackBounds where
-    buildToFile (StackBounds stackBounds) = buildBlock $ foldMap f (M.toList stackBounds)
+    buildToFile (StackBounds stackBounds) = buildBlock $ foldMap f (M.toAscList stackBounds)
       where
         f (ident, expr) = lineInBlock $ "StackBound" <> put ident <> put expr
 
@@ -329,7 +329,7 @@ instance BuildToFile ProblemsAndProofs where
             ["ProblemProof", "Problem", "Pairing"]
             (fromString . prettyPairingId)
             buildInBlock
-            (M.toList problemsAndProofs)
+            (M.toAscList problemsAndProofs)
 
 instance ParseInBlock ProblemAndProof where
     parseInBlock = ProblemAndProof <$> parseInBlock <*> line parseInLine
@@ -363,7 +363,7 @@ instance BuildToFile InlineScripts where
             ["Problem", "Pairing"]
             (fromString . prettyPairingId)
             buildInBlock
-            (M.toList scripts)
+            (M.toAscList scripts)
 
 instance BuildInBlock InlineScript where
     buildInBlock entries =
@@ -422,14 +422,14 @@ instance BuildToFile Problems where
             ["Problem", "Pairing"]
             (fromString . prettyPairingId)
             buildInBlock
-            (M.toList problems)
+            (M.toAscList problems)
 
 instance BuildInBlock Problem where
     buildInBlock (Problem { sides, nodes }) =
         lineInBlock "Problem"
             <> problemSideLine C sides.c
             <> problemSideLine Asm sides.asm
-            <> foldMap nodeLine (M.toList nodes)
+            <> foldMap nodeLine (M.toAscList nodes)
             <> lineInBlock "EndProblem"
       where
         problemSideLine tag (ProblemSide { name, input, output, entryPoint }) = lineInBlock $
@@ -477,7 +477,7 @@ instance BuildToFile Pairings where
             ["Pairing"]
             (fromString . prettyPairingId)
             buildInBlock
-            (M.toList pairings)
+            (M.toAscList pairings)
 
 instance ParseInBlock Pairing where
     parseInBlock = do
@@ -761,7 +761,7 @@ instance BuildToFile Program where
 instance BuildInBlock (Named Struct) where
     buildInBlock (Named name (Struct { size, align, fields })) =
         lineInBlock ("Struct" <> put name <> putDec size <> putDec align)
-            <> foldMap buildField (M.toList fields)
+            <> foldMap buildField (M.toAscList fields)
       where
         buildField (fieldName, StructField { ty, offset }) = lineInBlock $
             "StructField" <> put fieldName <> put ty <> putDec offset
@@ -775,7 +775,7 @@ instance BuildInBlock (Named Function) where
             <> mconcat (maybeToList (buildBody <$> body))
       where
         buildBody (FunctionBody { entryPoint, nodes }) =
-            foldMap buildNode (M.toList nodes)
+            foldMap buildNode (M.toAscList nodes)
                 <> lineInBlock ("EntryPoint" <> put entryPoint)
         buildNode (addr, node) = lineInBlock $ put addr <> put node
 
@@ -900,7 +900,7 @@ instance ParseFile (SMTProofChecks ()) where
         return . SMTProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
 
 instance BuildToFile (SMTProofChecks ()) where
-    buildToFile checks = mconcat $ foldMap (\(k, v) -> map (buildGroup k) v) (M.toList checks.unwrap)
+    buildToFile checks = mconcat $ foldMap (\(k, v) -> map (buildGroup k) v) (M.toAscList checks.unwrap)
       where
         buildGroup pairingId (SMTProofCheckGroup { setup, imps }) =
             mconcat . (map (<> "\n")) $

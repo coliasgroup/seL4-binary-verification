@@ -12,17 +12,18 @@ import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Foldable (forM_)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
-import Data.Maybe (fromJust, fromMaybe, isJust)
+import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Data.Traversable (for)
 
 import BV.Core.ExprConstruction
 import BV.Core.Graph
 import BV.Core.Types
 import BV.Core.Utils
-import Data.Traversable (for)
+import Data.Foldable (toList)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -80,7 +81,12 @@ forceSimpleLoopReturns :: State ProblemBuilder ()
 forceSimpleLoopReturns = do
     entryPoints <- use $ #sides % to (fmap (view #entryPoint))
     zoom #nodeMapBuilder $ do
+        nodeGraph <-
+            -- TODO ugly
+            makeNodeGraph . map (\(k, v) -> (k, v.node)). mapMaybe (\(k, v) -> (k,) <$> v) . M.toAscList <$> use #nodes
         preds <- gets computePreds
+        forM_ (loopHeads nodeGraph (toList entryPoints)) $ \(head, scc) -> do
+            undefined
         undefined
     undefined
 
@@ -146,9 +152,9 @@ addFunction
     :: WithTag (Named Function) -> NodeId -> State NodeMapBuilder AddFunctionRenames
 addFunction (WithTag tag (Named funName fun)) retTarget = do
     varRenames <- M.fromList <$>
-        forM (S.toList origVars) (\name -> (name,) <$> getFreshName name)
+        forM (S.toAscList origVars) (\name -> (name,) <$> getFreshName name)
     nodeAddrRenames <- M.fromList <$>
-        forM (S.toList origNodeAddrs) (\addr -> (addr,) <$> reserveNodeAddr)
+        forM (S.toAscList origNodeAddrs) (\addr -> (addr,) <$> reserveNodeAddr)
     let renames = AddFunctionRenames
             { var = varRenames
             , nodeAddr = nodeAddrRenames
@@ -166,7 +172,7 @@ addFunction (WithTag tag (Named funName fun)) retTarget = do
     return renames
   where
     funBody = fun ^. #body % unwrapped
-    funGraph = makeNodeGraph (nodeGraphEdges funBody.nodes)
+    funGraph = makeNodeGraph (M.toAscList funBody.nodes)
     origNodeAddrs = S.fromList $ reachable funGraph funBody.entryPoint ^.. traversed % #_Addr
     origVars = S.fromList . map fst $ fun ^.. varDeclsOf
 
@@ -219,8 +225,8 @@ padMergePoints
 padMergePoints = do
     preds <- gets computePreds
     let mergePreds = M.filter (\nodePreds -> S.size nodePreds > 1) preds
-    nonTrivialEdgesToMergePoints <- fmap concat . forM (M.toList mergePreds) $ \(nodeAddr, nodePreds) -> do
-        fmap concat . forM (S.toList nodePreds) $ \predNodeAddr -> do
+    nonTrivialEdgesToMergePoints <- fmap concat . forM (M.toAscList mergePreds) $ \(nodeAddr, nodePreds) -> do
+        fmap concat . forM (S.toAscList nodePreds) $ \predNodeAddr -> do
             predNode <- use $ nodeAt predNodeAddr
             return $ case predNode of
                 NodeBasic (BasicNode { varUpdates = [] }) -> []
@@ -241,7 +247,7 @@ computePreds builder = M.fromListWith (<>) $ concat
         [ [ (cont, S.singleton nodeAddr)
           | cont <- node ^.. nodeConts % #_Addr
           ]
-        | (nodeAddr, Just (NodeWithMeta { node })) <- M.toList builder.nodes
+        | (nodeAddr, Just (NodeWithMeta { node })) <- M.toAscList builder.nodes
         ]
 
 getFreshName :: Ident -> State NodeMapBuilder Ident

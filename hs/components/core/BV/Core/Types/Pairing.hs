@@ -35,6 +35,7 @@ import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics.Core (Lens', view)
+import Data.Traversable (foldMapDefault)
 
 import BV.Core.Types.Program
 
@@ -63,6 +64,12 @@ instance Applicative PairingOf where
         { c = ff.c fx.c
         , asm = ff.asm fx.asm
         }
+
+instance Foldable PairingOf where
+    foldMap = foldMapDefault
+
+instance Traversable PairingOf where
+    traverse f p = (\c asm -> PairingOf { c, asm }) <$> f p.c <*> f p.asm
 
 data Tag
   = C

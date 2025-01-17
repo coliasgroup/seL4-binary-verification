@@ -4,9 +4,10 @@ module BV.Core.Graph
     ( NodeGraph (..)
     , NodeGraphEdges
     , makeNodeGraph
-    , nodeGraphEdges
-    , nodeGraphEdgesWith
+    , makeNodeGraphFromEdges
+    , makeNodeGraphEdges
     , reachable
+    , loopHeads
     ) where
 
 import Data.Graph (Graph, Vertex)
@@ -32,17 +33,14 @@ data NodeGraph
 
 type NodeGraphEdges = [((), NodeId, [NodeId])]
 
-nodeGraphEdgesWith :: (a -> Node) -> Map NodeAddr a -> NodeGraphEdges
-nodeGraphEdgesWith f nodeMap =
+makeNodeGraphEdges:: [(NodeAddr, Node)] -> NodeGraphEdges
+makeNodeGraphEdges nodeMap =
       ((), Ret, [])
     : ((), Err, [])
-    : (M.assocs nodeMap <&> \(addr, node) -> ((), Addr addr, toListOf nodeConts (f node)))
+    : (nodeMap <&> \(addr, node) -> ((), Addr addr, toListOf nodeConts node))
 
-nodeGraphEdges :: NodeMap -> NodeGraphEdges
-nodeGraphEdges = nodeGraphEdgesWith id
-
-makeNodeGraph :: NodeGraphEdges -> NodeGraph
-makeNodeGraph edges =
+makeNodeGraphFromEdges :: NodeGraphEdges -> NodeGraph
+makeNodeGraphFromEdges edges =
     NodeGraph
         { graph
         , nodeIdMap = view _2 . nodeIdMap'
@@ -51,6 +49,8 @@ makeNodeGraph edges =
   where
     (graph, nodeIdMap', nodeIdMapRev) = G.graphFromEdges edges
 
+makeNodeGraph :: [(NodeAddr, Node)] -> NodeGraph
+makeNodeGraph = makeNodeGraphFromEdges . makeNodeGraphEdges
 
 -- Algorithms
 
@@ -59,7 +59,7 @@ reachable g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapR
 
 loopHeads :: NodeGraph -> [NodeId] -> [(NodeId, [NodeId])]
 loopHeads g entryPoints =
-    [ (g.nodeIdMap (findHead comp), map g.nodeIdMap (S.toList comp))
+    [ (g.nodeIdMap (findHead comp), map g.nodeIdMap (S.toAscList comp))
     | comp <- sccs
     ]
   where

@@ -37,9 +37,9 @@ addInlineAssemblySpecs progs =
         , asm = asmProg'
         }
 
-    requiredInstFuns = S.toList (cInstFuns `S.union` asmInstFuns)
+    requiredInstFuns = S.toAscList (cInstFuns `S.union` asmInstFuns)
 
-    unhandled = S.toList <$> PairingOf
+    unhandled = S.toAscList <$> PairingOf
         { c = cUnhandledFunNames
         , asm = asmUnhandledFunNames
         }
