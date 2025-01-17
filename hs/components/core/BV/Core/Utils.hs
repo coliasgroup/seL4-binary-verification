@@ -4,7 +4,7 @@ module BV.Core.Utils
     , partially
     , partially_
     , tryLast
-    , unwrap
+    , unwrapped
     , whileM
     ) where
 
@@ -41,8 +41,8 @@ whileM cond body = go
             body
             go
 
-unwrap :: Getter (Maybe a) a
-unwrap = to fromJust
+unwrapped :: Lens (Maybe a) (Maybe b) a b
+unwrapped = partially (castOptic _Just)
 
 partially :: AffineTraversal s t a b -> Lens s t a b
 partially optic = withAffineTraversal optic $ \match update ->

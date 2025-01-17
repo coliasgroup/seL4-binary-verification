@@ -125,7 +125,7 @@ addFunction (WithTag tag (Named funName fun)) retTarget = do
          in insertNode newNodeAddr newNode (Just nodeSource)
     return renames
   where
-    funBody = fun ^. #body % unwrap
+    funBody = fun ^. #body % unwrapped
     funGraph = makeNodeGraph funBody.nodes
     origNodeAddrs = S.fromList $ reachable funGraph funBody.entryPoint ^.. traversed % #_Addr
     origVars = S.fromList . map fst $ fun ^.. varDeclsOf
@@ -133,8 +133,8 @@ addFunction (WithTag tag (Named funName fun)) retTarget = do
 nodeMapBuilderInlineAtPoint
     :: NodeAddr -> Function -> State NodeMapBuilder ()
 nodeMapBuilderInlineAtPoint nodeAddr fun = do
-    nodeWithMeta <- fmap fromJust . preuse $ #nodes % at nodeAddr %? to fromJust
-    let Just tag = nodeWithMeta ^? #meta % #bySource %? #nodeSource % #tag
+    nodeWithMeta <- use $ nodeWithMetaAt nodeAddr
+    let tag = nodeWithMeta ^. #meta % #bySource % unwrapped % #nodeSource % #tag
     let CallNode { next, functionName, input, output } = nodeWithMeta.node
     exitNodeAddr <- reserveNodeAddr
     renames <- addFunction (WithTag tag (Named functionName fun)) (Addr exitNodeAddr)
