@@ -1,13 +1,13 @@
 module BV.Core.Utils
     ( adjacently
+    , expecting
+    , expectingIx
     , optionals
     , partially
     , partially_
     , tryLast
     , unwrapped
     , whileM
-    , expecting
-    , expectingIx
     ) where
 
 import Control.Monad (when)

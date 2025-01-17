@@ -174,15 +174,12 @@ nodeMapBuilderInline lookupFun nodeBySource = do
     funName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
     nodeMapBuilderInlineAtPoint nodeAddr (lookupFun tag funName)
 
-nodeMapComputePreds
-    :: State NodeMapBuilder (Map NodeId (Set NodeAddr))
-nodeMapComputePreds = do
-    s <- use #nodes
-    return . M.fromListWith (<>) $ concat
+computePreds :: NodeMapBuilder -> Map NodeId (Set NodeAddr)
+computePreds builder = M.fromListWith (<>) $ concat
         [ [ (cont, [nodeAddr])
           | cont <- node ^..nodeConts
           ]
-        | (nodeAddr, Just (NodeWithMeta { node })) <- M.toList s
+        | (nodeAddr, Just (NodeWithMeta { node })) <- M.toList builder.nodes
         ]
 
 getFreshName :: Ident -> State NodeMapBuilder Ident
