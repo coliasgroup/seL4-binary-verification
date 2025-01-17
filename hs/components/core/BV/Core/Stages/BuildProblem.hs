@@ -63,8 +63,27 @@ emptyNodeMapBuilder = NodeMapBuilder
     , vars = S.empty
     }
 
-nodeMapBuilderInsert :: NodeAddr -> Node -> Maybe NodeSource -> State NodeMapBuilder ()
-nodeMapBuilderInsert addr node maybeNodeSource = do
+nodeAt :: NodeAddr -> Lens' NodeMapBuilder Node
+nodeAt nodeAddr = nodeWithMetaAt nodeAddr % #node
+
+nodeWithMetaAt :: NodeAddr -> Lens' NodeMapBuilder NodeWithMeta
+nodeWithMetaAt nodeAddr =
+    #nodes % at nodeAddr % partially (castOptic _Just) % partially (castOptic _Just)
+
+reserveNodeAddr :: State NodeMapBuilder NodeAddr
+reserveNodeAddr = do
+    addr <- maybe 0 fst . M.lookupMax <$> gets (.nodes)
+    modify $ #nodes % at addr ?~ Nothing
+    return addr
+
+insertNodeWithMeta :: NodeAddr -> NodeWithMeta -> State NodeMapBuilder () 
+insertNodeWithMeta addr nodeWithMeta = do
+    zoom (#nodes % at addr) $ do
+        _ <- assert . isJust <$> get
+        put $ Just (Just nodeWithMeta)
+
+insertNode :: NodeAddr -> Node -> Maybe NodeSource -> State NodeMapBuilder ()
+insertNode addr node maybeNodeSource = do
     bySource <- runMaybeT $ do
         nodeSource <- hoistMaybe maybeNodeSource
         indexInProblem <- lift $ do
@@ -74,15 +93,7 @@ nodeMapBuilderInsert addr node maybeNodeSource = do
                 put (Just (v ++ [addr]))
                 return indexInProblem
         return (NodeBySource nodeSource indexInProblem)
-    zoom (#nodes % at addr) $ do
-        _ <- assert . isJust <$> get
-        put $ Just (Just (NodeWithMeta node (NodeMeta bySource)))
-
-nodeMapBuilderReserve :: State NodeMapBuilder NodeAddr
-nodeMapBuilderReserve = do
-    addr <- maybe 0 fst . M.lookupMax <$> gets (.nodes)
-    modify $ #nodes % at addr ?~ Nothing
-    return addr
+    insertNodeWithMeta addr (NodeWithMeta node (NodeMeta bySource))
 
 data AddFunctionRenames
   = AddFunctionRenames
@@ -91,13 +102,13 @@ data AddFunctionRenames
       }
   deriving (Eq, Generic, Ord, Show)
 
-nodeMapBuilderAddFunction
+addFunction
     :: WithTag (Named Function) -> NodeId -> State NodeMapBuilder AddFunctionRenames
-nodeMapBuilderAddFunction (WithTag tag (Named funName fun)) retTarget = do
+addFunction (WithTag tag (Named funName fun)) retTarget = do
     varRenames <- M.fromList <$>
         forM (S.toList origVars) (\name -> (name,) <$> getFreshName name)
     nodeAddrRenames <- M.fromList <$>
-        forM (S.toList origNodeAddrs) (\addr -> (addr,) <$> nodeMapBuilderReserve)
+        forM (S.toList origNodeAddrs) (\addr -> (addr,) <$> reserveNodeAddr)
     let renames = AddFunctionRenames
             { var = varRenames
             , nodeAddr = nodeAddrRenames
@@ -111,7 +122,7 @@ nodeMapBuilderAddFunction (WithTag tag (Named funName fun)) retTarget = do
         let newNodeAddr = renames.nodeAddr ! origAddr
             newNode = adaptNode (funBody.nodes ! origAddr)
             nodeSource = NodeSource tag funName origAddr
-         in nodeMapBuilderInsert newNodeAddr newNode (Just nodeSource)
+         in insertNode newNodeAddr newNode (Just nodeSource)
     return renames
   where
     funBody = fun ^. #body % unwrap
@@ -125,7 +136,7 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
     nodeWithMeta <- fmap fromJust . preuse $ #nodes % at nodeAddr %? to fromJust
     let Just tag = nodeWithMeta ^? #meta % #bySource %? #nodeSource % #tag
     let CallNode { next, functionName, input, output } = nodeWithMeta.node
-    exitNodeAddr <- nodeMapBuilderReserve
+    exitNodeAddr <- reserveNodeAddr
     renames <- nodeMapBuilderAddFunction (WithTag tag (Named functionName fun)) (Addr exitNodeAddr)
     let entryNodeAddr = renames.nodeAddr ! fromJust (fun ^? #body % _Just % #entryPoint % #_Addr)
     let newNode = BasicNode
@@ -139,7 +150,7 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
                 | (arg, callInput) <- zip fun.input input
                 ]
             }
-    nodeMapBuilderInsert nodeAddr newNode Nothing
+    insertNode nodeAddr newNode Nothing
     let exitNode = BasicNode
             { next = next
             , varUpdates =
@@ -151,7 +162,7 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
                 | (arg, callOutput) <- zip fun.output output
                 ]
             }
-    nodeMapBuilderInsert exitNodeAddr exitNode Nothing
+    insertNode exitNodeAddr exitNode Nothing
 
 nodeMapBuilderInline
     :: (Tag -> Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
