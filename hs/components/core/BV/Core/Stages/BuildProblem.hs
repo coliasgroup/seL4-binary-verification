@@ -10,7 +10,6 @@ import Control.Monad.State.Lazy
 import Optics
 
 import BV.Core.Types
-import BV.Core.Types (Node, NodeBySource)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
