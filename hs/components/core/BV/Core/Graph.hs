@@ -4,8 +4,8 @@ module BV.Core.Graph
     ( NodeGraph (..)
     , makeNodeGraph
     , makeNodeGraphWith
-    , reachable
     , nodeGraphEdgesWith
+    , reachable
     ) where
 
 import Data.Graph (Graph, Vertex)
