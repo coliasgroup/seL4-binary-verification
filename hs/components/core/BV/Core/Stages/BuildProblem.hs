@@ -8,9 +8,10 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Data.Maybe (fromMaybe)
 
 import BV.Core.Types
-import Data.Maybe (fromMaybe)
+import BV.Core.Utils
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -62,3 +63,27 @@ nodeMapBuilderInsert addr node maybeNodeSource = do
                 return indexInProblem
         return (NodeBySource nodeSource indexInProblem)
     modify $ #nodes % at addr ?~ NodeWithMeta node (NodeMeta bySource)
+
+-- Implementation matches graph_refine.syntax.fresh_name
+chooseFreshName :: S.Set Ident -> Ident -> Ident
+chooseFreshName taken n =
+    if n `S.notMember` taken
+    then n
+    else flip evalState (1 :: Integer, 1 :: Integer) $ do
+        let isTaken = (`S.member` taken)
+        let mx = _1
+        let my = _2
+        let fmt x = Ident (n.unwrap ++ "." ++ show x)
+        whileM (use mx <&> \x -> isTaken (fmt x)) $ do
+            x <- use mx
+            assign my x
+            assign mx (x * 2)
+        undefined
+
+getFreshName :: Ident -> State NodeMapBuilder Ident
+getFreshName hint = do
+    zoom #vars $ do
+        taken <- get
+        let name = chooseFreshName taken hint
+        modify $ S.insert name
+        return name

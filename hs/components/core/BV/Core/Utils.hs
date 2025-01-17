@@ -2,10 +2,12 @@ module BV.Core.Utils
     ( adjacently
     , optionals
     , tryLast
+    , whileM
     ) where
 
 import Data.Monoid (Last (Last, getLast))
 import Optics.Core
+import Control.Monad (when)
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
 liftIso f l r =
@@ -24,3 +26,12 @@ optionals p m = if p then m else mempty
 
 tryLast :: [a] -> Maybe a
 tryLast = getLast . foldMap (Last . Just)
+
+whileM :: Monad m => m Bool -> m () -> m ()
+whileM cond body = go
+  where
+    go = do
+        p <- cond
+        when p $ do
+            body
+            go
