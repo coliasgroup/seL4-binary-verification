@@ -17,6 +17,7 @@ import Control.Exception (assert)
 
 import BV.Core.Types
 import BV.Core.Utils
+import Control.Monad (forM)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -77,8 +78,9 @@ data AddFunctionRenames = AddFunctionRenames
 
 nodeMapBuilderAddFunction
     :: WithTag (Named Function) -> NodeId -> State NodeMapBuilder AddFunctionRenames
-nodeMapBuilderAddFunction (WithTag tag (Named name fun)) retTarget = do
-    let origVars = undefined
+nodeMapBuilderAddFunction (WithTag tag (Named funName fun)) retTarget = do
+    let origVars = S.fromList . map fst $ fun ^.. varDeclsOf
+    varRenames <- M.fromList <$> forM (S.toList origVars) (\name -> (name,) <$> getFreshName name)
     undefined
 
 getFreshName :: Ident -> State NodeMapBuilder Ident
