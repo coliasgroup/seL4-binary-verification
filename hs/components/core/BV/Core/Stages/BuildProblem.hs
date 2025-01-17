@@ -9,6 +9,7 @@ import Control.Exception (assert)
 import Control.Monad (forM)
 import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
+import Data.Foldable (forM_)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe, isJust)
@@ -16,7 +17,6 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
-import Data.Foldable (forM_)
 
 import BV.Core.Graph
 import BV.Core.Types
