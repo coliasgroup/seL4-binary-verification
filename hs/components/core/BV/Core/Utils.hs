@@ -6,6 +6,7 @@ module BV.Core.Utils
     , tryLast
     , unwrapped
     , whileM
+    , expecting
     ) where
 
 import Control.Monad (when)
@@ -42,7 +43,10 @@ whileM cond body = go
             go
 
 unwrapped :: Lens (Maybe a) (Maybe b) a b
-unwrapped = partially (castOptic _Just)
+unwrapped = expecting _Just
+
+expecting :: Prism s t a b -> Lens s t a b
+expecting optic = partially (castOptic optic)
 
 partially :: AffineTraversal s t a b -> Lens s t a b
 partially optic = withAffineTraversal optic $ \match update ->
