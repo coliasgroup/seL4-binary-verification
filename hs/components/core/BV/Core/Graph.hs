@@ -57,9 +57,9 @@ makeNodeGraph = makeNodeGraphFromEdges . makeNodeGraphEdges
 reachable :: NodeGraph -> NodeId -> [NodeId]
 reachable g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapRev from))
 
-loopHeads :: NodeGraph -> [NodeId] -> [(NodeId, [NodeId])]
+loopHeads :: NodeGraph -> [NodeId] -> [(NodeId, S.Set NodeId)]
 loopHeads g entryPoints =
-    [ (g.nodeIdMap (findHead comp), map g.nodeIdMap (S.toAscList comp))
+    [ (g.nodeIdMap (findHead comp), S.map g.nodeIdMap comp)
     | comp <- sccs
     ]
   where
