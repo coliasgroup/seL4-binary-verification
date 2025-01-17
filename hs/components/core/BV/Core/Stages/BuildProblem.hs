@@ -65,11 +65,12 @@ beginProblemBuilder funs = ProblemBuilder
         _ <- reserveNodeAddr -- HACK graph_refine.problem stats at 1
         asm <- do
             renames <- addFunction (WithTag Asm funs.asm) Ret
+            let renameArgs = traversed % #name %~ (renames.var !)
             return $ ProblemSide
                 { name = funs.asm.name
                 , entryPoint = (fromJust funs.asm.value.body).entryPoint & #_Addr %~ (renames.nodeAddr !)
-                , input = for funs.asm.value.input $ traversed % #name %~ (renames.var !)
-                , output = for funs.asm.value.output $ traversed % #name %~ (renames.var !)
+                , input = renameArgs funs.asm.value.input
+                , output = renameArgs funs.asm.value.output
                 }
         c <- undefined
         return $ PairingOf { c, asm }
