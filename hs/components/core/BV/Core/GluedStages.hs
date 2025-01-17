@@ -14,6 +14,7 @@ import Control.Exception (assert)
 import Control.Monad.Logger
 import Data.Functor (void)
 import qualified Data.Map as M
+import Data.Map (Map)
 import Data.Maybe (catMaybes, fromJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -22,6 +23,11 @@ import Optics
 import BV.Core.Stages
 import BV.Core.Types
 import Control.Monad (guard)
+import GHC.Stack (HasCallStack)
+
+(!) :: HasCallStack => (Show k, Ord k) => Map k a -> k -> a
+-- (!) a b = traceShow b $ (M.!) a b
+(!) m k = if (k `M.notMember` m) then error ("no " ++ show k) else (M.!) m k
 
 data Input
   = Input
@@ -86,20 +92,20 @@ gluedStages input = do
             else Nothing
 
     pairingsLessInlineAsm = flip M.fromSet (S.fromList pairingIds) $ \pairingId ->
-        let stackBound = input.stackBounds.unwrap M.! pairingId.asm
-            cFun = finalPrograms.c.functions M.! pairingId.c
+        let stackBound = input.stackBounds.unwrap ! pairingId.asm
+            cFun = finalPrograms.c.functions ! pairingId.c
          in formulatePairing stackBound cFun.input cFun.output
 
     pairings = Pairings $ pairingsLessInlineAsm `M.union` inlineAsmPairings.unwrap
 
-    lookupFunctionForProblem tag funName = (pairingSide tag finalPrograms).functions M.! funName
+    lookupFunctionForProblem tag funName = (pairingSide tag finalPrograms).functions ! funName
 
     problems = Problems $ flip M.mapMaybeWithKey pairings.unwrap $ \pairingId _pairing -> do
-        let namedFuns = (\funName prog -> Named funName (prog.functions M.! funName)) <$> pairingId <*> finalPrograms
+        let namedFuns = (\funName prog -> Named funName (prog.functions ! funName)) <$> pairingId <*> finalPrograms
         _ <- namedFuns.c.value.body
         _ <- namedFuns.asm.value.body
         -- guard $ namedFuns.asm.name == "Arch_configureIdleThread"
-        let inlineScript = input.inlineScripts.unwrap M.! pairingId
+        let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
         return $ buildProblem lookupFunctionForProblem inlineScript namedFuns
 
     proofChecks = ProofChecks $ flip M.mapWithKey problems.unwrap $ \pairingId problem ->
@@ -108,7 +114,7 @@ gluedStages input = do
             lookupOrigVarName quadrant mangledName =
                 fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
               where
-                fun = (pairingSide quadrant.tag finalPrograms).functions M.! pairingSide quadrant.tag pairingId
+                fun = (pairingSide quadrant.tag finalPrograms).functions ! pairingSide quadrant.tag pairingId
                 origArgs = case quadrant.direction of
                     PairingEqDirectionIn -> fun.input
                     PairingEqDirectionOut -> fun.output
