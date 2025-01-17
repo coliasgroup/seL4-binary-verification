@@ -3,6 +3,8 @@ module BV.Core.Utils
     , optionals
     , tryLast
     , unwrap
+    , partially
+    , partially_
     , whileM
     ) where
 
@@ -10,6 +12,7 @@ import Control.Monad (when)
 import Data.Maybe (fromJust)
 import Data.Monoid (Last (Last, getLast))
 import Optics.Core
+import Data.Either (fromRight)
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
 liftIso f l r =
@@ -40,3 +43,12 @@ whileM cond body = go
 
 unwrap :: Getter (Maybe a) a
 unwrap = to fromJust
+
+partially :: AffineTraversal s t a b -> Lens s t a b
+partially optic = withAffineTraversal optic $ \match update ->
+    lens
+        (fromRight (error "!isRight") . match)
+        update
+
+partially_ :: AffineFold s a -> Getter s a
+partially_ optic = to (fromJust . preview optic)

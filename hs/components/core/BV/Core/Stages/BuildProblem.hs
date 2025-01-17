@@ -21,6 +21,7 @@ import Optics
 import BV.Core.Graph
 import BV.Core.Types
 import BV.Core.Utils
+import BV.Core.ExprConstruction
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -119,9 +120,36 @@ nodeMapBuilderAddFunction (WithTag tag (Named funName fun)) retTarget = do
 nodeMapBuilderInlineAtPoint
     :: NodeAddr -> Function -> State NodeMapBuilder ()
 nodeMapBuilderInlineAtPoint nodeAddr fun = do
-    undefined
-  where
-    funBody = fun ^. #body % unwrap
+    nodeWithMeta <- fmap fromJust . preuse $ #nodes % at nodeAddr %? to fromJust
+    let Just tag = nodeWithMeta ^? #meta % #bySource %? #nodeSource % #tag
+    let CallNode { next, functionName, input, output } = nodeWithMeta.node
+    exitNodeAddr <- nodeMapBuilderReserve
+    renames <- nodeMapBuilderAddFunction (WithTag tag (Named functionName fun)) (Addr exitNodeAddr)
+    let entryNodeAddr = renames.nodeAddr ! fromJust (fun ^? #body % _Just % #entryPoint % #_Addr)
+    let newNode = BasicNode
+            { next = Addr entryNodeAddr
+            , varUpdates =
+                [ VarUpdate
+                    { varName = renames.var ! arg.name
+                    , ty = arg.ty
+                    , expr = callInput
+                    }
+                | (arg, callInput) <- zip fun.input input
+                ]
+            }
+    nodeMapBuilderInsert nodeAddr newNode Nothing
+    let exitNode = BasicNode
+            { next = next
+            , varUpdates =
+                [ VarUpdate
+                    { varName = callOutput.name
+                    , ty = arg.ty
+                    , expr = varE arg.ty (renames.var ! arg.name)
+                    }
+                | (arg, callOutput) <- zip fun.output output
+                ]
+            }
+    nodeMapBuilderInsert exitNodeAddr exitNode Nothing
 
 nodeMapBuilderInline
     :: (Tag -> Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
