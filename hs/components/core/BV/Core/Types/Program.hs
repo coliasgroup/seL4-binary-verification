@@ -9,7 +9,7 @@ module BV.Core.Types.Program
     , FoldExprs (..)
     , Function (..)
     , FunctionBody (..)
-    , HasVarBindings (..)
+    , HasVarDecls (..)
     , HasVarNames (..)
     , Ident (..)
     , Named (..)
@@ -335,19 +335,31 @@ instance HasVarNames ExprValue where
 renameVars :: (HasVarNames a, Applicative f) => (Ident -> f Ident) -> a -> f a
 renameVars = traverseOf varNamesOf
 
-class HasVarBindings a where
-    varBindingsOf :: Traversal' a (Ident, ExprType)
+class HasVarDecls a where
+    varDeclsOf :: Traversal' a (Ident, ExprType)
 
-instance HasVarBindings Argument where
-    varBindingsOf = castOptic $ adjacently #name #ty
+instance HasVarDecls Function where
+    varDeclsOf =
+        ((#input `adjoin` #output) % traversed % varDeclsOf)
+        `adjoin`
+        (#body % traversed % varDeclsOf)
 
-instance HasVarBindings Node where
-    varBindingsOf = adjoin
-        (#_BasicNode % _2 % traversed % varBindingsOf)
-        (#_CallNode % _4 % traversed % varBindingsOf)
+instance HasVarDecls FunctionBody where
+    varDeclsOf = #nodes % varDeclsOf
 
-instance HasVarBindings VarUpdate where
-    varBindingsOf = castOptic $ adjacently #varName #ty
+instance HasVarDecls Argument where
+    varDeclsOf = castOptic $ adjacently #name #ty
+
+instance HasVarDecls NodeMap where
+    varDeclsOf = traversed % varDeclsOf
+
+instance HasVarDecls Node where
+    varDeclsOf = adjoin
+        (#_BasicNode % _2 % traversed % varDeclsOf)
+        (#_CallNode % _4 % traversed % varDeclsOf)
+
+instance HasVarDecls VarUpdate where
+    varDeclsOf = castOptic $ adjacently #varName #ty
 
 nodeConts :: Fold Node NodeId
 nodeConts = castOptic $

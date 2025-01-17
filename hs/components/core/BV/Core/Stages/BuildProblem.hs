@@ -7,14 +7,16 @@ module BV.Core.Stages.BuildProblem
 import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import qualified Data.Map as M
+import Data.Map (Map)
+import Data.Set (Set)
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Control.Exception (assert)
 
 import BV.Core.Types
 import BV.Core.Utils
-import Control.Exception (assert)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -67,6 +69,26 @@ nodeMapBuilderInsert addr node maybeNodeSource = do
         return (NodeBySource nodeSource indexInProblem)
     modify $ #nodes % at addr ?~ NodeWithMeta node (NodeMeta bySource)
 
+data AddFunctionRenames = AddFunctionRenames
+    { var :: Map Ident Ident
+    , nodeAddr :: Map NodeAddr NodeAddr 
+    }
+  deriving (Eq, Generic, Ord, Show)
+
+nodeMapBuilderAddFunction
+    :: WithTag (Named Function) -> NodeId -> State NodeMapBuilder AddFunctionRenames
+nodeMapBuilderAddFunction (WithTag tag (Named name fun)) retTarget = do
+    let origVars = undefined
+    undefined
+
+getFreshName :: Ident -> State NodeMapBuilder Ident
+getFreshName hint = do
+    zoom #vars $ do
+        taken <- get
+        let name = chooseFreshName taken hint
+        modify $ S.insert name
+        return name
+
 -- Implementation matches graph_refine.syntax.fresh_name
 chooseFreshName :: S.Set Ident -> Ident -> Ident
 chooseFreshName taken n =
@@ -90,11 +112,3 @@ chooseFreshName taken n =
         else
             let n' = fmt x
              in assert (not (isTaken n')) n'
-
-getFreshName :: Ident -> State NodeMapBuilder Ident
-getFreshName hint = do
-    zoom #vars $ do
-        taken <- get
-        let name = chooseFreshName taken hint
-        modify $ S.insert name
-        return name
