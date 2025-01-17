@@ -100,6 +100,26 @@ forceSimpleLoopReturns = do
                         then Addr simpleRetNodeAddr
                         else cont
 
+inline :: (Tag -> Ident -> Function) -> NodeBySource -> State ProblemBuilder ()
+inline lookupFun nodeBySource = do
+    zoom #nodeMapBuilder $ nodeMapBuilderInline lookupFun nodeBySource
+    forceSimpleLoopReturns
+
+build :: ProblemBuilder -> Problem
+build builder =
+    Problem
+        { sides = finalBuilder.sides
+        , nodes = M.mapMaybe (\case
+                Just (NodeWithMeta x _) -> Just x
+                _ -> Nothing
+            ) finalBuilder.nodeMapBuilder.nodes
+        }
+  where
+    finalBuilder = flip execState builder $ do
+        forceSimpleLoopReturns
+        zoom #nodeMapBuilder padMergePoints
+        forceSimpleLoopReturns
+
 emptyNodeMapBuilder :: NodeMapBuilder
 emptyNodeMapBuilder = NodeMapBuilder
     { nodes = M.empty
