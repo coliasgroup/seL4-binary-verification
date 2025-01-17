@@ -13,15 +13,14 @@ import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
 import Data.Map (Map)
 import qualified Data.Map as M
-import qualified Data.Set as S
 import Data.Maybe (fromJust)
+import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics.Core
 
 import BV.Core.Types
-import Data.Foldable (toList)
+import Data.Foldable (fold, toList)
 import Data.List (find)
-import Data.Foldable (fold)
 
 data NodeGraph
   = NodeGraph
