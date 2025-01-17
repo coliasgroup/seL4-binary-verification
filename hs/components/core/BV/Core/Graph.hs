@@ -13,11 +13,15 @@ import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
 import Data.Map (Map)
 import qualified Data.Map as M
+import qualified Data.Set as S
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 import Optics.Core
 
 import BV.Core.Types
+import Data.Foldable (toList)
+import Data.List (find)
+import Data.Foldable (fold)
 
 data NodeGraph
   = NodeGraph
@@ -54,4 +58,18 @@ makeNodeGraph edges =
 reachable :: NodeGraph -> NodeId -> [NodeId]
 reachable g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapRev from))
 
--- loopHeads ::
+loopHeads :: NodeGraph -> [NodeId] -> [(NodeId, [NodeId])]
+loopHeads g entryPoints =
+    [ (g.nodeIdMap (findHead comp), map g.nodeIdMap (S.toList comp))
+    | comp <- sccs
+    ]
+  where
+    sccs = do
+        comp <- S.fromList . toList <$> G.scc g.graph
+        False <- return $ S.null comp
+        return comp
+    findHead comp =
+        fromJust $ find (`S.member` comp) inOrder
+      where
+        entryPointsAsVertices = map (fromJust . g.nodeIdMapRev) entryPoints
+        inOrder = foldMap toList $ G.dfs g.graph entryPointsAsVertices

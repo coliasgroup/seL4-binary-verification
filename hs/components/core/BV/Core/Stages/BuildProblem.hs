@@ -166,7 +166,7 @@ addFunction (WithTag tag (Named funName fun)) retTarget = do
     return renames
   where
     funBody = fun ^. #body % unwrapped
-    funGraph = makeNodeGraph funBody.nodes
+    funGraph = makeNodeGraph (nodeGraphEdges funBody.nodes)
     origNodeAddrs = S.fromList $ reachable funGraph funBody.entryPoint ^.. traversed % #_Addr
     origVars = S.fromList . map fst $ fun ^.. varDeclsOf
 
