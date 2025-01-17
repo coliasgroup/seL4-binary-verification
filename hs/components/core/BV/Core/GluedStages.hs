@@ -104,6 +104,7 @@ gluedStages input = do
         let namedFuns = (\funName prog -> Named funName (prog.functions ! funName)) <$> pairingId <*> finalPrograms
         _ <- namedFuns.c.value.body
         _ <- namedFuns.asm.value.body
+        -- guard $ namedFuns.asm.name == "updateCapData"
         -- guard $ namedFuns.asm.name == "Arch_configureIdleThread"
         let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
         return $ buildProblem lookupFunctionForProblem inlineScript namedFuns

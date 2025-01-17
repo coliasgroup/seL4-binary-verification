@@ -342,7 +342,7 @@ chooseFreshName taken n =
         then loop1 (x * 2) x
         else loop2 x y
     loop2 x y =
-        if x < y
+        if y < x
         then
             let z = (y + x) `div` 2
              in if isTaken (fmt z)
