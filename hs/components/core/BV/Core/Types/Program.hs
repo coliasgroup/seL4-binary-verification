@@ -23,6 +23,9 @@ module BV.Core.Types.Program
     , StructField (..)
     , TraverseTopLevelExprs (..)
     , VarUpdate (..)
+    , BasicNode (..)
+    , CondNode (..)
+    , CallNode (..)
     , fromListOfNamed
     , nodeConts
     , programFromFunctions
@@ -149,16 +152,28 @@ data NodeId
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data Node
+  = NodeBasic BasicNode
+  | NodeCond CondNode
+  | NodeCall CallNode
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data BasicNode
   = BasicNode
       { next :: NodeId
       , varUpdates :: [VarUpdate]
       }
-  | CondNode
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data CondNode
+  = CondNode
       { left :: NodeId
       , right :: NodeId
       , expr :: Expr
       }
-  | CallNode
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data CallNode
+  = CallNode
       { next :: NodeId
       , functionName :: Ident
       , input :: [Expr]
@@ -279,9 +294,9 @@ class TraverseTopLevelExprs a where
 
 instance TraverseTopLevelExprs Node where
     traverseTopLevelLevelExprs =
-        (#_BasicNode % _2 % traversed % traverseTopLevelLevelExprs)
-            `adjoin` (#_CondNode % _3)
-            `adjoin` (#_CallNode % _3 % traversed)
+        (#_NodeBasic % #varUpdates % traversed % traverseTopLevelLevelExprs)
+            `adjoin` (#_NodeCond % #expr)
+            `adjoin` (#_NodeCall % #input % traversed)
 
 instance TraverseTopLevelExprs VarUpdate where
     traverseTopLevelLevelExprs = castOptic #expr
@@ -319,9 +334,9 @@ instance HasVarNames Argument where
 
 instance HasVarNames Node where
     varNamesOf =
-        (#_BasicNode % _2 % traversed % varNamesOf)
-            `adjoin` (#_CondNode % _3 % varNamesOf)
-            `adjoin` (#_CallNode % adjoin (_3 % traversed % varNamesOf) (_4 % traversed % varNamesOf))
+        (#_NodeBasic % #varUpdates % traversed % varNamesOf)
+            `adjoin` (#_NodeCond % #expr % varNamesOf)
+            `adjoin` (#_NodeCall % adjoin (#input % traversed % varNamesOf) (#output % traversed % varNamesOf))
 
 instance HasVarNames VarUpdate where
     varNamesOf = #varName `adjoin` #expr % varNamesOf
@@ -355,14 +370,14 @@ instance HasVarDecls NodeMap where
 
 instance HasVarDecls Node where
     varDeclsOf = adjoin
-        (#_BasicNode % _2 % traversed % varDeclsOf)
-        (#_CallNode % _4 % traversed % varDeclsOf)
+        (#_NodeBasic % #varUpdates % traversed % varDeclsOf)
+        (#_NodeCall % #output % traversed % varDeclsOf)
 
 instance HasVarDecls VarUpdate where
     varDeclsOf = castOptic $ adjacently #varName #ty
 
 nodeConts :: Traversal' Node NodeId
 nodeConts = castOptic $
-    (#_BasicNode % _1)
-        `adjoin`(#_CondNode % (_1 `adjoin` _2))
-        `adjoin` (#_CallNode % _1)
+    (#_NodeBasic % #next)
+        `adjoin`(#_NodeCond % (#left `adjoin` #right))
+        `adjoin` (#_NodeCall % #next)

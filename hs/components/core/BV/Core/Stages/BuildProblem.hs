@@ -76,7 +76,7 @@ reserveNodeAddr = do
     modify $ #nodes % at addr ?~ Nothing
     return addr
 
-insertNodeWithMeta :: NodeAddr -> NodeWithMeta -> State NodeMapBuilder () 
+insertNodeWithMeta :: NodeAddr -> NodeWithMeta -> State NodeMapBuilder ()
 insertNodeWithMeta addr nodeWithMeta = do
     zoom (#nodes % at addr) $ do
         _ <- assert . isJust <$> get
@@ -135,11 +135,11 @@ nodeMapBuilderInlineAtPoint
 nodeMapBuilderInlineAtPoint nodeAddr fun = do
     nodeWithMeta <- use $ nodeWithMetaAt nodeAddr
     let tag = nodeWithMeta ^. #meta % #bySource % unwrapped % #nodeSource % #tag
-    let CallNode { next, functionName, input, output } = nodeWithMeta.node
+    let NodeCall callNode = nodeWithMeta.node
     exitNodeAddr <- reserveNodeAddr
-    renames <- addFunction (WithTag tag (Named functionName fun)) (Addr exitNodeAddr)
+    renames <- addFunction (WithTag tag (Named callNode.functionName fun)) (Addr exitNodeAddr)
     let entryNodeAddr = renames.nodeAddr ! fromJust (fun ^? #body % _Just % #entryPoint % #_Addr)
-    let newNode = BasicNode
+    let newNode = NodeBasic $ BasicNode
             { next = Addr entryNodeAddr
             , varUpdates =
                 [ VarUpdate
@@ -147,19 +147,19 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
                     , ty = arg.ty
                     , expr = callInput
                     }
-                | (arg, callInput) <- zip fun.input input
+                | (arg, callInput) <- zip fun.input callNode.input
                 ]
             }
     insertNode nodeAddr newNode Nothing
-    let exitNode = BasicNode
-            { next = next
+    let exitNode = NodeBasic $ BasicNode
+            { next = callNode.next
             , varUpdates =
                 [ VarUpdate
                     { varName = callOutput.name
                     , ty = arg.ty
                     , expr = varE arg.ty (renames.var ! arg.name)
                     }
-                | (arg, callOutput) <- zip fun.output output
+                | (arg, callOutput) <- zip fun.output callNode.output
                 ]
             }
     insertNode exitNodeAddr exitNode Nothing
@@ -173,7 +173,7 @@ nodeMapBuilderInline lookupFun nodeBySource = do
         fmap fromJust . preuse $
             #nodesBySource % at nodeBySource.nodeSource % to fromJust % ix nodeBySource.indexInProblem
     node <- fmap (.node) . fmap fromJust . use $ #nodes % at nodeAddr % to fromJust
-    let Just funName = node ^? #_CallNode % _2
+    let Just funName = node ^? #_NodeCall % #functionName
     nodeMapBuilderInlineAtPoint nodeAddr (lookupFun tag funName)
 
 nodeMapComputePreds

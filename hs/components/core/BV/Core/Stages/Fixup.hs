@@ -41,4 +41,4 @@ freshNodeAddr nodeMap = fromJust . find (`M.notMember` nodeMap) $
     iterate (+ 16) 17
 
 trivialNode :: NodeId -> Node
-trivialNode next = BasicNode { next, varUpdates = [] }
+trivialNode next = NodeBasic (BasicNode { next, varUpdates = [] })

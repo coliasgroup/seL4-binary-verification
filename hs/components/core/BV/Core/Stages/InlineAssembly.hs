@@ -201,7 +201,7 @@ trivialProxyFunctionBody :: Ident -> [Expr] -> [Argument] -> FunctionBody
 trivialProxyFunctionBody functionName input output =
     FunctionBody
         { entryPoint = Addr 1
-        , nodes = M.singleton 1 $ CallNode
+        , nodes = M.singleton 1 . NodeCall $ CallNode
             { next = Ret
             , functionName
             , input

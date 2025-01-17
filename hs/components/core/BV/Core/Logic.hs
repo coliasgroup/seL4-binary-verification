@@ -26,6 +26,6 @@ alignOfType ty = case ty of
 
 isNodeNoop :: Node -> Bool
 isNodeNoop = \case
-    BasicNode { varUpdates } -> null varUpdates
-    CondNode { left, right } -> left == right
-    CallNode {} -> False
+    NodeBasic (BasicNode { varUpdates }) -> null varUpdates
+    NodeCond (CondNode { left, right }) -> left == right
+    NodeCall (CallNode {}) -> False

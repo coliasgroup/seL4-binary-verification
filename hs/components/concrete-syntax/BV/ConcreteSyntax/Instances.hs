@@ -618,9 +618,9 @@ instance ParseInLine Node where
     parseInLine = do
         w <- word
         case w of
-            "Basic" -> BasicNode <$> parseInLine <*> parseInLine
-            "Cond" -> CondNode <$> parseInLine <*> parseInLine <*> parseInLine
-            "Call" -> CallNode <$> parseInLine <*> parseInLine <*> parseInLine <*> parseInLine
+            "Basic" -> NodeBasic <$> (BasicNode <$> parseInLine <*> parseInLine)
+            "Cond" -> NodeCond <$> (CondNode <$> parseInLine <*> parseInLine <*> parseInLine)
+            "Call" -> NodeCall <$> (CallNode <$> parseInLine <*> parseInLine <*> parseInLine <*> parseInLine)
             _ -> fail "invalid node type"
 
 instance ParseInLine VarUpdate where
@@ -794,9 +794,9 @@ instance BuildInLine NodeAddr where
     buildInLine = putHex . (.unwrap)
 
 instance BuildInLine Node where
-    buildInLine (BasicNode { next, varUpdates }) = "Basic" <> put next <> put varUpdates
-    buildInLine (CondNode { left, right, expr }) = "Cond" <> put left <> put right <> put expr
-    buildInLine (CallNode { next, functionName, input, output }) = "Call" <> put next <> put functionName <> put input <> put output
+    buildInLine (NodeBasic (BasicNode { next, varUpdates })) = "Basic" <> put next <> put varUpdates
+    buildInLine (NodeCond (CondNode { left, right, expr })) = "Cond" <> put left <> put right <> put expr
+    buildInLine (NodeCall (CallNode { next, functionName, input, output })) = "Call" <> put next <> put functionName <> put input <> put output
 
 instance BuildInLine VarUpdate where
     buildInLine (VarUpdate { varName, ty, expr }) = put varName <> put ty <> put expr
