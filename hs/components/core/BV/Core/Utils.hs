@@ -1,18 +1,18 @@
 module BV.Core.Utils
     ( adjacently
     , optionals
-    , tryLast
-    , unwrap
     , partially
     , partially_
+    , tryLast
+    , unwrap
     , whileM
     ) where
 
 import Control.Monad (when)
+import Data.Either (fromRight)
 import Data.Maybe (fromJust)
 import Data.Monoid (Last (Last, getLast))
 import Optics.Core
-import Data.Either (fromRight)
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
 liftIso f l r =

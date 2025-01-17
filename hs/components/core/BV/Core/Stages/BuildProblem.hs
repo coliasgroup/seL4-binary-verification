@@ -18,10 +18,10 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
+import BV.Core.ExprConstruction
 import BV.Core.Graph
 import BV.Core.Types
 import BV.Core.Utils
-import BV.Core.ExprConstruction
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
