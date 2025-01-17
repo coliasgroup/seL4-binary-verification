@@ -137,7 +137,7 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
     let Just tag = nodeWithMeta ^? #meta % #bySource %? #nodeSource % #tag
     let CallNode { next, functionName, input, output } = nodeWithMeta.node
     exitNodeAddr <- reserveNodeAddr
-    renames <- nodeMapBuilderAddFunction (WithTag tag (Named functionName fun)) (Addr exitNodeAddr)
+    renames <- addFunction (WithTag tag (Named functionName fun)) (Addr exitNodeAddr)
     let entryNodeAddr = renames.nodeAddr ! fromJust (fun ^? #body % _Just % #entryPoint % #_Addr)
     let newNode = BasicNode
             { next = Addr entryNodeAddr
