@@ -7,9 +7,9 @@ module BV.Core.Stages.BuildProblem
 import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import qualified Data.Map as M
-import Data.Map (Map)
+import Data.Map (Map, (!))
 import Data.Set (Set)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
@@ -19,6 +19,7 @@ import Control.Exception (assert)
 import BV.Core.Types
 import BV.Core.Utils
 import BV.Core.Graph
+import Data.Foldable (forM_)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -32,7 +33,7 @@ data ProblemBuilder
 
 data NodeMapBuilder
   = NodeMapBuilder
-      { nodes :: M.Map NodeAddr NodeWithMeta
+      { nodes :: M.Map NodeAddr (Maybe NodeWithMeta)
       , nodesBySource :: M.Map NodeSource [NodeAddr]
       , vars :: S.Set Ident
       }
@@ -69,7 +70,15 @@ nodeMapBuilderInsert addr node maybeNodeSource = do
                 put (Just (v ++ [addr]))
                 return indexInProblem
         return (NodeBySource nodeSource indexInProblem)
-    modify $ #nodes % at addr ?~ NodeWithMeta node (NodeMeta bySource)
+    zoom (#nodes % at addr) $ do
+        _ <- assert . isJust <$> get
+        put $ Just (Just (NodeWithMeta node (NodeMeta bySource)))
+
+nodeMapBuilderReserve :: State NodeMapBuilder NodeAddr
+nodeMapBuilderReserve = do
+    addr <- maybe 0 fst . M.lookupMax <$> gets (.nodes)
+    modify $ #nodes % at addr ?~ Nothing
+    return addr
 
 data AddFunctionRenames = AddFunctionRenames
     { var :: Map Ident Ident
@@ -80,8 +89,25 @@ data AddFunctionRenames = AddFunctionRenames
 nodeMapBuilderAddFunction
     :: WithTag (Named Function) -> NodeId -> State NodeMapBuilder AddFunctionRenames
 nodeMapBuilderAddFunction (WithTag tag (Named funName fun)) retTarget = do
-    varRenames <- M.fromList <$> forM (S.toList origVars) (\name -> (name,) <$> getFreshName name)
-    undefined
+    varRenames <- M.fromList <$>
+        forM (S.toList origVars) (\name -> (name,) <$> getFreshName name)
+    nodeAddrRenames <- M.fromList <$>
+        forM (S.toList origNodeAddrs) (\addr -> (addr,) <$> nodeMapBuilderReserve)
+    let renames = AddFunctionRenames
+            { var = varRenames
+            , nodeAddr = nodeAddrRenames
+            }
+        adaptNodeId = \case
+            Ret -> retTarget
+            Err -> Err
+            Addr addr -> Addr (renames.nodeAddr ! addr)
+        adaptNode = (varNamesOf %~ (renames.var !)) . (nodeConts %~ adaptNodeId)
+    forM_ origNodeAddrs $ \origAddr ->
+        let newNodeAddr = renames.nodeAddr ! origAddr
+            newNode = adaptNode (funBody.nodes ! origAddr)
+            nodeSource = NodeSource tag funName origAddr
+         in nodeMapBuilderInsert newNodeAddr newNode (Just nodeSource)
+    return renames 
   where
     funBody = fun ^. #body % unwrap
     funGraph = makeNodeGraph funBody.nodes

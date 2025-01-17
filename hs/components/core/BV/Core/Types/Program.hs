@@ -361,7 +361,7 @@ instance HasVarDecls Node where
 instance HasVarDecls VarUpdate where
     varDeclsOf = castOptic $ adjacently #varName #ty
 
-nodeConts :: Fold Node NodeId
+nodeConts :: Traversal' Node NodeId
 nodeConts = castOptic $
     (#_BasicNode % _1)
         `adjoin`(#_CondNode % (_1 `adjoin` _2))
