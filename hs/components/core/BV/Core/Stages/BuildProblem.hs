@@ -6,7 +6,7 @@ module BV.Core.Stages.BuildProblem
     ) where
 
 import Control.Exception (assert)
-import Control.Monad (forM, when)
+import Control.Monad (forM, when, unless)
 import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Foldable (forM_)
@@ -92,7 +92,7 @@ forceSimpleLoopReturns = do
                 case rets of
                     [ret] -> isNodeNoop <$> use (nodeAt ret)
                     _ -> return False
-            when (not retsIsSimple) $ do
+            unless retsIsSimple $ do
                 simpleRetNodeAddr <- appendNode (trivialNode (Addr head)) Nothing
                 forM_ rets $ \ret -> do
                     modifying (nodeAt ret % nodeConts) $ \cont ->
