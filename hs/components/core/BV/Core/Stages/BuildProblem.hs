@@ -13,11 +13,12 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Control.Monad (forM)
 import Control.Exception (assert)
 
 import BV.Core.Types
 import BV.Core.Utils
-import Control.Monad (forM)
+import BV.Core.Graph
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -81,6 +82,9 @@ nodeMapBuilderAddFunction
 nodeMapBuilderAddFunction (WithTag tag (Named funName fun)) retTarget = do
     let origVars = S.fromList . map fst $ fun ^.. varDeclsOf
     varRenames <- M.fromList <$> forM (S.toList origVars) (\name -> (name,) <$> getFreshName name)
+    let funBody = fun ^. #body % unwrap
+    let funGraph = makeNodeGraph funBody.nodes
+        origNodeAddrs = reachable funGraph funBody.entryPoint ^.. traversed % #_Addr
     undefined
 
 getFreshName :: Ident -> State NodeMapBuilder Ident

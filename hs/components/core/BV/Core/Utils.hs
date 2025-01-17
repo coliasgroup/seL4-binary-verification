@@ -3,11 +3,13 @@ module BV.Core.Utils
     , optionals
     , tryLast
     , whileM
+    , unwrap
     ) where
 
 import Control.Monad (when)
 import Data.Monoid (Last (Last, getLast))
 import Optics.Core
+import Data.Maybe (fromJust)
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
 liftIso f l r =
@@ -35,3 +37,6 @@ whileM cond body = go
         when p $ do
             body
             go
+
+unwrap :: Getter (Maybe a) a
+unwrap = to fromJust
