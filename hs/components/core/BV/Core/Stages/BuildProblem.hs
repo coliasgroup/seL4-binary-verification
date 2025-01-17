@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedLists #-}
+
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
@@ -162,6 +164,17 @@ nodeMapBuilderInline lookupFun nodeBySource = do
     node <- fmap (.node) . fmap fromJust . use $ #nodes % at nodeAddr % to fromJust
     let Just funName = node ^? #_CallNode % _2
     nodeMapBuilderInlineAtPoint nodeAddr (lookupFun tag funName)
+
+nodeMapComputePreds
+    :: State NodeMapBuilder (Map NodeId (Set NodeAddr))
+nodeMapComputePreds = do
+    s <- use #nodes
+    return . M.fromListWith (<>) $ concat
+        [ [ (cont, [nodeAddr])
+          | cont <- node ^..nodeConts
+          ]
+        | (nodeAddr, Just (NodeWithMeta { node })) <- M.toList s
+        ]
 
 getFreshName :: Ident -> State NodeMapBuilder Ident
 getFreshName hint = do
