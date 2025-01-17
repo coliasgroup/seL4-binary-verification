@@ -2,8 +2,8 @@
 
 module BV.Core.Graph
     ( NodeGraph (..)
-    , makeNodeGraphWith
     , makeNodeGraph
+    , makeNodeGraphWith
     , reachable
     ) where
 
@@ -11,10 +11,10 @@ import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (fromJust)
 import qualified GHC.Arr as A
 import GHC.Generics (Generic)
 import Optics.Core
-import Data.Maybe (fromJust)
 
 import BV.Core.Types
 

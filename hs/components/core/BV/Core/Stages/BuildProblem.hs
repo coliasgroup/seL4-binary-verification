@@ -4,21 +4,21 @@ module BV.Core.Stages.BuildProblem
     ( buildProblem
     ) where
 
+import Control.Exception (assert)
+import Control.Monad (forM)
 import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
-import qualified Data.Map as M
 import Data.Map (Map, (!))
-import Data.Set (Set)
+import qualified Data.Map as M
 import Data.Maybe (fromMaybe, isJust)
+import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
-import Control.Monad (forM)
-import Control.Exception (assert)
 
+import BV.Core.Graph
 import BV.Core.Types
 import BV.Core.Utils
-import BV.Core.Graph
 import Data.Foldable (forM_)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
@@ -80,10 +80,11 @@ nodeMapBuilderReserve = do
     modify $ #nodes % at addr ?~ Nothing
     return addr
 
-data AddFunctionRenames = AddFunctionRenames
-    { var :: Map Ident Ident
-    , nodeAddr :: Map NodeAddr NodeAddr 
-    }
+data AddFunctionRenames
+  = AddFunctionRenames
+      { var :: Map Ident Ident
+      , nodeAddr :: Map NodeAddr NodeAddr
+      }
   deriving (Eq, Generic, Ord, Show)
 
 nodeMapBuilderAddFunction
@@ -107,7 +108,7 @@ nodeMapBuilderAddFunction (WithTag tag (Named funName fun)) retTarget = do
             newNode = adaptNode (funBody.nodes ! origAddr)
             nodeSource = NodeSource tag funName origAddr
          in nodeMapBuilderInsert newNodeAddr newNode (Just nodeSource)
-    return renames 
+    return renames
   where
     funBody = fun ^. #body % unwrap
     funGraph = makeNodeGraph funBody.nodes
