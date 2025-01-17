@@ -22,6 +22,7 @@ import Optics.Core
 import BV.Core.Types
 import Data.Foldable (fold, toList)
 import Data.List (find)
+import BV.Core.Utils
 
 data NodeGraph
   = NodeGraph
@@ -57,12 +58,13 @@ makeNodeGraph = makeNodeGraphFromEdges . makeNodeGraphEdges
 reachable :: NodeGraph -> NodeId -> [NodeId]
 reachable g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapRev from))
 
-loopHeads :: NodeGraph -> [NodeId] -> [(NodeId, S.Set NodeId)]
+loopHeads :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
 loopHeads g entryPoints =
-    [ (g.nodeIdMap (findHead comp), S.map g.nodeIdMap comp)
+    [ (toNodeAddr (findHead comp), S.map toNodeAddr comp)
     | comp <- sccs
     ]
   where
+    toNodeAddr v = g.nodeIdMap v ^. expecting #_Addr
     sccs = do
         comp <- S.fromList . toList <$> G.scc g.graph
         False <- return $ S.null comp

@@ -7,10 +7,11 @@ import Data.Foldable (find)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
+import Control.Monad (forM_)
 import Optics
 
 import BV.Core.Types
-import Control.Monad (forM_)
+import BV.Core.Logic
 
 fixupProgram :: Program -> Program
 fixupProgram = #functions % traversed % #body % traversed %~ fixupFunctionBody
@@ -39,6 +40,3 @@ ensureClosed = do
 freshNodeAddr :: NodeMap -> NodeAddr
 freshNodeAddr nodeMap = fromJust . find (`M.notMember` nodeMap) $
     iterate (+ 16) 17
-
-trivialNode :: NodeId -> Node
-trivialNode next = NodeBasic (BasicNode { next, varUpdates = [] })

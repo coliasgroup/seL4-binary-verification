@@ -4,6 +4,7 @@ module BV.Core.Logic
     ( alignOfType
     , isNodeNoop
     , sizeOfType
+    , trivialNode
     ) where
 
 import BV.Core.Arch
@@ -29,3 +30,7 @@ isNodeNoop = \case
     NodeBasic (BasicNode { varUpdates }) -> null varUpdates
     NodeCond (CondNode { left, right }) -> left == right
     NodeCall (CallNode {}) -> False
+
+
+trivialNode :: NodeId -> Node
+trivialNode next = NodeBasic (BasicNode { next, varUpdates = [] })

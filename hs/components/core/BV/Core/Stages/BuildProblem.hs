@@ -6,7 +6,7 @@ module BV.Core.Stages.BuildProblem
     ) where
 
 import Control.Exception (assert)
-import Control.Monad (forM)
+import Control.Monad (forM, when)
 import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Foldable (forM_)
@@ -18,12 +18,13 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Data.Traversable (for)
+import Data.Foldable (toList)
 
 import BV.Core.ExprConstruction
 import BV.Core.Graph
+import BV.Core.Logic
 import BV.Core.Types
 import BV.Core.Utils
-import Data.Foldable (toList)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -86,9 +87,18 @@ forceSimpleLoopReturns = do
             makeNodeGraph . map (\(k, v) -> (k, v.node)). mapMaybe (\(k, v) -> (k,) <$> v) . M.toAscList <$> use #nodes
         preds <- gets computePreds
         forM_ (loopHeads nodeGraph (toList entryPoints)) $ \(head, scc) -> do
-            undefined
-        undefined
-    undefined
+            let rets = filter (`S.member` scc) (S.toAscList (preds ! head))
+            retsIsSimple <- do
+                case rets of
+                    [ret] -> isNodeNoop <$> use (nodeAt ret)
+                    _ -> return False
+            when (not retsIsSimple) $ do
+                simpleRetNodeAddr <- appendNode (trivialNode (Addr head)) Nothing
+                forM_ rets $ \ret -> do
+                    modifying (nodeAt ret % nodeConts) $ \cont ->
+                        if cont == Addr head
+                        then Addr simpleRetNodeAddr
+                        else cont
 
 emptyNodeMapBuilder :: NodeMapBuilder
 emptyNodeMapBuilder = NodeMapBuilder
