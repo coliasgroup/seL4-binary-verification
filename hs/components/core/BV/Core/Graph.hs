@@ -67,7 +67,7 @@ loopHeads g entryPoints =
     toNodeAddr v = g.nodeIdMap v ^. expecting #_Addr
     sccs = do
         comp <- S.fromList . toList <$> G.scc g.graph
-        False <- return $ S.null comp
+        True <- return $ S.size comp > 1
         return comp
     findHead comp =
         fromJust $ find (`S.member` comp) inOrder
