@@ -31,6 +31,7 @@ buildProblem lookupFun inlineScript funs = build builder
   where
     builder = flip execState (beginProblemBuilder funs) $ do
         !_ <- traceShowM ((.name) <$> funs)
+        !_ <- traceShowM inlineScript
         forM_ inlineScript $ \entry -> do
             !_ <- traceShowM entry
             inline lookupFun entry.nodeBySource
