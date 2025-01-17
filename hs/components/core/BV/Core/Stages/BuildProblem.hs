@@ -339,7 +339,7 @@ chooseFreshName taken n =
     fmt x = Ident (n.unwrap ++ "." ++ show x)
     loop1 x y =
         if isTaken (fmt x)
-        then loop1 y (x * 2)
+        then loop1 (x * 2) x
         else loop2 x y
     loop2 x y =
         if x < y
