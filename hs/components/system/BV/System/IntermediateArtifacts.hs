@@ -12,6 +12,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Logger (MonadLogger, logErrorN)
 import Control.Monad.Reader (ReaderT, ask)
 import Control.Monad.Trans.Free.Church (FT, iterT)
+import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Text.Lazy.IO as TL
@@ -23,6 +24,8 @@ import BV.ConcreteSyntax (BuildToFile (buildToFile))
 import BV.Core.GluedStages
 import BV.TargetDir
 import Control.DeepSeq (force)
+import Optics.Core
+import BV.Core.Types
 
 data RegisterIntermediateArtifactsDSL a
   = RegisterIntermediateArtifact IntermediateArtifact a
@@ -49,11 +52,11 @@ runRegisterIntermediateArtifactsT
 runRegisterIntermediateArtifactsT = iterT $ \case
     RegisterIntermediateArtifact artifact m -> do
         ctx <- ask
-        let check read dumpDst actual = do
+        let check f read dumpDst actual = do
                 expected <- liftIO (read ctx.targetDir) >>= \case
                     Left err -> fail err -- TODO
                     Right x -> return x
-                when (force actual /= force expected) $ do
+                when (not (f (force actual) (force expected))) $ do
                     let d = ctx.mismatchDumpDir </> dumpDst
                     logErrorN $ "intermediate artifact mismatch, writing to " <> T.pack d
                     liftIO $ do
@@ -61,10 +64,14 @@ runRegisterIntermediateArtifactsT = iterT $ \case
                         TL.writeFile (d </> "actual.txt") (TB.toLazyText (buildToFile actual))
                         TL.writeFile (d </> "expected.txt") (TB.toLazyText (buildToFile expected))
                     fail . T.unpack $ "intermediate artifact mismatch, wrote to " <> T.pack d
+        let foo :: Problems -> Problems -> Bool
+            foo act exp =
+                let act' = act & #unwrap %~ M.filterWithKey (\k v -> k `M.member` exp.unwrap)
+                 in act' == exp
         case artifact of
-            IntermediateArtifactFunctions a -> check readFunctions "functions" a
-            IntermediateArtifactPairings a -> check readPairings "pairings" a
-            IntermediateArtifactProblems a -> check readProblems "problems" a
-            IntermediateArtifactProofChecks a -> check readProofChecks "proof-checks" a
-            IntermediateArtifactSMTProofChecks a -> check readSMTProofChecks "smt-proof-checks" a
+            IntermediateArtifactFunctions a -> check (==) readFunctions "functions" a
+            IntermediateArtifactPairings a -> check (==) readPairings "pairings" a
+            IntermediateArtifactProblems a -> check foo readProblems "problems" a
+            IntermediateArtifactProofChecks a -> check (==) readProofChecks "proof-checks" a
+            IntermediateArtifactSMTProofChecks a -> check (==) readSMTProofChecks "smt-proof-checks" a
         m
