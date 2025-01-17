@@ -80,7 +80,9 @@ internal-libraries:
       - optics-core
       - optics
       - file-embed
-      # - pretty-show
+      # TODO for debugging
+      - filepath
+      - pretty-show
       # - pretty-simple
 
   concrete-syntax:
