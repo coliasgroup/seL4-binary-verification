@@ -17,6 +17,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
+import Debug.Trace
 import Optics
 
 import BV.Core.ExprConstruction
@@ -30,6 +31,7 @@ buildProblem lookupFun inlineScript funs = build builder
   where
     builder = flip execState (beginProblemBuilder funs) $ do
         forM_ inlineScript $ \entry -> do
+            -- traceShow entry (return ())
             inline lookupFun entry.nodeBySource
 
 data ProblemBuilder
