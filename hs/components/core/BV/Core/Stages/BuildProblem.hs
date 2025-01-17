@@ -61,18 +61,19 @@ beginProblemBuilder funs = ProblemBuilder
     , nodeMapBuilder
     }
   where
+    renameSide (WithTag tag namedFun) = do
+        renames <- addFunction (WithTag tag namedFun) Ret
+        let renameArgs = traversed % #name %~ (renames.var !)
+        return $ ProblemSide
+            { name = namedFun.name
+            , entryPoint = (fromJust namedFun.value.body).entryPoint & #_Addr %~ (renames.nodeAddr !)
+            , input = renameArgs namedFun.value.input
+            , output = renameArgs namedFun.value.output
+            }
     (sides, nodeMapBuilder) = flip runState emptyNodeMapBuilder $ do
         _ <- reserveNodeAddr -- HACK graph_refine.problem stats at 1
-        asm <- do
-            renames <- addFunction (WithTag Asm funs.asm) Ret
-            let renameArgs = traversed % #name %~ (renames.var !)
-            return $ ProblemSide
-                { name = funs.asm.name
-                , entryPoint = (fromJust funs.asm.value.body).entryPoint & #_Addr %~ (renames.nodeAddr !)
-                , input = renameArgs funs.asm.value.input
-                , output = renameArgs funs.asm.value.output
-                }
-        c <- undefined
+        asm <- renameSide $ pairingSideWithTag Asm funs
+        c <- renameSide $ pairingSideWithTag C funs
         return $ PairingOf { c, asm }
 
 emptyNodeMapBuilder :: NodeMapBuilder

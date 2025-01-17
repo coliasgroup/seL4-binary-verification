@@ -22,6 +22,7 @@ module BV.Core.Types.Pairing
     , cOutQ
     , intoPairingSide
     , pairingSide
+    , pairingSideWithTag
     , prettyPairingEqDirection
     , prettyPairingEqSideQuadrant
     , prettyPairingId
@@ -80,6 +81,9 @@ withTag f (WithTag tag value) = f tag value
 
 pairingSide :: Tag -> PairingOf a -> a
 pairingSide tag = view (intoPairingSide tag)
+
+pairingSideWithTag :: Tag -> PairingOf a -> WithTag a
+pairingSideWithTag tag = WithTag tag . pairingSide tag
 
 intoPairingSide :: Tag -> Lens' (PairingOf a) a
 intoPairingSide C = #c
