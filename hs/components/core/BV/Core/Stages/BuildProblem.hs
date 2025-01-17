@@ -10,7 +10,7 @@ import Control.Monad (forM, unless, when)
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Foldable (forM_, toList)
-import Data.Map (Map, (!))
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe)
 import Data.Set (Set)
@@ -27,6 +27,13 @@ import BV.Core.Types
 import BV.Core.Utils
 
 import BV.Core.Debug.Utils
+import GHC.Stack (HasCallStack)
+
+infixl 9 !
+
+(!) :: HasCallStack => (Show k, Ord k) => Map k a -> k -> a
+-- (!) a b = traceShow b $ (M.!) a b
+(!) m k = if (k `M.notMember` m) then error "no" else (M.!) m k
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem lookupFun inlineScript funs = build builder

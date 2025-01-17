@@ -22,6 +22,7 @@ import System.FilePath ((</>))
 import BV.ConcreteSyntax (BuildToFile (buildToFile))
 import BV.Core.GluedStages
 import BV.TargetDir
+import Control.DeepSeq (force)
 
 data RegisterIntermediateArtifactsDSL a
   = RegisterIntermediateArtifact IntermediateArtifact a
@@ -52,7 +53,7 @@ runRegisterIntermediateArtifactsT = iterT $ \case
                 expected <- liftIO (read ctx.targetDir) >>= \case
                     Left err -> fail err -- TODO
                     Right x -> return x
-                when (actual /= expected) $ do
+                when (force actual /= force expected) $ do
                     let d = ctx.mismatchDumpDir </> dumpDst
                     logErrorN $ "intermediate artifact mismatch, writing to " <> T.pack d
                     liftIO $ do
