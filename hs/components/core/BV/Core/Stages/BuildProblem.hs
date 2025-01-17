@@ -31,7 +31,7 @@ buildProblem lookupFun inlineScript funs = build builder
   where
     builder = flip execState (beginProblemBuilder funs) $ do
         forM_ inlineScript $ \entry -> do
-            -- traceShow entry (return ())
+            traceShowM entry
             inline lookupFun entry.nodeBySource
 
 data ProblemBuilder
