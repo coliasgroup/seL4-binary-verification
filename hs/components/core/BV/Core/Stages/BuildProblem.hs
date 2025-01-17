@@ -4,7 +4,9 @@ module BV.Core.Stages.BuildProblem
 
 import qualified Data.Map as M
 import qualified Data.Set as S
+import qualified Data.Set as S
 import GHC.Generics (Generic)
+import Control.Monad.State.Lazy
 import Optics
 
 import BV.Core.Types
