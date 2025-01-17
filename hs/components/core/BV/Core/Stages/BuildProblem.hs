@@ -7,7 +7,7 @@ module BV.Core.Stages.BuildProblem
 
 import Control.Exception (assert)
 import Control.Monad (forM, unless, when)
-import Control.Monad.State.Lazy
+import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Foldable (forM_, toList)
 import Data.Map (Map, (!))
