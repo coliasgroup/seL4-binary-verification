@@ -16,8 +16,8 @@ import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
-import GHC.Generics (Generic)
 import Debug.Trace
+import GHC.Generics (Generic)
 import Optics
 
 import BV.Core.ExprConstruction
