@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-type-defaults #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module BV.Core.Stages.BuildProblem
     ( buildProblem
@@ -10,7 +11,7 @@ import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust, fromJust)
 import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -125,7 +126,14 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
 nodeMapBuilderInline
     :: (Tag -> Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
 nodeMapBuilderInline lookupFun nodeBySource = do
-    undefined
+    let tag = nodeBySource.nodeSource.tag
+    nodeAddr <-
+        -- TODO ugly
+        fmap fromJust . preuse $
+            #nodesBySource % at nodeBySource.nodeSource % to fromJust % ix nodeBySource.indexInProblem
+    node <- fmap (.node) . fmap fromJust . use $ #nodes % at nodeAddr % to fromJust
+    let Just funName = node ^? #_CallNode % _2
+    nodeMapBuilderInlineAtPoint nodeAddr (lookupFun tag funName)
 
 getFreshName :: Ident -> State NodeMapBuilder Ident
 getFreshName hint = do
