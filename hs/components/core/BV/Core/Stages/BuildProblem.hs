@@ -22,6 +22,7 @@ import BV.Core.ExprConstruction
 import BV.Core.Graph
 import BV.Core.Types
 import BV.Core.Utils
+import Data.Traversable (for)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -53,6 +54,25 @@ data NodeMeta
       { bySource :: Maybe NodeBySource
       }
   deriving (Eq, Generic, Ord, Show)
+
+beginProblemBuilder :: PairingOf (Named Function) -> ProblemBuilder
+beginProblemBuilder funs = ProblemBuilder
+    { sides
+    , nodeMapBuilder
+    }
+  where
+    (sides, nodeMapBuilder) = flip runState emptyNodeMapBuilder $ do
+        _ <- reserveNodeAddr -- HACK graph_refine.problem stats at 1
+        asm <- do
+            renames <- addFunction (WithTag Asm funs.asm) Ret
+            return $ ProblemSide
+                { name = funs.asm.name
+                , entryPoint = (fromJust funs.asm.value.body).entryPoint & #_Addr %~ (renames.nodeAddr !)
+                , input = for funs.asm.value.input $ traversed % #name %~ (renames.var !)
+                , output = for funs.asm.value.output $ traversed % #name %~ (renames.var !)
+                }
+        c <- undefined
+        return $ PairingOf { c, asm }
 
 emptyNodeMapBuilder :: NodeMapBuilder
 emptyNodeMapBuilder = NodeMapBuilder
