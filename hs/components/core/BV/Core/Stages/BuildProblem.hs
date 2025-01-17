@@ -41,3 +41,15 @@ data NodeMeta
       { bySource :: Maybe NodeBySource
       }
   deriving (Eq, Generic, Ord, Show)
+
+emptyNodeMapBuilder :: NodeMapBuilder
+emptyNodeMapBuilder = NodeMapBuilder
+    { nodes = M.empty
+    , nodesBySource = M.empty
+    , vars = S.empty
+    }
+
+nodeMapBuilderInsert :: NodeAddr -> Node -> Maybe NodeSource -> State NodeMapBuilder ()
+nodeMapBuilderInsert addr node maybeNodeSource = do
+    -- let bySource = maybeNodeSource <&> \nodeSource ->
+    undefined
