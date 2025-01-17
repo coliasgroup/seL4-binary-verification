@@ -68,6 +68,12 @@ nodeWithMetaAt :: NodeAddr -> Lens' NodeMapBuilder NodeWithMeta
 nodeWithMetaAt nodeAddr =
     #nodes % at nodeAddr % partially (castOptic _Just) % partially (castOptic _Just)
 
+allNodesWithMeta :: Traversal' NodeMapBuilder NodeWithMeta
+allNodesWithMeta = #nodes % traversed % _Just
+
+allNodes :: Traversal' NodeMapBuilder Node
+allNodes = allNodesWithMeta % #node
+
 reserveNodeAddr :: State NodeMapBuilder NodeAddr
 reserveNodeAddr = do
     addr <- maybe 0 fst . M.lookupMax <$> gets (.nodes)
@@ -190,7 +196,15 @@ padMergePoints = do
                 NodeBasic (BasicNode { varUpdates = [] }) -> []
                 _ -> [(predNodeAddr, nodeAddr)]
     forM_ nonTrivialEdgesToMergePoints $ \(predNodeAddr, nodeAddr) -> do
-        undefined
+        let paddingNode = NodeBasic $ BasicNode
+                { next = Addr nodeAddr
+                , varUpdates = []
+                }
+        paddingNodeAddr <- appendNode paddingNode Nothing
+        modifying (nodeAt predNodeAddr % nodeConts % #_Addr) $ \contNodeAddr ->
+            if contNodeAddr == nodeAddr
+            then paddingNodeAddr
+            else contNodeAddr
 
 computePreds :: NodeMapBuilder -> Map NodeAddr (Set NodeAddr)
 computePreds builder = M.fromListWith (<>) $ concat
