@@ -97,6 +97,7 @@ library core
     , optics
     , optics-core
     , sel4-bv:smtlib2-types
+    , transformers
   default-language: GHC2021
 
 library smtlib2

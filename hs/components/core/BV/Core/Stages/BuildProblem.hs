@@ -2,14 +2,15 @@ module BV.Core.Stages.BuildProblem
     ( buildProblem
     ) where
 
+import Control.Monad.State.Lazy
+import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import qualified Data.Map as M
 import qualified Data.Set as S
-import qualified Data.Set as S
 import GHC.Generics (Generic)
-import Control.Monad.State.Lazy
 import Optics
 
 import BV.Core.Types
+import Data.Maybe (fromMaybe)
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem = undefined
@@ -51,5 +52,13 @@ emptyNodeMapBuilder = NodeMapBuilder
 
 nodeMapBuilderInsert :: NodeAddr -> Node -> Maybe NodeSource -> State NodeMapBuilder ()
 nodeMapBuilderInsert addr node maybeNodeSource = do
-    -- let bySource = maybeNodeSource <&> \nodeSource ->
-    undefined
+    bySource <- runMaybeT $ do
+        nodeSource <- hoistMaybe maybeNodeSource
+        indexInProblem <- lift $ do
+            zoom (#nodesBySource % at nodeSource) $ do
+                v <- gets (fromMaybe [])
+                let indexInProblem = length v
+                put (Just (v ++ [addr]))
+                return indexInProblem
+        return (NodeBySource nodeSource indexInProblem)
+    modify $ #nodes % at addr ?~ NodeWithMeta node (NodeMeta bySource)

@@ -28,7 +28,7 @@ data ProblemSide
 data NodeBySource
   = NodeBySource
       { nodeSource :: NodeSource
-      , indexInProblem :: Integer
+      , indexInProblem :: Int
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

@@ -112,6 +112,10 @@ instance ParseInLine Integer where
         isHex <- try $ isJust <$> optional "0x"
         (if isNegative then negate else id) <$> (if isHex then L.hexadecimal else L.decimal)
 
+-- TODO fail instead of throw
+instance ParseInLine Int where
+    parseInLine = fromInteger <$> parseInLine
+
 parseManyInLineWith :: Parser a -> Parser [a]
 parseManyInLineWith p = do
     n <- parseInLine
