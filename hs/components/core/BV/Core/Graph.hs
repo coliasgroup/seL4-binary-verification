@@ -4,8 +4,8 @@ module BV.Core.Graph
     ( NodeGraph (..)
     , NodeGraphEdges
     , makeNodeGraph
-    , nodeGraphEdgesWith
     , nodeGraphEdges
+    , nodeGraphEdgesWith
     , reachable
     ) where
 
@@ -27,19 +27,6 @@ data NodeGraph
       }
   deriving (Generic)
 
-makeNodeGraph :: NodeGraphEdges -> NodeGraph
-makeNodeGraph edges =
-    NodeGraph
-        { graph
-        , nodeIdMap = view _2 . nodeIdMap'
-        , nodeIdMapRev
-        }
-  where
-    (graph, nodeIdMap', nodeIdMapRev) = G.graphFromEdges edges
-
-reachable :: NodeGraph -> NodeId -> [NodeId]
-reachable g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapRev from))
-
 type NodeGraphEdges = [((), NodeId, [NodeId])]
 
 nodeGraphEdgesWith :: (a -> Node) -> Map NodeAddr a -> NodeGraphEdges
@@ -50,5 +37,21 @@ nodeGraphEdgesWith f nodeMap =
 
 nodeGraphEdges :: NodeMap -> NodeGraphEdges
 nodeGraphEdges = nodeGraphEdgesWith id
+
+makeNodeGraph :: NodeGraphEdges -> NodeGraph
+makeNodeGraph edges =
+    NodeGraph
+        { graph
+        , nodeIdMap = view _2 . nodeIdMap'
+        , nodeIdMapRev
+        }
+  where
+    (graph, nodeIdMap', nodeIdMapRev) = G.graphFromEdges edges
+
+
+-- Algorithms
+
+reachable :: NodeGraph -> NodeId -> [NodeId]
+reachable g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapRev from))
 
 -- loopHeads ::
