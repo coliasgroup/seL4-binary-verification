@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedLists #-}
-
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
@@ -95,6 +93,12 @@ insertNode addr node maybeNodeSource = do
         return (NodeBySource nodeSource indexInProblem)
     insertNodeWithMeta addr (NodeWithMeta node (NodeMeta bySource))
 
+appendNode :: Node -> Maybe NodeSource -> State NodeMapBuilder NodeAddr
+appendNode node maybeNodeSource = do
+    addr <- reserveNodeAddr
+    insertNode addr node maybeNodeSource
+    return addr
+
 data AddFunctionRenames
   = AddFunctionRenames
       { var :: Map Ident Ident
@@ -174,10 +178,24 @@ nodeMapBuilderInline lookupFun nodeBySource = do
     funName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
     nodeMapBuilderInlineAtPoint nodeAddr (lookupFun tag funName)
 
-computePreds :: NodeMapBuilder -> Map NodeId (Set NodeAddr)
+padMergePoints
+    :: State NodeMapBuilder ()
+padMergePoints = do
+    preds <- gets computePreds
+    let mergePreds = M.filter (\nodePreds -> S.size nodePreds > 1) preds
+    nonTrivialEdgesToMergePoints <- forM (M.toList mergePreds) $ \(nodeAddr, nodePreds) -> do
+        forM (S.toList nodePreds) $ \predNodeAddr -> do
+            predNode <- use $ nodeAt predNodeAddr
+            return $ case predNode of
+                NodeBasic (BasicNode { varUpdates = [] }) -> []
+                _ -> [(predNodeAddr, nodeAddr)]
+    undefined
+  where
+
+computePreds :: NodeMapBuilder -> Map NodeAddr (Set NodeAddr)
 computePreds builder = M.fromListWith (<>) $ concat
-        [ [ (cont, [nodeAddr])
-          | cont <- node ^..nodeConts
+        [ [ (cont, S.singleton nodeAddr)
+          | cont <- node ^.. nodeConts % #_Addr
           ]
         | (nodeAddr, Just (NodeWithMeta { node })) <- M.toList builder.nodes
         ]
