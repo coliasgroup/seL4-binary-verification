@@ -183,14 +183,14 @@ padMergePoints
 padMergePoints = do
     preds <- gets computePreds
     let mergePreds = M.filter (\nodePreds -> S.size nodePreds > 1) preds
-    nonTrivialEdgesToMergePoints <- forM (M.toList mergePreds) $ \(nodeAddr, nodePreds) -> do
-        forM (S.toList nodePreds) $ \predNodeAddr -> do
+    nonTrivialEdgesToMergePoints <- fmap concat . forM (M.toList mergePreds) $ \(nodeAddr, nodePreds) -> do
+        fmap concat . forM (S.toList nodePreds) $ \predNodeAddr -> do
             predNode <- use $ nodeAt predNodeAddr
             return $ case predNode of
                 NodeBasic (BasicNode { varUpdates = [] }) -> []
                 _ -> [(predNodeAddr, nodeAddr)]
-    undefined
-  where
+    forM_ nonTrivialEdgesToMergePoints $ \(predNodeAddr, nodeAddr) -> do
+        undefined
 
 computePreds :: NodeMapBuilder -> Map NodeAddr (Set NodeAddr)
 computePreds builder = M.fromListWith (<>) $ concat
