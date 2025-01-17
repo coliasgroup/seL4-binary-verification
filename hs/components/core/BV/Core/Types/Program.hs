@@ -2,6 +2,9 @@
 
 module BV.Core.Types.Program
     ( Argument (..)
+    , BasicNode (..)
+    , CallNode (..)
+    , CondNode (..)
     , ConstGlobal (..)
     , Expr (..)
     , ExprType (..)
@@ -23,9 +26,6 @@ module BV.Core.Types.Program
     , StructField (..)
     , TraverseTopLevelExprs (..)
     , VarUpdate (..)
-    , BasicNode (..)
-    , CondNode (..)
-    , CallNode (..)
     , fromListOfNamed
     , nodeConts
     , programFromFunctions
