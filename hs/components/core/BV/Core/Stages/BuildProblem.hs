@@ -76,6 +76,8 @@ beginProblemBuilder funs = ProblemBuilder
         c <- renameSide $ pairingSideWithTag C funs
         return $ PairingOf { c, asm }
 
+forceSimpleLoopReturns :: 
+
 emptyNodeMapBuilder :: NodeMapBuilder
 emptyNodeMapBuilder = NodeMapBuilder
     { nodes = M.empty
