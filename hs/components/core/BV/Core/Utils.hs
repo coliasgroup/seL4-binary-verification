@@ -15,6 +15,7 @@ import Data.Either (fromRight)
 import Data.Maybe (fromJust)
 import Data.Monoid (Last (Last, getLast))
 import Optics.Core
+import GHC.Stack (HasCallStack)
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
 liftIso f l r =
@@ -43,20 +44,20 @@ whileM cond body = go
             body
             go
 
-unwrapped :: Lens (Maybe a) (Maybe b) a b
+unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just
 
-expecting :: Prism s t a b -> Lens s t a b
+expecting :: HasCallStack => Prism s t a b -> Lens s t a b
 expecting optic = partially (castOptic optic)
 
-expectingIx :: (Ixed m, IxKind m ~ An_AffineTraversal) => Index m -> Lens' m (IxValue m)
+expectingIx :: HasCallStack => (Ixed m, IxKind m ~ An_AffineTraversal) => Index m -> Lens' m (IxValue m)
 expectingIx i = partially (ix i)
 
-partially :: AffineTraversal s t a b -> Lens s t a b
+partially :: HasCallStack => AffineTraversal s t a b -> Lens s t a b
 partially optic = withAffineTraversal optic $ \match update ->
     lens
         (fromRight (error "!isRight") . match)
         update
 
-partially_ :: AffineFold s a -> Getter s a
+partially_ :: HasCallStack => AffineFold s a -> Getter s a
 partially_ optic = to (fromJust . preview optic)
