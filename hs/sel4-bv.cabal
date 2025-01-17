@@ -57,6 +57,7 @@ library core
       BV.Core
       BV.Core.Arch
       BV.Core.ConfigureSMT
+      BV.Core.Debug.Utils
       BV.Core.ExecuteSMTProofChecks
       BV.Core.ExprConstruction
       BV.Core.Graph
@@ -92,11 +93,14 @@ library core
     , containers
     , deepseq
     , file-embed
+    , filepath
     , monad-logger
     , mtl
     , optics
     , optics-core
+    , pretty-show
     , sel4-bv:smtlib2-types
+    , transformers
   default-language: GHC2021
 
 library smtlib2
@@ -187,7 +191,6 @@ library system
     , mtl
     , optics-core
     , pretty-show
-    , pretty-simple
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:smtlib2
@@ -241,7 +244,6 @@ library test-utils
       base
     , filepath
     , pretty-show
-    , pretty-simple
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:target-dir

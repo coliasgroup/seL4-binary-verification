@@ -2,6 +2,7 @@ module BV.Core.Stages.Fixup
     ( fixupProgram
     ) where
 
+import Control.Monad (forM_)
 import Control.Monad.State
 import Data.Foldable (find)
 import qualified Data.Map as M
@@ -9,8 +10,8 @@ import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import Optics
 
+import BV.Core.Logic
 import BV.Core.Types
-import Control.Monad (forM_)
 
 fixupProgram :: Program -> Program
 fixupProgram = #functions % traversed % #body % traversed %~ fixupFunctionBody
@@ -39,6 +40,3 @@ ensureClosed = do
 freshNodeAddr :: NodeMap -> NodeAddr
 freshNodeAddr nodeMap = fromJust . find (`M.notMember` nodeMap) $
     iterate (+ 16) 17
-
-trivialNode :: NodeId -> Node
-trivialNode next = BasicNode { next, varUpdates = [] }

@@ -22,6 +22,7 @@ module BV.Core.Types.Pairing
     , cOutQ
     , intoPairingSide
     , pairingSide
+    , pairingSideWithTag
     , prettyPairingEqDirection
     , prettyPairingEqSideQuadrant
     , prettyPairingId
@@ -32,6 +33,7 @@ module BV.Core.Types.Pairing
 
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
+import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import Optics.Core (Lens', view)
 
@@ -63,6 +65,12 @@ instance Applicative PairingOf where
         , asm = ff.asm fx.asm
         }
 
+instance Foldable PairingOf where
+    foldMap = foldMapDefault
+
+instance Traversable PairingOf where
+    traverse f p = (\c asm -> PairingOf { c, asm }) <$> f p.c <*> f p.asm
+
 data Tag
   = C
   | Asm
@@ -80,6 +88,9 @@ withTag f (WithTag tag value) = f tag value
 
 pairingSide :: Tag -> PairingOf a -> a
 pairingSide tag = view (intoPairingSide tag)
+
+pairingSideWithTag :: Tag -> PairingOf a -> WithTag a
+pairingSideWithTag tag = WithTag tag . pairingSide tag
 
 intoPairingSide :: Tag -> Lens' (PairingOf a) a
 intoPairingSide C = #c

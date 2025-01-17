@@ -2,6 +2,9 @@
 
 module BV.Core.Types.Program
     ( Argument (..)
+    , BasicNode (..)
+    , CallNode (..)
+    , CondNode (..)
     , ConstGlobal (..)
     , Expr (..)
     , ExprType (..)
@@ -9,7 +12,7 @@ module BV.Core.Types.Program
     , FoldExprs (..)
     , Function (..)
     , FunctionBody (..)
-    , HasVarBindings (..)
+    , HasVarDecls (..)
     , HasVarNames (..)
     , Ident (..)
     , Named (..)
@@ -59,7 +62,7 @@ data Named a
   deriving (Eq, Functor, Generic, NFData, Ord, Show)
 
 toListOfNamed :: Map Ident a -> [Named a]
-toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toList
+toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toAscList
 
 fromListOfNamed :: [Named a] -> Map Ident a
 fromListOfNamed = M.fromList . map (\Named { name, value } -> (name, value))
@@ -149,16 +152,28 @@ data NodeId
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data Node
+  = NodeBasic BasicNode
+  | NodeCond CondNode
+  | NodeCall CallNode
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data BasicNode
   = BasicNode
       { next :: NodeId
       , varUpdates :: [VarUpdate]
       }
-  | CondNode
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data CondNode
+  = CondNode
       { left :: NodeId
       , right :: NodeId
       , expr :: Expr
       }
-  | CallNode
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data CallNode
+  = CallNode
       { next :: NodeId
       , functionName :: Ident
       , input :: [Expr]
@@ -279,9 +294,9 @@ class TraverseTopLevelExprs a where
 
 instance TraverseTopLevelExprs Node where
     traverseTopLevelLevelExprs =
-        (#_BasicNode % _2 % traversed % traverseTopLevelLevelExprs)
-            `adjoin` (#_CondNode % _3)
-            `adjoin` (#_CallNode % _3 % traversed)
+        (#_NodeBasic % #varUpdates % traversed % traverseTopLevelLevelExprs)
+            `adjoin` (#_NodeCond % #expr)
+            `adjoin` (#_NodeCall % #input % traversed)
 
 instance TraverseTopLevelExprs VarUpdate where
     traverseTopLevelLevelExprs = castOptic #expr
@@ -319,9 +334,9 @@ instance HasVarNames Argument where
 
 instance HasVarNames Node where
     varNamesOf =
-        (#_BasicNode % _2 % traversed % varNamesOf)
-            `adjoin` (#_CondNode % _3 % varNamesOf)
-            `adjoin` (#_CallNode % adjoin (_3 % traversed % varNamesOf) (_4 % traversed % varNamesOf))
+        (#_NodeBasic % #varUpdates % traversed % varNamesOf)
+            `adjoin` (#_NodeCond % #expr % varNamesOf)
+            `adjoin` (#_NodeCall % adjoin (#input % traversed % varNamesOf) (#output % traversed % varNamesOf))
 
 instance HasVarNames VarUpdate where
     varNamesOf = #varName `adjoin` #expr % varNamesOf
@@ -335,22 +350,34 @@ instance HasVarNames ExprValue where
 renameVars :: (HasVarNames a, Applicative f) => (Ident -> f Ident) -> a -> f a
 renameVars = traverseOf varNamesOf
 
-class HasVarBindings a where
-    varBindingsOf :: Traversal' a (Ident, ExprType)
+class HasVarDecls a where
+    varDeclsOf :: Traversal' a (Ident, ExprType)
 
-instance HasVarBindings Argument where
-    varBindingsOf = castOptic $ adjacently #name #ty
+instance HasVarDecls Function where
+    varDeclsOf =
+        ((#input `adjoin` #output) % traversed % varDeclsOf)
+        `adjoin`
+        (#body % traversed % varDeclsOf)
 
-instance HasVarBindings Node where
-    varBindingsOf = adjoin
-        (#_BasicNode % _2 % traversed % varBindingsOf)
-        (#_CallNode % _4 % traversed % varBindingsOf)
+instance HasVarDecls FunctionBody where
+    varDeclsOf = #nodes % varDeclsOf
 
-instance HasVarBindings VarUpdate where
-    varBindingsOf = castOptic $ adjacently #varName #ty
+instance HasVarDecls Argument where
+    varDeclsOf = castOptic $ adjacently #name #ty
 
-nodeConts :: Fold Node NodeId
+instance HasVarDecls NodeMap where
+    varDeclsOf = traversed % varDeclsOf
+
+instance HasVarDecls Node where
+    varDeclsOf = adjoin
+        (#_NodeBasic % #varUpdates % traversed % varDeclsOf)
+        (#_NodeCall % #output % traversed % varDeclsOf)
+
+instance HasVarDecls VarUpdate where
+    varDeclsOf = castOptic $ adjacently #varName #ty
+
+nodeConts :: Traversal' Node NodeId
 nodeConts = castOptic $
-    (#_BasicNode % _1)
-        `adjoin`(#_CondNode % (_1 `adjoin` _2))
-        `adjoin` (#_CallNode % _1)
+    (#_NodeBasic % #next)
+        `adjoin`(#_NodeCond % (#left `adjoin` #right))
+        `adjoin` (#_NodeCall % #next)

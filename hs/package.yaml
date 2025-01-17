@@ -75,11 +75,14 @@ internal-libraries:
       - deepseq
       - containers
       - monad-logger
+      - transformers
       - mtl
       - optics-core
       - optics
       - file-embed
-      # - pretty-show
+      # TODO for debugging
+      - filepath
+      - pretty-show
       # - pretty-simple
 
   concrete-syntax:
@@ -146,7 +149,7 @@ internal-libraries:
       - monad-logger
       # TODO prune
       - pretty-show
-      - pretty-simple
+      # - pretty-simple
       # TODO hack
       - tasty
       - tasty-hunit
@@ -164,7 +167,7 @@ internal-libraries:
       - filepath
       # TODO prune
       - pretty-show
-      - pretty-simple
+      # - pretty-simple
 
 executables:
 

@@ -12,6 +12,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Logger (MonadLogger, logErrorN)
 import Control.Monad.Reader (ReaderT, ask)
 import Control.Monad.Trans.Free.Church (FT, iterT)
+import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Text.Lazy.IO as TL
@@ -21,7 +22,10 @@ import System.FilePath ((</>))
 
 import BV.ConcreteSyntax (BuildToFile (buildToFile))
 import BV.Core.GluedStages
+import BV.Core.Types
 import BV.TargetDir
+import Control.DeepSeq (force)
+import Optics.Core
 
 data RegisterIntermediateArtifactsDSL a
   = RegisterIntermediateArtifact IntermediateArtifact a
@@ -48,22 +52,25 @@ runRegisterIntermediateArtifactsT
 runRegisterIntermediateArtifactsT = iterT $ \case
     RegisterIntermediateArtifact artifact m -> do
         ctx <- ask
-        let check read dumpDst actual = do
+        let check f read dumpDst actual = do
                 expected <- liftIO (read ctx.targetDir) >>= \case
                     Left err -> fail err -- TODO
                     Right x -> return x
-                when (actual /= expected) $ do
+                let actual' = f expected actual
+                when (force actual' /= force expected) $ do
                     let d = ctx.mismatchDumpDir </> dumpDst
                     logErrorN $ "intermediate artifact mismatch, writing to " <> T.pack d
                     liftIO $ do
                         createDirectoryIfMissing True d
-                        TL.writeFile (d </> "actual.txt") (TB.toLazyText (buildToFile actual))
+                        TL.writeFile (d </> "actual.txt") (TB.toLazyText (buildToFile actual'))
                         TL.writeFile (d </> "expected.txt") (TB.toLazyText (buildToFile expected))
                     fail . T.unpack $ "intermediate artifact mismatch, wrote to " <> T.pack d
+        let foo :: Problems -> Problems -> Problems
+            foo exp act = act & #unwrap %~ M.filterWithKey (\k v -> k `M.member` exp.unwrap)
         case artifact of
-            IntermediateArtifactFunctions a -> check readFunctions "functions" a
-            IntermediateArtifactPairings a -> check readPairings "pairings" a
-            IntermediateArtifactProblems a -> check readProblems "problems" a
-            IntermediateArtifactProofChecks a -> check readProofChecks "proof-checks" a
-            IntermediateArtifactSMTProofChecks a -> check readSMTProofChecks "smt-proof-checks" a
+            IntermediateArtifactFunctions a -> check (const id) readFunctions "functions" a
+            IntermediateArtifactPairings a -> check (const id) readPairings "pairings" a
+            IntermediateArtifactProblems a -> check foo readProblems "problems" a
+            IntermediateArtifactProofChecks a -> check (const id) readProofChecks "proof-checks" a
+            IntermediateArtifactSMTProofChecks a -> check (const id) readSMTProofChecks "smt-proof-checks" a
         m

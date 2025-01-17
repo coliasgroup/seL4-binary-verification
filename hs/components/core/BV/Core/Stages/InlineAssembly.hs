@@ -37,9 +37,9 @@ addInlineAssemblySpecs progs =
         , asm = asmProg'
         }
 
-    requiredInstFuns = S.toList (cInstFuns `S.union` asmInstFuns)
+    requiredInstFuns = S.toAscList (cInstFuns `S.union` asmInstFuns)
 
-    unhandled = S.toList <$> PairingOf
+    unhandled = S.toAscList <$> PairingOf
         { c = cUnhandledFunNames
         , asm = asmUnhandledFunNames
         }
@@ -201,7 +201,7 @@ trivialProxyFunctionBody :: Ident -> [Expr] -> [Argument] -> FunctionBody
 trivialProxyFunctionBody functionName input output =
     FunctionBody
         { entryPoint = Addr 1
-        , nodes = M.singleton 1 $ CallNode
+        , nodes = M.singleton 1 . NodeCall $ CallNode
             { next = Ret
             , functionName
             , input
