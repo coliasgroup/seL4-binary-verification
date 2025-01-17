@@ -76,7 +76,13 @@ beginProblemBuilder funs = ProblemBuilder
         c <- renameSide $ pairingSideWithTag C funs
         return $ PairingOf { c, asm }
 
-forceSimpleLoopReturns :: 
+forceSimpleLoopReturns :: State ProblemBuilder ()
+forceSimpleLoopReturns = do
+    entryPoints <- use $ #sides % to (fmap (view #entryPoint))
+    zoom #nodeMapBuilder $ do
+        preds <- gets computePreds
+        undefined
+    undefined
 
 emptyNodeMapBuilder :: NodeMapBuilder
 emptyNodeMapBuilder = NodeMapBuilder
