@@ -83,10 +83,10 @@ nodeMapBuilderAddFunction (WithTag tag (Named funName fun)) retTarget = do
     varRenames <- M.fromList <$> forM (S.toList origVars) (\name -> (name,) <$> getFreshName name)
     undefined
   where
-    origVars = S.fromList . map fst $ fun ^.. varDeclsOf
     funBody = fun ^. #body % unwrap
     funGraph = makeNodeGraph funBody.nodes
     origNodeAddrs = S.fromList $ reachable funGraph funBody.entryPoint ^.. traversed % #_Addr
+    origVars = S.fromList . map fst $ fun ^.. varDeclsOf
 
 getFreshName :: Ident -> State NodeMapBuilder Ident
 getFreshName hint = do
