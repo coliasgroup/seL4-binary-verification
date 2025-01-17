@@ -5,10 +5,10 @@ module BV.Core.Stages.BuildProblem
 import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
-import Data.Maybe (fromMaybe)
 
 import BV.Core.Types
 import BV.Core.Utils
