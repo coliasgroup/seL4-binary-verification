@@ -191,7 +191,6 @@ library system
     , mtl
     , optics-core
     , pretty-show
-    , pretty-simple
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:smtlib2
@@ -245,7 +244,6 @@ library test-utils
       base
     , filepath
     , pretty-show
-    , pretty-simple
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:target-dir
