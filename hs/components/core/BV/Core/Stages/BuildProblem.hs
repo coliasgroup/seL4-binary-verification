@@ -250,9 +250,8 @@ nodeMapBuilderInline lookupFun nodeBySource = do
     nodeAddr <- use $
         #nodesBySource % at nodeBySource.nodeSource % unwrapped
             % expectingIx nodeBySource.indexInProblem
-    !funName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
+    funName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
     nodeMapBuilderInlineAtPoint nodeAddr (lookupFun tag funName)
-    return ()
 
 padMergePoints
     :: State NodeMapBuilder ()
