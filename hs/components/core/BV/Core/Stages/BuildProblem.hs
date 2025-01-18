@@ -39,6 +39,7 @@ buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named F
 buildProblem lookupFun inlineScript funs = build builder
   where
     builder = flip execState (beginProblemBuilder funs) $ do
+        forceSimpleLoopReturns
         -- !_ <- traceShowM ((.name) <$> funs)
         -- !_ <- do
         --     x <- get
