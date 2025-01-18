@@ -81,6 +81,7 @@ parsePrintSeL4 = testGroup "seL4"
             (parseWholeFile "")
             buildFile
             (readProofChecks testSeL4TargetDirSmallSMT)
+            -- (readSMTProofChecks testSeL4TargetDirBigSMT)
     , testCase "smt proof checks" $
         testRoundTripWith
             -- (parseWholeFile "")

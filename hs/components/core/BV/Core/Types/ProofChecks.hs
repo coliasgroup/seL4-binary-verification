@@ -125,6 +125,15 @@ data VisitCount
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Semigroup VisitCount where
+    x <> y = VisitCount
+        { numbers = x.numbers <> y.numbers
+        , offsets = x.offsets <> y.offsets
+        }
+
+instance Monoid VisitCount where
+    mempty = VisitCount [] []
+
 --
 
 newtype SMTProofChecks a
