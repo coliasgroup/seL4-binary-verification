@@ -22,10 +22,10 @@ import System.FilePath ((</>))
 
 import BV.ConcreteSyntax (BuildToFile (buildToFile))
 import BV.Core.GluedStages
+import BV.Core.Types
 import BV.TargetDir
 import Control.DeepSeq (force)
 import Optics.Core
-import BV.Core.Types
 
 data RegisterIntermediateArtifactsDSL a
   = RegisterIntermediateArtifact IntermediateArtifact a

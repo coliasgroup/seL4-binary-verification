@@ -5,8 +5,8 @@ module BV.Core.Debug.Utils
 
 import Data.Maybe (fromJust)
 import System.FilePath
-import qualified Text.Show.Pretty as H
 import System.IO.Unsafe (unsafePerformIO)
+import qualified Text.Show.Pretty as H
 
 tmpDir :: FilePath
 tmpDir = "tmp"

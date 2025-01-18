@@ -13,8 +13,8 @@ module BV.Core.GluedStages
 import Control.Exception (assert)
 import Control.Monad.Logger
 import Data.Functor (void)
-import qualified Data.Map as M
 import Data.Map (Map)
+import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
