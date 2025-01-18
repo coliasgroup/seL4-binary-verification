@@ -1,4 +1,7 @@
 {
-  // "haskell.sessionLoading": "multipleComponents",
   "haskell.formattingProvider": "stylish-haskell",
+
+  // https://github.com/haskell/haskell-language-server/issues/3694
+  // https://well-typed.com/blog/2024/07/hls-multi/
+  // "haskell.sessionLoading": "multipleComponents",
 }
