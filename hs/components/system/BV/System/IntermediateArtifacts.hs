@@ -62,7 +62,7 @@ runRegisterIntermediateArtifactsT = iterT $ \case
                     logErrorN $ "intermediate artifact mismatch, writing to " <> T.pack d
                     liftIO $ do
                         createDirectoryIfMissing True d
-                        TL.writeFile (d </> "actual.txt") (TB.toLazyText (buildToFile actual))
+                        TL.writeFile (d </> "actual.txt") (TB.toLazyText (buildToFile actual'))
                         TL.writeFile (d </> "expected.txt") (TB.toLazyText (buildToFile expected))
                     fail . T.unpack $ "intermediate artifact mismatch, wrote to " <> T.pack d
         let foo :: Problems -> Problems -> Problems
