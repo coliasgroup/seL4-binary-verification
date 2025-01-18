@@ -1,4 +1,4 @@
 {
-  "haskell.sessionLoading": "multipleComponents",
+  // "haskell.sessionLoading": "multipleComponents",
   "haskell.formattingProvider": "stylish-haskell",
 }

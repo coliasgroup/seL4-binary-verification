@@ -6,17 +6,15 @@ module BV.Core.Stages.BuildProblem
     ) where
 
 import Control.Exception (assert)
-import Control.Monad (forM, unless, when)
+import Control.Monad (forM, unless)
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Foldable (forM_, toList)
-import Data.Map (Map)
+import Data.Map (Map, (!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
-import Data.Traversable (for)
-import Debug.Trace
 import GHC.Generics (Generic)
 import Optics
 
@@ -26,28 +24,12 @@ import BV.Core.Logic
 import BV.Core.Types
 import BV.Core.Utils
 
-import BV.Core.Debug.Utils
-import GHC.Stack (HasCallStack)
-
-infixl 9 !
-
-(!) :: HasCallStack => (Show k, Ord k) => Map k a -> k -> a
--- (!) a b = traceShow b $ (M.!) a b
-(!) m k = if (k `M.notMember` m) then error "no" else (M.!) m k
-
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem lookupFun inlineScript funs = build builder
   where
     builder = flip execState (beginProblemBuilder funs) $ do
         forceSimpleLoopReturns
-        -- !_ <- traceShowM ((.name) <$> funs)
-        -- !_ <- do
-        --     x <- get
-        --     !_ <- return $ unsafePerformIO (writeHtml "zzz" x)
-        --     return ()
-        -- !_ <- traceShowM inlineScript
         forM_ inlineScript $ \entry -> do
-            -- !_ <- traceShowM entry
             inline lookupFun entry.nodeBySource
 
 data ProblemBuilder
@@ -86,10 +68,6 @@ beginProblemBuilder funs = ProblemBuilder
   where
     renameSide (WithTag tag namedFun) = do
         renames <- addFunction (WithTag tag namedFun) Ret
-        -- !_ <- do
-        --     x <- get
-        --     !_ <- return $ unsafePerformIO (writeHtml "zz1" x)
-        --     return ()
         let renameArgs = traversed % #name %~ (renames.var !)
         return $ ProblemSide
             { name = namedFun.name
@@ -99,9 +77,6 @@ beginProblemBuilder funs = ProblemBuilder
             }
     (sides, nodeMapBuilder) = flip runState emptyNodeMapBuilder $ do
         _ <- reserveNodeAddr -- HACK graph_refine.problem stats at 1
-        -- s <- reserveNodeAddr
-        -- s <- reserveNodeAddr
-        -- !_ <- traceShowM $ "FOO " ++ show s
         asm <- renameSide $ pairingSideWithTag Asm funs
         c <- renameSide $ pairingSideWithTag C funs
         return $ PairingOf { c, asm }
@@ -172,16 +147,11 @@ reserveNodeAddr :: State NodeMapBuilder NodeAddr
 reserveNodeAddr = do
     addr <- maybe 0 ((+ 1) . fst) . M.lookupMax <$> gets (.nodes)
     modify $ #nodes % at addr .~ (Just Nothing)
-    -- !_ <- do
-    --     x <- get
-    --     !_ <- return $ unsafePerformIO (writeHtml "zzx" x)
-    --     return ()
     return addr
 
 insertNodeWithMeta :: NodeAddr -> NodeWithMeta -> State NodeMapBuilder ()
 insertNodeWithMeta addr nodeWithMeta = do
     zoom (#nodes % at addr) $ do
-        -- _ <- traceShowM (addr, nodeWithMeta)
         _ <- assert . isJust <$> get
         put $ Just (Just nodeWithMeta)
 
@@ -276,18 +246,11 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
 nodeMapBuilderInline
     :: (Tag -> Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
 nodeMapBuilderInline lookupFun nodeBySource = do
-    -- !_ <- do
-    --     x <- get
-    --     !_ <- traceM "xxx"
-    --     !_ <- return $ unsafePerformIO (writeHtml "xyz" x)
-    --     return ()
     let tag = nodeBySource.nodeSource.tag
     nodeAddr <- use $
         #nodesBySource % at nodeBySource.nodeSource % unwrapped
             % expectingIx nodeBySource.indexInProblem
-    -- !_ <- traceShowM nodeAddr
     !funName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
-    -- !_ <- traceM "yyy"
     nodeMapBuilderInlineAtPoint nodeAddr (lookupFun tag funName)
     return ()
 
