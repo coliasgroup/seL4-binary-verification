@@ -888,6 +888,35 @@ instance BuildInLine Op where
 
 --
 
+instance ParseFile (ProofChecks String) where
+    parseFile = do
+        blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
+            nameLen <- L.decimal <* eol
+            name <- count nameLen anySingle <* eol
+            hyp <- line parseInLine
+            hypsLen <- L.decimal <* eol
+            hyps <- count hypsLen (line parseInLine)
+            return $ ProofCheck { meta = name, hyps, hyp }
+        let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
+        return . ProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
+
+instance BuildToFile (ProofChecks String) where
+    buildToFile checks = mconcat $ foldMap (\(k, v) -> map (buildCheck k) v) (M.toAscList checks.unwrap)
+      where
+        buildCheck pairingId (ProofCheck { meta = name, hyps, hyp }) =
+            mconcat . (map (<> "\n")) $
+                [ buildTypicalKeyFormat ["Problem", "Pairing"] (fromString (prettyPairingId pairingId)) <> " {"
+                , B.decimal (length name)
+                , fromString name
+                , buildBlock $ lineInBlock (put hyp)
+                , B.decimal (length hyps)
+                ] ++ map (buildBlock . lineInBlock . put) hyps ++
+                [ "}"
+                ]
+        f ss = map buildSExprWithPlaceholders ss
+
+--
+
 instance ParseFile (SMTProofChecks ()) where
     parseFile = do
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do

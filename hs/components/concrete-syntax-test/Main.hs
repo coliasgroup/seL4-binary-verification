@@ -76,6 +76,11 @@ parsePrintSeL4 = testGroup "seL4"
     , testCase "inline scripts" $ testRoundTripSeL4 readInlineScripts
     , testCase "pairings" $ testRoundTripSeL4 readPairings
     , testCase "problems and proofs" $ testRoundTripSeL4 readProblemsAndProofs
+    , testCase "proof checks" $
+        testRoundTripWith
+            (parseWholeFile "")
+            buildFile
+            (readProofChecks testSeL4TargetDirSmallSMT)
     , testCase "smt proof checks" $
         testRoundTripWith
             -- (parseWholeFile "")
@@ -83,11 +88,6 @@ parsePrintSeL4 = testGroup "seL4"
             buildFile
             (readSMTProofChecks testSeL4TargetDirSmallSMT)
             -- (readSMTProofChecks testSeL4TargetDirBigSMT)
-    -- , testCase "proof checks" $
-    --     testRoundTripWith
-    --         parseWholeFileFast
-    --         buildFile
-    --         (readProofChecks testSeL4TargetDirSmall)
     ]
 
 parsePrintGraphRefine :: TestTree

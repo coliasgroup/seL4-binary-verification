@@ -94,7 +94,7 @@ readProblemsAndProofs :: TargetDir -> IO (Either String ProblemsAndProofs)
 readProblemsAndProofs = readAndParseFile "proofs.txt"
 
 readProofChecks :: TargetDir -> IO (Either String (ProofChecks String))
-readProofChecks = readAndParseFileFast "proof-checks.txt"
+readProofChecks = readAndParseFile "proof-checks.txt"
 
 readSMTProofChecks :: TargetDir -> IO (Either String (SMTProofChecks ()))
 readSMTProofChecks = readAndParseFileFast "smt-proof-checks.txt"

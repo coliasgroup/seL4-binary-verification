@@ -17,7 +17,6 @@ import BV.Core.Types
 import BV.SMTLIB2.Parser.Attoparsec
 
 import BV.ConcreteSyntax.FastParsing
-import BV.ConcreteSyntax.Printing
 
 parsePrettyPairingId :: Parser PairingId
 parsePrettyPairingId = do
@@ -29,16 +28,6 @@ parsePrettyPairingId = do
   where
     ident = Ident <$> many1 (satisfy isIdentChar)
     isIdentChar c = not (isSpace c || c == '(' || c == ')')
-
---
-
-instance ParseFileFast (ProofChecks String) where
-    parseFileFast = undefined
-
-instance BuildToFile (ProofChecks String) where
-    buildToFile = undefined
-
--- --
 
 instance ParseFileFast (SMTProofChecks ()) where
     parseFileFast = do
