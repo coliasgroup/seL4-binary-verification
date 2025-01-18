@@ -22,6 +22,7 @@ library concrete-syntax
       BV.ConcreteSyntax.FastInstances
       BV.ConcreteSyntax.FastParsing
       BV.ConcreteSyntax.Instances
+      BV.ConcreteSyntax.NormalizeSMTProofCheck
       BV.ConcreteSyntax.Parsing
       BV.ConcreteSyntax.Printing
   hs-source-dirs:
@@ -182,6 +183,7 @@ library system
     , base
     , bytestring
     , containers
+    , cryptohash-sha256
     , deepseq
     , directory
     , filepath

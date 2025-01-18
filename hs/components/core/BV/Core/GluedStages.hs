@@ -13,7 +13,7 @@ module BV.Core.GluedStages
 import Control.Exception (assert)
 import Control.Monad.Logger
 import Data.Functor (void)
-import Data.Map (Map)
+import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust)
 import qualified Data.Set as S
@@ -22,12 +22,6 @@ import Optics
 
 import BV.Core.Stages
 import BV.Core.Types
-import Control.Monad (guard)
-import GHC.Stack (HasCallStack)
-
-(!) :: HasCallStack => (Show k, Ord k) => Map k a -> k -> a
--- (!) a b = traceShow b $ (M.!) a b
-(!) m k = if (k `M.notMember` m) then error ("no " ++ show k) else (M.!) m k
 
 data Input
   = Input

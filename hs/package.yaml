@@ -144,6 +144,7 @@ internal-libraries:
       - text
       - attoparsec
       - megaparsec
+      - cryptohash-sha256
       - filepath
       - directory
       - monad-logger
