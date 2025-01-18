@@ -56,7 +56,8 @@ runRegisterIntermediateArtifactsT = iterT $ \case
                 expected <- liftIO (read ctx.targetDir) >>= \case
                     Left err -> fail err -- TODO
                     Right x -> return x
-                when (not (f (force actual) (force expected))) $ do
+                let actual' = f expected actual
+                when (force actual' /= force expected) $ do
                     let d = ctx.mismatchDumpDir </> dumpDst
                     logErrorN $ "intermediate artifact mismatch, writing to " <> T.pack d
                     liftIO $ do
@@ -64,14 +65,12 @@ runRegisterIntermediateArtifactsT = iterT $ \case
                         TL.writeFile (d </> "actual.txt") (TB.toLazyText (buildToFile actual))
                         TL.writeFile (d </> "expected.txt") (TB.toLazyText (buildToFile expected))
                     fail . T.unpack $ "intermediate artifact mismatch, wrote to " <> T.pack d
-        let foo :: Problems -> Problems -> Bool
-            foo act exp =
-                let act' = act & #unwrap %~ M.filterWithKey (\k v -> k `M.member` exp.unwrap)
-                 in act' == exp
+        let foo :: Problems -> Problems -> Problems
+            foo exp act = act & #unwrap %~ M.filterWithKey (\k v -> k `M.member` exp.unwrap)
         case artifact of
-            IntermediateArtifactFunctions a -> check (==) readFunctions "functions" a
-            IntermediateArtifactPairings a -> check (==) readPairings "pairings" a
+            IntermediateArtifactFunctions a -> check (const id) readFunctions "functions" a
+            IntermediateArtifactPairings a -> check (const id) readPairings "pairings" a
             IntermediateArtifactProblems a -> check foo readProblems "problems" a
-            IntermediateArtifactProofChecks a -> check (==) readProofChecks "proof-checks" a
-            IntermediateArtifactSMTProofChecks a -> check (==) readSMTProofChecks "smt-proof-checks" a
+            IntermediateArtifactProofChecks a -> check (const id) readProofChecks "proof-checks" a
+            IntermediateArtifactSMTProofChecks a -> check (const id) readSMTProofChecks "smt-proof-checks" a
         m
