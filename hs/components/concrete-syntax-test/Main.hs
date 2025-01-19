@@ -98,7 +98,7 @@ parsePrintGraphRefine = testGroup "graph-refine" $
     , f @Program $ "loop-example" </> "synth" </> "Functions.txt"
     , let rel = "loop-example" </> "O2" </> "proof"
           abs = graphRefineDir </> rel
-       in testCase rel $ testRoundTripPath @(InBlockAsFile (InLineAsInBlock ProofNode)) (graphRefineDir </> rel)
+       in testCase rel $ testRoundTripPath @(InBlockAsFile (InLineAsInBlock ProofScript)) (graphRefineDir </> rel)
     ] ++ concatMap g ["O1", "O2"]
   where
     f :: forall a. (Eq a, ParseFile a, BuildToFile a) => FilePath -> TestTree

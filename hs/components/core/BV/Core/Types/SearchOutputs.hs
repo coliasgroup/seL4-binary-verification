@@ -44,6 +44,6 @@ instance AtPairingId ProblemAndProof ProblemsAndProofs where
 data ProblemAndProof
   = ProblemAndProof
       { problem :: Problem
-      , proof :: ProofNode
+      , proof :: ProofScript
       }
   deriving (Eq, Generic, NFData, Ord, Show)

@@ -11,7 +11,7 @@ import Data.Functor ((<&>))
 
 type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident
 
-enumerateProofChecks :: ArgRenames -> Pairing -> Problem -> ProofNode -> [ProofCheck a]
+enumerateProofChecks :: ArgRenames -> Pairing -> Problem -> ProofScript -> [ProofCheck a]
 enumerateProofChecks argRenames pairing problem proofNode =
     []
   where

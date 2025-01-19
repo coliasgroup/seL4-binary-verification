@@ -164,6 +164,9 @@ instance BuildInLine VisitCount where
 
 --
 
+instance ParseInLine ProofScript where
+    parseInLine = ProofScript <$> parseInLine
+
 instance ParseInLine ProofNode where
     parseInLine = word >>= \case
         "Leaf" -> return ProofNodeLeaf
@@ -238,6 +241,9 @@ instance ParseInLine Lambda where
         Lambda <$> parseInLine <*> parseInLine <*> parseInLine
 
 --
+
+instance BuildInLine ProofScript where
+    buildInLine proofScript = put proofScript.root
 
 instance BuildInLine ProofNode where
     buildInLine = \case

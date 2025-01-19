@@ -8,6 +8,11 @@ import GHC.Generics (Generic)
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
 
+newtype ProofScript
+  = ProofScript { root :: ProofNode }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
+
 data ProofNode
   = ProofNodeLeaf
   | ProofNodeRestr RestrProofNode
