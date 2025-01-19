@@ -27,6 +27,9 @@ testSeL4TargetDirSmall = TargetDir $ testTargetDir "small"
 testSeL4TargetDirSmallTrace :: TargetDir
 testSeL4TargetDirSmallTrace = TargetDir $ testTargetDir "small-trace"
 
+testSeL4TargetDirFocused :: TargetDir
+testSeL4TargetDirFocused = TargetDir $ testTargetDir "focused"
+
 testHtmlPagesDir :: FilePath
 testHtmlPagesDir = tmpDir </> "html" </> "pages"
 

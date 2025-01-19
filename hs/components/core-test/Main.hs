@@ -37,8 +37,9 @@ testGlued = do
         (runRegisterIntermediateArtifactsT (void $ gluedStages input))
         (RegisterIntermediateArtifactsTInnerContext targetDir mismatchDumpDir)
   where
-    targetDir = testSeL4TargetDirBig
+    -- targetDir = testSeL4TargetDirBig
     -- targetDir = testSeL4TargetDirSmall
+    targetDir = testSeL4TargetDirFocused
     mismatchDumpDir = tmpDir </> "mismatch"
 
 instance (MonadLogger m, Functor f) => MonadLogger (FT f m) where
