@@ -22,9 +22,10 @@ library concrete-syntax
       BV.ConcreteSyntax.FastInstances
       BV.ConcreteSyntax.FastParsing
       BV.ConcreteSyntax.Instances
-      BV.ConcreteSyntax.NormalizeSMTProofCheck
       BV.ConcreteSyntax.Parsing
       BV.ConcreteSyntax.Printing
+      BV.ConcreteSyntax.SExprWithPlaceholders
+      BV.ConcreteSyntax.SExprWithPlaceholdersFast
   hs-source-dirs:
       components/concrete-syntax
   default-extensions:
@@ -163,6 +164,7 @@ library smtlib2-types
 library system
   visibility: public
   exposed-modules:
+      BV.System.CacheKey
       BV.System.Glue
       BV.System.IntermediateArtifacts
       BV.System.SeL4

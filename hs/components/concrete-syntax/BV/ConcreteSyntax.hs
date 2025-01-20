@@ -11,6 +11,9 @@ module BV.ConcreteSyntax
     , buildFile
     , parseWholeFile
     , parseWholeFileFast
+    , buildSExprWithPlaceholders
+    , parseSExprWithPlaceholders
+    , parseSExprWithPlaceholdersFast
     ) where
 
 import GHC.Generics (Generic)
@@ -20,6 +23,8 @@ import BV.ConcreteSyntax.FastParsing
 import BV.ConcreteSyntax.Instances ()
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing
+import BV.ConcreteSyntax.SExprWithPlaceholdersFast (parseSExprWithPlaceholdersFast)
+import BV.ConcreteSyntax.SExprWithPlaceholders (buildSExprWithPlaceholders, parseSExprWithPlaceholders)
 
 newtype InBlockAsFile a
   = InBlockAsFile { unwrap :: a }

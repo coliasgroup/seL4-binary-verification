@@ -17,7 +17,6 @@ import Data.Maybe (maybeToList)
 import Data.Monoid (Endo (Endo, appEndo))
 import Data.String (fromString)
 import Data.Text (Text)
-import Data.Text.Internal.Builder (Builder)
 import qualified Data.Text.Lazy.Builder.Int as B
 import Data.Void (Void)
 import Optics.Core (at, (%), (&), (?~))
@@ -26,11 +25,10 @@ import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
 import BV.Core.Types
-import BV.SMTLIB2.Builder
-import BV.SMTLIB2.Parser.Megaparsec
 
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing
+import BV.ConcreteSyntax.SExprWithPlaceholders
 
 --
 
@@ -925,7 +923,6 @@ instance BuildToFile (FlattenedProofChecks String) where
                 ] ++ map (buildBlock . lineInBlock . put) hyps ++
                 [ "}"
                 ]
-        f ss = map buildSExprWithPlaceholders ss
 
 --
 
@@ -952,21 +949,3 @@ instance BuildToFile (FlattenedSMTProofChecks ()) where
                 [ "}"
                 ]
         f ss = map buildSExprWithPlaceholders ss
-
-parseSExprWithPlaceholders :: Parser SExprWithPlaceholders
-parseSExprWithPlaceholders = parseGenericSExpr $
-    Left <$> parseSExprPlaceholder <|> Right <$> parseAtom
-
-parseSExprPlaceholder :: Parser SExprPlaceholder
-parseSExprPlaceholder = between "{" "}" $
-    try (SExprPlaceholderMemSort <$ "MemSort") <|> try (SExprPlaceholderMemDomSort <$ "MemDomSort")
-
-buildSExprWithPlaceholders :: SExprWithPlaceholders -> Builder
-buildSExprWithPlaceholders = buildGenericSExpr $ either buildSExprPlaceholder buildAtom
-
-buildSExprPlaceholder :: SExprPlaceholder -> Builder
-buildSExprPlaceholder placeholder = "{" <> inner <> "}"
-  where
-    inner = case placeholder of
-        SExprPlaceholderMemSort -> "MemSort"
-        SExprPlaceholderMemDomSort -> "MemDomSort"
