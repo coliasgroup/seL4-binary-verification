@@ -5,6 +5,8 @@ module BV.Core.Types.ProofChecks
     , EqHyp (..)
     , EqHypInduct (..)
     , EqHypSide (..)
+    , FlattenedProofChecks (..)
+    , FlattenedSMTProofChecks (..)
     , Hyp (..)
     , PcImpHyp (..)
     , PcImpHypSide (..)
@@ -20,6 +22,8 @@ module BV.Core.Types.ProofChecks
     , Visit (..)
     , VisitCount (..)
     , VisitWithTag (..)
+    , flattenProofChecks
+    , flattenSMTProofChecks
     , readSExprWithPlaceholders
     , readSExprsWithPlaceholders
     , tryReadSExprWithPlaceholders
@@ -28,6 +32,7 @@ module BV.Core.Types.ProofChecks
 
 import Control.Applicative (many, (<|>))
 import Control.DeepSeq (NFData)
+import Data.Foldable (fold)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
@@ -38,13 +43,22 @@ import BV.SMTLIB2.Types.SExpr.Read (anySExprWhitespaceP, atomP, genericSExprP)
 
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
+import BV.Core.Types.ProofScript
 
 newtype ProofChecks a
-  = ProofChecks { unwrap :: M.Map PairingId [ProofCheck a] }
+  = ProofChecks { unwrap :: M.Map PairingId (ProofScript [ProofCheck a]) }
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
-instance AtPairingId [ProofCheck a] (ProofChecks a) where
+flattenProofChecks :: ProofChecks a -> FlattenedProofChecks a
+flattenProofChecks (ProofChecks byPairing) = FlattenedProofChecks (M.map fold byPairing)
+
+newtype FlattenedProofChecks a
+  = FlattenedProofChecks { unwrap :: M.Map PairingId [ProofCheck a] }
+  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
+  deriving newtype (NFData)
+
+instance AtPairingId (ProofScript [ProofCheck a]) (ProofChecks a) where
     atPairingId = atPairingId . (.unwrap)
 
 data ProofCheck a
@@ -137,7 +151,15 @@ instance Monoid VisitCount where
 --
 
 newtype SMTProofChecks a
-  = SMTProofChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup a] }
+  = SMTProofChecks { unwrap :: M.Map PairingId (ProofScript [SMTProofCheckGroup a]) }
+  deriving (Eq, Functor, Generic, Ord, Show)
+  deriving newtype (NFData)
+
+flattenSMTProofChecks :: SMTProofChecks a -> FlattenedSMTProofChecks a
+flattenSMTProofChecks (SMTProofChecks byPairing) = FlattenedSMTProofChecks (M.map fold byPairing)
+
+newtype FlattenedSMTProofChecks a
+  = FlattenedSMTProofChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup a] }
   deriving (Eq, Functor, Generic, Ord, Show)
   deriving newtype (NFData)
 

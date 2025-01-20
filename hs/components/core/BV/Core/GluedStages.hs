@@ -38,8 +38,8 @@ data IntermediateArtifact
   = IntermediateArtifactFunctions Program
   | IntermediateArtifactPairings Pairings
   | IntermediateArtifactProblems Problems
-  | IntermediateArtifactProofChecks (ProofChecks String)
-  | IntermediateArtifactSMTProofChecks (SMTProofChecks ())
+  | IntermediateArtifactProofChecks (FlattenedProofChecks String)
+  | IntermediateArtifactSMTProofChecks (FlattenedSMTProofChecks ())
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadRegisterIntermediateArtifacts m where
@@ -56,8 +56,8 @@ gluedStages input = do
     registerIntermediateArtifact $ IntermediateArtifactFunctions collectedFunctions
     registerIntermediateArtifact $ IntermediateArtifactPairings pairings
     registerIntermediateArtifact $ IntermediateArtifactProblems problems
-    registerIntermediateArtifact $ IntermediateArtifactProofChecks proofChecks
-    registerIntermediateArtifact $ IntermediateArtifactSMTProofChecks smtProofChecks
+    registerIntermediateArtifact $ IntermediateArtifactProofChecks flattenedProofChecks
+    registerIntermediateArtifact $ IntermediateArtifactSMTProofChecks flattenedSMTProofChecks
     return smtProofChecks
 
   where
@@ -119,9 +119,13 @@ gluedStages input = do
                     PairingEqDirectionOut -> probSide.output
          in enumerateProofChecks lookupOrigVarName pairing problem proofScript
 
+    flattenedProofChecks = flattenProofChecks proofChecks
+
     smtProofChecks = SMTProofChecks $ flip M.mapWithKey problems.unwrap $ \pairingId problem ->
-        let theseProofChecks = void proofChecks `atPairingId` pairingId
-         in compileProofChecks problem theseProofChecks
+        let theseProofChecks = proofChecks `atPairingId` pairingId
+         in compileProofChecks problem <$> theseProofChecks
+
+    flattenedSMTProofChecks = flattenSMTProofChecks smtProofChecks
 
 
 asmFunNameToCFunName :: Ident -> Ident

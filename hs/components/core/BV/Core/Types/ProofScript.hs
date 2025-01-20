@@ -8,27 +8,34 @@ import GHC.Generics (Generic)
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
 
-newtype ProofScript
-  = ProofScript { root :: ProofNode }
-  deriving (Eq, Generic, Ord, Show)
+newtype ProofScript a
+  = ProofScript { root :: ProofNodeWith a }
+  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
-data ProofNode
-  = ProofNodeLeaf
-  | ProofNodeRestr RestrProofNode
-  | ProofNodeCaseSplit CaseSplitProofNode
-  | ProofNodeSplit SplitProofNode
-  | ProofNodeSingleRevInduct SingleRevInductProofNode
-  deriving (Eq, Generic, NFData, Ord, Show)
+data ProofNodeWith a
+  = ProofNodeWith
+      { meta :: a
+      , node :: ProofNode a
+      }
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
-data RestrProofNode
+data ProofNode a
+  = ProofNodeLeaf
+  | ProofNodeRestr (RestrProofNode a)
+  | ProofNodeCaseSplit (CaseSplitProofNode a)
+  | ProofNodeSplit (SplitProofNode a)
+  | ProofNodeSingleRevInduct (SingleRevInductProofNode a)
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
+
+data RestrProofNode a
   = RestrProofNode
       { point :: NodeAddr
       , tag :: Tag
       , range :: RestrProofNodeRange
-      , child :: ProofNode
+      , child :: ProofNodeWith a
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
 data RestrProofNodeRange
   = RestrProofNodeRange
@@ -43,26 +50,26 @@ data RestrProofNodeRangeKind
   | RestrProofNodeRangeKindOffset
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data CaseSplitProofNode
+data CaseSplitProofNode a
   = CaseSplitProofNode
       { addr :: NodeAddr
       , tag :: Tag
-      , left :: ProofNode
-      , right :: ProofNode
+      , left :: ProofNodeWith a
+      , right :: ProofNodeWith a
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
-data SplitProofNode
+data SplitProofNode a
   = SplitProofNode
       { addr :: NodeAddr
       , loopRMax :: Integer
       , rDetails :: SplitProofNodeDetails
       , lDetails :: SplitProofNodeDetails
       , eqs :: [(Lambda, Lambda)]
-      , p1 :: ProofNode
-      , p2 :: ProofNode
+      , p1 :: ProofNodeWith a
+      , p2 :: ProofNodeWith a
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
 data SplitProofNodeDetails
   = SplitProofNodeDetails
@@ -73,7 +80,7 @@ data SplitProofNodeDetails
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data SingleRevInductProofNode
+data SingleRevInductProofNode a
   = SingleRevInductProofNode
       { point :: NodeAddr
       , tag :: Tag
@@ -81,9 +88,9 @@ data SingleRevInductProofNode
       , egs :: [Lambda]
       , pred :: Expr
       , nBounds :: Integer
-      , child :: ProofNode
+      , child :: ProofNodeWith a
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
 data Lambda
   = Lambda

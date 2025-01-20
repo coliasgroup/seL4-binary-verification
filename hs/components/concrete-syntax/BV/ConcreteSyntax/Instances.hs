@@ -164,10 +164,13 @@ instance BuildInLine VisitCount where
 
 --
 
-instance ParseInLine ProofScript where
+instance ParseInLine (ProofScript ()) where
     parseInLine = ProofScript <$> parseInLine
 
-instance ParseInLine ProofNode where
+instance ParseInLine (ProofNodeWith ()) where
+    parseInLine = ProofNodeWith () <$> parseInLine
+
+instance ParseInLine (ProofNode ()) where
     parseInLine = word >>= \case
         "Leaf" -> return ProofNodeLeaf
         "Restr" -> ProofNodeRestr <$> parseInLine
@@ -176,7 +179,7 @@ instance ParseInLine ProofNode where
         "SingleRevInduct" -> ProofNodeSingleRevInduct <$> parseInLine
         _ -> fail "invalid proof node"
 
-instance ParseInLine RestrProofNode where
+instance ParseInLine (RestrProofNode ()) where
     parseInLine =
         RestrProofNode
             <$> parseInLine
@@ -197,7 +200,7 @@ instance ParseInLine RestrProofNodeRangeKind where
         "Offset" -> Just RestrProofNodeRangeKindOffset
         _ -> Nothing
 
-instance ParseInLine CaseSplitProofNode where
+instance ParseInLine (CaseSplitProofNode ()) where
     parseInLine =
         CaseSplitProofNode
             <$> parseInLine
@@ -205,7 +208,7 @@ instance ParseInLine CaseSplitProofNode where
             <*> parseInLine
             <*> parseInLine
 
-instance ParseInLine SplitProofNode where
+instance ParseInLine (SplitProofNode ()) where
     parseInLine =
         SplitProofNode
             <$> parseInLine
@@ -224,7 +227,7 @@ instance ParseInLine SplitProofNodeDetails where
             <*> parseInLine
             <*> parseInLine
 
-instance ParseInLine SingleRevInductProofNode where
+instance ParseInLine (SingleRevInductProofNode ()) where
     parseInLine =
         SingleRevInductProofNode
             <$> parseInLine
@@ -242,10 +245,13 @@ instance ParseInLine Lambda where
 
 --
 
-instance BuildInLine ProofScript where
+instance BuildInLine (ProofScript ()) where
     buildInLine proofScript = put proofScript.root
 
-instance BuildInLine ProofNode where
+instance BuildInLine (ProofNodeWith ()) where
+    buildInLine proofNodeWith = put proofNodeWith.node
+
+instance BuildInLine (ProofNode ()) where
     buildInLine = \case
         ProofNodeLeaf -> "Leaf"
         ProofNodeRestr node-> "Restr" <> put node
@@ -253,7 +259,7 @@ instance BuildInLine ProofNode where
         ProofNodeSplit node -> "Split" <> put node
         ProofNodeSingleRevInduct node -> "SingleRevInduct" <> put node
 
-instance BuildInLine RestrProofNode where
+instance BuildInLine (RestrProofNode ()) where
     buildInLine range =
            put range.point
         <> put range.tag
@@ -270,14 +276,14 @@ instance BuildInLine RestrProofNodeRangeKind where
     buildInLine RestrProofNodeRangeKindNumber = "Number"
     buildInLine RestrProofNodeRangeKindOffset = "Offset"
 
-instance BuildInLine CaseSplitProofNode where
+instance BuildInLine (CaseSplitProofNode ()) where
     buildInLine node =
            put node.addr
         <> put node.tag
         <> put node.left
         <> put node.right
 
-instance BuildInLine SplitProofNode where
+instance BuildInLine (SplitProofNode ()) where
     buildInLine node =
            put node.addr
         <> putDec node.loopRMax
@@ -294,7 +300,7 @@ instance BuildInLine SplitProofNodeDetails where
         <> putDec details.step
         <> put details.eqs
 
-instance BuildInLine SingleRevInductProofNode where
+instance BuildInLine (SingleRevInductProofNode ()) where
     buildInLine node =
            put node.point
         <> put node.tag
@@ -894,7 +900,7 @@ instance BuildInLine Op where
 
 --
 
-instance ParseFile (ProofChecks String) where
+instance ParseFile (FlattenedProofChecks String) where
     parseFile = do
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             nameLen <- L.decimal <* eol
@@ -904,9 +910,9 @@ instance ParseFile (ProofChecks String) where
             hyps <- count hypsLen (line parseInLine)
             return $ ProofCheck { meta = name, hyps, hyp }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
-        return . ProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
+        return . FlattenedProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
 
-instance BuildToFile (ProofChecks String) where
+instance BuildToFile (FlattenedProofChecks String) where
     buildToFile checks = mconcat $ foldMap (\(k, v) -> map (buildCheck k) v) (M.toAscList checks.unwrap)
       where
         buildCheck pairingId (ProofCheck { meta = name, hyps, hyp }) =
@@ -923,7 +929,7 @@ instance BuildToFile (ProofChecks String) where
 
 --
 
-instance ParseFile (SMTProofChecks ()) where
+instance ParseFile (FlattenedSMTProofChecks ()) where
     parseFile = do
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- L.decimal <* eol
@@ -932,9 +938,9 @@ instance ParseFile (SMTProofChecks ()) where
             imps <- count impsLen (SMTProofCheckImp () <$> parseSExprWithPlaceholders <* ignoredLines)
             return $ SMTProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
-        return . SMTProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
+        return . FlattenedSMTProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
 
-instance BuildToFile (SMTProofChecks ()) where
+instance BuildToFile (FlattenedSMTProofChecks ()) where
     buildToFile checks = mconcat $ foldMap (\(k, v) -> map (buildGroup k) v) (M.toAscList checks.unwrap)
       where
         buildGroup pairingId (SMTProofCheckGroup { setup, imps }) =

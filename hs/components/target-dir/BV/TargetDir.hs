@@ -93,9 +93,9 @@ readPairings = readAndParseFile "pairings.txt"
 readProblemsAndProofs :: TargetDir -> IO (Either String ProblemsAndProofs)
 readProblemsAndProofs = readAndParseFile "proofs.txt"
 
-readProofChecks :: TargetDir -> IO (Either String (ProofChecks String))
+readProofChecks :: TargetDir -> IO (Either String (FlattenedProofChecks String))
 readProofChecks = readAndParseFile "proof-checks.txt"
 
-readSMTProofChecks :: TargetDir -> IO (Either String (SMTProofChecks ()))
+readSMTProofChecks :: TargetDir -> IO (Either String (FlattenedSMTProofChecks ()))
 readSMTProofChecks = readAndParseFileFast "smt-proof-checks.txt"
 -- readSMTProofChecks = readAndParseFile "smt-proof-checks.txt"

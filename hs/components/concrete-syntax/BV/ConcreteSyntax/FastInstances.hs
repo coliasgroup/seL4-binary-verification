@@ -29,7 +29,7 @@ parsePrettyPairingId = do
     ident = Ident <$> many1 (satisfy isIdentChar)
     isIdentChar c = not (isSpace c || c == '(' || c == ')')
 
-instance ParseFileFast (SMTProofChecks ()) where
+instance ParseFileFast (FlattenedSMTProofChecks ()) where
     parseFileFast = do
         blocks <- parseBlocksFileWithTypicalKeyFormat ["Problem", "Pairing"] parsePrettyPairingId $ do
             setupLen <- decimal <* endOfLine
@@ -38,7 +38,7 @@ instance ParseFileFast (SMTProofChecks ()) where
             imps <- count impsLen (SMTProofCheckImp () <$> parseSExprWithPlaceholders <* ignoredLines)
             return $ SMTProofCheckGroup { setup, imps }
         let x = map (\(k, v) -> M.insertWith (++) k [v]) blocks
-        return . SMTProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
+        return . FlattenedSMTProofChecks . ($ M.empty) . appEndo . foldMap Endo $ x
 
 parseSExprWithPlaceholders :: Parser SExprWithPlaceholders
 parseSExprWithPlaceholders = parseGenericSExpr $
