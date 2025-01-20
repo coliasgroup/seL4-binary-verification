@@ -26,6 +26,7 @@ module BV.Core.Types.ProofChecks
     , flattenSMTProofChecks
     , readSExprWithPlaceholders
     , readSExprsWithPlaceholders
+    , splitSMTProofCheckGroup
     , tryReadSExprWithPlaceholders
     , tryReadSExprsWithPlaceholders
     ) where
@@ -33,6 +34,7 @@ module BV.Core.Types.ProofChecks
 import Control.Applicative (many, (<|>))
 import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
+import Data.Functor ((<&>))
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
@@ -149,6 +151,12 @@ instance Monoid VisitCount where
     mempty = VisitCount [] []
 
 --
+
+splitSMTProofCheckGroup :: SMTProofCheckGroup a -> [SMTProofCheck a]
+splitSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck
+    { setup = group.setup
+    , imp
+    }
 
 newtype SMTProofChecks a
   = SMTProofChecks { unwrap :: M.Map PairingId (ProofScript [SMTProofCheckGroup a]) }

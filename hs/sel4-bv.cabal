@@ -55,12 +55,12 @@ library core
       BV.Core.Types
       BV.Core.Stages
       BV.Core.GluedStages
+      BV.Core.ExecuteSMTProofChecks
   other-modules:
       BV.Core
       BV.Core.Arch
       BV.Core.ConfigureSMT
       BV.Core.Debug.Utils
-      BV.Core.ExecuteSMTProofChecks
       BV.Core.ExprConstruction
       BV.Core.Graph
       BV.Core.Logic
@@ -167,6 +167,7 @@ library system
       BV.System.CacheKey
       BV.System.Glue
       BV.System.IntermediateArtifacts
+      BV.System.Notes
       BV.System.SeL4
       BV.System.Utils
   hs-source-dirs:
@@ -177,6 +178,7 @@ library system
       OverloadedRecordDot
       DerivingStrategies
       LambdaCase
+      DuplicateRecordFields
       NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
@@ -198,6 +200,7 @@ library system
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-types
     , sel4-bv:target-dir
     , stm
     , tasty

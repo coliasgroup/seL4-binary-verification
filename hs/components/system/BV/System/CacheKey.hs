@@ -4,13 +4,13 @@ module BV.System.CacheKey
     ( cacheKeyForCheck
     ) where
 
+import Crypto.Hash.SHA256 (hashlazy)
+import Data.ByteString (ByteString)
 import Data.Text.Lazy.Builder (toLazyText)
 import Data.Text.Lazy.Encoding (encodeUtf8)
-import Data.ByteString (ByteString)
-import Crypto.Hash.SHA256 (hashlazy)
 
-import BV.Core.Types
 import BV.ConcreteSyntax (buildSExprWithPlaceholders)
+import BV.Core.Types
 
 cacheKeyForCheck :: SMTProofCheck () -> ByteString
 cacheKeyForCheck check = hashlazy bytes

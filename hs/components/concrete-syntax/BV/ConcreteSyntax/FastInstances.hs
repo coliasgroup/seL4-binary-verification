@@ -13,8 +13,8 @@ import Data.Monoid (Endo (..))
 
 import BV.Core.Types
 
-import BV.ConcreteSyntax.SExprWithPlaceholdersFast
 import BV.ConcreteSyntax.FastParsing
+import BV.ConcreteSyntax.SExprWithPlaceholdersFast
 
 parsePrettyPairingId :: Parser PairingId
 parsePrettyPairingId = do

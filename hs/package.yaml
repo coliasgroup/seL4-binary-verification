@@ -69,6 +69,7 @@ internal-libraries:
       - BV.Core.Types
       - BV.Core.Stages
       - BV.Core.GluedStages
+      - BV.Core.ExecuteSMTProofChecks
     dependencies:
       - sel4-bv:smtlib2-types
       # external
@@ -124,9 +125,11 @@ internal-libraries:
     visibility: public
     source-dirs: components/system
     default-extensions:
+      - DuplicateRecordFields
       - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
+      - sel4-bv:smtlib2-types
       - sel4-bv:smtlib2
       - sel4-bv:core
       - sel4-bv:concrete-syntax

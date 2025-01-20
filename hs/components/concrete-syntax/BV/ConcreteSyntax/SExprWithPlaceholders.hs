@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.ConcreteSyntax.SExprWithPlaceholders
-    ( parseSExprWithPlaceholders
-    , buildSExprWithPlaceholders
+    ( buildSExprWithPlaceholders
+    , parseSExprWithPlaceholders
     ) where
 
 import Data.Text.Internal.Builder (Builder)
