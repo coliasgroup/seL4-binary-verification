@@ -51,6 +51,11 @@ data RestrProofNodeRangeKind
   | RestrProofNodeRangeKindOffset
   deriving (Eq, Generic, NFData, Ord, Show)
 
+prettyRestrProofNodeRangeKind :: RestrProofNodeRangeKind -> String
+prettyRestrProofNodeRangeKind = \case
+    RestrProofNodeRangeKindNumber -> "Number"
+    RestrProofNodeRangeKindOffset -> "Offset"
+
 data CaseSplitProofNode a
   = CaseSplitProofNode
       { addr :: NodeAddr

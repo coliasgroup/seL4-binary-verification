@@ -152,7 +152,7 @@ instance ParseInLine Restr where
     parseInLine = Restr <$> parseInLine <*> parseInLine
 
 instance BuildInLine Restr where
-    buildInLine restr = put restr.nodeId <> put restr.visitCount
+    buildInLine restr = put restr.nodeAddr <> put restr.visitCount
 
 instance ParseInLine VisitCount where
     parseInLine = inLineSymbol "VC" *> (VisitCount <$> parseInLine <*> parseInLine)
@@ -914,14 +914,14 @@ instance BuildToFile (FlattenedProofChecks String) where
     buildToFile checks = mconcat $ foldMap (\(k, v) -> map (buildCheck k) v) (M.toAscList checks.unwrap)
       where
         buildCheck pairingId (ProofCheck { meta = name, hyps, hyp }) =
-            mconcat . (map (<> "\n")) $
-                [ buildTypicalKeyFormat ["Problem", "Pairing"] (fromString (prettyPairingId pairingId)) <> " {"
-                , B.decimal (length name)
-                , fromString name
+            mconcat $
+                [ buildTypicalKeyFormat ["Problem", "Pairing"] (fromString (prettyPairingId pairingId)) <> " {\n"
+                , B.decimal (length name)<> "\n"
+                , fromString name <> "\n"
                 , buildBlock $ lineInBlock (put hyp)
-                , B.decimal (length hyps)
+                , B.decimal (length hyps) <> "\n"
                 ] ++ map (buildBlock . lineInBlock . put) hyps ++
-                [ "}"
+                [ "}\n"
                 ]
 
 --

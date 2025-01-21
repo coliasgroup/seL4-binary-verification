@@ -12,11 +12,12 @@ import BV.Core.Types
 
 import Control.Monad.Reader (Reader, runReader)
 import Data.Foldable (fold)
-import Data.Function (on, (&))
+import Data.Function (applyWhen, on, (&))
 import Data.Functor ((<&>))
 import Data.Map (Map, (!))
 import qualified Data.Map as M
-import Data.Maybe (mapMaybe)
+import Data.Maybe (catMaybes, mapMaybe)
+import Data.Monoid (Endo (Endo, appEndo))
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -24,6 +25,8 @@ import Debug.Trace
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
+import Text.ParserCombinators.ReadP (option)
+import Text.Printf (printf)
 
 type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident
 
@@ -48,10 +51,9 @@ enumerateProofChecks argRenames pairing problem proofScript =
              in \addr -> if addr `S.member` c then C else Asm
         , loopData =
             let heads = loopHeads nodeGraph [problem.sides.c.entryPoint, problem.sides.asm.entryPoint]
-                m = M.fromList $ flip foldMap heads $ \(head, scc) ->
+             in M.fromList $ flip foldMap heads $ \(head, scc) ->
                     [(head, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
                         if member == head then Nothing else Just (member, LoopMember head))
-             in (`M.lookup` m)
         }
 
 data Context
@@ -60,7 +62,7 @@ data Context
       , problem :: Problem
       , argRenames :: ArgRenames
       , nodeTag :: NodeAddr -> Tag
-      , loopData :: NodeAddr -> Maybe LoopData
+      , loopData :: Map NodeAddr LoopData
       , nodeGraph :: NodeGraph
       }
   deriving (Generic)
@@ -70,6 +72,20 @@ data LoopData
   | LoopMember NodeAddr
   deriving (Eq, Generic, Ord, Show)
 
+loopIdM :: NodeAddr -> Reader Context (Maybe NodeAddr)
+loopIdM addr = do
+    loopData <- gview $ #loopData % at addr
+    return (loopData <&> \case
+        LoopHead _ -> addr
+        LoopMember addr' -> addr')
+
+loopHeadsM :: Reader Context [NodeAddr]
+loopHeadsM = do
+    loopData <- gview #loopData
+    return (mapMaybe (\(k, v) -> case v of
+        LoopHead _ -> Just k
+        LoopMember _ -> Nothing) (M.toList loopData))
+
 proofChecksRecM :: [Restr] -> [Hyp] -> ProofNodeWith () -> Reader Context (ProofNodeWith NodeProofChecks)
 proofChecksRecM restrs hyps (ProofNodeWith _ node) = case node of
     ProofNodeLeaf -> do
@@ -77,8 +93,18 @@ proofChecksRecM restrs hyps (ProofNodeWith _ node) = case node of
         return $ ProofNodeWith checks ProofNodeLeaf
     ProofNodeRestr restrNode -> do
         checks <- restrChecksM restrs hyps restrNode
+        let restrs' = getProofRestr restrNode.point restrNode.range : restrs
+        let hyps' = hyps ++
+                [ pcTrivH
+                    (tagV restrNode.tag
+                        (Visit (Addr restrNode.point)
+                            (Restr
+                                restrNode.point
+                                (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
+                            : restrs)))
+                ]
         node' <- traverseRestrProofNodeChild
-            (proofChecksRecM undefined undefined)
+            (proofChecksRecM restrs' hyps')
             restrNode
         return $ ProofNodeWith checks (ProofNodeRestr node')
     ProofNodeCaseSplit caseSplitNode -> do
@@ -115,7 +141,56 @@ leafChecksM restrs hyps = do
     return $ pathCondImp : otherChecks
 
 restrChecksM :: [Restr] -> [Hyp] -> RestrProofNode () -> Reader Context NodeProofChecks
-restrChecksM restrs hyps = undefined
+restrChecksM restrs hyps restrProofNode = do
+    let restr = getProofRestr restrProofNode.point restrProofNode.range
+    restrOthers <- restrOthersM (restr : restrs) 2
+    let nCErrHyp = nonRErrPcH restrOthers
+    let hyps' = nCErrHyp : hyps
+    nodeTag <- gview #nodeTag
+    let visit vc = tagV (nodeTag restrProofNode.point)
+            (Visit (Addr restrProofNode.point) ((Restr restrProofNode.point vc) : restrs))
+    let minVC = case restrProofNode.range.kind of
+            RestrProofNodeRangeKindOffset -> Just $ offsetVC (max 0 (restrProofNode.range.x - 1))
+            _ | restrProofNode.range.x > 1 -> Just $ numberVC (restrProofNode.range.x - 1)
+            _ -> Nothing
+    let initCheck = case minVC of
+            Just minVC' -> [ProofCheck
+                (printf "Check of restr min %d %s for %d" restrProofNode.range.x (prettyRestrProofNodeRangeKind restrProofNode.range.kind) restrProofNode.point.unwrap)
+                hyps'
+                (pcTrueH (visit minVC'))]
+            Nothing -> []
+    let topVC = fromRestrKindVC restrProofNode.range.kind (restrProofNode.range.y - 1)
+    let topCheck = ProofCheck
+                (printf "Check of restr max %d %s for %d" restrProofNode.range.y (prettyRestrProofNodeRangeKind restrProofNode.range.kind) restrProofNode.point.unwrap)
+                hyps'
+                (pcFalseH (visit topVC))
+    return $ initCheck ++ [topCheck]
+
+restrOthersM :: [Restr] -> Integer -> Reader Context [Restr]
+restrOthersM restrs n = do
+    xs <- loopsToSplitM restrs
+    let extras = [ Restr sp (upToVC n) | sp <- xs ]
+    return $ restrs ++ extras
+
+loopsToSplitM :: [Restr] -> Reader Context [NodeAddr]
+loopsToSplitM restrs = do
+    loopHeadsWithSplit <- fmap (S.fromList . catMaybes) . for restrs $ \restr -> do
+        loopIdM restr.nodeAddr
+    loopHeads <- S.fromList <$> loopHeadsM
+    let remLoopHeadsInit = loopHeadsWithSplit `S.difference` loopHeads
+    g <- gview #nodeGraph
+    nodeTag <- gview #nodeTag
+    let f :: Restr -> Set NodeAddr -> Set NodeAddr
+        f restr = applyWhen (hasZeroVC restr.visitCount) . S.filter $ \lh ->
+            isReachableFrom g (Addr restr.nodeAddr) (Addr lh) ||
+                nodeTag restr.nodeAddr /= nodeTag lh
+    return . S.toList $ appEndo (foldMap (Endo . f) restrs) remLoopHeadsInit
+
+getProofRestr :: NodeAddr -> RestrProofNodeRange -> Restr
+getProofRestr point range =
+    Restr
+        point
+        (optionsVC (map (fromRestrKindVC range.kind) [range.x .. range.y - 1]))
 
 splitChecksM :: [Restr] -> [Hyp] -> SplitProofNode () -> Reader Context NodeProofChecks
 splitChecksM restrs hyps = undefined

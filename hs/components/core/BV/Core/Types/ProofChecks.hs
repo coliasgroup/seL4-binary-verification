@@ -129,7 +129,7 @@ data Visit
 
 data Restr
   = Restr
-      { nodeId :: NodeId
+      { nodeAddr :: NodeAddr
       , visitCount :: VisitCount
       }
   deriving (Eq, Generic, NFData, Ord, Show)
