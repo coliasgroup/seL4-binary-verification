@@ -22,6 +22,7 @@ import Optics
 
 import BV.Core.Stages
 import BV.Core.Types
+import Debug.Trace
 
 data Input
   = Input
@@ -53,11 +54,17 @@ type MonadPureStages m =
 
 gluedStages :: MonadPureStages m => Input -> m (SMTProofChecks ())
 gluedStages input = do
+    logInfoN "x1"
     registerIntermediateArtifact $ IntermediateArtifactFunctions collectedFunctions
+    logInfoN "x2"
     registerIntermediateArtifact $ IntermediateArtifactPairings pairings
+    logInfoN "x3"
     registerIntermediateArtifact $ IntermediateArtifactProblems problems
+    logInfoN "x4"
     registerIntermediateArtifact $ IntermediateArtifactProofChecks flattenedProofChecks
+    logInfoN "x5"
     registerIntermediateArtifact $ IntermediateArtifactSMTProofChecks flattenedSMTProofChecks
+    logInfoN "x6"
     return smtProofChecks
 
   where
@@ -103,9 +110,11 @@ gluedStages input = do
         let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
         return $ buildProblem lookupFunctionForProblem inlineScript namedFuns
 
-    proofChecks = ProofChecks $ flip M.mapWithKey problems.unwrap $ \pairingId problem ->
+    problemsThatHaveProofs = Problems $ M.restrictKeys problems.unwrap (M.keysSet input.problemsAndProofs.unwrap)
+
+    proofChecks = ProofChecks $ flip M.mapWithKey problemsThatHaveProofs.unwrap $ \pairingId problem ->
         let pairing = pairings `atPairingId` pairingId
-            proofScript = (input.problemsAndProofs `atPairingId` pairingId).proof
+            proofScript = traceShow pairingId $ (input.problemsAndProofs `atPairingId` pairingId).proof
             lookupOrigVarName quadrant mangledName =
                 fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
               where
@@ -121,7 +130,7 @@ gluedStages input = do
 
     flattenedProofChecks = flattenProofChecks proofChecks
 
-    smtProofChecks = SMTProofChecks $ flip M.mapWithKey problems.unwrap $ \pairingId problem ->
+    smtProofChecks = void . SMTProofChecks $ flip M.mapWithKey problemsThatHaveProofs.unwrap $ \pairingId problem ->
         let theseProofChecks = proofChecks `atPairingId` pairingId
          in compileProofChecks problem <$> theseProofChecks
 

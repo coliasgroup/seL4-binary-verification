@@ -35,6 +35,7 @@ import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
+import GHC.Stack (HasCallStack)
 import Optics.Core (Lens', view)
 
 import BV.Core.Types.Program

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module BV.Core.Types.ProofScript where
 
@@ -99,3 +100,59 @@ data Lambda
       , expr :: Expr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+traverseRestrProofNodeChild
+    :: Applicative f
+    => (ProofNodeWith a -> f (ProofNodeWith b))
+    -> RestrProofNode a
+    -> f (RestrProofNode b)
+traverseRestrProofNodeChild f (RestrProofNode {..}) =
+    g <$> f child
+  where
+    g child' = RestrProofNode
+        { child = child'
+        , ..
+        }
+
+traverseCaseSplitProofNodeChildren
+    :: Applicative f
+    => (ProofNodeWith a -> f (ProofNodeWith b))
+    -> (ProofNodeWith a -> f (ProofNodeWith b))
+    -> CaseSplitProofNode a
+    -> f (CaseSplitProofNode b)
+traverseCaseSplitProofNodeChildren f1 f2 (CaseSplitProofNode {..}) =
+    g <$> f1 left <*> f2 right
+  where
+    g left' right' = CaseSplitProofNode
+        { left = left'
+        , right = right'
+        , ..
+        }
+
+traverseSplitProofNodeChildren
+    :: Applicative f
+    => (ProofNodeWith a -> f (ProofNodeWith b))
+    -> (ProofNodeWith a -> f (ProofNodeWith b))
+    -> SplitProofNode a
+    -> f (SplitProofNode b)
+traverseSplitProofNodeChildren f1 f2 (SplitProofNode {..}) =
+    g <$> f1 p1 <*> f2 p2
+  where
+    g p1' p2' = SplitProofNode
+        { p1 = p1'
+        , p2 = p2'
+        , ..
+        }
+
+traverseSingleRevInductProofNodeChild
+    :: Applicative f
+    => (ProofNodeWith a -> f (ProofNodeWith b))
+    -> SingleRevInductProofNode a
+    -> f (SingleRevInductProofNode b)
+traverseSingleRevInductProofNodeChild f (SingleRevInductProofNode {..}) =
+    g <$> f child
+  where
+    g child' = SingleRevInductProofNode
+        { child = child'
+        , ..
+        }

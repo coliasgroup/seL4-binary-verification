@@ -30,6 +30,7 @@ module BV.Core.Types.Program
     , nodeConts
     , programFromFunctions
     , renameVars
+    , renameVarsI
     , toListOfNamed
     , walkExprs
     , walkExprsI
@@ -324,7 +325,7 @@ walkExprs f expr = do
         v -> return v
 
 walkExprsI :: (Expr -> Expr) -> Expr -> Expr
-walkExprsI f = runIdentity . walkExprs (fmap Identity f)
+walkExprsI f = runIdentity . walkExprs (Identity . f)
 
 class HasVarNames a where
     varNamesOf :: Traversal' a Ident
@@ -349,6 +350,9 @@ instance HasVarNames ExprValue where
 
 renameVars :: (HasVarNames a, Applicative f) => (Ident -> f Ident) -> a -> f a
 renameVars = traverseOf varNamesOf
+
+renameVarsI :: HasVarNames a => (Ident -> Ident) -> a -> a
+renameVarsI f = runIdentity . renameVars (Identity . f)
 
 class HasVarDecls a where
     varDeclsOf :: Traversal' a (Ident, ExprType)
