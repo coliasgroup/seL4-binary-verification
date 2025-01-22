@@ -211,8 +211,7 @@ instance ParseInLine (SplitProofNode ()) where
         SplitProofNode
             <$> parseInLine
             <*> parseInLine
-            <*> parseInLine
-            <*> parseInLine
+            <*> ((\asm c -> PairingOf { asm, c }) <$> parseInLine <*> parseInLine)
             <*> parseInLine
             <*> parseInLine
             <*> parseInLine
@@ -283,17 +282,17 @@ instance BuildInLine (CaseSplitProofNode ()) where
 
 instance BuildInLine (SplitProofNode ()) where
     buildInLine node =
-           put node.addr
+           putDec node.n
         <> putDec node.loopRMax
-        <> put node.rDetails
-        <> put node.lDetails
+        <> put node.details.asm
+        <> put node.details.c
         <> put node.eqs
         <> put node.p1
         <> put node.p2
 
 instance BuildInLine SplitProofNodeDetails where
     buildInLine details =
-           putDec details.split
+           put details.split
         <> putDec details.seqStart
         <> putDec details.step
         <> put details.eqs

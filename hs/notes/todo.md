@@ -5,3 +5,4 @@
 - PermeableOptic
 - node type for each variant
 - swap order of import blocks
+- swap order of PairingOf

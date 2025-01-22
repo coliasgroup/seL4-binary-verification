@@ -67,10 +67,9 @@ data CaseSplitProofNode a
 
 data SplitProofNode a
   = SplitProofNode
-      { addr :: NodeAddr
+      { n :: Integer
       , loopRMax :: Integer
-      , rDetails :: SplitProofNodeDetails
-      , lDetails :: SplitProofNodeDetails
+      , details :: PairingOf SplitProofNodeDetails
       , eqs :: [(Lambda, Lambda)]
       , p1 :: ProofNodeWith a
       , p2 :: ProofNodeWith a
@@ -79,7 +78,7 @@ data SplitProofNode a
 
 data SplitProofNodeDetails
   = SplitProofNodeDetails
-      { split :: Integer
+      { split :: NodeAddr
       , seqStart :: Integer
       , step :: Integer
       , eqs :: [Lambda]
