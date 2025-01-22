@@ -114,7 +114,7 @@ gluedStages input = do
 
     proofChecks = ProofChecks $ flip M.mapWithKey problemsThatHaveProofs.unwrap $ \pairingId problem ->
         let pairing = pairings `atPairingId` pairingId
-            proofScript = traceShow pairingId $ (input.problemsAndProofs `atPairingId` pairingId).proof
+            proofScript = (input.problemsAndProofs `atPairingId` pairingId).proof
             lookupOrigVarName quadrant mangledName =
                 fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
               where

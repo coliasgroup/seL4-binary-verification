@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Redundant flip" #-}
+{-# HLINT ignore "Use :" #-}
 
 module BV.Core.Stages.EnumerateProofChecks
     ( enumerateProofChecks
@@ -10,6 +11,7 @@ import BV.Core.ExprConstruction
 import BV.Core.Graph
 import BV.Core.Types
 
+import BV.Core.Utils (optionals)
 import Control.Monad.Reader (Reader, runReader)
 import Data.Foldable (fold)
 import Data.Function (applyWhen, on, (&))
@@ -86,6 +88,8 @@ loopHeadsM = do
         LoopHead _ -> Just k
         LoopMember _ -> Nothing) (M.toList loopData))
 
+--
+
 proofChecksRecM :: [Restr] -> [Hyp] -> ProofNodeWith () -> Reader Context (ProofNodeWith NodeProofChecks)
 proofChecksRecM restrs hyps (ProofNodeWith _ node) = case node of
     ProofNodeLeaf -> do
@@ -116,15 +120,18 @@ proofChecksRecM restrs hyps (ProofNodeWith _ node) = case node of
         return $ ProofNodeWith [] (ProofNodeCaseSplit node')
     ProofNodeSplit splitNode -> do
         checks <- splitChecksM restrs hyps splitNode
+        let noLoopHyps = splitNoLoopHyps splitNode restrs
+        let loopHyps = splitLoopHyps splitNode restrs True
         node' <- traverseSplitProofNodeChildren
-            (proofChecksRecM undefined undefined)
-            (proofChecksRecM undefined undefined)
+            (proofChecksRecM restrs (hyps ++ noLoopHyps))
+            (proofChecksRecM restrs (hyps ++ loopHyps))
             splitNode
         return $ ProofNodeWith checks (ProofNodeSplit node')
     ProofNodeSingleRevInduct singleRevInductNode -> do
         checks <- singleRevInductChecksM restrs hyps singleRevInductNode
+        hyp' <- singleRevInductResultingHypM restrs singleRevInductNode
         node' <- traverseSingleRevInductProofNodeChild
-            (proofChecksRecM undefined undefined)
+            (proofChecksRecM restrs (hyps ++ [hyp']))
             singleRevInductNode
         return $ ProofNodeWith checks (ProofNodeSingleRevInduct node')
 
@@ -141,27 +148,27 @@ leafChecksM restrs hyps = do
     return $ pathCondImp : otherChecks
 
 restrChecksM :: [Restr] -> [Hyp] -> RestrProofNode () -> Reader Context NodeProofChecks
-restrChecksM restrs hyps restrProofNode = do
-    let restr = getProofRestr restrProofNode.point restrProofNode.range
+restrChecksM restrs hyps restrNode = do
+    let restr = getProofRestr restrNode.point restrNode.range
     restrOthers <- restrOthersM (restr : restrs) 2
     let nCErrHyp = nonRErrPcH restrOthers
     let hyps' = nCErrHyp : hyps
     nodeTag <- gview #nodeTag
-    let visit vc = tagV (nodeTag restrProofNode.point)
-            (Visit (Addr restrProofNode.point) ((Restr restrProofNode.point vc) : restrs))
-    let minVC = case restrProofNode.range.kind of
-            RestrProofNodeRangeKindOffset -> Just $ offsetVC (max 0 (restrProofNode.range.x - 1))
-            _ | restrProofNode.range.x > 1 -> Just $ numberVC (restrProofNode.range.x - 1)
+    let visit vc = tagV (nodeTag restrNode.point)
+            (Visit (Addr restrNode.point) ((Restr restrNode.point vc) : restrs))
+    let minVC = case restrNode.range.kind of
+            RestrProofNodeRangeKindOffset -> Just $ offsetVC (max 0 (restrNode.range.x - 1))
+            _ | restrNode.range.x > 1 -> Just $ numberVC (restrNode.range.x - 1)
             _ -> Nothing
     let initCheck = case minVC of
             Just minVC' -> [ProofCheck
-                (printf "Check of restr min %d %s for %d" restrProofNode.range.x (prettyRestrProofNodeRangeKind restrProofNode.range.kind) restrProofNode.point.unwrap)
+                (printf "Check of restr min %d %s for %d" restrNode.range.x (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
                 hyps'
                 (pcTrueH (visit minVC'))]
             Nothing -> []
-    let topVC = fromRestrKindVC restrProofNode.range.kind (restrProofNode.range.y - 1)
+    let topVC = fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1)
     let topCheck = ProofCheck
-                (printf "Check of restr max %d %s for %d" restrProofNode.range.y (prettyRestrProofNodeRangeKind restrProofNode.range.kind) restrProofNode.point.unwrap)
+                (printf "Check of restr max %d %s for %d" restrNode.range.y (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
                 hyps'
                 (pcFalseH (visit topVC))
     return $ initCheck ++ [topCheck]
@@ -193,10 +200,57 @@ getProofRestr point range =
         (optionsVC (map (fromRestrKindVC range.kind) [range.x .. range.y - 1]))
 
 splitChecksM :: [Restr] -> [Hyp] -> SplitProofNode () -> Reader Context NodeProofChecks
-splitChecksM restrs hyps = undefined
+splitChecksM restrs hyps splitNode = do
+    return []
+
+splitNoLoopHyps :: SplitProofNode () -> [Restr] -> [Hyp]
+splitNoLoopHyps splitNode restrs =
+    [pcFalseH visits.asm]
+  where
+    visits = splitVisitVisits splitNode restrs (numberVC splitNode.n)
+
+splitVisitVisits :: SplitProofNode () -> [Restr] -> VisitCount -> PairingOf VisitWithTag
+splitVisitVisits splitNode restrs visit = withTags splitNode.details <&> \detailsWithTag ->
+    splitVisitOneVisit detailsWithTag restrs visit
+
+splitVisitOneVisit :: WithTag SplitProofNodeDetails -> [Restr] -> VisitCount -> VisitWithTag
+splitVisitOneVisit detailsWithTag restrs visit = tagV detailsWithTag.tag $
+    let restr' = Restr detailsWithTag.value.split visit
+     in Visit (Addr detailsWithTag.value.split) (restr' : restrs)
+
+splitHypsAtVisit :: SplitProofNode () -> [Restr] -> VisitCount -> [(Hyp, String)]
+splitHypsAtVisit splitNode restrs visit =
+    []
+  where
+    visits = splitVisitVisits splitNode restrs visit
+    starts = splitVisitVisits splitNode restrs (numberVC 0)
+    mksub v exp = undefined
+    inst exp = undefined
+    zsub = mksub (machineWordE 0)
+    -- lsub = case visit of
+
+splitLoopHyps :: SplitProofNode () -> [Restr] -> Bool -> [Hyp]
+splitLoopHyps splitNode restrs exit =
+    hyps'
+  where
+    n = splitNode.n
+    visits = splitVisitVisits splitNode restrs (offsetVC (n - 1))
+    conts = splitVisitVisits splitNode restrs (offsetVC n)
+    lEnter = pcTrueH visits.asm
+    lExit = pcFalseH conts.asm
+    hyps = [lEnter] ++ optionals exit [lExit]
+    hyps' = hyps ++
+        [ hyp
+        | offs <- [ offsetVC i | i <- [0..n-1] ]
+        , (hyp, _) <- splitHypsAtVisit splitNode restrs offs
+        ]
 
 singleRevInductChecksM :: [Restr] -> [Hyp] -> SingleRevInductProofNode () -> Reader Context NodeProofChecks
 singleRevInductChecksM restrs hyps = undefined
+
+singleRevInductResultingHypM :: [Restr] -> SingleRevInductProofNode () -> Reader Context Hyp
+singleRevInductResultingHypM restrs singleRevInductNode = do
+    undefined
 
 --
 

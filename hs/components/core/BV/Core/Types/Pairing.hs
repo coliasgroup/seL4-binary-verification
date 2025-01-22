@@ -28,6 +28,7 @@ module BV.Core.Types.Pairing
     , prettyPairingId
     , prettyTag
     , withTag
+    , withTags
     , (===)
     ) where
 
@@ -86,6 +87,12 @@ data WithTag a
 
 withTag :: (Tag -> a -> b) -> WithTag a -> b
 withTag f (WithTag tag value) = f tag value
+
+withTags :: PairingOf a -> PairingOf (WithTag a)
+withTags pairing = PairingOf
+    { asm = WithTag Asm pairing.asm
+    , c = WithTag C pairing.c
+    }
 
 pairingSide :: Tag -> PairingOf a -> a
 pairingSide tag = view (intoPairingSide tag)
