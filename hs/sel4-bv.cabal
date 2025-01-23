@@ -64,6 +64,7 @@ library core
       BV.Core.ExprConstruction
       BV.Core.Graph
       BV.Core.Logic
+      BV.Core.ProofCheckConstruction
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks

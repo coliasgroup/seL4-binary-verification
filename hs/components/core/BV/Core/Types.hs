@@ -5,6 +5,7 @@ module BV.Core.Types
     , module BV.Core.Types.Program
     , module BV.Core.Types.ProofChecks
     , module BV.Core.Types.ProofScript
+    , module BV.Core.Types.SMTProofChecks
     , module BV.Core.Types.SearchOutputs
     ) where
 
