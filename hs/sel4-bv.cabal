@@ -78,6 +78,7 @@ library core
       BV.Core.Types.ProofChecks
       BV.Core.Types.ProofScript
       BV.Core.Types.SearchOutputs
+      BV.Core.Types.SMTProofChecks
       BV.Core.Utils
   hs-source-dirs:
       components/core

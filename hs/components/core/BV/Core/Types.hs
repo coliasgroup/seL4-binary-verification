@@ -15,3 +15,4 @@ import BV.Core.Types.Program
 import BV.Core.Types.ProofChecks
 import BV.Core.Types.ProofScript
 import BV.Core.Types.SearchOutputs
+import BV.Core.Types.SMTProofChecks
