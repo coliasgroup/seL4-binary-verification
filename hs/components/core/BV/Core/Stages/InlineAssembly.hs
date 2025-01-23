@@ -22,8 +22,8 @@ import Optics
 import qualified Text.ParserCombinators.ReadP as P
 import Text.ParserCombinators.ReadP
 
-import BV.Core.ExprConstruction
 import BV.Core.Types
+import BV.Core.Types.Construction
 
 addInlineAssemblySpecs :: PairingOf Program -> (Pairings, PairingOf Program, PairingOf [Ident])
 addInlineAssemblySpecs progs =

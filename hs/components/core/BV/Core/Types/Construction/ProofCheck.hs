@@ -1,4 +1,4 @@
-module BV.Core.ProofCheckConstruction
+module BV.Core.Types.Construction.ProofCheck
     ( asmV
     , cV
     , eqH
@@ -24,8 +24,8 @@ module BV.Core.ProofCheckConstruction
 import Data.Foldable (fold)
 import Data.Function ((&))
 
-import BV.Core.ExprConstruction
 import BV.Core.Types
+import BV.Core.Types.Construction.Expr
 
 numberVC :: Integer -> VisitCount
 numberVC n = VisitCount

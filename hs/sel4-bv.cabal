@@ -53,6 +53,7 @@ library core
   visibility: public
   exposed-modules:
       BV.Core.Types
+      BV.Core.Types.Construction
       BV.Core.Stages
       BV.Core.GluedStages
       BV.Core.ExecuteSMTProofChecks
@@ -61,10 +62,8 @@ library core
       BV.Core.Arch
       BV.Core.ConfigureSMT
       BV.Core.Debug.Utils
-      BV.Core.ExprConstruction
       BV.Core.Graph
       BV.Core.Logic
-      BV.Core.ProofCheckConstruction
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks
@@ -72,6 +71,9 @@ library core
       BV.Core.Stages.FormulatePairing
       BV.Core.Stages.InlineAssembly
       BV.Core.Stages.PseudoCompile
+      BV.Core.Types.Construction.Expr
+      BV.Core.Types.Construction.Pairing
+      BV.Core.Types.Construction.ProofCheck
       BV.Core.Types.ObjDump
       BV.Core.Types.Pairing
       BV.Core.Types.Problem

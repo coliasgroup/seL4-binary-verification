@@ -8,9 +8,9 @@ import Data.Maybe (fromJust)
 import Optics
 
 import BV.Core.Arch
-import BV.Core.ExprConstruction
 import BV.Core.Logic
 import BV.Core.Types
+import BV.Core.Types.Construction
 import BV.Core.Utils
 
 pseudoCompile :: ObjDumpInfo -> Program -> Program

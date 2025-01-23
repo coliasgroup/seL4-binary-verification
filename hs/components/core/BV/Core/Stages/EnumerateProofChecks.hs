@@ -7,10 +7,9 @@ module BV.Core.Stages.EnumerateProofChecks
     ( enumerateProofChecks
     ) where
 
-import BV.Core.ExprConstruction
 import BV.Core.Graph
-import BV.Core.ProofCheckConstruction
 import BV.Core.Types
+import BV.Core.Types.Construction
 
 import BV.Core.Utils (optionals)
 import Control.Monad.Reader (Reader, runReader)

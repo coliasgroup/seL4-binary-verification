@@ -67,6 +67,7 @@ internal-libraries:
       - NoFieldSelectors
     exposed-modules:
       - BV.Core.Types
+      - BV.Core.Types.Construction
       - BV.Core.Stages
       - BV.Core.GluedStages
       - BV.Core.ExecuteSMTProofChecks

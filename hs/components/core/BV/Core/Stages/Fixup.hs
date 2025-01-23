@@ -10,8 +10,8 @@ import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import Optics
 
-import BV.Core.Logic
 import BV.Core.Types
+import BV.Core.Types.Construction
 
 fixupProgram :: Program -> Program
 fixupProgram = #functions % traversed % #body % traversed %~ fixupFunctionBody

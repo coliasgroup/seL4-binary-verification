@@ -14,8 +14,8 @@ import Data.Functor ((<&>))
 import Data.List (partition)
 import Data.Maybe (fromJust, mapMaybe, maybeToList)
 
-import BV.Core.ExprConstruction
 import BV.Core.Types
+import BV.Core.Types.Construction
 import BV.Core.Utils
 
 formulatePairing :: Expr -> [Argument] -> [Argument] -> Pairing

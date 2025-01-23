@@ -1,4 +1,4 @@
-module BV.Core.ExprConstruction where
+module BV.Core.Types.Construction.Expr where
 
 import Control.Exception (assert)
 import Data.Bits (shiftL)

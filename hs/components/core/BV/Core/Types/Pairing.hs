@@ -12,14 +12,6 @@ module BV.Core.Types.Pairing
     , Pairings (..)
     , Tag (..)
     , WithTag (..)
-    , asmIn
-    , asmInQ
-    , asmOut
-    , asmOutQ
-    , cIn
-    , cInQ
-    , cOut
-    , cOutQ
     , intoPairingSide
     , pairingSide
     , pairingSideWithTag
@@ -29,14 +21,12 @@ module BV.Core.Types.Pairing
     , prettyTag
     , withTag
     , withTags
-    , (===)
     ) where
 
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
-import GHC.Stack (HasCallStack)
 import Optics.Core (Lens', view)
 
 import BV.Core.Types.Program
@@ -144,35 +134,6 @@ data PairingEqDirection
   = PairingEqDirectionIn
   | PairingEqDirectionOut
   deriving (Eq, Generic, NFData, Ord, Show)
-
-asmInQ :: PairingEqSideQuadrant
-asmInQ = PairingEqSideQuadrant Asm PairingEqDirectionIn
-
-asmOutQ :: PairingEqSideQuadrant
-asmOutQ = PairingEqSideQuadrant Asm PairingEqDirectionOut
-
-cInQ :: PairingEqSideQuadrant
-cInQ = PairingEqSideQuadrant C PairingEqDirectionIn
-
-cOutQ :: PairingEqSideQuadrant
-cOutQ = PairingEqSideQuadrant C PairingEqDirectionOut
-
-asmIn :: Expr -> PairingEqSide
-asmIn = PairingEqSide asmInQ
-
-asmOut :: Expr -> PairingEqSide
-asmOut = PairingEqSide asmOutQ
-
-cIn :: Expr -> PairingEqSide
-cIn = PairingEqSide cInQ
-
-cOut :: Expr -> PairingEqSide
-cOut = PairingEqSide cOutQ
-
-infix 4 ===
-
-(===) :: PairingEqSide -> PairingEqSide -> PairingEq
-(===) = PairingEq
 
 newtype Pairings
   = Pairings { unwrap :: M.Map PairingId Pairing }
