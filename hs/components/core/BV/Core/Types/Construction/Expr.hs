@@ -51,6 +51,9 @@ isWordT = is #_ExprTypeWord
 isWordWithSizeT :: Integer -> ExprType -> Bool
 isWordWithSizeT n = (==) (wordT n)
 
+isMachineWordT :: ExprType -> Bool
+isMachineWordT = isWordWithSizeT archWordSizeBits
+
 toWordBitsT :: ExprType -> Integer
 toWordBitsT = fromJust . preview #_ExprTypeWord
 

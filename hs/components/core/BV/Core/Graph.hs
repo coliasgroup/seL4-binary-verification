@@ -60,7 +60,7 @@ reachable :: NodeGraph -> NodeId -> [NodeId]
 reachable g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapRev from))
 
 isReachableFrom :: NodeGraph -> NodeId -> NodeId -> Bool
-isReachableFrom g to from = G.path g.graph (fromJust (g.nodeIdMapRev from)) (fromJust (g.nodeIdMapRev to))
+isReachableFrom g from to = G.path g.graph (fromJust (g.nodeIdMapRev from)) (fromJust (g.nodeIdMapRev to))
 
 loopHeads :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
 loopHeads g entryPoints =

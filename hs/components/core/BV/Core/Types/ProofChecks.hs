@@ -21,6 +21,7 @@ import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
+import Optics
 
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
@@ -128,3 +129,11 @@ instance Semigroup VisitCount where
 
 instance Monoid VisitCount where
     mempty = VisitCount [] []
+
+-- hypVisits :: Fold Hyp VisitWithTag
+-- hypVisits = (#_HypPcImp % ) `adjoin`
+
+-- class HasVisits a where
+--     foldVisits :: Fold a VisitWithTag
+
+-- instance HasVisits Hyp where

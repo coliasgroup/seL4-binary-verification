@@ -1,10 +1,15 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.Construction.ProofCheck
-    ( asmV
+    ( SimpleVisitCountView (..)
+    , asmV
     , cV
+    , doubleRangeVC
     , eqH
     , eqH'
     , eqIfAtH
     , eqIfAtH'
+    , eqInductH
     , eqSideH
     , eqWithIfAtH
     , fromRestrKindVC
@@ -13,16 +18,20 @@ module BV.Core.Types.Construction.ProofCheck
     , offsetVC
     , optionsVC
     , pcFalseH
+    , pcImpH
     , pcTrivH
     , pcTrueH
+    , simpleVisitCountView
     , tagV
     , trueIfAt
     , trueIfAt'
     , upToVC
     ) where
 
+import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
 import Data.Function ((&))
+import GHC.Generics (Generic)
 
 import BV.Core.Types
 import BV.Core.Types.Construction.Expr
@@ -42,6 +51,17 @@ offsetVC n = VisitCount
 optionsVC :: [VisitCount] -> VisitCount
 optionsVC = fold
 
+data SimpleVisitCountView
+  = SimpleVisitCountViewNumber Integer
+  | SimpleVisitCountViewOffset Integer
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+simpleVisitCountView :: VisitCount -> Maybe SimpleVisitCountView
+simpleVisitCountView = \case
+    VisitCount { numbers = [n], offsets = [] } -> Just (SimpleVisitCountViewNumber n)
+    VisitCount { numbers = [], offsets = [n] } -> Just (SimpleVisitCountViewOffset n)
+    _ -> Nothing
+
 fromRestrKindVC :: RestrProofNodeRangeKind -> Integer -> VisitCount
 fromRestrKindVC kind n = n & case kind of
     RestrProofNodeRangeKindNumber -> numberVC
@@ -49,6 +69,10 @@ fromRestrKindVC kind n = n & case kind of
 
 upToVC :: Integer -> VisitCount
 upToVC n = optionsVC (map numberVC [0 .. n - 1])
+
+doubleRangeVC :: Integer -> Integer -> VisitCount
+doubleRangeVC n m = optionsVC $
+    map numberVC [0 ..  n - 1] ++ map offsetVC [0 ..  m - 1]
 
 hasZeroVC :: VisitCount -> Bool
 hasZeroVC vc = 0 `elem` vc.numbers
@@ -106,5 +130,11 @@ pcTrivH visit = HypPcImp (PcImpHyp
     , rhs = PcImpHypSidePc visit
     })
 
+pcImpH :: PcImpHypSide -> PcImpHypSide -> Hyp
+pcImpH lhs rhs = HypPcImp (PcImpHyp { lhs, rhs })
+
 eqSideH :: Expr -> VisitWithTag -> EqHypSide
 eqSideH = EqHypSide
+
+eqInductH :: Integer -> Integer -> EqHypInduct
+eqInductH = EqHypInduct

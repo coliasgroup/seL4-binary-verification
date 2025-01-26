@@ -303,9 +303,9 @@ instance BuildInLine (SingleRevInductProofNode ()) where
            put node.point
         <> put node.tag
         <> putDec node.n
-        <> put node.egs
+        <> put node.eqs
         <> put node.pred
-        <> putDec node.nBounds
+        <> putDec node.nBound
         <> put node.child
 
 instance BuildInLine Lambda where

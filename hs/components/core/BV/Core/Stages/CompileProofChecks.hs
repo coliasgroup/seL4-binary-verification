@@ -6,3 +6,6 @@ import BV.Core.Types
 
 compileProofChecks :: Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
 compileProofChecks = undefined
+
+-- proofCheckGroups :: [ProofCheck a] -> [[ProofCheck a]]
+-- proofCheckGroups

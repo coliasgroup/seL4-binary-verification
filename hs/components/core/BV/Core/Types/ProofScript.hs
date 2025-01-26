@@ -90,9 +90,9 @@ data SingleRevInductProofNode a
       { point :: NodeAddr
       , tag :: Tag
       , n :: Integer
-      , egs :: [Lambda]
+      , eqs :: [Lambda]
       , pred :: Expr
-      , nBounds :: Integer
+      , nBound :: Integer
       , child :: ProofNodeWith a
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
