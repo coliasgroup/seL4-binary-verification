@@ -652,7 +652,8 @@ instance ParseInLine Expr where
                 return $ Expr { ty = ExprTypeType, value = ExprValueType ty' }
             "Symbol" -> typical ExprValueSymbol
             "Token" -> typical ExprValueToken
-            "SMTExpr" -> typicalWith hexEncodedString ExprValueSMTExpr
+            -- "SMTExpr" -> typicalWith hexEncodedString ExprValueSMTExpr
+            "SMTExpr" -> error "unimplemented"
             _ -> fail "invalid value"
       where
         typical :: (ParseInLine a) => (a -> ExprValue) -> Parser Expr

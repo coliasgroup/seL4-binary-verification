@@ -1,4 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE TypeFamilies #-}
+
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module BV.SMTLIB2.Types.SExpr
     ( Atom
@@ -53,6 +56,7 @@ import Data.Monoid (Endo (Endo, appEndo))
 import Data.String (IsString, fromString)
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
+import GHC.IsList (IsList (..))
 import GHC.Natural (Natural)
 import Numeric (showInt)
 
@@ -236,8 +240,10 @@ instance IsString Atom where
 instance IsString UncheckedAtom where
     fromString = SymbolAtom
 
-instance IsString SExpr where
+instance IsString a => IsString (GenericSExpr a) where
     fromString = Atom . fromString
 
-instance IsString UncheckedSExpr where
-    fromString = Atom . fromString
+instance IsList (GenericSExpr a) where
+    type Item (GenericSExpr a) = GenericSExpr a
+    fromList = List
+    toList (List xs) = xs

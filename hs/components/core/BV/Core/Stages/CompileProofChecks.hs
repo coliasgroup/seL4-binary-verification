@@ -1,11 +1,160 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-type-defaults #-}
+
 module BV.Core.Stages.CompileProofChecks
     ( compileProofChecks
     ) where
 
 import BV.Core.Types
+import BV.Core.Types.Construction
+import BV.Core.Utils
+import BV.SMTLIB2.Types
+
+import Control.DeepSeq (NFData)
+import Control.Monad.RWS.Lazy (RWS, runRWS)
+import Data.Function (applyWhen)
+import Data.Functor (void)
+import Data.List (sort, sortOn)
+import Data.Map (Map, (!))
+import qualified Data.Map as M
+import qualified Data.Set as S
+import Debug.Trace
+import GHC.Generics (Generic)
+import Optics
+import Control.Monad.State.Lazy (modify)
+import Text.Printf (printf)
 
 compileProofChecks :: Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
-compileProofChecks = undefined
+compileProofChecks problem checks =
+    map (compileProofCheckGroup problem) groups
+  where
+    groups = proofCheckGroups checks
 
--- proofCheckGroups :: [ProofCheck a] -> [[ProofCheck a]]
--- proofCheckGroups
+proofCheckGroups :: [ProofCheck a] -> [[ProofCheck a]]
+proofCheckGroups checks =
+    map snd . sortOn (key . fst) $ M.toAscList m
+  where
+    m = flip foldMap checks $ \check -> M.singleton (S.fromList (check ^.. checkVisits)) [check]
+    key = compatOrdKey . S.toList
+
+compatOrdKey :: [VisitWithTag] -> [((String, [(Integer, ([Integer], [Integer]))]), String)]
+compatOrdKey visits = sort
+    [ ((prettyNodeId visit.nodeId, []), prettyTag tag)
+    | VisitWithTag visit tag <- visits
+    ]
+
+compileProofCheckGroup :: Problem -> [ProofCheck a] -> SMTProofCheckGroup a
+compileProofCheckGroup problem group = SMTProofCheckGroup setup imps
+  where
+    (imps, _, setup) = runRWS (interpretGroupM group) problem state0
+
+type M = RWS Problem [SExprWithPlaceholders] State
+
+data State
+  = State
+      { smtDerivedOps :: Map (Op, Integer) String
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+state0 :: State
+state0 = State
+    { smtDerivedOps = mempty
+    }
+
+interpretGroupM :: [ProofCheck a] -> M [SMTProofCheckImp a]
+interpretGroupM group = do
+    mapM interpretCheckM group
+
+interpretCheckM :: ProofCheck a -> M (SMTProofCheckImp a)
+interpretCheckM check = do
+    concl <- interpretHypM check.hyp
+    term <- interpretHypImpsM check.hyps concl
+    sexpr <- smtExprM mempty term
+    return $ SMTProofCheckImp check.meta sexpr
+
+interpretHypImpsM :: [Hyp] -> Expr -> M Expr
+interpretHypImpsM hyps concl = do
+    hyps' <- mapM interpretHypM hyps
+    return $ strengthenHyp' (nImpliesE hyps' concl)
+
+strengthenHyp' :: Expr -> Expr
+strengthenHyp' = strengthenHyp 1
+
+strengthenHyp :: Integer ->  Expr -> Expr
+strengthenHyp sign expr = case expr.value of
+    ExprValueOp op args -> case op of
+        _ | op == OpAnd || op == OpOr ->
+            Expr expr.ty (ExprValueOp op (map goWith args))
+        OpImplies ->
+            let [l, r] = args
+             in goAgainst l `impliesE` goWith r
+        OpNot ->
+            let [x] = args
+             in notE (goAgainst x)
+        OpStackEquals -> case sign of
+            1 -> boolE (ExprValueOp OpImpliesStackEquals args)
+            -1 -> boolE (ExprValueOp OpStackEqualsImplies args)
+        OpROData -> case sign of
+            1 -> boolE (ExprValueOp OpImpliesROData args)
+            -1 -> expr
+        OpEquals | isBoolT (head args).ty ->
+            let [_l, r] = args
+                args' = applyWhen (r `elem` ([trueE, falseE] :: [Expr])) reverse args
+                [l', r'] = args'
+             in if l' == trueE then goWith r'
+                else if l' == falseE then goWith (notE r')
+                else expr
+        _ -> expr
+    _ -> expr
+  where
+    goWith = strengthenHyp sign
+    goAgainst = strengthenHyp (-sign)
+
+smtExprM :: Map Ident S -> Expr -> M S
+smtExprM env expr = do
+    case expr.value of
+        ExprValueOp op args -> case op of
+            _ | op == OpWordCast || op == OpWordCastSigned -> do
+                    let [v] = args
+                    let ExprTypeWord bitsExpr = expr.ty
+                    let ExprTypeWord bitsV = v.ty
+                    ex <- smtExprM env v
+                    return $
+                        if bitsExpr == bitsV
+                        then ex
+                        else if bitsExpr < bitsV
+                        then [["_", "extract", intS (bitsExpr - 1), intS 0], ex]
+                        else case op of
+                            OpWordCast -> [["_", "zero_extend", intS (bitsExpr - bitsV), ex]]
+                            OpWordCastSigned -> [["_", "sign_extend", intS (bitsExpr - bitsV), ex]]
+            _ | op == OpToFloatingPoint || op == OpToFloatingPointSigned ||
+                op == OpToFloatingPointUnsigned || op == OpFloatingPointCast -> do
+                    error "unsupported"
+            _ | op == OpCountLeadingZeroes || op == OpWordReverse -> do
+                    let [v] = args
+                    v' <- smtExprM env v
+                    undefined
+            _ | op == OpCountTrailingZeroes -> do
+                    undefined
+
+getSMTDerivedOpM :: Op -> Integer -> M String
+getSMTDerivedOpM op n = do
+    opt <- use $ #smtDerivedOps % at (op, n)
+    case opt of
+        Just fname -> return fname
+        Nothing -> do
+            let fname = case op of
+                    OpCountLeadingZeroes -> printf "bvclz_%d" n
+                    OpWordReverse -> printf "bvrev_%d" n
+            undefined
+            modify $ #smtDerivedOps % at (op, n) ?~ fname
+            return fname
+
+interpretHypM :: Hyp -> M Expr
+interpretHypM hyp = do
+    undefined

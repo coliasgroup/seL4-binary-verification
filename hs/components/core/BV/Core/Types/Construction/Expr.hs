@@ -74,6 +74,9 @@ boolE = Expr boolT
 numE :: ExprType -> Integer -> Expr
 numE ty n = assert (isWordT ty) $ Expr ty (numV n)
 
+smtExprE :: ExprType -> SExprWithPlaceholders -> Expr
+smtExprE ty sexpr = Expr ty (ExprValueSMTExpr sexpr)
+
 --
 
 trueE :: Expr
@@ -137,6 +140,11 @@ bitwiseAndE lhs rhs = Expr (assertTypesEqualAnd isWordT lhs rhs) (opV OpBWAnd [l
 
 bitwiseOrE :: Expr -> Expr -> Expr
 bitwiseOrE lhs rhs = Expr (assertTypesEqualAnd isWordT lhs rhs) (opV OpBWOr [lhs, rhs])
+
+--
+
+nImpliesE :: [Expr] -> Expr -> Expr
+nImpliesE xs y = foldr impliesE y xs
 
 --
 

@@ -31,6 +31,7 @@ import BV.SMTLIB2.Types.SExpr.Read (anySExprWhitespaceP, atomP, genericSExprP)
 
 import BV.Core.Types.Pairing
 import BV.Core.Types.ProofScript
+import BV.Core.Types.SExprWithPlaceholders
 
 splitSMTProofCheckGroup :: SMTProofCheckGroup a -> [SMTProofCheck a]
 splitSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck
@@ -71,43 +72,3 @@ data SMTProofCheckImp a
       , term :: SExprWithPlaceholders
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
-
-type SExprWithPlaceholders = GenericSExpr AtomOrPlaceholder
-
-type AtomOrPlaceholder = Either SExprPlaceholder Atom
-
-data SExprPlaceholder
-  = SExprPlaceholderMemSort
-  | SExprPlaceholderMemDomSort
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-readSToTryRead :: ReadS a -> String -> Maybe a
-readSToTryRead p s = case p s of
-    [(a, "")] -> Just a
-    [] -> Nothing
-    _ -> error "unreachable"
-
-readPToTryRead :: R.ReadP a -> String -> Maybe a
-readPToTryRead = readSToTryRead . R.readP_to_S . (<* R.eof)
-
-readSExprsWithPlaceholders :: String -> [SExprWithPlaceholders]
-readSExprsWithPlaceholders = fromJust . tryReadSExprsWithPlaceholders
-
-readSExprWithPlaceholders :: String -> SExprWithPlaceholders
-readSExprWithPlaceholders = fromJust . tryReadSExprWithPlaceholders
-
-tryReadSExprsWithPlaceholders :: String -> Maybe [SExprWithPlaceholders]
-tryReadSExprsWithPlaceholders = readPToTryRead $ anySExprWhitespaceP *> many (sexprWithPlaceholdersP <* anySExprWhitespaceP)
-
-tryReadSExprWithPlaceholders :: String -> Maybe SExprWithPlaceholders
-tryReadSExprWithPlaceholders = readPToTryRead sexprWithPlaceholdersP
-
-sexprWithPlaceholdersP :: R.ReadP SExprWithPlaceholders
-sexprWithPlaceholdersP = genericSExprP atomOrPlaceholderP
-
-atomOrPlaceholderP :: R.ReadP AtomOrPlaceholder
-atomOrPlaceholderP = Left <$> placeholderP <|> Right <$> atomP
-
-placeholderP :: R.ReadP SExprPlaceholder
-placeholderP = R.between (R.char '{') (R.char '}') $
-    SExprPlaceholderMemSort <$ R.string "MemSort" <|> SExprPlaceholderMemDomSort <$ R.string "MemDomSort"

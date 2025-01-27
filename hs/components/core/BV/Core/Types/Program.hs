@@ -28,6 +28,7 @@ module BV.Core.Types.Program
     , VarUpdate (..)
     , fromListOfNamed
     , nodeConts
+    , prettyNodeId
     , renameVars
     , renameVarsI
     , toListOfNamed
@@ -44,6 +45,7 @@ import Data.String (IsString (..))
 import GHC.Generics (Generic)
 import Optics.Core
 
+import BV.Core.Types.SExprWithPlaceholders (SExprWithPlaceholders)
 import BV.Core.Utils
 
 newtype Ident
@@ -148,6 +150,12 @@ data NodeId
   | Addr NodeAddr
   deriving (Eq, Generic, NFData, Ord, Show)
 
+prettyNodeId :: NodeId -> String
+prettyNodeId = \case
+    Ret -> "Ret"
+    Err -> "Err"
+    Addr addr -> show addr
+
 data Node
   = NodeBasic BasicNode
   | NodeCond CondNode
@@ -225,7 +233,7 @@ data ExprValue
   | ExprValueType ExprType
   | ExprValueSymbol Ident
   | ExprValueToken Ident
-  | ExprValueSMTExpr String
+  | ExprValueSMTExpr SExprWithPlaceholders
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data Op
@@ -282,6 +290,7 @@ data Op
   | OpToFloatingPointUnsigned
   | OpFloatingPointCast
   | OpImpliesROData
+  | OpStackEquals
   | OpImpliesStackEquals
   | OpStackEqualsImplies
   deriving (Eq, Generic, NFData, Ord, Show)

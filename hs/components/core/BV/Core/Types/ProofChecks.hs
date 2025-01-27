@@ -14,7 +14,9 @@ module BV.Core.Types.ProofChecks
     , Visit (..)
     , VisitCount (..)
     , VisitWithTag (..)
+    , checkVisits
     , flattenProofChecks
+    , hypVisits
     ) where
 
 import Control.DeepSeq (NFData)
@@ -130,8 +132,14 @@ instance Semigroup VisitCount where
 instance Monoid VisitCount where
     mempty = VisitCount [] []
 
--- hypVisits :: Fold Hyp VisitWithTag
--- hypVisits = (#_HypPcImp % ) `adjoin`
+hypVisits :: Traversal' Hyp VisitWithTag
+hypVisits =
+    (#_HypPcImp % (#lhs `adjoin` #rhs) % #_PcImpHypSidePc)
+    `adjoin`
+    (#_HypEq % _2 % (#lhs `adjoin` #rhs) % #visit)
+
+checkVisits :: Traversal' (ProofCheck a) VisitWithTag
+checkVisits = (#hyps % traversed `adjoin` #hyp) % hypVisits
 
 -- class HasVisits a where
 --     foldVisits :: Fold a VisitWithTag

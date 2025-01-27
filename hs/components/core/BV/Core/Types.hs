@@ -5,6 +5,7 @@ module BV.Core.Types
     , module BV.Core.Types.Program
     , module BV.Core.Types.ProofChecks
     , module BV.Core.Types.ProofScript
+    , module BV.Core.Types.SExprWithPlaceholders
     , module BV.Core.Types.SMTProofChecks
     , module BV.Core.Types.SearchOutputs
     ) where
@@ -16,4 +17,5 @@ import BV.Core.Types.Program
 import BV.Core.Types.ProofChecks
 import BV.Core.Types.ProofScript
 import BV.Core.Types.SearchOutputs
+import BV.Core.Types.SExprWithPlaceholders
 import BV.Core.Types.SMTProofChecks

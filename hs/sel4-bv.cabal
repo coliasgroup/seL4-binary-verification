@@ -74,6 +74,7 @@ library core
       BV.Core.Types.Construction.Expr
       BV.Core.Types.Construction.Pairing
       BV.Core.Types.Construction.ProofCheck
+      BV.Core.Types.Construction.SExprWithPlaceholders
       BV.Core.Types.ObjDump
       BV.Core.Types.Pairing
       BV.Core.Types.Problem
@@ -81,6 +82,7 @@ library core
       BV.Core.Types.ProofChecks
       BV.Core.Types.ProofScript
       BV.Core.Types.SearchOutputs
+      BV.Core.Types.SExprWithPlaceholders
       BV.Core.Types.SMTProofChecks
       BV.Core.Utils
   hs-source-dirs:

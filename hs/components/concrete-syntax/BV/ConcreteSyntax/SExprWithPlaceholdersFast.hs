@@ -18,7 +18,7 @@ import BV.ConcreteSyntax.FastParsing
 
 parseSExprWithPlaceholdersFast :: Parser SExprWithPlaceholders
 parseSExprWithPlaceholdersFast = parseGenericSExpr $
-    Left <$> parseSExprPlaceholderFast <|> Right <$> parseAtom
+    AtomOrPlaceholderAtom <$> parseAtom <|> AtomOrPlaceholderPlaceholder <$> parseSExprPlaceholderFast
 
 parseSExprPlaceholderFast :: Parser SExprPlaceholder
 parseSExprPlaceholderFast = between "{" "}" $

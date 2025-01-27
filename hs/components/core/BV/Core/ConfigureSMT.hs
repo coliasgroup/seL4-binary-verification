@@ -28,10 +28,10 @@ configureSExpr :: SolverConfig -> SExprWithPlaceholders -> SExpr
 configureSExpr config ex = do
     atomOrPlaceholder <- ex
     case atomOrPlaceholder of
-        Left placeholder -> case placeholder of
+        AtomOrPlaceholderAtom atom -> return atom
+        AtomOrPlaceholderPlaceholder placeholder -> case placeholder of
             SExprPlaceholderMemSort -> config'.memSort
             SExprPlaceholderMemDomSort -> config'.memDomSort
-        Right atom -> return atom
   where
     config' = memoryModeConfig config.memoryMode
 

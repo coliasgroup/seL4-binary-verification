@@ -16,14 +16,16 @@ import BV.ConcreteSyntax.Parsing
 
 parseSExprWithPlaceholders :: Parser SExprWithPlaceholders
 parseSExprWithPlaceholders = parseGenericSExpr $
-    Left <$> parseSExprPlaceholder <|> Right <$> parseAtom
+    AtomOrPlaceholderAtom <$> parseAtom <|> AtomOrPlaceholderPlaceholder <$> parseSExprPlaceholder
 
 parseSExprPlaceholder :: Parser SExprPlaceholder
 parseSExprPlaceholder = between "{" "}" $
     try (SExprPlaceholderMemSort <$ "MemSort") <|> try (SExprPlaceholderMemDomSort <$ "MemDomSort")
 
 buildSExprWithPlaceholders :: SExprWithPlaceholders -> Builder
-buildSExprWithPlaceholders = buildGenericSExpr $ either buildSExprPlaceholder buildAtom
+buildSExprWithPlaceholders = buildGenericSExpr $ \case
+    AtomOrPlaceholderAtom atom -> buildAtom atom
+    AtomOrPlaceholderPlaceholder placeholder -> buildSExprPlaceholder placeholder
 
 buildSExprPlaceholder :: SExprPlaceholder -> Builder
 buildSExprPlaceholder placeholder = "{" <> inner <> "}"
