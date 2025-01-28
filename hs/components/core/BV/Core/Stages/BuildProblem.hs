@@ -21,7 +21,7 @@ import Optics
 import BV.Core.Graph
 import BV.Core.Logic
 import BV.Core.Types
-import BV.Core.Types.Construction
+import BV.Core.Types.Extras
 import BV.Core.Utils
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem

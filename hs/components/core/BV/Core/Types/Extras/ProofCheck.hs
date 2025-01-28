@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Types.Construction.ProofCheck
+module BV.Core.Types.Extras.ProofCheck
     ( SimpleVisitCountView (..)
     , asmV
     , cV
@@ -34,7 +34,7 @@ import Data.Function ((&))
 import GHC.Generics (Generic)
 
 import BV.Core.Types
-import BV.Core.Types.Construction.Expr
+import BV.Core.Types.Extras.Expr
 
 numberVC :: Integer -> VisitCount
 numberVC n = VisitCount

@@ -11,12 +11,13 @@ module BV.Core.Stages.CompileProofChecks
     ) where
 
 import BV.Core.Types
-import BV.Core.Types.Construction
+import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.SMTLIB2.Types
 
 import Control.DeepSeq (NFData)
 import Control.Monad.RWS.Lazy (RWS, runRWS)
+import Control.Monad.State.Lazy (modify)
 import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.List (sort, sortOn)
@@ -26,7 +27,6 @@ import qualified Data.Set as S
 import Debug.Trace
 import GHC.Generics (Generic)
 import Optics
-import Control.Monad.State.Lazy (modify)
 import Text.Printf (printf)
 
 compileProofChecks :: Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]

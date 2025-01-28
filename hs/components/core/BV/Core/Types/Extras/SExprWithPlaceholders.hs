@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.Core.Types.Construction.SExprWithPlaceholders where
+module BV.Core.Types.Extras.SExprWithPlaceholders where
 
 import BV.Core.Types.SExprWithPlaceholders
 import BV.SMTLIB2.Types

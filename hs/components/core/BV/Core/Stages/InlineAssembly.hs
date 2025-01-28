@@ -23,7 +23,7 @@ import qualified Text.ParserCombinators.ReadP as P
 import Text.ParserCombinators.ReadP
 
 import BV.Core.Types
-import BV.Core.Types.Construction
+import BV.Core.Types.Extras
 
 addInlineAssemblySpecs :: PairingOf Program -> (Pairings, PairingOf Program, PairingOf [Ident])
 addInlineAssemblySpecs progs =

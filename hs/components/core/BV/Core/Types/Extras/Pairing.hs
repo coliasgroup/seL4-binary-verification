@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Types.Construction.Pairing
+module BV.Core.Types.Extras.Pairing
     ( asmIn
     , asmInQ
     , asmOut

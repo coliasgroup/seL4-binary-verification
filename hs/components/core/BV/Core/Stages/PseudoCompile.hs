@@ -10,7 +10,7 @@ import Optics
 import BV.Core.Arch
 import BV.Core.Logic
 import BV.Core.Types
-import BV.Core.Types.Construction
+import BV.Core.Types.Extras
 import BV.Core.Utils
 
 pseudoCompile :: ObjDumpInfo -> Program -> Program

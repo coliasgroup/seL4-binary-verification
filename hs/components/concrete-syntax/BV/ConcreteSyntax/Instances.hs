@@ -25,7 +25,7 @@ import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
 import BV.Core.Types
-import BV.Core.Types.Construction
+import BV.Core.Types.Extras
 
 import BV.ConcreteSyntax.Parsing
 import BV.ConcreteSyntax.Printing

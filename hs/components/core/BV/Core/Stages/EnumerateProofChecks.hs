@@ -9,7 +9,7 @@ module BV.Core.Stages.EnumerateProofChecks
 
 import BV.Core.Graph
 import BV.Core.Types
-import BV.Core.Types.Construction
+import BV.Core.Types.Extras
 
 import BV.Core.Utils (optionals)
 import Control.Monad.Reader (Reader, runReader)
