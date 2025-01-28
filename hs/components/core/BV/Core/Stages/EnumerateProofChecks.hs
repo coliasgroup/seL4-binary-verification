@@ -13,21 +13,16 @@ import BV.Core.Types.Extras
 
 import BV.Core.Utils (optionals)
 import Control.Monad.Reader (Reader, runReader)
-import Data.Foldable (fold)
-import Data.Function (applyWhen, on, (&))
-import Data.Functor ((<&>))
-import Data.Map (Map, (!))
+import Data.Function (applyWhen, on)
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, mapMaybe)
 import Data.Monoid (Endo (Endo, appEndo))
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
-import Debug.Trace
 import GHC.Generics (Generic)
-import GHC.Stack (HasCallStack)
 import Optics
-import Text.ParserCombinators.ReadP (option)
 import Text.Printf (printf)
 
 type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident

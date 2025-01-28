@@ -2,16 +2,16 @@ module BV.Core.Stages.PseudoCompile
     ( pseudoCompile
     ) where
 
-import Control.Exception (assert)
-import qualified Data.Map as M
-import Data.Maybe (fromJust)
-import Optics
-
 import BV.Core.Arch
 import BV.Core.Logic
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
+
+import Control.Exception (assert)
+import qualified Data.Map as M
+import Data.Maybe (fromJust)
+import Optics
 
 pseudoCompile :: ObjDumpInfo -> Program -> Program
 pseudoCompile objDumpInfo prog = assert (M.null prog.structs && M.null prog.constGlobals) $

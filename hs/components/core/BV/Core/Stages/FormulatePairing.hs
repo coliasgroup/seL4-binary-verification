@@ -10,13 +10,13 @@ module BV.Core.Stages.FormulatePairing
     ( formulatePairing
     ) where
 
-import Data.Functor ((<&>))
-import Data.List (partition)
-import Data.Maybe (fromJust, mapMaybe, maybeToList)
-
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
+
+import Data.Functor ((<&>))
+import Data.List (partition)
+import Data.Maybe (fromJust, mapMaybe, maybeToList)
 
 formulatePairing :: Expr -> [Argument] -> [Argument] -> Pairing
 formulatePairing minStackSize inputC outputC = Pairing { inEqs, outEqs }

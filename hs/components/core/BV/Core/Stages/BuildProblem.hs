@@ -5,6 +5,12 @@ module BV.Core.Stages.BuildProblem
     ( buildProblem
     ) where
 
+import BV.Core.Graph
+import BV.Core.Logic
+import BV.Core.Types
+import BV.Core.Types.Extras
+import BV.Core.Utils
+
 import Control.Exception (assert)
 import Control.Monad (forM, unless)
 import Control.Monad.State.Strict
@@ -17,12 +23,6 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
-
-import BV.Core.Graph
-import BV.Core.Logic
-import BV.Core.Types
-import BV.Core.Types.Extras
-import BV.Core.Utils
 
 buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem lookupFun inlineScript funs = build builder

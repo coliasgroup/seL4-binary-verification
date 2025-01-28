@@ -10,6 +10,9 @@ module BV.Core.GluedStages
     , gluedStages
     ) where
 
+import BV.Core.Stages
+import BV.Core.Types
+
 import Control.Exception (assert)
 import Control.Monad.Logger
 import Data.Functor (void)
@@ -19,9 +22,6 @@ import Data.Maybe (catMaybes, fromJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
-
-import BV.Core.Stages
-import BV.Core.Types
 
 data Input
   = Input
