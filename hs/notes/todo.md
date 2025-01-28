@@ -1,8 +1,5 @@
-- filter source for nix build
-- switch from stack to cabal
 - parameterize Function with body container (Identity or Maybe)
 - TypedIdent type for Argument, etc.
 - PermeableOptic
-- node type for each variant
-- swap order of import blocks
 - swap order of PairingOf
+- use left/right instead of asm/c for PairingOf
