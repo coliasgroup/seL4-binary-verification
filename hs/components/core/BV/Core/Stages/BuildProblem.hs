@@ -206,7 +206,7 @@ addFunction (WithTag tag (Named funName fun)) retTarget = do
   where
     funBody = fun ^. #body % unwrapped
     funGraph = makeNodeGraph (M.toAscList funBody.nodes)
-    origNodeAddrs = S.fromList $ reachable funGraph funBody.entryPoint ^.. traversed % #_Addr
+    origNodeAddrs = S.fromList $ reachableFrom funGraph funBody.entryPoint ^.. traversed % #_Addr
     origVars = S.fromList . map fst $ fun ^.. varDeclsOf
 
 nodeMapBuilderInlineAtPoint

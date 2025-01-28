@@ -12,6 +12,8 @@ module BV.SMTLIB2.Types.SExpr.Read
     , tryReadSExprs
     ) where
 
+import BV.SMTLIB2.Types.SExpr
+
 import Control.Applicative ((<|>))
 import Data.Char (isDigit, isSpace)
 import Data.Functor (void)
@@ -19,8 +21,6 @@ import Data.Maybe (fromJust, listToMaybe)
 import GHC.Natural (Natural)
 import Numeric (readDec)
 import Text.ParserCombinators.ReadP
-
-import BV.SMTLIB2.Types.SExpr
 
 tryReadSExprs :: String -> Maybe [SExpr]
 tryReadSExprs = readPToTryRead $ anySExprWhitespaceP *> many (sexprP <* anySExprWhitespaceP)

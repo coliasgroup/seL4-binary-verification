@@ -8,6 +8,8 @@ module BV.SMTLIB2.Parser.Megaparsec
     , parseSExpr
     ) where
 
+import BV.SMTLIB2.Types
+
 import Control.Monad (void)
 import Data.Char (isSpace)
 import Data.Text (Text)
@@ -16,8 +18,6 @@ import Data.Void (Void)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
-
-import BV.SMTLIB2.Types
 
 type Parser = Parsec Void Text
 

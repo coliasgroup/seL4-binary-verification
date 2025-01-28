@@ -22,7 +22,6 @@ import Optics
 
 import BV.Core.Stages
 import BV.Core.Types
-import Debug.Trace
 
 data Input
   = Input

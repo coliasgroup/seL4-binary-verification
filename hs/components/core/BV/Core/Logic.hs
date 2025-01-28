@@ -8,6 +8,7 @@ module BV.Core.Logic
 
 import BV.Core.Arch
 import BV.Core.Types
+
 import Control.Exception (assert)
 
 sizeOfType :: ExprType -> Integer

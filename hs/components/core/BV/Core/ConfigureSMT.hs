@@ -7,11 +7,11 @@ module BV.Core.ConfigureSMT
     , smtConfigPreamble
     ) where
 
-import Data.FileEmbed (embedStringFile, makeRelativeToProject)
-import GHC.Generics (Generic)
-
 import BV.Core.Types
 import BV.SMTLIB2.Types
+
+import Data.FileEmbed (embedStringFile, makeRelativeToProject)
+import GHC.Generics (Generic)
 
 data SolverConfig
   = SolverConfig

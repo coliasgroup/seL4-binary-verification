@@ -17,21 +17,15 @@ module BV.Core.Types.SMTProofChecks
     , tryReadSExprsWithPlaceholders
     ) where
 
-import Control.Applicative (many, (<|>))
+import BV.Core.Types.Pairing
+import BV.Core.Types.ProofScript
+import BV.Core.Types.SExprWithPlaceholders
+
 import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
 import Data.Functor ((<&>))
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
-import qualified Text.ParserCombinators.ReadP as R
-
-import BV.SMTLIB2.Types.SExpr
-import BV.SMTLIB2.Types.SExpr.Read (anySExprWhitespaceP, atomP, genericSExprP)
-
-import BV.Core.Types.Pairing
-import BV.Core.Types.ProofScript
-import BV.Core.Types.SExprWithPlaceholders
 
 splitSMTProofCheckGroup :: SMTProofCheckGroup a -> [SMTProofCheck a]
 splitSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck

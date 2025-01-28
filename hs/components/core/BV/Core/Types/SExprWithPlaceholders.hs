@@ -10,18 +10,15 @@ module BV.Core.Types.SExprWithPlaceholders
     , tryReadSExprsWithPlaceholders
     ) where
 
+import BV.SMTLIB2.Types.SExpr
+import BV.SMTLIB2.Types.SExpr.Read (anySExprWhitespaceP, atomP, genericSExprP)
+
 import Control.Applicative (many, (<|>))
 import Control.DeepSeq (NFData)
-import Data.Foldable (fold)
-import Data.Functor ((<&>))
-import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Data.String (IsString, fromString)
 import GHC.Generics (Generic)
 import qualified Text.ParserCombinators.ReadP as R
-
-import BV.SMTLIB2.Types.SExpr
-import BV.SMTLIB2.Types.SExpr.Read (anySExprWhitespaceP, atomP, genericSExprP)
 
 type SExprWithPlaceholders = GenericSExpr AtomOrPlaceholder
 

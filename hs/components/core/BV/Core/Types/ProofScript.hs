@@ -1,13 +1,30 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module BV.Core.Types.ProofScript where
-
-import Control.DeepSeq (NFData)
-import GHC.Generics (Generic)
+module BV.Core.Types.ProofScript
+    ( CaseSplitProofNode (..)
+    , Lambda (..)
+    , ProofNode (..)
+    , ProofNodeWith (..)
+    , ProofScript (..)
+    , RestrProofNode (..)
+    , RestrProofNodeRange (..)
+    , RestrProofNodeRangeKind (..)
+    , SingleRevInductProofNode (..)
+    , SplitProofNode (..)
+    , SplitProofNodeDetails (..)
+    , prettyRestrProofNodeRangeKind
+    , traverseCaseSplitProofNodeChildren
+    , traverseRestrProofNodeChild
+    , traverseSingleRevInductProofNodeChild
+    , traverseSplitProofNodeChildren
+    ) where
 
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
+
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
 
 newtype ProofScript a
   = ProofScript { root :: ProofNodeWith a }
@@ -91,7 +108,7 @@ data SingleRevInductProofNode a
       , tag :: Tag
       , n :: Integer
       , eqs :: [Lambda]
-      , pred :: Expr
+      , pred_ :: Expr
       , nBound :: Integer
       , child :: ProofNodeWith a
       }

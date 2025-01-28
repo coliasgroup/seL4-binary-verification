@@ -1,13 +1,19 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Types.Problem where
+module BV.Core.Types.Problem
+    ( NodeBySource (..)
+    , NodeSource (..)
+    , Problem (..)
+    , ProblemSide (..)
+    , Problems (..)
+    ) where
+
+import BV.Core.Types.Pairing
+import BV.Core.Types.Program
 
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
-
-import BV.Core.Types.Pairing
-import BV.Core.Types.Program
 
 data Problem
   = Problem

@@ -4,6 +4,13 @@ module Main
     ( main
     ) where
 
+import BV.SMTLIB2.Builder as SB
+import BV.SMTLIB2.Parser.Attoparsec as SA
+import BV.SMTLIB2.Parser.Megaparsec as SM
+import BV.SMTLIB2.Process
+import BV.SMTLIB2.Types
+import BV.SMTLIB2.Types.Command
+
 import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.IO.Class (liftIO)
@@ -20,13 +27,6 @@ import System.Process (CreateProcess, proc)
 import Test.Tasty
 import Test.Tasty.HUnit
 import qualified Text.Megaparsec as M
-
-import BV.SMTLIB2.Builder as SB
-import BV.SMTLIB2.Parser.Attoparsec as SA
-import BV.SMTLIB2.Parser.Megaparsec as SM
-import BV.SMTLIB2.Process
-import BV.SMTLIB2.Types
-import BV.SMTLIB2.Types.Command
 
 -- config
 

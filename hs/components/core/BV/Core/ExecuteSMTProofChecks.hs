@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
-
 module BV.Core.ExecuteSMTProofChecks
     ( SolverConfig (..)
     , SolverMemoryMode (..)
@@ -8,13 +6,9 @@ module BV.Core.ExecuteSMTProofChecks
     , executeSMTProofCheckOffline
     ) where
 
-import Control.Monad.Logger (MonadLogger)
-import GHC.Generics (Generic)
-
-import BV.SMTLIB2.Types
-
 import BV.Core.ConfigureSMT
 import BV.Core.Types
+import BV.SMTLIB2.Types
 import BV.SMTLIB2.Types.Command
 
 executeSMTProofCheckOffline

@@ -5,6 +5,10 @@ module BV.SMTLIB2.Process
     , runSolver
     ) where
 
+import BV.SMTLIB2.Builder
+import BV.SMTLIB2.Parser.Attoparsec
+import BV.SMTLIB2.Types
+
 import Control.Applicative ((<|>))
 import Control.Concurrent.Async (withAsync)
 import Control.Exception (Exception)
@@ -32,10 +36,6 @@ import qualified Data.Text.Lazy.Builder as TB
 import Data.Void (Void)
 import GHC.Generics (Generic)
 import System.Process (CreateProcess)
-
-import BV.SMTLIB2.Builder
-import BV.SMTLIB2.Parser.Attoparsec
-import BV.SMTLIB2.Types
 
 data SolverDSL a
   = Send SExpr a

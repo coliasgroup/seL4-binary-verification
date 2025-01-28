@@ -23,13 +23,13 @@ module BV.Core.Types.Pairing
     , withTags
     ) where
 
+import BV.Core.Types.Program
+
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import Optics.Core (Lens', view)
-
-import BV.Core.Types.Program
 
 data PairingOf a
   = PairingOf

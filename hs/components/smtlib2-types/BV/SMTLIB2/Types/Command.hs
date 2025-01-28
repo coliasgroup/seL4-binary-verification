@@ -19,11 +19,11 @@ module BV.SMTLIB2.Types.Command
     , simpleCommandToSExpr
     ) where
 
+import BV.SMTLIB2.Types
+
 import Control.DeepSeq (NFData)
 import Control.Monad.Except (MonadError (throwError))
 import GHC.Generics (Generic)
-
-import BV.SMTLIB2.Types
 
 data CommandError
   = ErrorResponse String

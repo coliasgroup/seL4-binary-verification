@@ -9,11 +9,11 @@ module BV.SMTLIB2.Types
     , tryReadSExprs
     ) where
 
-import Control.Monad.Except (ExceptT)
-import Control.Monad.Trans (lift)
-
 import BV.SMTLIB2.Types.SExpr
 import BV.SMTLIB2.Types.SExpr.Read
+
+import Control.Monad.Except (ExceptT)
+import Control.Monad.Trans (lift)
 
 class Monad m => MonadSolver m where
     send :: SExpr -> m ()

@@ -1,14 +1,14 @@
 module BV.Core.Types.Extras.Expr where
 
+import BV.Core.Arch (archWordSizeBits)
+import BV.Core.Types
+
 import Control.Exception (assert)
 import Data.Bits (shiftL)
 import Data.Maybe (fromJust)
+import Data.Monoid (Endo (Endo, appEndo))
 import Optics
 import Optics.Core.Extras (is)
-
-import BV.Core.Arch (archWordSizeBits)
-import BV.Core.Types
-import Data.Monoid (Endo (Endo, appEndo))
 
 boolT :: ExprType
 boolT = ExprTypeBool

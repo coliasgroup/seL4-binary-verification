@@ -8,10 +8,10 @@ module BV.SMTLIB2.Builder
     , buildUncheckedSExpr
     ) where
 
+import BV.SMTLIB2.Types
+
 import Data.Text.Lazy.Builder
 import Data.Text.Lazy.Builder.Int
-
-import BV.SMTLIB2.Types
 
 buildGenericSExpr :: (a -> Builder) -> GenericSExpr a -> Builder
 buildGenericSExpr f = \case

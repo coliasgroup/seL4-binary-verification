@@ -304,7 +304,7 @@ instance BuildInLine (SingleRevInductProofNode ()) where
         <> put node.tag
         <> putDec node.n
         <> put node.eqs
-        <> put node.pred
+        <> put node.pred_
         <> putDec node.nBound
         <> put node.child
 

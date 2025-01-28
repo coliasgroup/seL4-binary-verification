@@ -10,14 +10,14 @@ module BV.SMTLIB2.Parser.Attoparsec
     , parseSExpr
     ) where
 
+import BV.SMTLIB2.Types
+
 import Control.Applicative ((<|>))
 import Control.Monad (void)
 import Data.Attoparsec.Text as A
 import Data.Char (isSpace)
 import qualified Data.Text as T (unpack)
 import Text.Megaparsec (between)
-
-import BV.SMTLIB2.Types
 
 skipLineComment :: Char -> Parser ()
 skipLineComment prefix = char prefix *> skipWhile (/= '\n')

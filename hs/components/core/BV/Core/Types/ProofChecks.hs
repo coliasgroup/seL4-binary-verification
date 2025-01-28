@@ -19,15 +19,15 @@ module BV.Core.Types.ProofChecks
     , hypVisits
     ) where
 
+import BV.Core.Types.Pairing
+import BV.Core.Types.Program
+import BV.Core.Types.ProofScript
+
 import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
-
-import BV.Core.Types.Pairing
-import BV.Core.Types.Program
-import BV.Core.Types.ProofScript
 
 newtype ProofChecks a
   = ProofChecks { unwrap :: M.Map PairingId (ProofScript [ProofCheck a]) }
@@ -140,8 +140,3 @@ hypVisits =
 
 checkVisits :: Traversal' (ProofCheck a) VisitWithTag
 checkVisits = (#hyps % traversed `adjoin` #hyp) % hypVisits
-
--- class HasVisits a where
---     foldVisits :: Fold a VisitWithTag
-
--- instance HasVisits Hyp where

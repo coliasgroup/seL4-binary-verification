@@ -37,6 +37,9 @@ module BV.Core.Types.Program
     , withNamed
     ) where
 
+import BV.Core.Types.SExprWithPlaceholders (SExprWithPlaceholders)
+import BV.Core.Utils
+
 import Control.DeepSeq (NFData)
 import Control.Monad.Identity (Identity (Identity, runIdentity))
 import Data.Map (Map)
@@ -44,9 +47,6 @@ import qualified Data.Map as M
 import Data.String (IsString (..))
 import GHC.Generics (Generic)
 import Optics.Core
-
-import BV.Core.Types.SExprWithPlaceholders (SExprWithPlaceholders)
-import BV.Core.Utils
 
 newtype Ident
   = Ident { unwrap :: String }

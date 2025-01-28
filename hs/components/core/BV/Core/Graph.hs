@@ -8,22 +8,20 @@ module BV.Core.Graph
     , makeNodeGraph
     , makeNodeGraphEdges
     , makeNodeGraphFromEdges
-    , reachable
+    , reachableFrom
     ) where
 
+import BV.Core.Types
+import BV.Core.Utils
+
+import Data.Foldable (toList)
 import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
-import Data.Map (Map)
-import qualified Data.Map as M
+import Data.List (find)
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics.Core
-
-import BV.Core.Types
-import BV.Core.Utils
-import Data.Foldable (fold, toList)
-import Data.List (find)
 
 data NodeGraph
   = NodeGraph
@@ -56,11 +54,11 @@ makeNodeGraph = makeNodeGraphFromEdges . makeNodeGraphEdges
 
 -- Algorithms
 
-reachable :: NodeGraph -> NodeId -> [NodeId]
-reachable g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapRev from))
+reachableFrom :: NodeGraph -> NodeId -> [NodeId]
+reachableFrom g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapRev from))
 
 isReachableFrom :: NodeGraph -> NodeId -> NodeId -> Bool
-isReachableFrom g from to = G.path g.graph (fromJust (g.nodeIdMapRev from)) (fromJust (g.nodeIdMapRev to))
+isReachableFrom g from to_ = G.path g.graph (fromJust (g.nodeIdMapRev from)) (fromJust (g.nodeIdMapRev to_))
 
 loopHeads :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
 loopHeads g entryPoints =

@@ -1,15 +1,22 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Types.SearchOutputs where
-
-import Control.DeepSeq (NFData)
-import qualified Data.Map as M
-import GHC.Generics (Generic)
+module BV.Core.Types.SearchOutputs
+    ( InlineScript
+    , InlineScriptEntry (..)
+    , InlineScripts (..)
+    , ProblemAndProof (..)
+    , ProblemsAndProofs (..)
+    , StackBounds (..)
+    ) where
 
 import BV.Core.Types.Pairing
 import BV.Core.Types.Problem
 import BV.Core.Types.Program
 import BV.Core.Types.ProofScript
+
+import Control.DeepSeq (NFData)
+import qualified Data.Map as M
+import GHC.Generics (Generic)
 
 newtype StackBounds
   = StackBounds { unwrap :: M.Map Ident Expr }

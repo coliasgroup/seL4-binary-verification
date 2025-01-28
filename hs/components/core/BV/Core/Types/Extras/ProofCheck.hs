@@ -28,13 +28,13 @@ module BV.Core.Types.Extras.ProofCheck
     , upToVC
     ) where
 
+import BV.Core.Types
+import BV.Core.Types.Extras.Expr
+
 import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
 import Data.Function ((&))
 import GHC.Generics (Generic)
-
-import BV.Core.Types
-import BV.Core.Types.Extras.Expr
 
 numberVC :: Integer -> VisitCount
 numberVC n = VisitCount

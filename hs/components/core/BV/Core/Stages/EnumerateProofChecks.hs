@@ -49,7 +49,7 @@ enumerateProofChecks argRenames pairing problem proofScript =
         -- , nodeGraph = makeNodeGraph (map (_2 %~ view #node) (M.toAscList problem.nodes))
         , nodeGraph
         , nodeTag =
-            let c = S.fromList . mapMaybe (preview #_Addr) $ reachable nodeGraph problem.sides.c.entryPoint
+            let c = S.fromList . mapMaybe (preview #_Addr) $ reachableFrom nodeGraph problem.sides.c.entryPoint
              in \addr -> if addr `S.member` c then C else Asm
         , loopData =
             let heads = loopHeads nodeGraph [problem.sides.c.entryPoint, problem.sides.asm.entryPoint]
@@ -429,12 +429,12 @@ singleLoopRevInductChecksM restrs hyps node tag = do
             , p2 = undefined
             }
     nonErr <- splitRErrPcHypM splitDetails restrs
-    let trueNext = trueIfAt' node.pred cont
+    let trueNext = trueIfAt' node.pred_ cont
     let hyps' = hyps ++ [pcTrueH curr, trueNext, nonErr] ++
             [ h
             | (h, _) <- loopEqHypsAtVisit tag node.point eqsAssume restrs (offsetVC 1) True
             ]
-    let goal = trueIfAt' node.pred curr
+    let goal = trueIfAt' node.pred_ curr
     return
         [ProofCheck
             "Pred reverse step."
@@ -475,7 +475,7 @@ singleLoopRevInductBaseChecksM restrs hyps node tag = do
             [ h
             | (h, _) <- loopEqHypsAtVisit tag node.point eqsAssume restrs (offsetVC 0) False
             ]
-    let goal = trueIfAt' node.pred cont
+    let goal = trueIfAt' node.pred_ cont
     return
         [ProofCheck
             ("Pred true at " ++ show node.nBound ++ " check.")
@@ -487,7 +487,7 @@ singleRevInductResultingHypM restrs node = do
     nodeTag <- gview #nodeTag
     let tag = nodeTag node.point
     let vis = tagV tag $ Visit (Addr node.point) $ restrs ++ [Restr node.point (numberVC 0)]
-    return $ trueIfAt' node.pred vis
+    return $ trueIfAt' node.pred_ vis
 
 --
 
