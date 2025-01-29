@@ -14,12 +14,12 @@ import BV.SMTLIB2.Types.Command
 import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.IO.Class (liftIO)
-import qualified Data.Attoparsec.Text as A
+import qualified Data.Attoparsec.Text.Lazy as A
 import Data.Maybe (fromJust)
-import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB
+import qualified Data.Text.Lazy.IO as TL
 import Optics.Core
 import System.FilePath ((</>))
 import System.FilePath.Glob (compile, globDir1)
@@ -58,24 +58,24 @@ runSolverSimple m = runSolver
     (runExceptT m)
 
 parsersAndBuildersAgreePath :: FilePath -> IO [SExpr]
-parsersAndBuildersAgreePath path = T.readFile path >>= parsersAndBuildersAgree path
+parsersAndBuildersAgreePath path = TL.readFile path >>= parsersAndBuildersAgree path
 
-parsersAndBuildersAgree :: String -> T.Text -> IO [SExpr]
+parsersAndBuildersAgree :: String -> TL.Text -> IO [SExpr]
 parsersAndBuildersAgree src s = do
     parsed <- parsersAgree src s
-    let built = TL.toStrict . TB.toLazyText . foldMap ((<> "\n") . buildSExpr) $ parsed
-    let shown = T.pack $ concatMap ((++ "\n") . showSExpr) parsed
+    let built = TB.toLazyText . foldMap ((<> "\n") . buildSExpr) $ parsed
+    let shown = TL.pack $ concatMap ((++ "\n") . showSExpr) parsed
     parsedBuilt <- parsersAgree (src ++ " (built)") built
     parsedShown <- parsersAgree (src ++ " (shown)") shown
     assertEqual "" parsed parsedBuilt
     assertEqual "" parsed parsedShown
     return parsed
 
-parsersAgree :: String -> T.Text -> IO [SExpr]
+parsersAgree :: String -> TL.Text -> IO [SExpr]
 parsersAgree src s = do
     let mega = megaP src s
     let atto = attoP s
-    let rp = readSExprs (T.unpack s)
+    let rp = readSExprs (TL.unpack s)
     assertEqual "" mega atto
     assertEqual "" mega rp
     return mega
@@ -97,7 +97,7 @@ solverAgrees inPath sexprsIn sexprsOut = do
         Left err -> assertFailure $ show err
         Right _x -> return ()
 
-chosenPairs :: [(T.Text, [SExpr])]
+chosenPairs :: [(TL.Text, [SExpr])]
 chosenPairs = map (_2 % traversed %~ (fromJust . checkSExpr))
     [ ("", [])
     , ("\"xyz\"\"abc\"", [Atom (StringAtom "xyz\"abc")])

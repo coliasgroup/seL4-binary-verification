@@ -1,11 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module BV.System.IntermediateArtifacts
     ( RegisterIntermediateArtifactsT
     , RegisterIntermediateArtifactsTInnerContext (..)
     , runRegisterIntermediateArtifactsT
     ) where
 
+import BV.ConcreteSyntax
+import BV.Core.GluedStages
+import BV.Core.Types
+import BV.TargetDir
+
+import Control.DeepSeq (force)
 import Control.Monad (when)
 import Control.Monad.Free (liftF)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -14,18 +22,10 @@ import Control.Monad.Reader (ReaderT, ask)
 import Control.Monad.Trans.Free.Church (FT, iterT)
 import qualified Data.Map as M
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.Builder as TB
-import qualified Data.Text.Lazy.IO as TL
 import GHC.Generics (Generic)
+import Optics.Core
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
-
-import BV.ConcreteSyntax (BuildToFile (buildToFile))
-import BV.Core.GluedStages
-import BV.Core.Types
-import BV.TargetDir
-import Control.DeepSeq (force)
-import Optics.Core
 
 data RegisterIntermediateArtifactsDSL a
   = RegisterIntermediateArtifact IntermediateArtifact a
@@ -62,11 +62,11 @@ runRegisterIntermediateArtifactsT = iterT $ \case
                     logErrorN $ "intermediate artifact mismatch, writing to " <> T.pack d
                     liftIO $ do
                         createDirectoryIfMissing True d
-                        TL.writeFile (d </> "actual.txt") (TB.toLazyText (buildToFile actual'))
-                        TL.writeFile (d </> "expected.txt") (TB.toLazyText (buildToFile expected))
+                        writeBVFile (d </> "actual.txt") actual'
+                        writeBVFile (d </> "expected.txt") expected
                     fail . T.unpack $ "intermediate artifact mismatch, wrote to " <> T.pack d
         let foo :: Problems -> Problems -> Problems
-            foo exp act = act & #unwrap %~ M.filterWithKey (\k v -> k `M.member` exp.unwrap)
+            foo exp act = act & #unwrap %~ M.filterWithKey (\k _v -> k `M.member` exp.unwrap)
         case artifact of
             IntermediateArtifactFunctions a -> check (const id) readFunctions "functions" a
             IntermediateArtifactPairings a -> check (const id) readPairings "pairings" a

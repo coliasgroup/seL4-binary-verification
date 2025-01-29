@@ -1,17 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.ConcreteSyntax.Parsing
+module BV.ConcreteSyntax.GraphLangLike.Parsing
     ( ParseFile (..)
     , ParseInBlock (..)
     , ParseInLine (..)
-    , Parser
     , ignoredLines
     , inLineLexeme
     , inLineSymbol
     , line
-    , parseBlocksFile
-    , parseBlocksFileWithTypicalKeyFormat
-    , parseTypicalKeyFormat
     , parseWholeFile
     , unterminatedLine
     , word
@@ -19,19 +15,16 @@ module BV.ConcreteSyntax.Parsing
     , wordWithOr
     ) where
 
-import Control.Applicative ()
 import Data.Bifunctor (first)
-import Data.Char
+import Data.Char (isSpace)
 import Data.Maybe (isJust)
-import Data.String (fromString)
-import Data.Text (Text)
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Void (Void)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
-type Parser = Parsec Void T.Text
+type Parser = Parsec Void TL.Text
 
 inLineSpace :: Parser ()
 inLineSpace = hidden hspace
@@ -39,12 +32,12 @@ inLineSpace = hidden hspace
 inLineLexeme :: Parser a -> Parser a
 inLineLexeme = L.lexeme inLineSpace
 
-inLineSymbol :: Text -> Parser Text
+inLineSymbol :: TL.Text -> Parser TL.Text
 inLineSymbol = L.symbol inLineSpace
 
 -- TODO rename to anyWord
 word :: Parser String
-word = inLineLexeme $ T.unpack <$> takeWhile1P (Just "word character") (not . isSpace)
+word = inLineLexeme $ TL.unpack <$> takeWhile1P (Just "word character") (not . isSpace)
 
 wordWith :: (String -> Either String a) -> Parser a
 wordWith f = do
@@ -68,34 +61,11 @@ lineSep = eol *> ignoredLines
 ignoredLines :: Parser ()
 ignoredLines = skipMany $ inLineSpace *> optional (L.skipLineComment "#") *> eol
 
-parseWholeFile :: ParseFile a => String -> Text -> Either String a
+parseWholeFile :: ParseFile a => String -> TL.Text -> Either String a
 parseWholeFile = parseWholeFileWith parseFile
 
-parseWholeFileWith :: Parser a -> String -> Text -> Either String a
+parseWholeFileWith :: Parser a -> String -> TL.Text -> Either String a
 parseWholeFileWith p path = first errorBundlePretty . parse (p <* eof) path
-
-parseBlocksFile :: Parser k -> Parser v -> Parser [(k, v)]
-parseBlocksFile pk pv = do
-    ignoredLines
-    many $ do
-        k <- pk
-        "{"
-        ignoredLines
-        v <- pv
-        "}"
-        ignoredLines
-        return (k, v)
-
-parseTypicalKeyFormat :: [String] -> Parser k -> Parser k
-parseTypicalKeyFormat = wrap
-  where
-    wrap :: [String] -> Parser k -> Parser k
-    wrap [] pk = pk
-    wrap (x:xs) pk = hspace *> fromString x *> hspace *> "(" *> wrap xs pk <* hspace <* ")" <* hspace
-
-
-parseBlocksFileWithTypicalKeyFormat :: [String] -> Parser k -> Parser v -> Parser [(k, v)]
-parseBlocksFileWithTypicalKeyFormat nesting = parseBlocksFile . parseTypicalKeyFormat nesting
 
 class ParseFile a where
     parseFile :: Parser a
@@ -126,10 +96,3 @@ instance ParseInLine a => ParseInLine [a] where
 
 instance (ParseInLine a, ParseInLine b) => ParseInLine (a, b) where
     parseInLine = (,) <$> parseInLine <*> parseInLine
-
--- type T = Program
-
--- testString = "Struct Kernel_C.finaliseSlot_ret_C 16 4\n"
-
--- ttt :: IO ()
--- ttt = parseTest (parseFile :: Parser T) (fromString testString)

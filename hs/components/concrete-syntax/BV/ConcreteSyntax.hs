@@ -1,48 +1,32 @@
 module BV.ConcreteSyntax
-    ( BuildInBlock
-    , BuildInLine
-    , BuildToFile (..)
-    , InBlockAsFile (..)
-    , InLineAsInBlock (..)
-    , ParseFile (..)
-    , ParseFileFast (..)
-    , ParseInBlock
-    , ParseInLine
-    , buildFile
+    ( IsContents (..)
+    , ReadBVFile (..)
+    , WriteBVFile (..)
     , buildSExprWithPlaceholders
     , parseSExprWithPlaceholders
-    , parseSExprWithPlaceholdersFast
-    , parseWholeFile
-    , parseWholeFileFast
+    , parseSExprWithPlaceholdersFaster
+    , readBVFile
+    , writeBVFile
+      -- TODO necessary?
+    , BuildInBlock
+    , BuildInLine
+    , BuildToFile
+    , InBlockAsFile (..)
+    , InLineAsInBlock (..)
+    , ParseFile
+    , ParseInBlock
+    , ParseInLine
     ) where
 
-import GHC.Generics (Generic)
 
-import BV.ConcreteSyntax.FastInstances ()
-import BV.ConcreteSyntax.FastParsing
-import BV.ConcreteSyntax.Instances ()
-import BV.ConcreteSyntax.Parsing
-import BV.ConcreteSyntax.Printing
+import BV.ConcreteSyntax.Classes
+import BV.ConcreteSyntax.GraphLangLike.Adapters
+import BV.ConcreteSyntax.GraphLangLike.Building
+import BV.ConcreteSyntax.GraphLangLike.Instances ()
+import BV.ConcreteSyntax.GraphLangLike.Parsing
+import BV.ConcreteSyntax.ObjDump ()
 import BV.ConcreteSyntax.SExprWithPlaceholders (buildSExprWithPlaceholders,
                                                 parseSExprWithPlaceholders)
-import BV.ConcreteSyntax.SExprWithPlaceholdersFast (parseSExprWithPlaceholdersFast)
+import BV.ConcreteSyntax.SExprWithPlaceholdersFaster (parseSExprWithPlaceholdersFaster)
 
-newtype InBlockAsFile a
-  = InBlockAsFile { unwrap :: a }
-  deriving (Eq, Generic, Ord, Show)
 
-instance ParseInBlock a => ParseFile (InBlockAsFile a) where
-    parseFile = InBlockAsFile <$> parseInBlock
-
-instance BuildInBlock a => BuildToFile (InBlockAsFile a) where
-    buildToFile = buildBlock . buildInBlock . (.unwrap)
-
-newtype InLineAsInBlock a
-  = InLineAsInBlock { unwrap :: a }
-  deriving (Eq, Generic, Ord, Show)
-
-instance ParseInLine a => ParseInBlock (InLineAsInBlock a) where
-    parseInBlock = InLineAsInBlock <$> line parseInLine
-
-instance BuildInLine a => BuildInBlock (InLineAsInBlock a) where
-    buildInBlock = lineInBlock . buildInLine . (.unwrap)

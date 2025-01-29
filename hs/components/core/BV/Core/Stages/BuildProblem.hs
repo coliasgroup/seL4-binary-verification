@@ -89,17 +89,17 @@ forceSimpleLoopReturns = do
             -- TODO ugly
             makeNodeGraph . map (\(k, v) -> (k, v.node)). mapMaybe (\(k, v) -> (k,) <$> v) . M.toAscList <$> use #nodes
         preds <- gets computePreds
-        forM_ (loopHeads nodeGraph (toList entryPoints)) $ \(head, scc) -> do
-            let rets = filter (`S.member` scc) (S.toAscList (preds ! head))
+        forM_ (loopHeads nodeGraph (toList entryPoints)) $ \(loopHead, scc) -> do
+            let rets = filter (`S.member` scc) (S.toAscList (preds ! loopHead))
             retsIsSimple <- do
                 case rets of
                     [ret] -> isNodeNoop <$> use (nodeAt ret)
                     _ -> return False
             unless retsIsSimple $ do
-                simpleRetNodeAddr <- appendNode (trivialNode (Addr head)) Nothing
+                simpleRetNodeAddr <- appendNode (trivialNode (Addr loopHead)) Nothing
                 forM_ rets $ \ret -> do
                     modifying (nodeAt ret % nodeConts) $ \cont ->
-                        if cont == Addr head
+                        if cont == Addr loopHead
                         then Addr simpleRetNodeAddr
                         else cont
 
@@ -137,16 +137,10 @@ nodeWithMetaAt :: NodeAddr -> Lens' NodeMapBuilder NodeWithMeta
 nodeWithMetaAt nodeAddr =
     #nodes % at nodeAddr % partially (castOptic _Just) % partially (castOptic _Just)
 
-allNodesWithMeta :: Traversal' NodeMapBuilder NodeWithMeta
-allNodesWithMeta = #nodes % traversed % _Just
-
-allNodes :: Traversal' NodeMapBuilder Node
-allNodes = allNodesWithMeta % #node
-
 reserveNodeAddr :: State NodeMapBuilder NodeAddr
 reserveNodeAddr = do
     addr <- maybe 0 ((+ 1) . fst) . M.lookupMax <$> gets (.nodes)
-    modify $ #nodes % at addr .~ (Just Nothing)
+    modify $ #nodes % at addr ?~ Nothing
     return addr
 
 insertNodeWithMeta :: NodeAddr -> NodeWithMeta -> State NodeMapBuilder ()

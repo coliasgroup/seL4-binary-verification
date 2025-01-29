@@ -102,9 +102,11 @@ internal-libraries:
       - containers
       - dlist
       - optics-core
+      - bytestring
       - text
       - megaparsec
       - attoparsec
+      - aeson
 
   target-dir:
     visibility: public
@@ -120,6 +122,8 @@ internal-libraries:
       # external
       - mtl
       - text
+      - bytestring
+      - aeson
       - filepath
 
   system:
@@ -264,6 +268,7 @@ tests:
       - text
       - attoparsec
       - megaparsec
+      - aeson
       - filepath
       - process
       - Glob

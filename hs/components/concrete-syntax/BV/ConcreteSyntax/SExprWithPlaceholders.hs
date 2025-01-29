@@ -5,14 +5,16 @@ module BV.ConcreteSyntax.SExprWithPlaceholders
     , parseSExprWithPlaceholders
     ) where
 
-import Data.Text.Internal.Builder (Builder)
-import Text.Megaparsec
-
 import BV.Core.Types
 import BV.SMTLIB2.Builder
 import BV.SMTLIB2.Parser.Megaparsec
 
-import BV.ConcreteSyntax.Parsing
+import Data.Text.Internal.Builder (Builder)
+import qualified Data.Text.Lazy as TL
+import Data.Void (Void)
+import Text.Megaparsec
+
+type Parser = Parsec Void TL.Text
 
 parseSExprWithPlaceholders :: Parser SExprWithPlaceholders
 parseSExprWithPlaceholders = parseGenericSExpr $

@@ -48,9 +48,9 @@ enumerateProofChecks argRenames pairing problem proofScript =
              in \addr -> if addr `S.member` c then C else Asm
         , loopData =
             let heads = loopHeads nodeGraph [problem.sides.c.entryPoint, problem.sides.asm.entryPoint]
-             in M.fromList $ flip foldMap heads $ \(head, scc) ->
-                    [(head, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
-                        if member == head then Nothing else Just (member, LoopMember head))
+             in M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
+                    [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
+                        if member == loopHead then Nothing else Just (member, LoopMember loopHead))
         }
 
 data Context
@@ -150,7 +150,7 @@ restrChecksM restrs hyps restrNode = do
     let hyps' = nCErrHyp : hyps
     nodeTag <- gview #nodeTag
     let visit vc = tagV (nodeTag restrNode.point)
-            (Visit (Addr restrNode.point) ((Restr restrNode.point vc) : restrs))
+            (Visit (Addr restrNode.point) (Restr restrNode.point vc : restrs))
     let minVC = case restrNode.range.kind of
             RestrProofNodeRangeKindOffset -> Just $ offsetVC (max 0 (restrNode.range.x - 1))
             _ | restrNode.range.x > 1 -> Just $ numberVC (restrNode.range.x - 1)
@@ -178,8 +178,8 @@ loopsToSplitM :: [Restr] -> Reader Context [NodeAddr]
 loopsToSplitM restrs = do
     loopHeadsWithSplit <- fmap (S.fromList . catMaybes) . for restrs $ \restr -> do
         loopIdM restr.nodeAddr
-    loopHeads <- S.fromList <$> loopHeadsM
-    let remLoopHeadsInit = loopHeads `S.difference` loopHeadsWithSplit
+    loopHeads_ <- S.fromList <$> loopHeadsM
+    let remLoopHeadsInit = loopHeads_ `S.difference` loopHeadsWithSplit
     g <- gview #nodeGraph
     nodeTag <- gview #nodeTag
     let f :: Restr -> Set NodeAddr -> Set NodeAddr
@@ -296,7 +296,7 @@ splitHypsAtVisit splitNode restrs visit =
     mksub v = walkExprsI $ \case
         Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
         expr -> expr
-    inst exp = instEqAtVisit exp visit
+    inst expr = instEqAtVisit expr visit
     zsub = mksub (machineWordE 0)
     lsub = mksub $ case fromJust (simpleVisitCountView visit) of
         SimpleVisitCountViewNumber n -> machineWordE n
@@ -497,7 +497,7 @@ instEqsM restrs eqs = do
     let addrMap quadrant = tagV quadrant.tag $ case quadrant.direction of
             PairingEqDirectionIn -> Visit (pairingSide quadrant.tag entryPoints) []
             PairingEqDirectionOut -> Visit Ret restrs
-    renames <- gview $ #argRenames
+    renames <- gview #argRenames
     let hyps = flip map eqs $ \(PairingEq { lhs, rhs }) ->
             let f eqSide = eqSideH (renameVarsI (renames eqSide.quadrant) eqSide.expr) (addrMap eqSide.quadrant)
              in (eqH' `on` f) lhs rhs

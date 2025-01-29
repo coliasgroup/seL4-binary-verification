@@ -8,24 +8,21 @@ module BV.TargetDir
     , readObjDumpInfo
     , readPairings
     , readProblems
-    , readProblemsAndProofs
     , readProofChecks
+    , readProofs
     , readSMTProofChecks
     , readStackBounds
     ) where
 
-import Control.Monad.Except (runExceptT)
-import qualified Data.Text.IO as T
-import GHC.Generics (Generic)
-import System.FilePath ((</>))
-
 import BV.ConcreteSyntax
 import BV.Core.GluedStages
 import BV.Core.Types
-import Control.Monad.Error.Class (liftEither)
-import Control.Monad.Trans (lift)
 
--- TODO abstract targetDirEntry field, use MonadError String
+import Control.Monad.Error.Class (liftEither)
+import Control.Monad.Except (runExceptT)
+import Control.Monad.Trans (lift)
+import GHC.Generics (Generic)
+import System.FilePath ((</>))
 
 data TargetDir
   = TargetDir
@@ -36,15 +33,8 @@ data TargetDir
 targetDirPath :: TargetDir -> FilePath -> FilePath
 targetDirPath targetDir rel = targetDir.path </> rel
 
-readAndParseFile :: ParseFile a => FilePath -> TargetDir -> IO (Either String a)
-readAndParseFile rel targetDir = parseWholeFile path <$> T.readFile path
-  where
-    path = targetDirPath targetDir rel
-
-readAndParseFileFast :: ParseFileFast a => FilePath -> TargetDir -> IO (Either String a)
-readAndParseFileFast rel targetDir = parseWholeFileFast <$> T.readFile path
-  where
-    path = targetDirPath targetDir rel
+readTargetDirFile :: ReadBVFile c a => FilePath -> TargetDir -> IO (Either String a)
+readTargetDirFile rel targetDir = readBVFile (targetDirPath targetDir rel)
 
 readInput :: (Ident -> Bool) -> TargetDir -> IO (Either String Input)
 readInput asmFunctionFilter targetDir = runExceptT $ do
@@ -53,7 +43,7 @@ readInput asmFunctionFilter targetDir = runExceptT $ do
     objDumpInfo <- lift (readObjDumpInfo targetDir) >>= liftEither
     stackBounds <- lift (readStackBounds targetDir) >>= liftEither
     inlineScripts <- lift (readInlineScripts targetDir) >>= liftEither
-    problemsAndProofs <- lift (readProblemsAndProofs targetDir) >>= liftEither
+    proofs <- lift (readProofs targetDir) >>= liftEither
     return $ Input
       { programs = PairingOf
             { c = cFunctions
@@ -62,40 +52,39 @@ readInput asmFunctionFilter targetDir = runExceptT $ do
       , objDumpInfo
       , stackBounds
       , inlineScripts
-      , problemsAndProofs
+      , proofs
       , asmFunctionFilter
       }
 
 readObjDumpInfo :: TargetDir -> IO (Either String ObjDumpInfo)
-readObjDumpInfo = readAndParseFile "kernel.elf.symtab"
+readObjDumpInfo = readTargetDirFile "kernel.elf.symtab"
 
 readCFunctions :: TargetDir -> IO (Either String Program)
-readCFunctions = readAndParseFile "CFunctions.txt"
+readCFunctions = readTargetDirFile "CFunctions.txt"
 
 readAsmFunctions :: TargetDir -> IO (Either String Program)
-readAsmFunctions = readAndParseFile "ASMFunctions.txt"
+readAsmFunctions = readTargetDirFile "ASMFunctions.txt"
 
 readFunctions :: TargetDir -> IO (Either String Program)
-readFunctions = readAndParseFile "functions.txt"
+readFunctions = readTargetDirFile "functions.txt"
 
 readProblems :: TargetDir -> IO (Either String Problems)
-readProblems = readAndParseFile "problems.txt"
+readProblems = readTargetDirFile "problems.txt"
 
 readStackBounds :: TargetDir -> IO (Either String StackBounds)
-readStackBounds = readAndParseFile "StackBounds.txt"
+readStackBounds = readTargetDirFile "StackBounds.txt"
 
 readInlineScripts :: TargetDir -> IO (Either String InlineScripts)
-readInlineScripts = readAndParseFile "inline-scripts.txt"
+readInlineScripts = readTargetDirFile "inline-scripts.txt"
 
 readPairings :: TargetDir -> IO (Either String Pairings)
-readPairings = readAndParseFile "pairings.txt"
+readPairings = readTargetDirFile "pairings.txt"
 
-readProblemsAndProofs :: TargetDir -> IO (Either String ProblemsAndProofs)
-readProblemsAndProofs = readAndParseFile "proofs.txt"
+readProofs :: TargetDir -> IO (Either String (Proofs ()))
+readProofs = readTargetDirFile "proofs.txt"
 
 readProofChecks :: TargetDir -> IO (Either String (FlattenedProofChecks String))
-readProofChecks = readAndParseFile "proof-checks.txt"
+readProofChecks = readTargetDirFile "proof-checks.json"
 
 readSMTProofChecks :: TargetDir -> IO (Either String (FlattenedSMTProofChecks ()))
-readSMTProofChecks = readAndParseFileFast "smt-proof-checks.txt"
--- readSMTProofChecks = readAndParseFile "smt-proof-checks.txt"
+readSMTProofChecks = readTargetDirFile "smt-proof-checks.json"

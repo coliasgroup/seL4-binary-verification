@@ -1,19 +1,16 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.ConcreteSyntax.Printing
+module BV.ConcreteSyntax.GraphLangLike.Building
     ( BlockBuilder
     , BuildInBlock (..)
     , BuildInLine (..)
     , BuildToFile (..)
     , LineBuilder
     , buildBlock
-    , buildBlocksFile
-    , buildBlocksFileWithTypicalKeyFormat
     , buildFile
     , buildLine
     , buildStandaloneLine
-    , buildTypicalKeyFormat
     , intersperse
     , lineInBlock
     , put
@@ -25,7 +22,7 @@ module BV.ConcreteSyntax.Printing
 
 import qualified Data.DList as D
 import Data.String (IsString, fromString)
-import qualified Data.Text.Lazy as L
+import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Builder.Int (decimal, hexadecimal)
 
@@ -33,24 +30,10 @@ intersperse :: Monoid a => a -> [a] -> a
 intersperse _ [] = mempty
 intersperse sep (x:xs) = x <> foldMap (sep <>) xs
 
-buildBlocksFile :: (k -> Builder) -> (v -> BlockBuilder) -> [(k, v)] -> Builder
-buildBlocksFile bk bv = foldMap bkv
-  where
-    bkv (k, v) = bk k <> " {\n" <> buildBlock (bv v) <> "}\n"
-
-buildTypicalKeyFormat :: [String] -> Builder -> Builder
-buildTypicalKeyFormat = f
-  where
-    f [] k = k
-    f (x:xs) k = fromString x <> " (" <> f xs k <> ")"
-
-buildBlocksFileWithTypicalKeyFormat :: [String] -> (k -> Builder) -> (v -> BlockBuilder) -> [(k, v)] -> Builder
-buildBlocksFileWithTypicalKeyFormat nesting = buildBlocksFile . (buildTypicalKeyFormat nesting .)
-
 class BuildToFile a where
     buildToFile :: a -> Builder
 
-buildFile :: BuildToFile a => a -> L.Text
+buildFile :: BuildToFile a => a -> TL.Text
 buildFile = toLazyText . buildToFile
 
 newtype BlockBuilder
@@ -62,7 +45,6 @@ buildBlock blockBuilder = foldMap buildLine (D.toList blockBuilder.unwrapBlockBu
 
 lineInBlock :: LineBuilder -> BlockBuilder
 lineInBlock = BlockBuilder . D.singleton
-
 
 class BuildInBlock a where
     buildInBlock :: a -> BlockBuilder

@@ -4,12 +4,12 @@ module BV.System.Notes
     (
     ) where
 
-import Control.Monad.Logger (MonadLogger)
-import GHC.Generics (Generic)
-
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
 import BV.SMTLIB2.Types
+
+import Control.Monad.Logger (MonadLogger)
+import GHC.Generics (Generic)
 
 data Report
   = Report

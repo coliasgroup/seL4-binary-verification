@@ -19,13 +19,15 @@ library concrete-syntax
   exposed-modules:
       BV.ConcreteSyntax
   other-modules:
-      BV.ConcreteSyntax.FastInstances
-      BV.ConcreteSyntax.FastParsing
-      BV.ConcreteSyntax.Instances
-      BV.ConcreteSyntax.Parsing
-      BV.ConcreteSyntax.Printing
+      BV.ConcreteSyntax.Classes
+      BV.ConcreteSyntax.GraphLangLike.Adapters
+      BV.ConcreteSyntax.GraphLangLike.Building
+      BV.ConcreteSyntax.GraphLangLike.Instances
+      BV.ConcreteSyntax.GraphLangLike.Parsing
+      BV.ConcreteSyntax.JSON
+      BV.ConcreteSyntax.ObjDump
       BV.ConcreteSyntax.SExprWithPlaceholders
-      BV.ConcreteSyntax.SExprWithPlaceholdersFast
+      BV.ConcreteSyntax.SExprWithPlaceholdersFaster
   hs-source-dirs:
       components/concrete-syntax
   default-extensions:
@@ -38,8 +40,10 @@ library concrete-syntax
       NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      attoparsec
+      aeson
+    , attoparsec
     , base
+    , bytestring
     , containers
     , dlist
     , megaparsec
@@ -231,7 +235,9 @@ library target-dir
       NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      base
+      aeson
+    , base
+    , bytestring
     , filepath
     , mtl
     , sel4-bv:concrete-syntax
@@ -312,6 +318,7 @@ test-suite concrete-syntax-test
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Glob
+    , aeson
     , attoparsec
     , base
     , filepath

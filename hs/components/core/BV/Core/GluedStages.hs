@@ -29,7 +29,7 @@ data Input
       , objDumpInfo :: ObjDumpInfo
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts
-      , problemsAndProofs :: ProblemsAndProofs
+      , proofs :: Proofs ()
       , asmFunctionFilter :: Ident -> Bool
       }
   deriving (Generic)
@@ -109,11 +109,11 @@ gluedStages input = do
         let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
         return $ buildProblem lookupFunctionForProblem inlineScript namedFuns
 
-    problemsThatHaveProofs = Problems $ M.restrictKeys problems.unwrap (M.keysSet input.problemsAndProofs.unwrap)
+    problemsThatHaveProofs = Problems $ M.restrictKeys problems.unwrap (M.keysSet input.proofs.unwrap)
 
     proofChecks = ProofChecks $ flip M.mapWithKey problemsThatHaveProofs.unwrap $ \pairingId problem ->
         let pairing = pairings `atPairingId` pairingId
-            proofScript = (input.problemsAndProofs `atPairingId` pairingId).proof
+            proofScript = input.proofs `atPairingId` pairingId
             lookupOrigVarName quadrant mangledName =
                 fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
               where

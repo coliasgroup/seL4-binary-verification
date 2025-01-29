@@ -4,8 +4,7 @@ module BV.Core.Types.SearchOutputs
     ( InlineScript
     , InlineScriptEntry (..)
     , InlineScripts (..)
-    , ProblemAndProof (..)
-    , ProblemsAndProofs (..)
+    , Proofs (..)
     , StackBounds (..)
     ) where
 
@@ -40,17 +39,10 @@ data InlineScriptEntry
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-newtype ProblemsAndProofs
-  = ProblemsAndProofs { unwrap :: M.Map PairingId ProblemAndProof }
+newtype Proofs a
+  = Proofs { unwrap :: M.Map PairingId (ProofScript a) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance AtPairingId ProblemAndProof ProblemsAndProofs where
+instance AtPairingId (ProofScript a) (Proofs a) where
     atPairingId = atPairingId . (.unwrap)
-
-data ProblemAndProof
-  = ProblemAndProof
-      { problem :: Problem
-      , proof :: ProofScript ()
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)

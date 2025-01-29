@@ -6,6 +6,12 @@ module Main
     ( main
     ) where
 
+import BV.Core.GluedStages
+import BV.System.IntermediateArtifacts
+import BV.System.SeL4 (defaultSeL4AsmFunctionFilter)
+import BV.TargetDir
+import BV.Test.Utils
+
 import Control.Monad.Logger (MonadLogger (monadLoggerLog), runStderrLoggingT)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
@@ -14,12 +20,6 @@ import Data.Functor (void)
 import System.FilePath ((</>))
 import Test.Tasty
 import Test.Tasty.HUnit
-
-import BV.Core.GluedStages
-import BV.System.IntermediateArtifacts
-import BV.System.SeL4 (defaultSeL4AsmFunctionFilter)
-import BV.TargetDir
-import BV.Test.Utils
 
 main :: IO ()
 main = defaultMain tests

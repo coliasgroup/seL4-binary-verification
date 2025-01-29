@@ -12,14 +12,13 @@ import BV.SMTLIB2.Types
 
 import Control.Monad (void)
 import Data.Char (isSpace)
-import Data.Text (Text)
-import qualified Data.Text as T (unpack)
+import qualified Data.Text.Lazy as TL (Text, unpack)
 import Data.Void (Void)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
-type Parser = Parsec Void Text
+type Parser = Parsec Void TL.Text
 
 skipLineComment :: Char -> Parser ()
 skipLineComment prefix = char prefix *> void (takeWhileP (Just "line comment") (/= '\n'))
@@ -44,8 +43,8 @@ parseGenericSExpr p = go
 parseAtom :: Parser Atom
 parseAtom = unsafeAtom <$> choice
     [ NumeralAtom <$> L.decimal
-    , HexadecimalAtom . T.unpack <$> ("#x" *> takeWhile1P (Just "hexadecimal digit") isValidHexadecimalAtomChar)
-    , BinaryAtom . T.unpack <$> ("#b" *> takeWhile1P (Just "binary digit") isValidBinaryAtomChar)
+    , HexadecimalAtom . TL.unpack <$> ("#x" *> takeWhile1P (Just "hexadecimal digit") isValidHexadecimalAtomChar)
+    , BinaryAtom . TL.unpack <$> ("#b" *> takeWhile1P (Just "binary digit") isValidBinaryAtomChar)
     , stringP
     , symbolP
     , keywordP
@@ -66,9 +65,9 @@ stringP = StringAtom <$> (char '"' *> go)
 
 keywordP :: Parser UncheckedAtom
 keywordP = fmap KeywordAtom $
-    ":" *> (T.unpack <$> takeWhile1P (Just "symbol suffix character") isValidKeywordAtomChar)
+    ":" *> (TL.unpack <$> takeWhile1P (Just "symbol suffix character") isValidKeywordAtomChar)
 
 symbolP :: Parser UncheckedAtom
 symbolP = fmap SymbolAtom $
     (:) <$> satisfy isValidSymbolAtomFirstChar
-        <*> (T.unpack <$> takeWhileP (Just "symbol suffix character") isValidSymbolAtomSubsequentChar)
+        <*> (TL.unpack <$> takeWhileP (Just "symbol suffix character") isValidSymbolAtomSubsequentChar)
