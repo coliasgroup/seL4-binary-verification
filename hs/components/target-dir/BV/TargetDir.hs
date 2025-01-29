@@ -75,13 +75,13 @@ readStackBounds :: TargetDir -> IO (Either String StackBounds)
 readStackBounds = readTargetDirFile "StackBounds.txt"
 
 readInlineScripts :: TargetDir -> IO (Either String InlineScripts)
-readInlineScripts = readTargetDirFile "inline-scripts.txt"
+readInlineScripts = readTargetDirFile "inline-scripts.json"
 
 readPairings :: TargetDir -> IO (Either String Pairings)
-readPairings = readTargetDirFile "pairings.txt"
+readPairings = readTargetDirFile "pairings.json"
 
 readProofs :: TargetDir -> IO (Either String (Proofs ()))
-readProofs = readTargetDirFile "proofs.txt"
+readProofs = readTargetDirFile "proofs.json"
 
 readProofChecks :: TargetDir -> IO (Either String (FlattenedProofChecks String))
 readProofChecks = readTargetDirFile "proof-checks.json"
