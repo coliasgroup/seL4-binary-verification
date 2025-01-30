@@ -62,7 +62,7 @@ checkRegisterIntermediateArtifactsT = iterT $ \case
                         createDirectoryIfMissing True d
                         writeBVFile (d </> "actual.txt") actual'
                         writeBVFile (d </> "expected.txt") expected
-                    fail . T.unpack $ "Intermediate artifact mismatch, wrote to " <> T.pack d
+                    fail $ "Intermediate artifact mismatch, wrote to " <> d
         let filterProblems expected actual = actual & #unwrap %~ M.filterWithKey (\k _v -> k `M.member` expected.unwrap)
         let noop _expected actual = actual
         case artifact of

@@ -4,10 +4,9 @@ module BV.System.Notes
     (
     ) where
 
-import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
-import BV.SMTLIB2.Types
 
+import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger (MonadLogger)
 import GHC.Generics (Generic)
 
@@ -15,7 +14,7 @@ data Report
   = Report
   deriving (Eq, Generic, Ord, Show)
 
-executeSMTProofChecks :: MonadSolvers n m => SMTProofChecks String -> m Report
+executeSMTProofChecks :: MonadExecuteSMTProofChecks m => SMTProofChecks String -> m Report
 executeSMTProofChecks = undefined
 
 data Result
@@ -26,30 +25,13 @@ data Result
 class ( Monad m
       , MonadLogger m
       , MonadCache m
-      , MonadSolvers n m
-      ) => MonadExecuteSMTProofChecks n m where
+      , MonadIO m
+      ) => MonadExecuteSMTProofChecks m where
 
 class Monad m => MonadCache m where
     queryCache :: SMTProofCheck () -> m (Maybe Result)
 
-class (Monad m, MonadLogger m, MonadSolver n) => MonadSolvers n m | m -> n where
-    liftIntoSolver :: m a -> n a
-    withOnlineSolver :: (OnlineSolverConfig -> n a) -> m a
-    withOfflineSolvers :: (OfflineSolverConfig -> n a) -> [m a]
-
 data SolverScope
   = SolverScopeHyp
   | SolverScopeAll
-  deriving (Eq, Generic, Ord, Show)
-
-data OnlineSolverConfig
-  = OnlineSolverConfig
-      { common :: SolverConfig
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-data OfflineSolverConfig
-  = OfflineSolverConfig
-      { common :: SolverConfig
-      }
   deriving (Eq, Generic, Ord, Show)

@@ -18,7 +18,6 @@ module BV.ConcreteSyntax
     , ParseInLine
     ) where
 
-
 import BV.ConcreteSyntax.Classes
 import BV.ConcreteSyntax.GraphLangLike.Adapters
 import BV.ConcreteSyntax.GraphLangLike.Building
@@ -28,5 +27,3 @@ import BV.ConcreteSyntax.ObjDump ()
 import BV.ConcreteSyntax.SExprWithPlaceholders (buildSExprWithPlaceholders,
                                                 parseSExprWithPlaceholders)
 import BV.ConcreteSyntax.SExprWithPlaceholdersFaster (parseSExprWithPlaceholdersFaster)
-
-
