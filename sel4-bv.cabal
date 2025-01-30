@@ -60,6 +60,7 @@ library core
       BV.Core.Types.Extras
       BV.Core.Stages
       BV.Core.GluedStages
+      BV.Core.AdornProofScript
       BV.Core.ExecuteSMTProofChecks
   other-modules:
       BV.Core
@@ -176,6 +177,7 @@ library system
   visibility: public
   exposed-modules:
       BV.System.CacheKey
+      BV.System.Check
       BV.System.IntermediateArtifacts
       BV.System.Notes
       BV.System.SeL4
