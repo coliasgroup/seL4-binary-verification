@@ -8,3 +8,5 @@
 - graph-refine flags:
     - hack-proofs-must-be-loaded
     - hack-inline-scripts-must-be-loaded
+
+- https://hackage.haskell.org/package/safe-exceptions

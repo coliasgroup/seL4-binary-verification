@@ -7,6 +7,7 @@ import BV.Core.AdornProofScript
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
 import BV.SMTLIB2.Types.Command
+import BV.System.SolversConfig
 
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger (MonadLogger)
@@ -18,33 +19,6 @@ data ExecuteChecksConfig
       { numCores :: Integer
       , solversConfig :: SolversConfig
       }
-  deriving (Eq, Generic, Ord, Show)
-
-data SolversConfig
-  = SolversConfig
-      { online :: OnlineSolverConfig
-      , offline :: [OfflineSolverConfig]
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-data OnlineSolverConfig
-  = OnlineSolverConfig
-      { command :: [String]
-      , memoryMode :: SolverMemoryMode
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-data OfflineSolverConfig
-  = OfflineSolverConfig
-      { command :: [String]
-      , memoryModes :: [SolverMemoryMode]
-      , scopes :: [SolverScope]
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-data SolverScope
-  = SolverScopeHyp
-  | SolverScopeAll
   deriving (Eq, Generic, Ord, Show)
 
 data Report
@@ -72,5 +46,5 @@ data AcceptableSatResult
 
 executeChecks
     :: (MonadIO m, MonadLogger m, MonadCache m)
-    => FlattenedSMTProofChecks String -> m Report
+    => FlattenedSMTProofChecks ProofScriptNodeLocation -> m Report
 executeChecks = undefined

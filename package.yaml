@@ -147,6 +147,7 @@ internal-libraries:
       - mtl
       - free
       - optics-core
+      - optics
       - async
       - stm
       - bytestring

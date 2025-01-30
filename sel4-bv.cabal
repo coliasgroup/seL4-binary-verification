@@ -181,6 +181,8 @@ library system
       BV.System.IntermediateArtifacts
       BV.System.Notes
       BV.System.SeL4
+      BV.System.SolversConfig
+      BV.System.Throttle
       BV.System.Utils
   hs-source-dirs:
       components/system
@@ -207,6 +209,7 @@ library system
     , megaparsec
     , monad-logger
     , mtl
+    , optics
     , optics-core
     , pretty-show
     , sel4-bv:concrete-syntax
