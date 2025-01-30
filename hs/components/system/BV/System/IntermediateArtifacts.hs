@@ -71,4 +71,5 @@ checkRegisterIntermediateArtifactsT = iterT $ \case
             IntermediateArtifactProblems a -> check filterProblems targetDirFiles.problems a
             IntermediateArtifactFlattenedProofChecks a -> check noop targetDirFiles.proofChecks a
             IntermediateArtifactFlattenedSMTProofChecks a -> check noop targetDirFiles.smtProofChecks a
+            -- IntermediateArtifactFlattenedSMTProofChecks a -> return ()
         m
