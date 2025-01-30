@@ -134,6 +134,9 @@ newtype Units
 
 type Gate = MVar ()
 
+whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
+whenJust m f = maybe (return ()) f m
+
 alterWithDefault :: Ord k => a -> k -> (a -> a) -> Map k a -> Map k a
 alterWithDefault def k f = M.alter (Just . f . fromMaybe def) k
 
@@ -142,6 +145,8 @@ removeFromSeq f xs =
     let i = fromJust (S.findIndexL f xs)
         a = S.index xs i
      in (a, S.deleteAt i xs)
+
+-- TODO deduplicate with elsewhere
 
 unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just
@@ -154,6 +159,3 @@ partially optic = withAffineTraversal optic $ \match update ->
     lens
         (fromRight (error "!isRight") . match)
         update
-
-whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
-whenJust m f = maybe (return ()) f m
