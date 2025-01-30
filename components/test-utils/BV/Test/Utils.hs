@@ -13,7 +13,7 @@ testTargetDir :: FilePath -> FilePath
 testTargetDir name = tmpDir </> "test-target-dirs" </> name
 
 graphRefineDir :: FilePath
-graphRefineDir = "../../graph-refine"
+graphRefineDir = "../graph-refine"
 
 testSeL4TargetDirDefault :: TargetDir
 testSeL4TargetDirDefault = testSeL4TargetDirBig
