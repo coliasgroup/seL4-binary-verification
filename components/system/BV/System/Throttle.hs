@@ -1,37 +1,41 @@
 module BV.System.Throttle
     ( Priority (..)
-    , ThrottleControl
-    , ThrottleIn
+    , Throttle
     , Units (..)
-    , controlThrottle
-    , newThrottle
     , withThrottle
+    , withThrottling
     ) where
 
+import Control.Concurrent.Async (race)
 import Control.Concurrent.Chan (Chan, newChan, readChan, writeChan)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 import Control.Exception (bracket)
 import Control.Monad (forever, when)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.State (evalStateT, get, gets, modify, put)
+import Control.Monad.State (evalStateT, gets, put)
 import Data.Either (fromRight)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromJust, fromMaybe, listToMaybe, mapMaybe)
 import qualified Data.Sequence as S
-import Data.Void (Void)
+import Data.Void (Void, absurd)
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
 import Optics.State.Operators ((%%=), (%=))
 
-newThrottle :: IO (ThrottleIn, ThrottleControl)
+withThrottling :: Units -> (Throttle -> IO a) -> IO a
+withThrottling availableUnits f = do
+    (throttle, throttleControl) <- newThrottle
+    either absurd id <$> race (controlThrottle throttleControl availableUnits) (f throttle)
+
+newThrottle :: IO (Throttle, ThrottleControl)
 newThrottle = do
     chan <- newChan
-    return $ (ThrottleIn chan, ThrottleControl chan)
+    return (Throttle chan, ThrottleControl chan)
 
-withThrottle :: ThrottleIn -> Priority -> Units -> IO a -> IO a
-withThrottle throttleIn priority units m = bracket
+withThrottle :: Throttle -> Priority -> Units -> IO a -> IO a
+withThrottle throttle priority units m = bracket
     (do
         gate <- newEmptyMVar
         let value = Value
@@ -39,10 +43,10 @@ withThrottle throttleIn priority units m = bracket
                 , priority
                 , units
                 }
-        writeChan throttleIn.chan (Borrow value)
+        writeChan throttle.chan (Borrow value)
         return value)
     (\value -> do
-        writeChan throttleIn.chan (Return value))
+        writeChan throttle.chan (Return value))
     (\value -> do
         takeMVar value.gate
         m)
@@ -70,12 +74,18 @@ controlThrottle throttleControl availableUnits = flip evalStateT throttleState0 
             when open $ do
                 #availableUnits %= (+) units
     curAvailableUnits <- use #availableUnits
-    maybeUnits <- undefined
-    -- maybeUnits <- zoomMaybe (#byValue % singular traversed % M.le curAvailableUnits) $ do
-    --     xs <- get
-    --     return $ S.findIndexL snd xs <&> fst . S.index xs
-    whenJust maybeUnits $ \units -> do
+    byValue <- use #byValue
+    let toOpen =
+            let f (priority, byUnits) = do
+                    (units, gates) <- M.lookupLE curAvailableUnits byUnits
+                    i <- S.findIndexL (\(_, isOpen) -> not isOpen) gates
+                    let (gate, _) = S.index gates i
+                    return (priority, units, i, gate)
+             in listToMaybe $ mapMaybe f (M.toList byValue)
+    whenJust toOpen $ \(priority, units, i, gate) -> do
         #availableUnits %= (-) units
+        assign (#byValue % at priority % _Just % at units % _Just % ix i % _2) True
+        liftIO $ putMVar gate ()
   where
     throttleState0 = ThrottleState
         { availableUnits
@@ -93,8 +103,8 @@ data ThrottleMessage
   | Return Value
   deriving (Eq, Generic)
 
-data ThrottleIn
-  = ThrottleIn
+data Throttle
+  = Throttle
       { chan :: Chan ThrottleMessage
       }
   deriving (Eq, Generic)
