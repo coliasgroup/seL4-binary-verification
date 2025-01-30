@@ -5,7 +5,7 @@ module BV.System.SeL4
 import BV.Core.Types
 
 defaultSeL4AsmFunctionFilter :: Ident -> Bool
-defaultSeL4AsmFunctionFilter = not . (`elem` ignore)
+defaultSeL4AsmFunctionFilter = (`notElem` ignore)
   where
     ignore = map Ident
         [ "fastpath_call"
