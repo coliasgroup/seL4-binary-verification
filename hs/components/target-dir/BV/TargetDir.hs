@@ -1,90 +1,137 @@
 module BV.TargetDir
-    ( TargetDir (..)
-    , readAsmFunctions
-    , readCFunctions
-    , readFunctions
-    , readInlineScripts
-    , readInput
-    , readObjDumpInfo
-    , readPairings
-    , readProblems
-    , readProofChecks
-    , readProofs
-    , readSMTProofChecks
-    , readStackBounds
+    ( ReadTargetDirFileException (..)
+    , TargetDir (..)
+    , TargetDirFile (..)
+    , TargetDirFiles (..)
+    , UntypedTargetDirFile (..)
+    , eraseTargetDirFileType
+    , readGluedStagesInput
+    , readGluedStagesInputEither
+    , readTargetDirFile
+    , readTargetDirFileEither
+    , targetDirFilePath
+    , targetDirFiles
+    , writeTargetDirFile
     ) where
 
 import BV.ConcreteSyntax
 import BV.Core.GluedStages
 import BV.Core.Types
 
+import Control.Exception (Exception (..), throwIO)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (runExceptT)
 import Control.Monad.Trans (lift)
+import Data.Bifunctor (first)
 import GHC.Generics (Generic)
 import System.FilePath ((</>))
 
-data TargetDir
-  = TargetDir
-      { path :: FilePath
+newtype TargetDir
+  = TargetDir { path :: FilePath }
+  deriving (Eq, Generic, Ord, Show)
+
+newtype TargetDirFile a
+  = TargetDirFile { relativePath :: FilePath }
+  deriving (Eq, Generic, Ord, Show)
+
+newtype UntypedTargetDirFile
+  = UntypedTargetDirFile { relativePath :: FilePath }
+  deriving (Eq, Generic, Ord, Show)
+
+eraseTargetDirFileType :: TargetDirFile a -> UntypedTargetDirFile
+eraseTargetDirFileType (TargetDirFile relativePath) = UntypedTargetDirFile relativePath
+
+data TargetDirFiles
+  = TargetDirFiles
+      { symtab :: TargetDirFile ObjDumpInfo
+      , cFunctions :: TargetDirFile Program
+      , asmFunctions :: TargetDirFile Program
+      , functions :: TargetDirFile Program
+      , problems :: TargetDirFile Problems
+      , stackBounds :: TargetDirFile StackBounds
+      , inlineScripts :: TargetDirFile InlineScripts
+      , pairings :: TargetDirFile Pairings
+      , proofs :: TargetDirFile (Proofs ())
+      , proofChecks :: TargetDirFile (FlattenedProofChecks String)
+      , smtProofChecks :: TargetDirFile (FlattenedSMTProofChecks ())
       }
   deriving (Eq, Generic, Ord, Show)
 
-targetDirPath :: TargetDir -> FilePath -> FilePath
-targetDirPath targetDir rel = targetDir.path </> rel
+targetDirFiles :: TargetDirFiles
+targetDirFiles = TargetDirFiles
+    { symtab = TargetDirFile "kernel.elf.symtab"
+    , cFunctions = TargetDirFile "CFunctions.txt"
+    , asmFunctions = TargetDirFile "ASMFunctions.txt"
+    , functions = TargetDirFile "functions.txt"
+    , problems = TargetDirFile "problems.txt"
+    , stackBounds = TargetDirFile "StackBounds.txt"
+    , inlineScripts = TargetDirFile "inline-scripts.json"
+    , pairings = TargetDirFile "pairings.json"
+    , proofs = TargetDirFile "proofs.json"
+    , proofChecks = TargetDirFile "proof-checks.json"
+    , smtProofChecks = TargetDirFile "smt-proof-checks.json"
+    }
 
-readTargetDirFile :: ReadBVFile c a => FilePath -> TargetDir -> IO (Either String a)
-readTargetDirFile rel targetDir = readBVFile (targetDirPath targetDir rel)
+targetDirFilePath :: TargetDir -> UntypedTargetDirFile -> FilePath
+targetDirFilePath targetDir targetDirFile = targetDir.path </> targetDirFile.relativePath
 
-readInput :: (Ident -> Bool) -> TargetDir -> IO (Either String GluedStagesInput)
-readInput asmFunctionFilter targetDir = runExceptT $ do
-    cFunctions <- lift (readCFunctions targetDir) >>= liftEither
-    asmFunctions <- lift (readAsmFunctions targetDir) >>= liftEither
-    objDumpInfo <- lift (readObjDumpInfo targetDir) >>= liftEither
-    stackBounds <- lift (readStackBounds targetDir) >>= liftEither
-    inlineScripts <- lift (readInlineScripts targetDir) >>= liftEither
-    proofs <- lift (readProofs targetDir) >>= liftEither
+readTargetDirFileEither :: ReadBVFile c a => TargetDir -> TargetDirFile a -> IO (Either ReadTargetDirFileException a)
+readTargetDirFileEither targetDir targetDirFile =
+    first elaborate <$> readBVFile (targetDirFilePath targetDir untypedTargetDirFile)
+  where
+    untypedTargetDirFile = eraseTargetDirFileType targetDirFile
+    elaborate message =
+        ReadTargetDirFileException
+            { message
+            , targetDir
+            , targetDirFile = untypedTargetDirFile
+            }
+
+readTargetDirFile :: ReadBVFile c a => TargetDir -> TargetDirFile a -> IO a
+readTargetDirFile targetDir targetDirFile =
+    readTargetDirFileEither targetDir targetDirFile >>= either throwIO return
+
+data ReadTargetDirFileException
+  = ReadTargetDirFileException
+      { targetDir :: TargetDir
+      , targetDirFile :: UntypedTargetDirFile
+      , message :: String
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+instance Exception ReadTargetDirFileException where
+    displayException e =
+        "ReadTargetDirFileException at "
+        ++ targetDirFilePath e.targetDir e.targetDirFile
+        ++ ":\n"
+        ++ e.message
+
+writeTargetDirFile :: WriteBVFile c a => TargetDir -> TargetDirFile a -> a -> IO ()
+writeTargetDirFile targetDir targetDirFile =
+    writeBVFile (targetDirFilePath targetDir (eraseTargetDirFileType targetDirFile))
+
+readGluedStagesInputEither :: (Ident -> Bool) -> TargetDir -> IO (Either ReadTargetDirFileException GluedStagesInput)
+readGluedStagesInputEither asmFunctionFilter targetDir = runExceptT $ do
+    cFunctions <- f targetDirFiles.cFunctions
+    asmFunctions <- f targetDirFiles.asmFunctions
+    objDumpInfo <- f targetDirFiles.symtab
+    stackBounds <- f targetDirFiles.stackBounds
+    inlineScripts <- f targetDirFiles.inlineScripts
+    proofs <- f targetDirFiles.proofs
     return $ GluedStagesInput
-      { programs = PairingOf
+        { programs = PairingOf
             { c = cFunctions
             , asm = asmFunctions
             }
-      , objDumpInfo
-      , stackBounds
-      , inlineScripts
-      , proofs
-      , asmFunctionFilter
-      }
+        , objDumpInfo
+        , stackBounds
+        , inlineScripts
+        , proofs
+        , asmFunctionFilter
+        }
+  where
+    f file = lift (readTargetDirFileEither targetDir file) >>= liftEither
 
-readObjDumpInfo :: TargetDir -> IO (Either String ObjDumpInfo)
-readObjDumpInfo = readTargetDirFile "kernel.elf.symtab"
-
-readCFunctions :: TargetDir -> IO (Either String Program)
-readCFunctions = readTargetDirFile "CFunctions.txt"
-
-readAsmFunctions :: TargetDir -> IO (Either String Program)
-readAsmFunctions = readTargetDirFile "ASMFunctions.txt"
-
-readFunctions :: TargetDir -> IO (Either String Program)
-readFunctions = readTargetDirFile "functions.txt"
-
-readProblems :: TargetDir -> IO (Either String Problems)
-readProblems = readTargetDirFile "problems.txt"
-
-readStackBounds :: TargetDir -> IO (Either String StackBounds)
-readStackBounds = readTargetDirFile "StackBounds.txt"
-
-readInlineScripts :: TargetDir -> IO (Either String InlineScripts)
-readInlineScripts = readTargetDirFile "inline-scripts.json"
-
-readPairings :: TargetDir -> IO (Either String Pairings)
-readPairings = readTargetDirFile "pairings.json"
-
-readProofs :: TargetDir -> IO (Either String (Proofs ()))
-readProofs = readTargetDirFile "proofs.json"
-
-readProofChecks :: TargetDir -> IO (Either String (FlattenedProofChecks String))
-readProofChecks = readTargetDirFile "proof-checks.json"
-
-readSMTProofChecks :: TargetDir -> IO (Either String (FlattenedSMTProofChecks ()))
-readSMTProofChecks = readTargetDirFile "smt-proof-checks.json"
+readGluedStagesInput :: (Ident -> Bool) -> TargetDir -> IO GluedStagesInput
+readGluedStagesInput asmFunctionFilter targetDir =
+    readGluedStagesInputEither asmFunctionFilter targetDir >>= either throwIO return

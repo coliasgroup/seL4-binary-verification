@@ -5,7 +5,7 @@
 module BV.System.IntermediateArtifacts
     ( RegisterIntermediateArtifactsT
     , RegisterIntermediateArtifactsTInnerContext (..)
-    , runRegisterIntermediateArtifactsT
+    , checkRegisterIntermediateArtifactsT
     ) where
 
 import BV.ConcreteSyntax
@@ -45,32 +45,30 @@ data RegisterIntermediateArtifactsTInnerContext
 
 type RegisterIntermediateArtifactsTInner m = ReaderT RegisterIntermediateArtifactsTInnerContext m
 
-runRegisterIntermediateArtifactsT
+checkRegisterIntermediateArtifactsT
     :: (Monad m, MonadLogger m, MonadIO m, MonadFail m)
     => RegisterIntermediateArtifactsT m a
     -> RegisterIntermediateArtifactsTInner m a
-runRegisterIntermediateArtifactsT = iterT $ \case
+checkRegisterIntermediateArtifactsT = iterT $ \case
     RegisterIntermediateArtifact artifact m -> do
         ctx <- ask
-        let check f read dumpDst actual = do
-                expected <- liftIO (read ctx.targetDir) >>= \case
-                    Left err -> fail err -- TODO
-                    Right x -> return x
+        let check f file actual = do
+                expected <- liftIO $ readTargetDirFile ctx.targetDir file
                 let actual' = f expected actual
                 when (force actual' /= force expected) $ do
-                    let d = ctx.mismatchDumpDir </> dumpDst
-                    logErrorN $ "intermediate artifact mismatch, writing to " <> T.pack d
+                    let d = ctx.mismatchDumpDir </> file.relativePath
+                    logErrorN $ "Intermediate artifact mismatch, writing to " <> T.pack d
                     liftIO $ do
                         createDirectoryIfMissing True d
                         writeBVFile (d </> "actual.txt") actual'
                         writeBVFile (d </> "expected.txt") expected
-                    fail . T.unpack $ "intermediate artifact mismatch, wrote to " <> T.pack d
-        let foo :: Problems -> Problems -> Problems
-            foo exp act = act & #unwrap %~ M.filterWithKey (\k _v -> k `M.member` exp.unwrap)
+                    fail . T.unpack $ "Intermediate artifact mismatch, wrote to " <> T.pack d
+        let filterProblems expected actual = actual & #unwrap %~ M.filterWithKey (\k _v -> k `M.member` expected.unwrap)
+        let noop _expected actual = actual
         case artifact of
-            IntermediateArtifactFunctions a -> check (const id) readFunctions "functions" a
-            IntermediateArtifactPairings a -> check (const id) readPairings "pairings" a
-            IntermediateArtifactProblems a -> check foo readProblems "problems" a
-            IntermediateArtifactFlattenedProofChecks a -> check (const id) readProofChecks "proof-checks" a
-            IntermediateArtifactFlattenedSMTProofChecks a -> check (const id) readSMTProofChecks "smt-proof-checks" a
+            IntermediateArtifactFunctions a -> check noop targetDirFiles.functions a
+            IntermediateArtifactPairings a -> check noop targetDirFiles.pairings a
+            IntermediateArtifactProblems a -> check filterProblems targetDirFiles.problems a
+            IntermediateArtifactFlattenedProofChecks a -> check noop targetDirFiles.proofChecks a
+            IntermediateArtifactFlattenedSMTProofChecks a -> check noop targetDirFiles.smtProofChecks a
         m

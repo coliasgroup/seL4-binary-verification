@@ -13,6 +13,9 @@ import BV.Core.Types
 import BV.TargetDir
 import BV.Test.Utils
 
+import Control.Exception (Exception (displayException))
+import Data.Bifunctor (first)
+import Data.Functor (void)
 import System.FilePath ((</>))
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -36,8 +39,8 @@ testReader m = do
         Left err -> assertFailure (show err)
         _ -> return ()
 
-testReaderSeL4 :: (TargetDir -> IO (Either String a)) -> IO ()
-testReaderSeL4 f = testReader (f testSeL4TargetDirDefault)
+testReaderSeL4 :: ReadBVFile c a => TargetDirFile a -> IO ()
+testReaderSeL4 = void . readTargetDirFile testSeL4TargetDirDefault
 
 testReaderPath :: forall a c. ReadBVFile c a => FilePath -> IO ()
 testReaderPath path = testReader @a (readBVFile path)
@@ -56,28 +59,33 @@ testRoundTripWith parse build m = do
 testRoundTrip :: (Eq a, ReadBVFile c a, WriteBVFile c a) => IO (Either String a) -> IO ()
 testRoundTrip = testRoundTripWith (readBVContents "second trip") writeBVContents
 
-testRoundTripSeL4 :: (Eq a, ReadBVFile c a, WriteBVFile c a) => (TargetDir -> IO (Either String a)) -> IO ()
-testRoundTripSeL4 f = testRoundTrip (f testSeL4TargetDirDefault)
+testRoundTripSeL4 :: (Eq a, ReadBVFile c a, WriteBVFile c a) => TargetDirFile a -> IO ()
+testRoundTripSeL4 targetDirFile =
+    testRoundTrip (first displayException <$> readTargetDirFileEither testSeL4TargetDirDefault targetDirFile)
 
 testRoundTripPath :: forall a c. (Eq a, ReadBVFile c a, WriteBVFile c a) => FilePath -> IO ()
 testRoundTripPath path = testRoundTrip @a $ readBVFile path
 
 parsePrintSeL4 :: TestTree
 parsePrintSeL4 = testGroup "seL4"
-    [ testCase "objdump" $ testReaderSeL4 readObjDumpInfo
-    , testCase "c functions" $ testRoundTripSeL4 readCFunctions
-    , testCase "asm functions" $ testRoundTripSeL4 readAsmFunctions
-    , testCase "functions" $ testRoundTripSeL4 readFunctions
-    , testCase "problems" $ testRoundTripSeL4 readProblems
-    , testCase "stack bounds" $ testRoundTripSeL4 readStackBounds
-    , testCase "inline scripts" $ testRoundTripSeL4 readInlineScripts
-    , testCase "pairings" $ testRoundTripSeL4 readPairings
-    , testCase "problems and proofs" $ testRoundTripSeL4 readProofs
-    , testCase "proof checks" $ testRoundTrip (readProofChecks testSeL4TargetDirSmall)
-    -- , testCase "proof checks" $ testRoundTrip (readProofChecks testSeL4TargetDirBig)
-    , testCase "smt proof checks" $ testRoundTrip (readSMTProofChecks testSeL4TargetDirSmall)
-    -- , testCase "smt proof checks" $ testRoundTrip (readSMTProofChecks testSeL4TargetDirBig)
+    [ f targetDirFiles.symtab
+    , f targetDirFiles.cFunctions
+    , f targetDirFiles.asmFunctions
+    , f targetDirFiles.functions
+    , f targetDirFiles.problems
+    , f targetDirFiles.stackBounds
+    , f targetDirFiles.inlineScripts
+    , f targetDirFiles.pairings
+    , f targetDirFiles.proofs
+    , g testSeL4TargetDirSmall targetDirFiles.proofChecks
+    -- , g testSeL4TargetDirBig targetDirFiles.proofChecks
+    , g testSeL4TargetDirSmall targetDirFiles.smtProofChecks
+    -- , g testSeL4TargetDirBig targetDirFiles.smtProofChecks
     ]
+  where
+    f file = testCase file.relativePath $ testReaderSeL4 file
+    g dir file = testCase file.relativePath . testRoundTrip $
+        first displayException <$> readTargetDirFileEither dir file
 
 parsePrintGraphRefine :: TestTree
 parsePrintGraphRefine = testGroup "graph-refine" $
