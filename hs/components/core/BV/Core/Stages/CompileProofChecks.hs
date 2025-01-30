@@ -14,6 +14,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.SMTLIB2.Types
+import BV.Core.Stages.Utils
 
 import Control.DeepSeq (NFData)
 import Control.Monad.RWS.Lazy (RWS, runRWS)
@@ -22,6 +23,7 @@ import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.List (sort, sortOn)
 import Data.Map (Map, (!))
+import Data.Set (Set)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Debug.Trace
@@ -58,12 +60,16 @@ type M = RWS Problem [SExprWithPlaceholders] State
 data State
   = State
       { smtDerivedOps :: Map (Op, Integer) String
+      , namesUsed :: Set Ident
+      , externalNames :: Set Ident
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
 state0 :: State
 state0 = State
     { smtDerivedOps = mempty
+    , namesUsed = mempty
+    , externalNames = mempty
     }
 
 interpretGroupM :: [ProofCheck a] -> M [SMTProofCheckImp a]
