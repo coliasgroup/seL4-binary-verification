@@ -3,6 +3,8 @@ module BV.System.SolversConfig
     , OnlineSolverConfig (..)
     , SolverScope (..)
     , SolversConfig (..)
+    , allSolverMemoryModes
+    , allSolverScopes
     ) where
 
 import BV.Core.ExecuteSMTProofChecks
@@ -35,3 +37,9 @@ data SolverScope
   = SolverScopeHyp
   | SolverScopeAll
   deriving (Eq, Generic, Ord, Show)
+
+allSolverScopes :: [SolverScope]
+allSolverScopes = [SolverScopeHyp, SolverScopeAll]
+
+allSolverMemoryModes :: [SolverMemoryMode]
+allSolverMemoryModes = [SolverMemoryModeWord8, SolverMemoryModeWord32]

@@ -10,7 +10,7 @@ import Control.Concurrent.Async (race)
 import Control.Concurrent.Chan (Chan, newChan, readChan, writeChan)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 import Control.Exception (bracket)
-import Control.Monad (forever, when)
+import Control.Monad (forever, unless, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State (evalStateT, gets, put)
 import Data.Either (fromRight)
@@ -23,6 +23,7 @@ import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
 import Optics.State.Operators ((%%=), (%=))
+import Text.Printf (printf)
 
 withThrottling :: Units -> (Throttle -> IO a) -> IO a
 withThrottling availableUnits f = do
@@ -52,10 +53,15 @@ withThrottle throttle priority units m = bracket
         m)
 
 controlThrottle :: ThrottleControl -> Units -> IO Void
-controlThrottle throttleControl availableUnits = flip evalStateT throttleState0 . forever $ do
+controlThrottle throttleControl initialUnits = flip evalStateT throttleState0 . forever $ do
     msg <- liftIO $ readChan throttleControl.chan
     case msg of
         Borrow (Value { gate, priority, units }) -> do
+            unless (units <= initialUnits) $ do
+                fail $ printf
+                    "throttle error: requested number of units (%s) exceeds total number of units (%s)"
+                    (show units.unwrap)
+                    (show initialUnits.unwrap)
             #byValue %=
                 alterWithDefault M.empty priority
                     (alterWithDefault S.empty units
@@ -73,11 +79,11 @@ controlThrottle throttleControl availableUnits = flip evalStateT throttleState0 
                     put Nothing
             when open $ do
                 #availableUnits %= (+) units
-    curAvailableUnits <- use #availableUnits
+    availableUnits <- use #availableUnits
     byValue <- use #byValue
     let toOpen =
             let f (priority, byUnits) = do
-                    (units, gates) <- M.lookupLE curAvailableUnits byUnits
+                    (units, gates) <- M.lookupLE availableUnits byUnits
                     i <- S.findIndexL (\(_, isOpen) -> not isOpen) gates
                     let (gate, _) = S.index gates i
                     return (priority, units, i, gate)
@@ -88,7 +94,7 @@ controlThrottle throttleControl availableUnits = flip evalStateT throttleState0 
         liftIO $ putMVar gate ()
   where
     throttleState0 = ThrottleState
-        { availableUnits
+        { availableUnits = initialUnits
         , byValue = M.empty
         }
 

@@ -178,6 +178,7 @@ library system
   exposed-modules:
       BV.System.CacheKey
       BV.System.Check
+      BV.System.CheckScratch
       BV.System.IntermediateArtifacts
       BV.System.Notes
       BV.System.SeL4
@@ -222,6 +223,7 @@ library system
     , tasty-hunit
     , text
     , transformers
+    , unliftio-core
   default-language: GHC2021
 
 library target-dir
@@ -271,6 +273,23 @@ library test-utils
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:target-dir
+  default-language: GHC2021
+
+executable check-scratch
+  main-is: Main.hs
+  hs-source-dirs:
+      components/check-scratch
+  default-extensions:
+      FunctionalDependencies
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base
+    , sel4-bv:system
+    , sel4-bv:test-utils
   default-language: GHC2021
 
 executable cli

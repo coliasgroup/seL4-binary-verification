@@ -158,6 +158,7 @@ internal-libraries:
       - filepath
       - directory
       - monad-logger
+      - unliftio-core
       # TODO prune
       - pretty-show
       # - pretty-simple
@@ -203,6 +204,18 @@ executables:
       - sel4-bv:test-utils
       # external
       - text
+    ghc-options:
+      # TODO probably unnecessary here
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+
+  check-scratch:
+    source-dirs: components/check-scratch
+    main: Main.hs
+    dependencies:
+      - sel4-bv:system
+      - sel4-bv:test-utils
     ghc-options:
       # TODO probably unnecessary here
       - -threaded
