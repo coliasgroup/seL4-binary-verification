@@ -144,9 +144,14 @@ smtExprM env expr = do
             _ | op == OpCountLeadingZeroes || op == OpWordReverse -> do
                     let [v] = args
                     v' <- smtExprM env v
-                    undefined
+                    -- undefined
+                    return ["TODO"]
             _ | op == OpCountTrailingZeroes -> do
-                    undefined
+                    -- undefined
+                    return ["TODO"]
+            _ -> do
+                -- undefined
+                return ["TODO"]
 
 getSMTDerivedOpM :: Op -> Integer -> M String
 getSMTDerivedOpM op n = do
@@ -163,4 +168,5 @@ getSMTDerivedOpM op n = do
 
 interpretHypM :: Hyp -> M Expr
 interpretHypM hyp = do
-    undefined
+    -- undefined
+    return $ Expr boolT (ExprValueSMTExpr ["TODO"])
