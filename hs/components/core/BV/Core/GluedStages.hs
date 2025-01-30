@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
-
 module BV.Core.GluedStages
-    ( Input (..)
+    ( GluedStagesInput (..)
     , IntermediateArtifact (..)
     , MonadPureStages
     , MonadRegisterIntermediateArtifacts (..)
@@ -12,19 +10,20 @@ module BV.Core.GluedStages
 
 import BV.Core.Stages
 import BV.Core.Types
+import BV.Core.Types.Extras
 
-import Control.Exception (assert)
+import Control.Monad (guard)
 import Control.Monad.Logger
 import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust)
-import qualified Data.Set as S
+import Data.Maybe (fromJust, isJust)
+import Data.String (fromString)
 import GHC.Generics (Generic)
 import Optics
 
-data Input
-  = Input
+data GluedStagesInput
+  = GluedStagesInput
       { programs :: PairingOf Program
       , objDumpInfo :: ObjDumpInfo
       , stackBounds :: StackBounds
@@ -38,8 +37,8 @@ data IntermediateArtifact
   = IntermediateArtifactFunctions Program
   | IntermediateArtifactPairings Pairings
   | IntermediateArtifactProblems Problems
-  | IntermediateArtifactProofChecks (FlattenedProofChecks String)
-  | IntermediateArtifactSMTProofChecks (FlattenedSMTProofChecks ())
+  | IntermediateArtifactFlattenedProofChecks (FlattenedProofChecks String)
+  | IntermediateArtifactFlattenedSMTProofChecks (FlattenedSMTProofChecks ())
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadRegisterIntermediateArtifacts m where
@@ -51,73 +50,74 @@ type MonadPureStages m =
     , MonadRegisterIntermediateArtifacts m
     )
 
-gluedStages :: MonadPureStages m => Input -> m (SMTProofChecks ())
+gluedStages :: MonadPureStages m => GluedStagesInput -> m (SMTProofChecks String)
 gluedStages input = do
-    logInfoN "x1"
+    logWarnN . fromString $ "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) unhandledAsmFunctionNames.c)
+    logWarnN . fromString $ "Unhandled instrcution functions (Asm side): " ++ show (map (.unwrap) unhandledAsmFunctionNames.asm)
+    logInfoN "Registering functions"
     registerIntermediateArtifact $ IntermediateArtifactFunctions collectedFunctions
-    logInfoN "x2"
+    logInfoN "Registering pairings"
     registerIntermediateArtifact $ IntermediateArtifactPairings pairings
-    logInfoN "x3"
+    logInfoN "Registering problems"
     registerIntermediateArtifact $ IntermediateArtifactProblems problems
-    logInfoN "x4"
-    registerIntermediateArtifact $ IntermediateArtifactProofChecks flattenedProofChecks
-    logInfoN "x5"
-    registerIntermediateArtifact $ IntermediateArtifactSMTProofChecks flattenedSMTProofChecks
-    logInfoN "x6"
+    logInfoN "Registering flattened proof checks"
+    registerIntermediateArtifact $ IntermediateArtifactFlattenedProofChecks flattenedProofChecks
+    logInfoN "Registering flattened SMT proof checks"
+    registerIntermediateArtifact $ IntermediateArtifactFlattenedSMTProofChecks flattenedSMTProofChecks
+    logInfoN "Registered all artifacts"
     return smtProofChecks
 
   where
 
-    altered = fixupProgram <$> PairingOf
-        { asm = input.programs.asm & #functions %~ M.filterWithKey (const . input.asmFunctionFilter)
+    alteredPrograms = fixupProgram <$> PairingOf
+        { asm = input.programs.asm & #functions %~ M.filterWithKey (\k _v -> input.asmFunctionFilter k)
         , c = pseudoCompile input.objDumpInfo input.programs.c
         }
 
-    (inlineAsmPairings, alteredWithInlineAsm, _unhandledAsmFuns) = addInlineAssemblySpecs altered
+    (inlineAsmPairings, alteredProgramsWithInlineAsm, unhandledAsmFunctionNames) =
+        addInlineAssemblySpecs alteredPrograms
 
-    finalPrograms = alteredWithInlineAsm
+    finalPrograms = alteredProgramsWithInlineAsm
 
-    collectedFunctions = Program
-        { structs = M.empty
-        , constGlobals = M.empty
-        , functions =
-            assert (M.disjoint finalPrograms.c.functions finalPrograms.asm.functions) $
-            M.union finalPrograms.c.functions finalPrograms.asm.functions
-        }
+    collectedFunctions = programFromFunctions $
+        M.unionWith (error "not disjoint") finalPrograms.c.functions finalPrograms.asm.functions
 
-    pairingIds = catMaybes . flip map (M.keys finalPrograms.asm.functions) $ \asmFunName ->
-        let cFunName = asmFunNameToCFunName asmFunName
-         in if M.member cFunName finalPrograms.c.functions
-            then Just (PairingOf { c = cFunName, asm = asmFunName })
-            else Nothing
+    normalFunctionPairingIds = do
+        asm <- M.keys finalPrograms.asm.functions
+        let c = asmFunNameToCFunName asm
+        guard $ c `M.member` finalPrograms.c.functions
+        return $ PairingOf { c = asmFunNameToCFunName asm, asm }
 
-    pairingsLessInlineAsm = flip M.fromSet (S.fromList pairingIds) $ \pairingId ->
-        let stackBound = input.stackBounds.unwrap ! pairingId.asm
-            cFun = finalPrograms.c.functions ! pairingId.c
-         in formulatePairing stackBound cFun.input cFun.output
+    normalPairings = M.fromList
+        [ let stackBound = input.stackBounds.unwrap ! pairingId.asm
+              cFun = finalPrograms.c.functions ! pairingId.c
+              pairing = formulatePairing stackBound cFun.input cFun.output
+           in (pairingId, pairing)
+        | pairingId <- normalFunctionPairingIds
+        ]
 
-    pairings = Pairings $ pairingsLessInlineAsm `M.union` inlineAsmPairings.unwrap
+    pairings = Pairings $ normalPairings `M.union` inlineAsmPairings.unwrap
 
-    lookupFunctionForProblem tag funName = (pairingSide tag finalPrograms).functions ! funName
+    lookupFunction (WithTag tag funName) = (pairingSide tag finalPrograms).functions ! funName
 
-    problems = Problems $ flip M.mapMaybeWithKey pairings.unwrap $ \pairingId _pairing -> do
+    problems = Problems . M.fromList $ do
+        pairingId <- normalFunctionPairingIds
         let namedFuns = (\funName prog -> Named funName (prog.functions ! funName)) <$> pairingId <*> finalPrograms
-        _ <- namedFuns.c.value.body
-        _ <- namedFuns.asm.value.body
-        -- guard $ namedFuns.asm.name == "updateCapData"
-        -- guard $ namedFuns.asm.name == "Arch_configureIdleThread"
+        guard $ isJust namedFuns.c.value.body
+        guard $ isJust namedFuns.asm.value.body
         let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
-        return $ buildProblem lookupFunctionForProblem inlineScript namedFuns
+        let problem = buildProblem lookupFunction inlineScript namedFuns
+        return (pairingId, problem)
 
-    problemsThatHaveProofs = Problems $ M.restrictKeys problems.unwrap (M.keysSet input.proofs.unwrap)
+    provenProblems = problems & #unwrap %~ \m -> M.restrictKeys m (M.keysSet input.proofs.unwrap)
 
-    proofChecks = ProofChecks $ flip M.mapWithKey problemsThatHaveProofs.unwrap $ \pairingId problem ->
+    proofChecks = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings `atPairingId` pairingId
             proofScript = input.proofs `atPairingId` pairingId
             lookupOrigVarName quadrant mangledName =
                 fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
               where
-                fun = (pairingSide quadrant.tag finalPrograms).functions ! pairingSide quadrant.tag pairingId
+                fun = lookupFunction (pairingSideWithTag quadrant.tag pairingId)
                 origArgs = case quadrant.direction of
                     PairingEqDirectionIn -> fun.input
                     PairingEqDirectionOut -> fun.output
@@ -129,11 +129,10 @@ gluedStages input = do
 
     flattenedProofChecks = flattenProofChecks proofChecks
 
-    smtProofChecks = void . SMTProofChecks $ flip M.mapWithKey problemsThatHaveProofs.unwrap $ \pairingId problem ->
-        let theseProofChecks = proofChecks `atPairingId` pairingId
-         in compileProofChecks problem <$> theseProofChecks
+    smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+        compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
 
-    flattenedSMTProofChecks = flattenSMTProofChecks smtProofChecks
+    flattenedSMTProofChecks = void $ flattenSMTProofChecks smtProofChecks
 
 
 asmFunNameToCFunName :: Ident -> Ident

@@ -17,4 +17,4 @@ cacheKeyForCheck check = hashlazy bytes
   where
     bytes = encodeUtf8 normalizedText
     normalizedText = toLazyText $
-        foldMap ((<> "\n") . buildSExprWithPlaceholders) (check.imp.term:check.setup)
+        foldMap ((<> "\n") . buildSExprWithPlaceholders) (check.imp.term : check.setup)

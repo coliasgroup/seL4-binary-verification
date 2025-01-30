@@ -176,7 +176,6 @@ library system
   visibility: public
   exposed-modules:
       BV.System.CacheKey
-      BV.System.Glue
       BV.System.IntermediateArtifacts
       BV.System.Notes
       BV.System.SeL4

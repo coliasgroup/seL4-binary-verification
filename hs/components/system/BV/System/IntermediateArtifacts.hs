@@ -71,6 +71,6 @@ runRegisterIntermediateArtifactsT = iterT $ \case
             IntermediateArtifactFunctions a -> check (const id) readFunctions "functions" a
             IntermediateArtifactPairings a -> check (const id) readPairings "pairings" a
             IntermediateArtifactProblems a -> check foo readProblems "problems" a
-            IntermediateArtifactProofChecks a -> check (const id) readProofChecks "proof-checks" a
-            IntermediateArtifactSMTProofChecks a -> check (const id) readSMTProofChecks "smt-proof-checks" a
+            IntermediateArtifactFlattenedProofChecks a -> check (const id) readProofChecks "proof-checks" a
+            IntermediateArtifactFlattenedSMTProofChecks a -> check (const id) readSMTProofChecks "smt-proof-checks" a
         m

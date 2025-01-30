@@ -7,9 +7,9 @@ module BV.Core.Stages.BuildProblem
 
 import BV.Core.Graph
 import BV.Core.Logic
+import BV.Core.Stages.Utils
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Stages.Utils
 import BV.Core.Utils
 
 import Control.Exception (assert)
@@ -25,7 +25,7 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
-buildProblem :: (Tag -> Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
+buildProblem :: (WithTag Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
 buildProblem lookupFun inlineScript funs = build builder
   where
     builder = flip execState (beginProblemBuilder funs) $ do
@@ -104,7 +104,7 @@ forceSimpleLoopReturns = do
                         then Addr simpleRetNodeAddr
                         else cont
 
-inline :: (Tag -> Ident -> Function) -> NodeBySource -> State ProblemBuilder ()
+inline :: (WithTag Ident -> Function) -> NodeBySource -> State ProblemBuilder ()
 inline lookupFun nodeBySource = do
     zoom #nodeMapBuilder $ nodeMapBuilderInline lookupFun nodeBySource
     forceSimpleLoopReturns
@@ -239,14 +239,14 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
     insertNode exitNodeAddr exitNode Nothing
 
 nodeMapBuilderInline
-    :: (Tag -> Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
+    :: (WithTag Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
 nodeMapBuilderInline lookupFun nodeBySource = do
     let tag = nodeBySource.nodeSource.tag
     nodeAddr <- use $
         #nodesBySource % at nodeBySource.nodeSource % unwrapped
             % expectingIx nodeBySource.indexInProblem
     funName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
-    nodeMapBuilderInlineAtPoint nodeAddr (lookupFun tag funName)
+    nodeMapBuilderInlineAtPoint nodeAddr (lookupFun (WithTag tag funName))
 
 padMergePoints
     :: State NodeMapBuilder ()

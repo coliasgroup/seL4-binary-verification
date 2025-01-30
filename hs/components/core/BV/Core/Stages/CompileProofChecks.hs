@@ -10,11 +10,11 @@ module BV.Core.Stages.CompileProofChecks
     ( compileProofChecks
     ) where
 
+import BV.Core.Stages.Utils
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.SMTLIB2.Types
-import BV.Core.Stages.Utils
 
 import Control.DeepSeq (NFData)
 import Control.Monad.RWS.Lazy (RWS, runRWS)
@@ -23,8 +23,8 @@ import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.List (sort, sortOn)
 import Data.Map (Map, (!))
-import Data.Set (Set)
 import qualified Data.Map as M
+import Data.Set (Set)
 import qualified Data.Set as S
 import Debug.Trace
 import GHC.Generics (Generic)

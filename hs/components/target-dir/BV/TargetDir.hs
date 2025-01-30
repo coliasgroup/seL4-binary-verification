@@ -36,7 +36,7 @@ targetDirPath targetDir rel = targetDir.path </> rel
 readTargetDirFile :: ReadBVFile c a => FilePath -> TargetDir -> IO (Either String a)
 readTargetDirFile rel targetDir = readBVFile (targetDirPath targetDir rel)
 
-readInput :: (Ident -> Bool) -> TargetDir -> IO (Either String Input)
+readInput :: (Ident -> Bool) -> TargetDir -> IO (Either String GluedStagesInput)
 readInput asmFunctionFilter targetDir = runExceptT $ do
     cFunctions <- lift (readCFunctions targetDir) >>= liftEither
     asmFunctions <- lift (readAsmFunctions targetDir) >>= liftEither
@@ -44,7 +44,7 @@ readInput asmFunctionFilter targetDir = runExceptT $ do
     stackBounds <- lift (readStackBounds targetDir) >>= liftEither
     inlineScripts <- lift (readInlineScripts targetDir) >>= liftEither
     proofs <- lift (readProofs targetDir) >>= liftEither
-    return $ Input
+    return $ GluedStagesInput
       { programs = PairingOf
             { c = cFunctions
             , asm = asmFunctions
