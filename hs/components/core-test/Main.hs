@@ -32,15 +32,19 @@ tests = testGroup "Tests"
 
 testGlued :: IO ()
 testGlued = do
-    input <- readGluedStagesInput defaultSeL4AsmFunctionFilter targetDir
+    input <- readGluedStagesInput defaultSeL4AsmFunctionFilter referenceTargetDir
     runStderrLoggingT $ runReaderT
-        (checkRegisterIntermediateArtifactsT (void $ gluedStages input))
-        (RegisterIntermediateArtifactsTInnerContext targetDir mismatchDumpDir)
+        (runRegisterIntermediateArtifactsT (void $ gluedStages input))
+        (RegisterIntermediateArtifactsTInnerContext
+            { force = True
+            , dumpTargetDir = Nothing
+            , referenceTargetDir = Just referenceTargetDir
+            , mismatchDumpDir = Just $ tmpDir </> "mismatch"
+            })
   where
-    mismatchDumpDir = tmpDir </> "mismatch"
-    -- targetDir = testSeL4TargetDirBig
-    targetDir = testSeL4TargetDirSmall
-    -- targetDir = testSeL4TargetDirFocused
+    -- referenceTargetDir = testSeL4TargetDirBig
+    referenceTargetDir = testSeL4TargetDirSmall
+    -- referenceTargetDir = testSeL4TargetDirFocused
 
 instance (MonadLogger m, Functor f) => MonadLogger (FT f m) where
     monadLoggerLog loc source level msg = lift $ monadLoggerLog loc source level msg

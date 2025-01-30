@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.Core.GluedStages
@@ -12,6 +13,7 @@ import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras
 
+import Control.DeepSeq (NFData)
 import Control.Monad (guard)
 import Control.Monad.Logger
 import Data.Functor (void)
@@ -39,7 +41,7 @@ data IntermediateArtifact
   | IntermediateArtifactProblems Problems
   | IntermediateArtifactFlattenedProofChecks (FlattenedProofChecks String)
   | IntermediateArtifactFlattenedSMTProofChecks (FlattenedSMTProofChecks ())
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 class Monad m => MonadRegisterIntermediateArtifacts m where
     registerIntermediateArtifact :: IntermediateArtifact -> m ()
@@ -64,7 +66,7 @@ gluedStages input = do
     registerIntermediateArtifact $ IntermediateArtifactFlattenedProofChecks flattenedProofChecks
     logInfoN "Registering flattened SMT proof checks"
     registerIntermediateArtifact $ IntermediateArtifactFlattenedSMTProofChecks flattenedSMTProofChecks
-    logInfoN "Registered all artifacts"
+    logInfoN "Registered all intermediate artifacts"
     return smtProofChecks
 
   where
