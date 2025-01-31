@@ -19,6 +19,7 @@ solversConfig = SolversConfig
         { command = ["yices-smt2", "--incremental"]
         , memoryMode = SolverMemoryModeWord8
         }
+    , onlineTimeout = 30
     , offline =
         [ OfflineSolverGroupConfig
             { command = ["yices-smt2"]
@@ -41,6 +42,7 @@ solversConfig = SolversConfig
         --     , scopes = allSolverScopes
         --     }
         ]
+    , offlineTimeout = 6000
     }
 
 runScratch :: TargetDir -> IO ()

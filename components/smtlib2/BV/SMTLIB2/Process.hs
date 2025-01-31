@@ -1,7 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-type-defaults #-}
+
 module BV.SMTLIB2.Process
-    ( SolverT
+    ( SolverProcessException (..)
+    , SolverT
     , runSolver
     ) where
 
@@ -10,61 +13,77 @@ import BV.SMTLIB2.Parser.Attoparsec
 import BV.SMTLIB2.Types
 
 import Control.Applicative ((<|>))
-import Control.Concurrent.Async (withAsync)
-import Control.Exception (Exception)
-import Control.Exception.Base (throw)
-import Control.Monad.Catch (MonadThrow, finally)
+import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
+                                 cancelWith, wait, withAsync)
+import Control.Concurrent.STM
+import Control.Exception (Exception, SomeException, assert)
+import Control.Monad.Catch (MonadThrow, finally, try)
 import Control.Monad.Catch.Pure (MonadMask)
 import Control.Monad.Free (liftF)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO))
-import Control.Monad.Reader (MonadTrans (lift), ReaderT (..), ask, runReaderT)
+import Control.Monad.IO.Unlift (MonadUnliftIO, toIO)
+import Control.Monad.Reader (MonadTrans (lift), ReaderT (..), runReaderT)
+import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Free.Church (FT, iterT)
-import Data.Conduit (ConduitT, Flush (Chunk, Flush), await, runConduit, yield,
-                     (.|))
+import Data.Conduit (Flush (Chunk, Flush), runConduit, yield, (.|))
 import Data.Conduit.Attoparsec (conduitParser)
 import qualified Data.Conduit.List as CL
 import Data.Conduit.Process (FlushInput (FlushInput), streamingProcess,
-                             streamingProcessHandleRaw, terminateProcess)
+                             streamingProcessHandleRaw, terminateProcess,
+                             waitForStreamingProcess)
 import Data.Conduit.Text (decodeUtf8)
 import qualified Data.Conduit.Text as CT
-import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB
-import Data.Void (Void)
 import GHC.Generics (Generic)
 import System.Process (CreateProcess)
-import Control.Exception (assert)
-import System.Timeout (timeout)
 
 data SolverDSL a
   = Send SExpr a
-  | Recv (SExpr -> a)
+  | RecvWithTimeout (Maybe SolverTimeout) (Maybe SExpr -> a)
   deriving (Functor, Generic)
 
 instance Monad m => MonadSolver (FT SolverDSL m) where
     send msg = liftF $ Send msg ()
-    recv = liftF $ Recv id
+    recvWithTimeout maybeTimeout = liftF $ RecvWithTimeout maybeTimeout id
 
 type SolverT m = FT SolverDSL (SolverTInner m)
 
-type SolverTInner m = ReaderT (SExpr -> m ()) (ConduitT SExpr Void m)
+type SolverTInner m = ReaderT (SolverTInnerContext m) m
+
+data SolverTInnerContext m
+  = SolverTInnerContext
+      { send :: SExpr -> m ()
+      , recvWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
+      }
+
+liftIOContext :: MonadIO m => SolverTInnerContext IO -> SolverTInnerContext m
+liftIOContext ctx = SolverTInnerContext
+    { send = liftIO . ctx.send
+    , recvWithTimeout = liftIO . ctx.recvWithTimeout
+    }
 
 runSolverT :: Monad m => SolverT m a -> SolverTInner m a
 runSolverT = iterT $ \case
-    Send msg m -> do
-        sink <- ask
-        lift . lift $ sink msg
+    Send req m -> do
+        send' <- asks (.send)
+        lift $ send' req
         m
-    Recv f -> lift await >>= f . fromMaybe (throw NoResponseException)
+    RecvWithTimeout maybeSeconds cont -> do
+        recvWithTimeout' <- asks (.recvWithTimeout)
+        resp <- lift $ recvWithTimeout' maybeSeconds
+        cont resp
 
 runSolver
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
-    => CreateProcess -> Maybe Integer -> (T.Text -> m ()) -> SolverT m a -> m (Maybe a)
-runSolver cmd maybeTimeout logStderr m = do
-    ((FlushInput procStdin, closeProcStdin), procStdout, procStderr, cph) <- liftIO $ streamingProcess cmd
+    => CreateProcess -> (T.Text -> m ()) -> SolverT m a -> m a
+runSolver cmd logStderr m = do
+    ((FlushInput procStdin, closeProcStdin), procStdout, procStderr, processHandle) <-
+        liftIO $ streamingProcess cmd
+
+    sourceChan <- liftIO newTChanIO
 
     let sexprToChunks sexpr = map T.encodeUtf8 (TL.toChunks (TB.toLazyText (buildSExpr sexpr <> "\n")))
 
@@ -72,38 +91,65 @@ runSolver cmd maybeTimeout logStderr m = do
                (mapM_ (yield . Chunk) (sexprToChunks sexpr) >> yield Flush)
             .| procStdin
 
-    let interaction =
+    let source = runConduit $
                procStdout
             .| decodeUtf8
             .| conduitParser (Just <$> parseSExpr <|> Nothing <$ consumeSomeSExprWhitespace)
             .| CL.map snd
             .| CL.concat
-            .| (runReaderT (runSolverT m) sink <* closeProcStdin)
+            .| CL.mapM_ (atomically . writeTChan sourceChan)
 
-    let logging = runConduit $
+    logging <- toIO . runConduit $
                procStderr
             .| decodeUtf8
             .| CT.lines
             .| CL.mapM_ logStderr
 
-    let run = withRunInIO $ \runInIO ->
-            liftIO . withAsync (runInIO logging) $ \_ ->
-                applyTimeout (runInIO (runConduit interaction))
+    let termination = waitForStreamingProcess processHandle
 
-    run `finally` liftIO (terminateProcess (streamingProcessHandleRaw cph))
+    let ctx = SolverTInnerContext
+            { send = sink
+            , recvWithTimeout = \maybeTimeout ->
+                readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
+            }
 
-  where
-    applyTimeout = case maybeTimeout of
-        Nothing -> fmap Just
-        Just seconds ->
-            let microseconds = seconds * 10^6
-             in timeout (fromIntegerChecked microseconds)
+    let env = runConcurrently $
+                SolverProcessExceptionSource <$> Concurrently (try source)
+            <|> SolverProcessExceptionLogging <$> Concurrently (try logging)
+            <|> SolverProcessExceptionTermination <$ Concurrently termination
 
-data NoResponseException
-  = NoResponseException
-  deriving (Show)
+    interaction <- toIO $ runReaderT (runSolverT m) (liftIOContext ctx)
 
-instance Exception NoResponseException
+    let run =
+            withAsync env $ \envA ->
+                withAsync interaction $ \interactionA ->
+                    let propagate = do
+                            ex <- wait envA
+                            cancelWith interactionA ex
+                     in withAsync propagate $ \_ ->
+                            wait interactionA
+
+    liftIO $ (run <* closeProcStdin) `finally` terminateProcess (streamingProcessHandleRaw processHandle)
+
+data SolverProcessException
+  = SolverProcessExceptionSource (Either SomeException ())
+  | SolverProcessExceptionLogging (Either SomeException ())
+  | SolverProcessExceptionTermination
+  deriving (Generic, Show)
+
+instance Exception SolverProcessException
+
+readTChanWithTimeout :: Maybe Int -> TChan a -> IO (Maybe a)
+readTChanWithTimeout maybeMicroseconds chan = case maybeMicroseconds of
+    Just microseconds -> do
+        delay <- registerDelay microseconds
+        atomically $ do
+                Just <$> readTChan chan
+            <|> Nothing <$ (readTVar delay >>= check)
+    Nothing -> Just <$> atomically (readTChan chan)
+
+solverTimeoutToMicroseconds :: SolverTimeout -> Int
+solverTimeoutToMicroseconds timeout = fromIntegerChecked (timeout.seconds * 10^6)
 
 fromIntegerChecked :: forall a. (Bounded a, Integral a) => Integer -> a
 fromIntegerChecked x = assert (x <= toInteger (maxBound :: a)) (fromInteger x)

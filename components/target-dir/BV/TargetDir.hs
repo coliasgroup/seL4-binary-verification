@@ -19,9 +19,7 @@ import BV.Core.GluedStages
 import BV.Core.Types
 
 import Control.Exception (Exception (..), throwIO)
-import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
-import Control.Monad.Trans (lift)
 import Data.Bifunctor (first)
 import GHC.Generics (Generic)
 import System.FilePath ((</>))

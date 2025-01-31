@@ -43,6 +43,9 @@ internal-libraries:
   smtlib2:
     visibility: public
     source-dirs: components/smtlib2
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
       - sel4-bv:smtlib2-types
@@ -55,6 +58,7 @@ internal-libraries:
       - exceptions
       - process
       - async
+      - stm
       - unliftio-core
       - conduit
       - conduit-extra

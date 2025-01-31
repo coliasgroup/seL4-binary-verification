@@ -132,6 +132,8 @@ library smtlib2
       OverloadedRecordDot
       DerivingStrategies
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -145,6 +147,7 @@ library smtlib2
     , mtl
     , process
     , sel4-bv:smtlib2-types
+    , stm
     , text
     , unliftio-core
   default-language: GHC2021

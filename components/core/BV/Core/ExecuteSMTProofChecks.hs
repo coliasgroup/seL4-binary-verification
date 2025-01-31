@@ -13,15 +13,18 @@ import BV.SMTLIB2.Types.Command
 
 executeSMTProofCheckOffline
     :: MonadSolver m
-    => SolverConfig -> SMTProofCheck a -> m SatResult
-executeSMTProofCheckOffline = undefined
+    => SolverConfig -> Maybe SolverTimeout -> SMTProofCheck a -> m (Maybe SatResult)
+executeSMTProofCheckOffline config timeout check = undefined
 
 executeSMTProofCheckGroupOffline
     :: MonadSolver m
-    => SolverConfig -> SMTProofCheckGroup a -> m SatResult
-executeSMTProofCheckGroupOffline = undefined
+    => SolverConfig -> Maybe SolverTimeout -> SMTProofCheckGroup a -> m (Maybe SatResult)
+executeSMTProofCheckGroupOffline config timeout check = undefined
 
 executeSMTProofCheckGroupOnline
     :: MonadSolver m
-    => SolverConfig -> (a -> SatResult -> m ()) -> SMTProofCheckGroup a -> m ()
-executeSMTProofCheckGroupOnline = undefined
+    => SolverConfig
+    -> Maybe SolverTimeout
+    -> SMTProofCheckGroup a
+    -> m (SMTProofCheckGroup (Maybe SatResult, a))
+executeSMTProofCheckGroupOnline config timeout group = undefined

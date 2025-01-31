@@ -18,7 +18,9 @@ import GHC.Generics (Generic)
 data SolversConfig
   = SolversConfig
       { online :: OnlineSolverConfig
+      , onlineTimeout :: Integer
       , offline :: [OfflineSolverGroupConfig]
+      , offlineTimeout :: Integer
       }
   deriving (Eq, Generic, Ord, Show)
 
