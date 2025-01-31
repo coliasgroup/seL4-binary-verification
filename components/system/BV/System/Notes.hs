@@ -18,6 +18,6 @@ data ProofSearchError
   deriving (Eq, Generic, Ord, Show)
 
 data AnyTask
-  = TaskSMTProofCheckGroup (Task (SMTProofCheckGroup ProofScriptNodeLocation) (SMTProofCheckResult ()))
+  = TaskSMTProofCheckGroup (Task (SMTProofCheckGroup (SMTProofCheckDescription String)) (SMTProofCheckResult ()))
   | TaskProofSearch (Task PairingId ProofSearchResult)
   deriving (Eq, Generic)

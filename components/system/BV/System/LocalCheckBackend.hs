@@ -2,20 +2,21 @@
 
 module BV.System.LocalCheckBackend
     ( AcceptableSatResult (..)
-    , LocalCheckBackendConfig
+    , LocalCheckBackendConfig (..)
     , MonadLocalCheckCache (..)
     , localCheckBackend
     ) where
 
 import BV.Core.AdornProofScript
+import BV.Core.ExecuteSMTProofChecks (SolverConfig)
 import BV.Core.Types
+import BV.System.CheckFingerprint
 import BV.System.CheckFrontend
+import BV.System.LocalCheckBackend.Cache
 import BV.System.SolversConfig
 import BV.System.TaskQueue
 import BV.System.Throttle
 
-import BV.Core.ExecuteSMTProofChecks (SolverConfig)
-import BV.System.CheckFingerprint
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  race)
 import Control.Monad (forever)
@@ -41,18 +42,9 @@ data LocalCheckBackendConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
-data AcceptableSatResult
-  = AcceptableSatResultSat
-  | AcceptableSatResultUnsat
-  deriving (Eq, Generic, Ord, Show)
-
-class Monad m => MonadLocalCheckCache m where
-    queryCache :: SMTProofCheck () -> m (Maybe AcceptableSatResult)
-    updateCache :: SMTProofCheck () -> AcceptableSatResult -> m ()
-
 localCheckBackend
     :: (MonadUnliftIO m, MonadLogger m, MonadLocalCheckCache m)
-    => LocalCheckBackendConfig -> FlattenedSMTProofChecks ProofScriptNodeLocation -> m CheckReport
+    => LocalCheckBackendConfig -> FlattenedSMTProofChecks (SMTProofCheckDescription String) -> m CheckReport
 localCheckBackend config checks = withRunInIO $ \runInIO -> do
     (taskQueueIn, taskQueueControl) <- liftIO newTaskQueue
     let completeTasks = do
@@ -66,7 +58,7 @@ localCheckBackend config checks = withRunInIO $ \runInIO -> do
 
 checkGroup
     :: (MonadUnliftIO m, MonadLogger m, MonadLocalCheckCache m)
-    => LocalCheckBackendConfig -> Throttle -> SMTProofCheckGroup ProofScriptNodeLocation -> m (SMTProofCheckResult ())
+    => LocalCheckBackendConfig -> Throttle -> SMTProofCheckGroup (SMTProofCheckDescription String) -> m (SMTProofCheckResult ())
 checkGroup config throttle group = runExceptT $ do
     logDebugN . T.pack $ printf "Checking group: %s" (smtProofCheckGroupFingerprint (void group))
     filteredGroup <- ExceptT $ filterGroupM group

@@ -182,9 +182,10 @@ library system
       BV.System.Cache
       BV.System.CheckFingerprint
       BV.System.CheckFrontend
-      BV.System.CheckScratch
       BV.System.IntermediateArtifacts
       BV.System.LocalCheckBackend
+      BV.System.LocalCheckBackend.Cache
+      BV.System.LocalCheckBackend.Scratch
       BV.System.Notes
       BV.System.SeL4
       BV.System.SolversConfig
@@ -296,6 +297,9 @@ executable check-scratch
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
+    , containers
+    , filepath
+    , optics
     , sel4-bv:system
     , sel4-bv:test-utils
   default-language: GHC2021

@@ -222,6 +222,10 @@ executables:
     dependencies:
       - sel4-bv:system
       - sel4-bv:test-utils
+      # external
+      - containers
+      - filepath
+      - optics
     ghc-options:
       # TODO probably unnecessary here
       - -threaded

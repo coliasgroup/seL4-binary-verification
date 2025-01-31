@@ -67,10 +67,10 @@ liftIOContext ctx = SolverTInnerContext
 
 runSolverT :: Monad m => SolverT m a -> SolverTInner m a
 runSolverT = iterT $ \case
-    Send req m -> do
+    Send req cont -> do
         send' <- asks (.send)
         lift $ send' req
-        m
+        cont
     RecvWithTimeout maybeSeconds cont -> do
         recvWithTimeout' <- asks (.recvWithTimeout)
         resp <- lift $ recvWithTimeout' maybeSeconds
