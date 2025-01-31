@@ -1,7 +1,9 @@
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 module BV.System.Check
     ( AcceptableSatResult (..)
     , ExecuteChecksConfig (..)
-    , MonadCache (..)
+    , MonadSMTProofCheckCache (..)
     , ProblemCheckError (..)
     , ProblemCheckResult
     , Report (..)
@@ -45,9 +47,12 @@ data ProblemCheckError
   | AllSolversAnsweredUnknown
   deriving (Eq, Generic, Ord, Show)
 
-class Monad m => MonadCache m where
-    queryCache :: SMTProofCheck () -> m (Maybe AcceptableSatResult)
-    updateCache :: SMTProofCheck () -> AcceptableSatResult -> m ()
+class Monad m => MonadSMTProofCheckCache m where
+    -- queryCache :: SMTProofCheck () -> m (Maybe AcceptableSatResult)
+    -- updateCache :: SMTProofCheck () -> AcceptableSatResult -> m ()
+    querySMTProofCheck :: CacheWrappedAction m (SMTProofCheck ()) AcceptableSatResult
+
+type CacheWrappedAction m a b = (forall c. IO c -> IO c) -> (a -> IO b) -> a -> m b
 
 -- newtype TrivialCacheT m a = TrivialCacheT { unwrap :: m a }
 
@@ -58,7 +63,7 @@ data AcceptableSatResult
 
 executeChecks
     :: forall m.
-       (MonadUnliftIO m, MonadLogger m, MonadCache m)
+       (MonadUnliftIO m, MonadLogger m, MonadSMTProofCheckCache m)
     => ExecuteChecksConfig -> FlattenedSMTProofChecks ProofScriptNodeLocation -> m Report
 executeChecks config checks = withRunInIO $ \runInIO ->
     withThrottling (Units config.numCores) $ \throttle -> runConcurrently $ do

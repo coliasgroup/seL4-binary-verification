@@ -176,6 +176,7 @@ library smtlib2-types
 library system
   visibility: public
   exposed-modules:
+      BV.System.Cache
       BV.System.CacheKey
       BV.System.Check
       BV.System.CheckScratch
