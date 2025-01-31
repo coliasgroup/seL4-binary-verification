@@ -52,8 +52,9 @@ tests = testGroup "Tests"
     ]
 
 runSolverSimple :: ExceptT CommandError (SolverT IO) a -> IO (Either CommandError a)
-runSolverSimple m = runSolver
+runSolverSimple m = fromJust <$> runSolver
     configCreateProc
+    Nothing
     T.putStrLn
     (runExceptT m)
 

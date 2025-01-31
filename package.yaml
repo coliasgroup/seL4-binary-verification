@@ -145,6 +145,7 @@ internal-libraries:
       - containers
       - transformers
       - mtl
+      - exceptions
       - free
       - optics-core
       - optics
@@ -152,6 +153,7 @@ internal-libraries:
       - stm
       - bytestring
       - text
+      - base16-bytestring
       - attoparsec
       - megaparsec
       - cryptohash-sha256

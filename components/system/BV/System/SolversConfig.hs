@@ -1,20 +1,24 @@
 module BV.System.SolversConfig
     ( OfflineSolverConfig (..)
+    , OfflineSolverGroupConfig (..)
     , OnlineSolverConfig (..)
     , SolverScope (..)
     , SolversConfig (..)
     , allSolverMemoryModes
     , allSolverScopes
+    , numOfflineSolverConfigs
+    , offlineSolverConfigs
     ) where
 
 import BV.Core.ExecuteSMTProofChecks
 
+import Data.List (genericLength)
 import GHC.Generics (Generic)
 
 data SolversConfig
   = SolversConfig
       { online :: OnlineSolverConfig
-      , offline :: [OfflineSolverConfig]
+      , offline :: [OfflineSolverGroupConfig]
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -25,8 +29,8 @@ data OnlineSolverConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
-data OfflineSolverConfig
-  = OfflineSolverConfig
+data OfflineSolverGroupConfig
+  = OfflineSolverGroupConfig
       { command :: [String]
       , memoryModes :: [SolverMemoryMode]
       , scopes :: [SolverScope]
@@ -43,3 +47,19 @@ allSolverScopes = [SolverScopeHyp, SolverScopeAll]
 
 allSolverMemoryModes :: [SolverMemoryMode]
 allSolverMemoryModes = [SolverMemoryModeWord8, SolverMemoryModeWord32]
+
+data OfflineSolverConfig
+  = OfflineSolverConfig
+      { command :: [String]
+      , memoryMode :: SolverMemoryMode
+      , scope :: SolverScope
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+offlineSolverConfigs :: SolversConfig -> [OfflineSolverConfig]
+offlineSolverConfigs (SolversConfig { offline }) = flip concatMap offline $
+    \OfflineSolverGroupConfig { command, memoryModes, scopes } ->
+        OfflineSolverConfig command <$> memoryModes <*> scopes
+
+numOfflineSolverConfigs :: SolversConfig -> Integer
+numOfflineSolverConfigs = genericLength . offlineSolverConfigs

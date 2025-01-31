@@ -177,13 +177,15 @@ library system
   visibility: public
   exposed-modules:
       BV.System.Cache
-      BV.System.CacheKey
-      BV.System.Check
+      BV.System.CheckFingerprint
+      BV.System.CheckFrontend
       BV.System.CheckScratch
       BV.System.IntermediateArtifacts
+      BV.System.LocalCheckBackend
       BV.System.Notes
       BV.System.SeL4
       BV.System.SolversConfig
+      BV.System.TaskQueue
       BV.System.Throttle
       BV.System.Utils
   hs-source-dirs:
@@ -201,11 +203,13 @@ library system
       async
     , attoparsec
     , base
+    , base16-bytestring
     , bytestring
     , containers
     , cryptohash-sha256
     , deepseq
     , directory
+    , exceptions
     , filepath
     , free
     , megaparsec

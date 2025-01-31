@@ -14,12 +14,14 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 
 import Control.DeepSeq (NFData)
-import Control.Monad (guard)
+import Control.Monad (guard, unless)
 import Control.Monad.Logger
+import Data.Foldable (toList)
 import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
+import qualified Data.Set as S
 import Data.String (fromString)
 import GHC.Generics (Generic)
 import Optics
@@ -48,6 +50,7 @@ class Monad m => MonadRegisterIntermediateArtifacts m where
 
 type MonadPureStages m =
     ( Monad m
+    , MonadFail m
     , MonadLogger m
     , MonadRegisterIntermediateArtifacts m
     )
@@ -67,6 +70,8 @@ gluedStages input = do
     logInfoN "Registering flattened SMT proof checks"
     registerIntermediateArtifact $ IntermediateArtifactFlattenedSMTProofChecks flattenedSMTProofChecks
     logInfoN "Registered all intermediate artifacts"
+    unless groupsAreDistinctAsExpected $
+        fail "SMT proof check groups should be distinct"
     return smtProofChecks
 
   where
@@ -135,6 +140,11 @@ gluedStages input = do
         compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
 
     flattenedSMTProofChecks = void $ flattenSMTProofChecks smtProofChecks
+
+    groupsAreDistinctAsExpected = and
+        [ length groups == S.size (S.fromList (map (.setup) groups))
+        | groups <- toList flattenedSMTProofChecks.unwrap
+        ]
 
 
 asmFunNameToCFunName :: Ident -> Ident

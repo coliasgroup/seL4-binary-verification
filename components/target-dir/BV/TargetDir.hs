@@ -20,7 +20,7 @@ import BV.Core.Types
 
 import Control.Exception (Exception (..), throwIO)
 import Control.Monad.Error.Class (liftEither)
-import Control.Monad.Except (runExceptT)
+import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
 import Control.Monad.Trans (lift)
 import Data.Bifunctor (first)
 import GHC.Generics (Generic)
@@ -130,7 +130,7 @@ readGluedStagesInputEither asmFunctionFilter targetDir = runExceptT $ do
         , asmFunctionFilter
         }
   where
-    f file = lift (readTargetDirFileEither targetDir file) >>= liftEither
+    f file = ExceptT $ readTargetDirFileEither targetDir file
 
 readGluedStagesInput :: (Ident -> Bool) -> TargetDir -> IO GluedStagesInput
 readGluedStagesInput asmFunctionFilter targetDir =

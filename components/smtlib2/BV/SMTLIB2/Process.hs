@@ -36,6 +36,8 @@ import qualified Data.Text.Lazy.Builder as TB
 import Data.Void (Void)
 import GHC.Generics (Generic)
 import System.Process (CreateProcess)
+import Control.Exception (assert)
+import System.Timeout (timeout)
 
 data SolverDSL a
   = Send SExpr a
@@ -60,8 +62,8 @@ runSolverT = iterT $ \case
 
 runSolver
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
-    => CreateProcess -> (T.Text -> m ()) -> SolverT m a -> m a
-runSolver cmd logStderr m = do
+    => CreateProcess -> Maybe Integer -> (T.Text -> m ()) -> SolverT m a -> m (Maybe a)
+runSolver cmd maybeTimeout logStderr m = do
     ((FlushInput procStdin, closeProcStdin), procStdout, procStderr, cph) <- liftIO $ streamingProcess cmd
 
     let sexprToChunks sexpr = map T.encodeUtf8 (TL.toChunks (TB.toLazyText (buildSExpr sexpr <> "\n")))
@@ -84,12 +86,24 @@ runSolver cmd logStderr m = do
             .| CT.lines
             .| CL.mapM_ logStderr
 
-    let run = withRunInIO $ \f -> liftIO . withAsync (f logging) $ \_ -> f (runConduit interaction)
+    let run = withRunInIO $ \runInIO ->
+            liftIO . withAsync (runInIO logging) $ \_ ->
+                applyTimeout (runInIO (runConduit interaction))
 
     run `finally` liftIO (terminateProcess (streamingProcessHandleRaw cph))
+
+  where
+    applyTimeout = case maybeTimeout of
+        Nothing -> fmap Just
+        Just seconds ->
+            let microseconds = seconds * 10^6
+             in timeout (fromIntegerChecked microseconds)
 
 data NoResponseException
   = NoResponseException
   deriving (Show)
 
 instance Exception NoResponseException
+
+fromIntegerChecked :: forall a. (Bounded a, Integral a) => Integer -> a
+fromIntegerChecked x = assert (x <= toInteger (maxBound :: a)) (fromInteger x)

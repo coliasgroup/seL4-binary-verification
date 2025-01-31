@@ -3,15 +3,15 @@ module BV.System.CheckScratch
     ) where
 
 import BV.Core.ExecuteSMTProofChecks
-import BV.System.Check
+import BV.System.CheckFrontend
 import BV.System.SolversConfig
 import BV.TargetDir
 
-executeChecksConfig :: ExecuteChecksConfig
-executeChecksConfig = ExecuteChecksConfig
-    { numCores = 12
-    , solversConfig
-    }
+-- executeChecksConfig :: ExecuteChecksConfig
+-- executeChecksConfig = ExecuteChecksConfig
+--     { numCores = 12
+--     , solversConfig
+--     }
 
 solversConfig :: SolversConfig
 solversConfig = SolversConfig
@@ -20,22 +20,22 @@ solversConfig = SolversConfig
         , memoryMode = SolverMemoryModeWord8
         }
     , offline =
-        [ OfflineSolverConfig
+        [ OfflineSolverGroupConfig
             { command = ["yices-smt2"]
             , memoryModes = allSolverMemoryModes
             , scopes = allSolverScopes
             }
-        -- , OfflineSolverConfig
+        -- , OfflineSolverGroupConfig
         --     { command = ["z3", "-smt2", "-in"]
         --     , memoryModes = allSolverMemoryModes
         --     , scopes = allSolverScopes
         --     }
-        -- , OfflineSolverConfig
+        -- , OfflineSolverGroupConfig
         --     { command = ["cvc5", "--lang", "smt"]
         --     , memoryModes = allSolverMemoryModes
         --     , scopes = allSolverScopes
         --     }
-        -- , OfflineSolverConfig
+        -- , OfflineSolverGroupConfig
         --     { command = ["mathsat", "-input=smt2"]
         --     , memoryModes = allSolverMemoryModes
         --     , scopes = allSolverScopes

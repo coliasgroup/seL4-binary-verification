@@ -13,15 +13,15 @@ import BV.SMTLIB2.Types.Command
 
 executeSMTProofCheckOffline
     :: MonadSolver m
-    => SolverConfig -> SMTProofCheck () -> m SatResult
+    => SolverConfig -> SMTProofCheck a -> m SatResult
 executeSMTProofCheckOffline = undefined
 
 executeSMTProofCheckGroupOffline
     :: MonadSolver m
-    => SolverConfig -> SMTProofCheckGroup () -> m SatResult
+    => SolverConfig -> SMTProofCheckGroup a -> m SatResult
 executeSMTProofCheckGroupOffline = undefined
 
 executeSMTProofCheckGroupOnline
     :: MonadSolver m
-    => SolverConfig -> (Integer -> SatResult -> m ()) -> SMTProofCheckGroup () -> m ()
+    => SolverConfig -> (a -> SatResult -> m ()) -> SMTProofCheckGroup a -> m ()
 executeSMTProofCheckGroupOnline = undefined

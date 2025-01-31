@@ -6,9 +6,9 @@ module BV.System.Throttle
     , withThrottling
     ) where
 
+import Control.Concurrent (Chan, MVar, newChan, newEmptyMVar, putMVar, readChan,
+                           takeMVar, writeChan)
 import Control.Concurrent.Async (race)
-import Control.Concurrent.Chan (Chan, newChan, readChan, writeChan)
-import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 import Control.Exception (bracket)
 import Control.Monad (forever, unless, when)
 import Control.Monad.IO.Class (liftIO)

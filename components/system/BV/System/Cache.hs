@@ -4,8 +4,8 @@ module BV.System.Cache
     (
     ) where
 
-import BV.System.Throttle
 import BV.Core.Types
+import BV.System.Throttle
 
 import GHC.Generics (Generic)
 
