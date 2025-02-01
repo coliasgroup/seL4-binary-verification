@@ -17,8 +17,7 @@ import BV.Core.Utils
 import BV.SMTLIB2.Types
 
 import Control.DeepSeq (NFData)
-import Control.Monad.RWS.Lazy (RWS, runRWS)
-import Control.Monad.State.Lazy (modify)
+import Control.Monad.RWS (RWS, modify, runRWS, tell)
 import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.List (sort, sortOn)
@@ -30,6 +29,8 @@ import Debug.Trace
 import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
+import Data.Map ((!?))
+import Control.Exception (assert)
 
 compileProofChecks :: Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
 compileProofChecks problem checks =
@@ -121,7 +122,7 @@ strengthenHyp sign expr = case expr.value of
     goWith = strengthenHyp sign
     goAgainst = strengthenHyp (-sign)
 
-smtExprM :: Map Ident S -> Expr -> M S
+smtExprM :: Map (Ident, ExprType) S -> Expr -> M S
 smtExprM env expr = do
     case expr.value of
         ExprValueOp op args -> case op of
@@ -144,14 +145,26 @@ smtExprM env expr = do
             _ | op == OpCountLeadingZeroes || op == OpWordReverse -> do
                     let [v] = args
                     v' <- smtExprM env v
-                    -- undefined
-                    return ["TODO"]
+                    op' <- getSMTDerivedOpM op (expr.ty ^. expecting #_ExprTypeWord)
+                    return [symbolS op', v']
             _ | op == OpCountTrailingZeroes -> do
-                    -- undefined
-                    return ["TODO"]
+                    let [v] = args
+                    smtExprM env $ clzE (wordReverseE v)
             _ -> do
                 -- undefined
                 return ["TODO"]
+        ExprValueNum n -> do
+            return $ intWithWidthS (wordTBits expr.ty) n
+        ExprValueVar var -> do
+            let envKey = (var, expr.ty)
+            return $ case env !? envKey of
+                Just sexpr ->
+                    undefined
+                Nothing -> error $ "env miss: " ++ show envKey
+        ExprValueSMTExpr sexpr -> do
+            return sexpr
+        ExprValueToken tok -> do
+            undefined
 
 getSMTDerivedOpM :: Op -> Integer -> M String
 getSMTDerivedOpM op n = do
@@ -162,7 +175,30 @@ getSMTDerivedOpM op n = do
             let fname = case op of
                     OpCountLeadingZeroes -> printf "bvclz_%d" n
                     OpWordReverse -> printf "bvrev_%d" n
-            undefined
+            body <- case n of
+                    1 -> return $ case op of
+                            OpCountLeadingZeroes -> iteS ("x" `eqS` hexS "0") (hexS "1") (hexS "0")
+                            OpWordReverse -> "x"
+                    _ -> do
+                        let m = n `div` 2
+                        topAppOp <- getSMTDerivedOpM op (n - m)
+                        botAppOp <- getSMTDerivedOpM op m
+                        let top = [ixS "extract" [intS (n - 1), intS m], "x"]
+                            bot = [ixS "extract" [intS (m - 1), intS 0], "x"]
+                            topApp = [symbolS topAppOp, top]
+                            topAppX = [ixS "zero_extend" [intS m], topApp]
+                            botApp = [symbolS botAppOp, bot]
+                            botAppX = [ixS "zero_extend" [intS (n - m)], botApp]
+                        return $ case op of
+                                OpCountLeadingZeroes ->
+                                    iteS
+                                        (top `eqS` intWithWidthS (n - m) 0)
+                                        (bvaddS botAppX (intWithWidthS n m))
+                                        topAppX
+                                OpWordReverse ->
+                                    concatS botApp topApp
+            let def = defineFunS fname [("x", bitVecS 1)] (bitVecS 1) body
+            tell [def]
             modify $ #smtDerivedOps % at (op, n) ?~ fname
             return fname
 

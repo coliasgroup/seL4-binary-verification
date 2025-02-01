@@ -1,6 +1,7 @@
 module BV.Core.Types.Extras.Expr where
 
 import BV.Core.Arch (archWordSizeBits)
+import BV.Core.Utils
 import BV.Core.Types
 
 import Control.Exception (assert)
@@ -9,6 +10,7 @@ import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
 import Optics
 import Optics.Core.Extras (is)
+import GHC.Stack (HasCallStack)
 
 boolT :: ExprType
 boolT = ExprTypeBool
@@ -59,6 +61,11 @@ toWordBitsT = fromJust . preview #_ExprTypeWord
 
 isMemT :: ExprType -> Bool
 isMemT = is #_ExprTypeMem
+
+--
+
+wordTBits :: HasCallStack => ExprType -> Integer
+wordTBits = view (expecting #_ExprTypeWord)
 
 --
 
@@ -140,6 +147,12 @@ bitwiseAndE lhs rhs = Expr (assertTypesEqualAnd isWordT lhs rhs) (opV OpBWAnd [l
 
 bitwiseOrE :: Expr -> Expr -> Expr
 bitwiseOrE lhs rhs = Expr (assertTypesEqualAnd isWordT lhs rhs) (opV OpBWOr [lhs, rhs])
+
+wordReverseE :: Expr -> Expr
+wordReverseE x = Expr (assertType isWordT x) (opV OpWordReverse [x])
+
+clzE :: Expr -> Expr
+clzE x = Expr (assertType isWordT x) (opV OpCountLeadingZeroes [x])
 
 --
 
