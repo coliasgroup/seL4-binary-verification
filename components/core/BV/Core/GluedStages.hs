@@ -4,8 +4,6 @@
 module BV.Core.GluedStages
     ( GluedStagesInput (..)
     , IntermediateArtifact (..)
-    , MonadPureStages
-    , MonadRegisterIntermediateArtifacts (..)
     , gluedStages
     ) where
 
@@ -45,18 +43,12 @@ data IntermediateArtifact
   | IntermediateArtifactFlattenedSMTProofChecks (FlattenedSMTProofChecks ())
   deriving (Eq, Generic, NFData, Ord, Show)
 
-class Monad m => MonadRegisterIntermediateArtifacts m where
-    registerIntermediateArtifact :: IntermediateArtifact -> m ()
+-- TODO leave logging to 'registerIntermediateArtifact' function?
 
-type MonadPureStages m =
-    ( Monad m
-    , MonadFail m
-    , MonadLogger m
-    , MonadRegisterIntermediateArtifacts m
-    )
-
-gluedStages :: MonadPureStages m => GluedStagesInput -> m (SMTProofChecks String)
-gluedStages input = do
+gluedStages
+    :: MonadLogger m
+    => (IntermediateArtifact -> m ()) -> GluedStagesInput -> m (SMTProofChecks String)
+gluedStages registerIntermediateArtifact input = do
     logWarnN . fromString $ "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) unhandledAsmFunctionNames.c)
     logWarnN . fromString $ "Unhandled instrcution functions (Asm side): " ++ show (map (.unwrap) unhandledAsmFunctionNames.asm)
     logInfoN "Registering functions"
@@ -71,7 +63,7 @@ gluedStages input = do
     registerIntermediateArtifact $ IntermediateArtifactFlattenedSMTProofChecks flattenedSMTProofChecks
     logInfoN "Registered all intermediate artifacts"
     unless groupsAreDistinctAsExpected $
-        fail "SMT proof check groups should be distinct"
+        error "SMT proof check groups should be distinct"
     return smtProofChecks
 
   where

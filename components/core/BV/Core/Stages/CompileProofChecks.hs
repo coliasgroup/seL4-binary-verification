@@ -23,13 +23,13 @@ import Data.Functor (void)
 import Data.List (sort, sortOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
+import Data.Maybe (isJust)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Debug.Trace
 import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
-import Data.Maybe (isJust)
 
 compileProofChecks :: Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
 compileProofChecks problem checks =

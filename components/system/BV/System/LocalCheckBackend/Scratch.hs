@@ -70,14 +70,13 @@ runScratch targetDir mismatchDumpDir =
   where
     go = do
         input <- liftIO $ readGluedStagesInput defaultSeL4AsmFunctionFilter targetDir
-        structuredChecks <- runReaderT
-            (runRegisterIntermediateArtifactsT (gluedStages input))
-            (RegisterIntermediateArtifactsTInnerContext
+        let ctx = RegisterIntermediateArtifactContext
                 { force = True
                 , dumpTargetDir = Nothing
                 , referenceTargetDir = Just targetDir
                 , mismatchDumpDir = Just mismatchDumpDir
-                })
+                }
+        structuredChecks <- gluedStages (registerIntermediateArtifactWith ctx) input
         let checks = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions structuredChecks)
         report <- localCheckBackend config checks
         let brief = M.mapMaybe (preview _Left) report.unwrap

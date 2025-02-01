@@ -33,14 +33,13 @@ tests = testGroup "Tests"
 testGlued :: IO ()
 testGlued = do
     input <- readGluedStagesInput defaultSeL4AsmFunctionFilter referenceTargetDir
-    runStderrLoggingT $ runReaderT
-        (runRegisterIntermediateArtifactsT (void $ gluedStages input))
-        (RegisterIntermediateArtifactsTInnerContext
+    let ctx = RegisterIntermediateArtifactContext
             { force = True
             , dumpTargetDir = Nothing
             , referenceTargetDir = Just referenceTargetDir
             , mismatchDumpDir = Just $ tmpDir </> "mismatch"
-            })
+            }
+    void . runStderrLoggingT $ gluedStages (registerIntermediateArtifactWith ctx) input
   where
     -- referenceTargetDir = testSeL4TargetDirBig
     referenceTargetDir = testSeL4TargetDirSmall
