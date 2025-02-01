@@ -8,7 +8,7 @@ import BV.Core.AdornProofScript
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
 import BV.System.CheckFrontend
-import BV.System.IntermediateArtifacts
+import BV.System.EvalStages
 import BV.System.LocalCheckBackend
 import BV.System.LocalCheckBackend.Cache
 import BV.System.SeL4
@@ -68,14 +68,14 @@ runScratch targetDir mismatchDumpDir =
         runReaderT (runLocalCheckCacheT go) trivialLocalCheckCacheContext
   where
     go = do
-        input <- liftIO $ readGluedStagesInput defaultSeL4AsmFunctionFilter targetDir
-        let ctx = RegisterIntermediateArtifactContext
+        input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter targetDir
+        let ctx = EvalStagesContext
                 { force = True
                 , dumpTargetDir = Nothing
                 , referenceTargetDir = Just targetDir
                 , mismatchDumpDir = Just mismatchDumpDir
                 }
-        structuredChecks <- runGluedStages ctx input
+        structuredChecks <- evalStages ctx input
         let checks = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions structuredChecks)
         report <- localCheckBackend config checks
         let brief = M.mapMaybe (preview _Left) report.unwrap

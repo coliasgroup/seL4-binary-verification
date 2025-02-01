@@ -5,8 +5,8 @@ module BV.TargetDir
     , TargetDirFiles (..)
     , UntypedTargetDirFile (..)
     , eraseTargetDirFileType
-    , readGluedStagesInput
-    , readGluedStagesInputEither
+    , readStagesInput
+    , readStagesInputEither
     , readTargetDirFile
     , readTargetDirFileEither
     , targetDirFilePath
@@ -15,7 +15,7 @@ module BV.TargetDir
     ) where
 
 import BV.ConcreteSyntax
-import BV.Core.GluedStages
+import BV.Core.Stages
 import BV.Core.Types
 
 import Control.Exception (Exception (..), throwIO)
@@ -108,15 +108,15 @@ writeTargetDirFile :: WriteBVFile c a => TargetDir -> TargetDirFile a -> a -> IO
 writeTargetDirFile targetDir targetDirFile =
     writeBVFile (targetDirFilePath targetDir (eraseTargetDirFileType targetDirFile))
 
-readGluedStagesInputEither :: (Ident -> Bool) -> TargetDir -> IO (Either ReadTargetDirFileException GluedStagesInput)
-readGluedStagesInputEither asmFunctionFilter targetDir = runExceptT $ do
+readStagesInputEither :: (Ident -> Bool) -> TargetDir -> IO (Either ReadTargetDirFileException StagesInput)
+readStagesInputEither asmFunctionFilter targetDir = runExceptT $ do
     cFunctions <- f targetDirFiles.cFunctions
     asmFunctions <- f targetDirFiles.asmFunctions
     objDumpInfo <- f targetDirFiles.symtab
     stackBounds <- f targetDirFiles.stackBounds
     inlineScripts <- f targetDirFiles.inlineScripts
     proofs <- f targetDirFiles.proofs
-    return $ GluedStagesInput
+    return $ StagesInput
         { programs = PairingOf
             { c = cFunctions
             , asm = asmFunctions
@@ -130,6 +130,6 @@ readGluedStagesInputEither asmFunctionFilter targetDir = runExceptT $ do
   where
     f file = ExceptT $ readTargetDirFileEither targetDir file
 
-readGluedStagesInput :: (Ident -> Bool) -> TargetDir -> IO GluedStagesInput
-readGluedStagesInput asmFunctionFilter targetDir =
-    readGluedStagesInputEither asmFunctionFilter targetDir >>= either throwIO return
+readStagesInput :: (Ident -> Bool) -> TargetDir -> IO StagesInput
+readStagesInput asmFunctionFilter targetDir =
+    readStagesInputEither asmFunctionFilter targetDir >>= either throwIO return

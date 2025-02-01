@@ -60,7 +60,6 @@ library core
       BV.Core.Types
       BV.Core.Types.Extras
       BV.Core.Stages
-      BV.Core.GluedStages
       BV.Core.AdornProofScript
       BV.Core.ExecuteSMTProofChecks
   other-modules:
@@ -188,7 +187,7 @@ library system
       BV.System.Cache
       BV.System.CheckFingerprint
       BV.System.CheckFrontend
-      BV.System.IntermediateArtifacts
+      BV.System.EvalStages
       BV.System.LocalCheckBackend
       BV.System.LocalCheckBackend.Cache
       BV.System.LocalCheckBackend.Scratch

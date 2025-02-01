@@ -14,11 +14,8 @@ import BV.SMTLIB2.Types.Command
 import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (runExceptT)
-import Control.Monad.State (StateT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (ExceptT (ExceptT))
-import Control.Monad.Trans.Maybe (MaybeT (MaybeT), runMaybeT)
-import Control.Monad.Trans.State (evalStateT)
 import Control.Monad.Trans.Writer (runWriterT)
 import Control.Monad.Writer (tell)
 import Optics
@@ -47,9 +44,10 @@ executeSMTProofCheckGroupOnline config timeout group = do
     (timeoutInfo, results) <- runWriterT . runExceptT . forM_ group.imps $ \check -> do
         let meta = check.meta
         lift . sendSimpleCommandExpectingSuccess $ Push 1
+        undefined -- TODO
         result <- ExceptT $ maybe (Left meta) Right <$> checkSatWithTimeout timeout
         tell [(meta, result)]
         lift . sendSimpleCommandExpectingSuccess $ Pop 1
         lift . sendSimpleCommandExpectingSuccess . Assert $
-            undefined
+            undefined -- TODO
     return (timeoutInfo ^? _Left, results)

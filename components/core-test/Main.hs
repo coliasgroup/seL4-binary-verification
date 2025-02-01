@@ -6,14 +6,12 @@ module Main
     ( main
     ) where
 
-import BV.Core.GluedStages
-import BV.System.IntermediateArtifacts
+import BV.System.EvalStages
 import BV.System.SeL4 (defaultSeL4AsmFunctionFilter)
 import BV.TargetDir
 import BV.Test.Utils
 
 import Control.Monad.Logger (MonadLogger (monadLoggerLog), runStderrLoggingT)
-import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Free.Church (FT)
 import Data.Functor (void)
@@ -32,14 +30,14 @@ tests = testGroup "Tests"
 
 testGlued :: IO ()
 testGlued = do
-    input <- readGluedStagesInput defaultSeL4AsmFunctionFilter referenceTargetDir
-    let ctx = RegisterIntermediateArtifactContext
+    input <- readStagesInput defaultSeL4AsmFunctionFilter referenceTargetDir
+    let ctx = EvalStagesContext
             { force = True
             , dumpTargetDir = Nothing
             , referenceTargetDir = Just referenceTargetDir
             , mismatchDumpDir = Just $ tmpDir </> "mismatch"
             }
-    void . runStderrLoggingT $ runGluedStages ctx input
+    void . runStderrLoggingT $ evalStages ctx input
   where
     -- referenceTargetDir = testSeL4TargetDirBig
     referenceTargetDir = testSeL4TargetDirSmall

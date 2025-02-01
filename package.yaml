@@ -76,7 +76,6 @@ internal-libraries:
       - BV.Core.Types
       - BV.Core.Types.Extras
       - BV.Core.Stages
-      - BV.Core.GluedStages
       - BV.Core.AdornProofScript
       - BV.Core.ExecuteSMTProofChecks
     dependencies:

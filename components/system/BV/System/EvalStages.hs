@@ -2,13 +2,13 @@
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module BV.System.IntermediateArtifacts
-    ( RegisterIntermediateArtifactContext (..)
-    , runGluedStages
+module BV.System.EvalStages
+    ( EvalStagesContext (..)
+    , evalStages
     ) where
 
 import BV.ConcreteSyntax
-import BV.Core.GluedStages
+import BV.Core.Stages
 import BV.Core.Types
 import BV.TargetDir
 
@@ -25,8 +25,8 @@ import Optics.Core
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 
-data RegisterIntermediateArtifactContext
-  = RegisterIntermediateArtifactContext
+data EvalStagesContext
+  = EvalStagesContext
       { force :: Bool
       , dumpTargetDir :: Maybe TargetDir
       , referenceTargetDir :: Maybe TargetDir
@@ -34,12 +34,12 @@ data RegisterIntermediateArtifactContext
       }
   deriving (Eq, Generic, Ord, Show)
 
-runGluedStages
+evalStages
     :: forall m. (MonadIO m, MonadFail m, MonadLogger m)
-    => RegisterIntermediateArtifactContext
-    -> GluedStagesInput
+    => EvalStagesContext
+    -> StagesInput
     -> m (SMTProofChecks String)
-runGluedStages ctx input = do
+evalStages ctx input = do
     logWarnN . fromString $
         "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) output.unhandledInlineAssemblyFunctions)
     logWarnN . fromString $
@@ -57,7 +57,7 @@ runGluedStages ctx input = do
     logInfoN "Registered all intermediate artifacts"
     return output.smtProofChecks
   where
-    output = gluedStages input
+    output = stages input
     register :: forall a c. (Eq a, NFData a, ReadBVFile c a, WriteBVFile c a) => (a -> a -> a) -> TargetDirFile a -> a -> m ()
     register f file actual = applyWhen ctx.force (deepseq actual) $ do
         whenJust ctx.dumpTargetDir $ \dumpTargetDir -> do
