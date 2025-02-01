@@ -66,6 +66,30 @@ data SMTProofCheck a
 data SMTProofCheckImp a
   = SMTProofCheckImp
       { meta :: a
-      , term :: SExprWithPlaceholders
+      , hyps :: [SExprWithPlaceholders]
+      , hyp :: SExprWithPlaceholders
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
+
+newtype CompatibleSMTProofChecks
+  = CompatibleSMTProofChecks { unwrap :: M.Map PairingId [CompatibleSMTProofCheckGroup] }
+  deriving (Eq, Functor, Generic, Ord, Show)
+  deriving newtype (NFData)
+
+data CompatibleSMTProofCheckGroup
+  = CompatibleSMTProofCheckGroup
+      { setup :: [SExprWithPlaceholders]
+      , imps :: [SExprWithPlaceholders]
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+toCompatibleSMTProofChecks :: FlattenedSMTProofChecks a -> CompatibleSMTProofChecks
+toCompatibleSMTProofChecks checks =
+    CompatibleSMTProofChecks (M.map () checks.unwrap)
+
+toCompatibleSMTProofCheckGroup :: ProofCheckGroup a -> CompatibleSMTProofCheckGroup
+toCompatibleSMTProofCheckGroup group =
+    CompatibleSMTProofChecks
+        { setup = group.setup
+        , imps = undefined
+        }
