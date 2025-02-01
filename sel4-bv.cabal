@@ -35,6 +35,7 @@ library concrete-syntax
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
       DuplicateRecordFields
       NoFieldSelectors
@@ -98,6 +99,7 @@ library core
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
       DuplicateRecordFields
       NoFieldSelectors
@@ -131,6 +133,7 @@ library smtlib2
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
       DuplicateRecordFields
       NoFieldSelectors
@@ -166,6 +169,7 @@ library smtlib2-types
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
       DuplicateRecordFields
       NoFieldSelectors
@@ -199,6 +203,7 @@ library system
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
       DuplicateRecordFields
       NoFieldSelectors
@@ -246,6 +251,7 @@ library target-dir
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
       DuplicateRecordFields
       NoFieldSelectors
@@ -271,6 +277,7 @@ library test-utils
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
       DuplicateRecordFields
       NoFieldSelectors
@@ -293,6 +300,7 @@ executable check-scratch
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -313,6 +321,7 @@ executable cli
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -329,6 +338,7 @@ executable profiling-scratch
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -350,6 +360,7 @@ test-suite concrete-syntax-test
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -380,6 +391,7 @@ test-suite core-test
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -407,6 +419,7 @@ test-suite smtlib2-test
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -436,6 +449,7 @@ test-suite system-test
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
+      GeneralizedNewtypeDeriving
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:

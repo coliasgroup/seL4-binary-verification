@@ -17,6 +17,7 @@ default-extensions:
   - OverloadedRecordDot
   # GHC2024
   - DerivingStrategies
+  - GeneralizedNewtypeDeriving
   - LambdaCase
 
 ghc-options:
