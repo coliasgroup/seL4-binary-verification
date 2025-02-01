@@ -4,9 +4,9 @@
 module BV.Core.Types.Extras.SExprWithPlaceholders where
 
 import BV.Core.Types.SExprWithPlaceholders
+import BV.Core.Utils
 import BV.SMTLIB2.Types
 
-import Control.Exception (assert)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
 import Text.Printf (printf)
@@ -77,7 +77,7 @@ binS = atomS . binaryAtom
 
 intWithWidthS :: Integer -> Integer -> S
 intWithWidthS bits = intWithS $ \nAbs ->
-    assert (bits > 0 && nAbs < 2^bits) $
+    ensure (bits > 0 && nAbs < 2^bits) $
         f (printf ("%0." ++ show cols ++ fmt) nAbs)
   where
     (f, cols, fmt) = case bits `quotRem` 4 of

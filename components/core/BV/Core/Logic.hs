@@ -8,13 +8,12 @@ module BV.Core.Logic
 
 import BV.Core.Arch
 import BV.Core.Types
-
-import Control.Exception (assert)
+import BV.Core.Utils
 
 sizeOfType :: ExprType -> Integer
 sizeOfType = \case
     ExprTypeArray { ty, length } -> length * sizeOfType ty
-    ExprTypeWord bits -> assert (bits `mod` 8 == 0) $ bits `div`  8
+    ExprTypeWord bits -> ensure (bits `mod` 8 == 0) $ bits `div`  8
     ExprTypePtr _ -> archPtrSizeBytes
     _ -> error ""
 

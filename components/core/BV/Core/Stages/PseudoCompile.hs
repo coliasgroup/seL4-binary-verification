@@ -8,13 +8,12 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
 
-import Control.Exception (assert)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Optics
 
 pseudoCompile :: ObjDumpInfo -> Program -> Program
-pseudoCompile objDumpInfo prog = assert (M.null prog.structs && M.null prog.constGlobals) $
+pseudoCompile objDumpInfo prog = ensure (M.null prog.structs && M.null prog.constGlobals) $
     (compilePValidAlignExprs . compileSymbolReferences objDumpInfo) prog
 
 compileSymbolReferences :: ObjDumpInfo -> Program -> Program
@@ -43,7 +42,7 @@ walkFunctionExprs f =
 
 alignValidIneqE :: ExprType -> Expr -> Expr
 alignValidIneqE ty p =
-    assert (align `elem` [1, 4, 8]) $
+    ensure (align `elem` [1, 4, 8]) $
         foldr1 andE conj
   where
     size = machineWordE (sizeOfType ty)

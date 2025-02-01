@@ -1,5 +1,6 @@
 module BV.Core.Utils
     ( adjacently
+    , ensure
     , expecting
     , expectingIx
     , optionals
@@ -12,10 +13,14 @@ module BV.Core.Utils
 
 import Control.Monad (when)
 import Data.Either (fromRight)
+import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
 import Data.Monoid (Last (Last, getLast))
 import GHC.Stack (HasCallStack)
 import Optics.Core
+
+ensure :: HasCallStack => Bool -> a -> a
+ensure p = applyWhen (not p) (error "assertion failed")
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
 liftIso f l r =

@@ -5,8 +5,8 @@ module BV.Core.Stages.Utils
     ) where
 
 import BV.Core.Types
+import BV.Core.Utils
 
-import Control.Exception (assert)
 import qualified Data.Set as S
 
 -- Implementation matches graph_refine.syntax.fresh_name
@@ -31,4 +31,4 @@ chooseFreshName taken n =
                 else loop2 z y
         else
             let n' = fmt x
-             in assert (not (isTaken n')) n'
+             in ensure (not (isTaken n')) n'

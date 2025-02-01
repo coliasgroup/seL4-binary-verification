@@ -12,7 +12,6 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
 
-import Control.Exception (assert)
 import Control.Monad (forM, unless)
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
@@ -147,7 +146,7 @@ reserveNodeAddr = do
 insertNodeWithMeta :: NodeAddr -> NodeWithMeta -> State NodeMapBuilder ()
 insertNodeWithMeta addr nodeWithMeta = do
     zoom (#nodes % at addr) $ do
-        _ <- assert . isJust <$> get
+        _ <- ensure . isJust <$> get
         put $ Just (Just nodeWithMeta)
 
 insertNode :: NodeAddr -> Node -> Maybe NodeSource -> State NodeMapBuilder ()

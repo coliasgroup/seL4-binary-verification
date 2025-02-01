@@ -1,16 +1,15 @@
 module BV.Core.Types.Extras.Expr where
 
 import BV.Core.Arch (archWordSizeBits)
-import BV.Core.Utils
 import BV.Core.Types
+import BV.Core.Utils
 
-import Control.Exception (assert)
 import Data.Bits (shiftL)
 import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
+import GHC.Stack (HasCallStack)
 import Optics
 import Optics.Core.Extras (is)
-import GHC.Stack (HasCallStack)
 
 boolT :: ExprType
 boolT = ExprTypeBool
@@ -79,7 +78,7 @@ boolE :: ExprValue -> Expr
 boolE = Expr boolT
 
 numE :: ExprType -> Integer -> Expr
-numE ty n = assert (isWordT ty) $ Expr ty (numV n)
+numE ty n = ensure (isWordT ty) $ Expr ty (numV n)
 
 smtExprE :: ExprType -> SExprWithPlaceholders -> Expr
 smtExprE ty sexpr = Expr ty (ExprValueSMTExpr sexpr)
@@ -171,14 +170,14 @@ castE :: ExprType -> Expr -> Expr
 castE ty expr =
     if ty == expr.ty
     then expr
-    else assert (isWordT ty) . assertType_ isWordT expr $ Expr ty (opV OpWordCast [expr])
+    else ensure (isWordT ty) . assertType_ isWordT expr $ Expr ty (opV OpWordCast [expr])
 
 --
 
 -- TODO move?
 castCToAsmE :: ExprType -> Expr -> Expr
 castCToAsmE ty expr =
-    assert (isWordT ty) $
+    ensure (isWordT ty) $
         if isBoolT expr.ty
         then ifThenElseE expr (numE ty 1) (numE ty 0)
         else castE ty expr
@@ -213,7 +212,7 @@ memAccE :: ExprType -> Expr -> Expr -> Expr
 memAccE ty addr mem =
     assertType_ isMemT mem .
     assertType_ (isWordWithSizeT archWordSizeBits) addr .
-    assert (isWordT ty) $
+    ensure (isWordT ty) $
         Expr ty (opV OpMemAcc [mem, addr])
 
 rodataE :: Expr -> Expr
@@ -232,16 +231,16 @@ assertType :: (ExprType -> Bool) -> Expr -> ExprType
 assertType p expr = assertType_ p expr expr.ty
 
 assertType_ :: (ExprType -> Bool) -> Expr -> a -> a
-assertType_ p expr = assert (p expr.ty)
+assertType_ p expr = ensure (p expr.ty)
 
 assertTypesEqual :: Expr -> Expr -> ExprType
 assertTypesEqual lhs rhs = assertTypesEqual_ lhs rhs lhs.ty
 
 assertTypesEqual_ :: Expr -> Expr -> a -> a
-assertTypesEqual_ lhs rhs = assert (lhs.ty == rhs.ty)
+assertTypesEqual_ lhs rhs = ensure (lhs.ty == rhs.ty)
 
 assertTypesEqualAnd :: (ExprType -> Bool) -> Expr -> Expr -> ExprType
 assertTypesEqualAnd p lhs rhs = assertTypesEqualAnd_ p lhs rhs lhs.ty
 
 assertTypesEqualAnd_ :: (ExprType -> Bool) -> Expr -> Expr -> a -> a
-assertTypesEqualAnd_ p lhs rhs = assert (lhs.ty == rhs.ty && p lhs.ty)
+assertTypesEqualAnd_ p lhs rhs = ensure (lhs.ty == rhs.ty && p lhs.ty)

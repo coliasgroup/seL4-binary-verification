@@ -16,7 +16,7 @@ import Control.Applicative ((<|>))
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  cancelWith, wait, withAsync)
 import Control.Concurrent.STM
-import Control.Exception (Exception, SomeException, assert)
+import Control.Exception (Exception, SomeException)
 import Control.Monad.Catch (MonadThrow, finally, try)
 import Control.Monad.Catch.Pure (MonadMask)
 import Control.Monad.Free (liftF)
@@ -152,4 +152,7 @@ solverTimeoutToMicroseconds :: SolverTimeout -> Int
 solverTimeoutToMicroseconds timeout = fromIntegerChecked (timeout.seconds * 10^6)
 
 fromIntegerChecked :: forall a. (Bounded a, Integral a) => Integer -> a
-fromIntegerChecked x = assert (x <= toInteger (maxBound :: a)) (fromInteger x)
+fromIntegerChecked x =
+    if x <= toInteger (maxBound :: a)
+    then fromInteger x
+    else error "out of range"
