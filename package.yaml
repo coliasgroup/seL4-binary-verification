@@ -39,7 +39,9 @@ internal-libraries:
     dependencies:
       # external
       - deepseq
+      - transformers
       - mtl
+      - exceptions
 
   smtlib2:
     visibility: public
@@ -85,6 +87,7 @@ internal-libraries:
       - monad-logger
       - transformers
       - mtl
+      - exceptions
       - optics-core
       - optics
       - file-embed

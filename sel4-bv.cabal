@@ -108,6 +108,7 @@ library core
       base
     , containers
     , deepseq
+    , exceptions
     , file-embed
     , filepath
     , monad-logger
@@ -177,7 +178,9 @@ library smtlib2-types
   build-depends:
       base
     , deepseq
+    , exceptions
     , mtl
+    , transformers
   default-language: GHC2021
 
 library system

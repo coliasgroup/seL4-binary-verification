@@ -15,7 +15,9 @@ import BV.SMTLIB2.Types.SExpr
 import BV.SMTLIB2.Types.SExpr.Read
 
 import Control.Monad.Except (ExceptT)
+import Control.Monad.State (StateT)
 import Control.Monad.Trans (lift)
+import Control.Monad.Writer (WriterT)
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 
@@ -31,5 +33,13 @@ recv :: MonadSolver m => m SExpr
 recv = fromJust <$> recvWithTimeout Nothing
 
 instance MonadSolver m => MonadSolver (ExceptT e m) where
+    send = lift . send
+    recvWithTimeout = lift . recvWithTimeout
+
+instance MonadSolver m => MonadSolver (StateT s m) where
+    send = lift . send
+    recvWithTimeout = lift . recvWithTimeout
+
+instance (Monoid w, MonadSolver m) => MonadSolver (WriterT w m) where
     send = lift . send
     recvWithTimeout = lift . recvWithTimeout

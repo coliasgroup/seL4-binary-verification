@@ -11,39 +11,75 @@ module BV.SMTLIB2.Types.Command
     , SimpleCommand (..)
     , boolToSExpr
     , checkSat
+    , checkSatE
+    , checkSatWithTimeout
+    , checkSatWithTimeoutE
     , getModel
+    , getModelE
     , sendExpectingSuccess
+    , sendExpectingSuccessE
+    , sendRecv
     , sendRecvE
+    , sendRecvWithTimeout
+    , sendRecvWithTimeoutE
     , sendSimpleCommand
     , sendSimpleCommandExpectingSuccess
+    , sendSimpleCommandExpectingSuccessE
     , simpleCommandToSExpr
     ) where
 
 import BV.SMTLIB2.Types
 
 import Control.DeepSeq (NFData)
-import Control.Monad.Except (MonadError (throwError))
+import Control.Exception (Exception, toException)
+import Control.Monad ((>=>))
+import Control.Monad.Catch (MonadThrow, throwM)
+import Control.Monad.Except (ExceptT, MonadError, runExceptT, throwError)
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT), runMaybeT)
+import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
+import Numeric.Natural (Natural)
 
 data CommandError
   = ErrorResponse String
   | UnexpectedResponse SExpr
   deriving (Eq, Generic, NFData, Ord, Show)
 
-sendRecvE :: (MonadSolver m, MonadError CommandError m) => SExpr -> m SExpr
-sendRecvE req = do
-    send req
-    resp <- recv
-    case viewSExpr resp of
-        List ["error", Atom (StringAtom s)] -> throwError (ErrorResponse s)
-        _ -> return resp
+instance Exception CommandError
 
-sendExpectingSuccess :: (MonadSolver m, MonadError CommandError m) => SExpr -> m ()
-sendExpectingSuccess req = do
+exceptTToThrow :: MonadThrow m => ExceptT CommandError m a -> m a
+exceptTToThrow = runExceptT >=> either (throwM . toException) return
+
+withoutTimeout :: MonadSolver m => m (Maybe a) -> m a
+withoutTimeout = fmap fromJust
+
+sendRecvWithTimeoutE :: (MonadSolver m, MonadError CommandError m) => Maybe SolverTimeout -> SExpr -> m (Maybe SExpr)
+sendRecvWithTimeoutE timeout req = do
+    send req
+    runMaybeT $ do
+        resp <- MaybeT $ recvWithTimeout timeout
+        case viewSExpr resp of
+            List ["error", Atom (StringAtom s)] -> throwError (ErrorResponse s)
+            _ -> return resp
+
+sendRecvWithTimeout :: (MonadSolver m, MonadThrow m) => Maybe SolverTimeout -> SExpr -> m (Maybe SExpr)
+sendRecvWithTimeout timeout = exceptTToThrow . sendRecvWithTimeoutE timeout
+
+sendRecvE :: (MonadSolver m, MonadError CommandError m) => SExpr -> m SExpr
+sendRecvE req = withoutTimeout $ sendRecvWithTimeoutE Nothing req
+
+sendRecv :: (MonadSolver m, MonadThrow m) => SExpr -> m SExpr
+sendRecv = exceptTToThrow . sendRecvE
+
+sendExpectingSuccessE :: (MonadSolver m, MonadError CommandError m) => SExpr -> m ()
+sendExpectingSuccessE req = do
     resp <- sendRecvE req
     case viewSExpr resp of
         "success" -> return ()
         _ -> throwError (UnexpectedResponse resp)
+
+sendExpectingSuccess :: (MonadSolver m, MonadThrow m) => SExpr -> m ()
+sendExpectingSuccess = exceptTToThrow . sendExpectingSuccessE
 
 data SatResult
   = Sat
@@ -51,22 +87,34 @@ data SatResult
   | Unknown
   deriving (Eq, Generic, NFData, Ord, Show)
 
-checkSat :: (MonadSolver m, MonadError CommandError m) => m SatResult
-checkSat = do
-    resp <- sendRecvE $ List ["check-sat"]
+checkSatWithTimeoutE :: (MonadSolver m, MonadError CommandError m) => Maybe SolverTimeout -> m (Maybe SatResult)
+checkSatWithTimeoutE timeout = runMaybeT $ do
+    resp <- MaybeT $ sendRecvWithTimeoutE timeout $ List ["check-sat"]
     case resp of
         "sat" -> return Sat
         "unsat" -> return Unsat
         "unknown" -> return Unknown
         _ -> throwError (UnexpectedResponse resp)
 
+checkSatWithTimeout :: (MonadSolver m, MonadThrow m) => Maybe SolverTimeout -> m (Maybe SatResult)
+checkSatWithTimeout timeout = exceptTToThrow $ checkSatWithTimeoutE timeout
+
+checkSatE :: (MonadSolver m, MonadError CommandError m) => m SatResult
+checkSatE = withoutTimeout $ checkSatWithTimeoutE Nothing
+
+checkSat :: (MonadSolver m, MonadThrow m) => m SatResult
+checkSat = exceptTToThrow checkSatE
+
 -- TODO refine response type
-getModel :: (MonadSolver m, MonadError CommandError m) => m [SExpr]
-getModel = do
+getModelE :: (MonadSolver m, MonadError CommandError m) => m [SExpr]
+getModelE = do
     resp <- sendRecvE $ List ["get-model"]
     case resp of
         List model -> return model
         _ -> throwError (UnexpectedResponse resp)
+
+getModel :: (MonadSolver m, MonadThrow m) => m [SExpr]
+getModel = exceptTToThrow getModelE
 
 data SimpleCommand
   = SetLogic String
@@ -74,6 +122,8 @@ data SimpleCommand
   | Assert Assertion
   | DefineFun FunDefinition
   | DeclareFun FunDeclaration
+  | Push Natural
+  | Pop Natural
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data Option
@@ -105,8 +155,11 @@ data FunDeclaration
 sendSimpleCommand :: MonadSolver m => SimpleCommand -> m ()
 sendSimpleCommand = send . simpleCommandToSExpr
 
-sendSimpleCommandExpectingSuccess :: (MonadSolver m, MonadError CommandError m) => SimpleCommand -> m ()
-sendSimpleCommandExpectingSuccess = sendExpectingSuccess . simpleCommandToSExpr
+sendSimpleCommandExpectingSuccessE :: (MonadSolver m, MonadError CommandError m) => SimpleCommand -> m ()
+sendSimpleCommandExpectingSuccessE = sendExpectingSuccessE . simpleCommandToSExpr
+
+sendSimpleCommandExpectingSuccess :: (MonadSolver m, MonadThrow m) => SimpleCommand -> m ()
+sendSimpleCommandExpectingSuccess = exceptTToThrow . sendSimpleCommandExpectingSuccessE
 
 simpleCommandToSExpr :: SimpleCommand -> SExpr
 simpleCommandToSExpr = \case
@@ -126,6 +179,8 @@ simpleCommandToSExpr = \case
         , List args
         , ret
         ]
+    Push n -> List [ "push", Atom (numeralAtom n)]
+    Pop n -> List [ "pop", Atom (numeralAtom n)]
 
 boolToSExpr :: Bool -> SExpr
 boolToSExpr = \case
