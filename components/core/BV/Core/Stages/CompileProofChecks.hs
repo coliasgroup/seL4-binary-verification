@@ -29,6 +29,7 @@ import Debug.Trace
 import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
+import Data.Maybe (isJust)
 
 compileProofChecks :: Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
 compileProofChecks problem checks =
@@ -157,7 +158,12 @@ smtExprM env expr = do
             let envKey = (var, expr.ty)
             return $ case env !? envKey of
                 Just sexpr ->
-                    undefined
+                    let check = case sexpr of
+                            List ("SplitMem":_) -> True
+                            Atom (AtomOrPlaceholderAtom atom)
+                                | isJust (preview #_SymbolAtom (viewAtom atom)) -> True
+                            _ -> False
+                     in ensure check sexpr
                 Nothing -> error $ "env miss: " ++ show envKey
         ExprValueSMTExpr sexpr -> do
             return sexpr
