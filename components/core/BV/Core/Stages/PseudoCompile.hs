@@ -13,7 +13,7 @@ import Data.Maybe (fromJust)
 import Optics
 
 pseudoCompile :: ObjDumpInfo -> Program -> Program
-pseudoCompile objDumpInfo prog = ensure (M.null prog.structs && M.null prog.constGlobals) $
+pseudoCompile objDumpInfo prog = ensure (M.null prog.constGlobals) $
     (compilePValidAlignExprs . compileSymbolReferences objDumpInfo) prog
 
 compileSymbolReferences :: ObjDumpInfo -> Program -> Program
