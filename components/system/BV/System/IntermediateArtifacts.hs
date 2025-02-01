@@ -65,7 +65,7 @@ runRegisterIntermediateArtifactsT = iterT $ \(RegisterIntermediateArtifact artif
                     logErrorN $ "Intermediate artifact mismatch for " <> T.pack file.relativePath
                     whenJust ctx.mismatchDumpDir $ \mismatchDumpDir -> do
                         let d = mismatchDumpDir </> file.relativePath
-                        logErrorN $ "Writing mismatch to " <> T.pack d
+                        logInfoN $ "Writing mismatch to " <> T.pack d
                         liftIO $ do
                             createDirectoryIfMissing True d
                             writeBVFile (d </> "actual.txt") actual'
