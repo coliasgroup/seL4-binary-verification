@@ -92,41 +92,41 @@ falseE :: Expr
 falseE = Expr boolT (opV OpFalse [])
 
 eqE :: Expr -> Expr -> Expr
-eqE lhs rhs = assertTypesEqual_ lhs rhs $ Expr boolT (opV OpEquals [lhs, rhs])
+eqE lhs rhs = ensureTypesEqual_ lhs rhs $ Expr boolT (opV OpEquals [lhs, rhs])
 
 andE :: Expr -> Expr -> Expr
-andE lhs rhs = Expr (assertTypesEqualAnd isBoolT lhs rhs) (opV OpAnd [lhs, rhs])
+andE lhs rhs = Expr (ensureTypesEqualAnd isBoolT lhs rhs) (opV OpAnd [lhs, rhs])
 
 orE :: Expr -> Expr -> Expr
-orE lhs rhs = Expr (assertTypesEqualAnd isBoolT lhs rhs) (opV OpOr [lhs, rhs])
+orE lhs rhs = Expr (ensureTypesEqualAnd isBoolT lhs rhs) (opV OpOr [lhs, rhs])
 
 notE :: Expr -> Expr
-notE expr = Expr (assertType isBoolT expr) (opV OpNot [expr])
+notE expr = Expr (ensureType isBoolT expr) (opV OpNot [expr])
 
 impliesE :: Expr -> Expr -> Expr
-impliesE lhs rhs = Expr (assertTypesEqualAnd isBoolT lhs rhs) (opV OpImplies [lhs, rhs])
+impliesE lhs rhs = Expr (ensureTypesEqualAnd isBoolT lhs rhs) (opV OpImplies [lhs, rhs])
 
 ifThenElseE :: Expr -> Expr -> Expr -> Expr
-ifThenElseE cond ifTrue ifFalse = assertType_ isBoolT cond $
-    Expr (assertTypesEqual ifTrue ifFalse) (opV OpIfThenElse [cond, ifTrue, ifFalse])
+ifThenElseE cond ifTrue ifFalse = ensureType_ isBoolT cond $
+    Expr (ensureTypesEqual ifTrue ifFalse) (opV OpIfThenElse [cond, ifTrue, ifFalse])
 
 --
 
 plusE :: Expr -> Expr -> Expr
-plusE lhs rhs = Expr (assertTypesEqualAnd isWordT lhs rhs) (opV OpPlus [lhs, rhs])
+plusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpPlus [lhs, rhs])
 
 minusE :: Expr -> Expr -> Expr
-minusE lhs rhs = Expr (assertTypesEqualAnd isWordT lhs rhs) (opV OpMinus [lhs, rhs])
+minusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpMinus [lhs, rhs])
 
 negE :: Expr -> Expr
 negE expr = numE expr.ty 0 `minusE` expr
 
 lessWithSignednessE :: Bool -> Expr -> Expr -> Expr
-lessWithSignednessE isSigned lhs rhs = assertTypesEqualAnd_ isWordT lhs rhs $
+lessWithSignednessE isSigned lhs rhs = ensureTypesEqualAnd_ isWordT lhs rhs $
     boolE (opV (if isSigned then OpSignedLess else OpLess) [lhs, rhs])
 
 lessEqWithSignednessE :: Bool -> Expr -> Expr -> Expr
-lessEqWithSignednessE isSigned lhs rhs = assertTypesEqualAnd_ isWordT lhs rhs $
+lessEqWithSignednessE isSigned lhs rhs = ensureTypesEqualAnd_ isWordT lhs rhs $
     boolE (opV (if isSigned then OpSignedLessEquals else OpLessEquals) [lhs, rhs])
 
 lessE :: Expr -> Expr -> Expr
@@ -142,16 +142,16 @@ lessEqSignedE :: Expr -> Expr -> Expr
 lessEqSignedE = lessEqWithSignednessE True
 
 bitwiseAndE :: Expr -> Expr -> Expr
-bitwiseAndE lhs rhs = Expr (assertTypesEqualAnd isWordT lhs rhs) (opV OpBWAnd [lhs, rhs])
+bitwiseAndE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpBWAnd [lhs, rhs])
 
 bitwiseOrE :: Expr -> Expr -> Expr
-bitwiseOrE lhs rhs = Expr (assertTypesEqualAnd isWordT lhs rhs) (opV OpBWOr [lhs, rhs])
+bitwiseOrE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpBWOr [lhs, rhs])
 
 wordReverseE :: Expr -> Expr
-wordReverseE x = Expr (assertType isWordT x) (opV OpWordReverse [x])
+wordReverseE x = Expr (ensureType isWordT x) (opV OpWordReverse [x])
 
 clzE :: Expr -> Expr
-clzE x = Expr (assertType isWordT x) (opV OpCountLeadingZeroes [x])
+clzE x = Expr (ensureType isWordT x) (opV OpCountLeadingZeroes [x])
 
 --
 
@@ -163,14 +163,14 @@ nImpliesE xs y = foldr impliesE y xs
 alignedE :: Integer -> Expr -> Expr
 alignedE n expr = bitwiseAndE expr mask `eqE` numE ty 0
   where
-    ty = assertType isWordT expr
+    ty = ensureType isWordT expr
     mask = numE ty ((1 `shiftL` fromInteger n) - 1)
 
 castE :: ExprType -> Expr -> Expr
 castE ty expr =
     if ty == expr.ty
     then expr
-    else ensure (isWordT ty) . assertType_ isWordT expr $ Expr ty (opV OpWordCast [expr])
+    else ensure (isWordT ty) . ensureType_ isWordT expr $ Expr ty (opV OpWordCast [expr])
 
 --
 
@@ -210,37 +210,37 @@ wordVarE bits = varE (wordT bits)
 
 memAccE :: ExprType -> Expr -> Expr -> Expr
 memAccE ty addr mem =
-    assertType_ isMemT mem .
-    assertType_ (isWordWithSizeT archWordSizeBits) addr .
+    ensureType_ isMemT mem .
+    ensureType_ (isWordWithSizeT archWordSizeBits) addr .
     ensure (isWordT ty) $
         Expr ty (opV OpMemAcc [mem, addr])
 
 rodataE :: Expr -> Expr
-rodataE mem = assertType_ isMemT mem $ boolE (opV OpROData [mem])
+rodataE mem = ensureType_ isMemT mem $ boolE (opV OpROData [mem])
 
 stackWrapperE :: Expr -> Expr -> [Expr] -> Expr
 stackWrapperE sp stack except =
-    assertType_ isMemT stack .
-    assertType_ (isWordWithSizeT archWordSizeBits) sp .
-    appEndo (foldMap (Endo . assertType_ (isWordWithSizeT archWordSizeBits)) except) $
+    ensureType_ isMemT stack .
+    ensureType_ (isWordWithSizeT archWordSizeBits) sp .
+    appEndo (foldMap (Endo . ensureType_ (isWordWithSizeT archWordSizeBits)) except) $
         Expr ExprTypeRelWrapper (opV OpStackWrapper ([sp, stack] ++ except))
 
 --
 
-assertType :: (ExprType -> Bool) -> Expr -> ExprType
-assertType p expr = assertType_ p expr expr.ty
+ensureType :: (ExprType -> Bool) -> Expr -> ExprType
+ensureType p expr = ensureType_ p expr expr.ty
 
-assertType_ :: (ExprType -> Bool) -> Expr -> a -> a
-assertType_ p expr = ensure (p expr.ty)
+ensureType_ :: (ExprType -> Bool) -> Expr -> a -> a
+ensureType_ p expr = ensure (p expr.ty)
 
-assertTypesEqual :: Expr -> Expr -> ExprType
-assertTypesEqual lhs rhs = assertTypesEqual_ lhs rhs lhs.ty
+ensureTypesEqual :: Expr -> Expr -> ExprType
+ensureTypesEqual lhs rhs = ensureTypesEqual_ lhs rhs lhs.ty
 
-assertTypesEqual_ :: Expr -> Expr -> a -> a
-assertTypesEqual_ lhs rhs = ensure (lhs.ty == rhs.ty)
+ensureTypesEqual_ :: Expr -> Expr -> a -> a
+ensureTypesEqual_ lhs rhs = ensure (lhs.ty == rhs.ty)
 
-assertTypesEqualAnd :: (ExprType -> Bool) -> Expr -> Expr -> ExprType
-assertTypesEqualAnd p lhs rhs = assertTypesEqualAnd_ p lhs rhs lhs.ty
+ensureTypesEqualAnd :: (ExprType -> Bool) -> Expr -> Expr -> ExprType
+ensureTypesEqualAnd p lhs rhs = ensureTypesEqualAnd_ p lhs rhs lhs.ty
 
-assertTypesEqualAnd_ :: (ExprType -> Bool) -> Expr -> Expr -> a -> a
-assertTypesEqualAnd_ p lhs rhs = ensure (lhs.ty == rhs.ty && p lhs.ty)
+ensureTypesEqualAnd_ :: (ExprType -> Bool) -> Expr -> Expr -> a -> a
+ensureTypesEqualAnd_ p lhs rhs = ensure (lhs.ty == rhs.ty && p lhs.ty)

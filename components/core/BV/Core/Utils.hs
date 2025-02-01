@@ -20,7 +20,7 @@ import GHC.Stack (HasCallStack)
 import Optics.Core
 
 ensure :: HasCallStack => Bool -> a -> a
-ensure p = applyWhen (not p) (error "assertion failed")
+ensure p = applyWhen (not p) (error "ensure failed")
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
 liftIso f l r =
