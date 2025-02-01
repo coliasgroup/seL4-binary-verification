@@ -39,7 +39,7 @@ testGlued = do
             , referenceTargetDir = Just referenceTargetDir
             , mismatchDumpDir = Just $ tmpDir </> "mismatch"
             }
-    void . runStderrLoggingT $ gluedStages (registerIntermediateArtifactWith ctx) input
+    void . runStderrLoggingT $ runGluedStages ctx input
   where
     -- referenceTargetDir = testSeL4TargetDirBig
     referenceTargetDir = testSeL4TargetDirSmall

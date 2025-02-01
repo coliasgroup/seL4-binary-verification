@@ -6,7 +6,6 @@ module BV.System.LocalCheckBackend.Scratch
 
 import BV.Core.AdornProofScript
 import BV.Core.ExecuteSMTProofChecks
-import BV.Core.GluedStages
 import BV.Core.Types
 import BV.System.CheckFrontend
 import BV.System.IntermediateArtifacts
@@ -76,7 +75,7 @@ runScratch targetDir mismatchDumpDir =
                 , referenceTargetDir = Just targetDir
                 , mismatchDumpDir = Just mismatchDumpDir
                 }
-        structuredChecks <- gluedStages (registerIntermediateArtifactWith ctx) input
+        structuredChecks <- runGluedStages ctx input
         let checks = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions structuredChecks)
         report <- localCheckBackend config checks
         let brief = M.mapMaybe (preview _Left) report.unwrap

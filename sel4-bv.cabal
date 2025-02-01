@@ -111,7 +111,6 @@ library core
     , exceptions
     , file-embed
     , filepath
-    , monad-logger
     , mtl
     , optics
     , optics-core

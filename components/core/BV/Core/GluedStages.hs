@@ -3,7 +3,7 @@
 
 module BV.Core.GluedStages
     ( GluedStagesInput (..)
-    , IntermediateArtifact (..)
+    , GluedStagesOutput (..)
     , gluedStages
     ) where
 
@@ -12,15 +12,13 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 
 import Control.DeepSeq (NFData)
-import Control.Monad (guard, unless)
-import Control.Monad.Logger
+import Control.Monad (guard)
 import Data.Foldable (toList)
 import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
 import qualified Data.Set as S
-import Data.String (fromString)
 import GHC.Generics (Generic)
 import Optics
 
@@ -35,36 +33,32 @@ data GluedStagesInput
       }
   deriving (Generic)
 
-data IntermediateArtifact
-  = IntermediateArtifactFunctions Program
-  | IntermediateArtifactPairings Pairings
-  | IntermediateArtifactProblems Problems
-  | IntermediateArtifactFlattenedProofChecks (FlattenedProofChecks String)
-  | IntermediateArtifactFlattenedSMTProofChecks (FlattenedSMTProofChecks ())
+data GluedStagesOutput
+  = GluedStagesOutput
+      { smtProofChecks :: SMTProofChecks String
+        -- report
+      , unhandledInlineAssemblyFunctions :: [Ident]
+      , unhandledInstructionFunctions :: [Ident]
+        -- intermediate, for checking
+      , functions :: Program
+      , pairings :: Pairings
+      , problems :: Problems
+      , flattenedProofChecks :: FlattenedProofChecks String
+      , flattenedSMTProofChecks :: FlattenedSMTProofChecks ()
+      }
   deriving (Eq, Generic, NFData, Ord, Show)
 
--- TODO leave logging to 'registerIntermediateArtifact' function?
-
-gluedStages
-    :: MonadLogger m
-    => (IntermediateArtifact -> m ()) -> GluedStagesInput -> m (SMTProofChecks String)
-gluedStages registerIntermediateArtifact input = do
-    logWarnN . fromString $ "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) unhandledAsmFunctionNames.c)
-    logWarnN . fromString $ "Unhandled instrcution functions (Asm side): " ++ show (map (.unwrap) unhandledAsmFunctionNames.asm)
-    logInfoN "Registering functions"
-    registerIntermediateArtifact $ IntermediateArtifactFunctions collectedFunctions
-    logInfoN "Registering pairings"
-    registerIntermediateArtifact $ IntermediateArtifactPairings pairings
-    logInfoN "Registering problems"
-    registerIntermediateArtifact $ IntermediateArtifactProblems problems
-    logInfoN "Registering flattened proof checks"
-    registerIntermediateArtifact $ IntermediateArtifactFlattenedProofChecks flattenedProofChecks
-    logInfoN "Registering flattened SMT proof checks"
-    registerIntermediateArtifact $ IntermediateArtifactFlattenedSMTProofChecks flattenedSMTProofChecks
-    logInfoN "Registered all intermediate artifacts"
-    unless groupsAreDistinctAsExpected $
-        error "SMT proof check groups should be distinct"
-    return smtProofChecks
+gluedStages :: GluedStagesInput -> GluedStagesOutput
+gluedStages input = GluedStagesOutput
+    { smtProofChecks
+    , unhandledInlineAssemblyFunctions = unhandledAsmFunctionNames.c
+    , unhandledInstructionFunctions = unhandledAsmFunctionNames.asm
+    , functions = collectedFunctions
+    , pairings
+    , problems
+    , flattenedProofChecks
+    , flattenedSMTProofChecks
+    }
 
   where
 
@@ -128,15 +122,20 @@ gluedStages registerIntermediateArtifact input = do
 
     flattenedProofChecks = flattenProofChecks proofChecks
 
-    smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    uncheckedSMTProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
 
-    flattenedSMTProofChecks = void $ flattenSMTProofChecks smtProofChecks
+    flattenedSMTProofChecks = void $ flattenSMTProofChecks uncheckedSMTProofChecks
 
     groupsAreDistinctAsExpected = and
         [ length groups == S.size (S.fromList (map (.setup) groups))
         | groups <- toList flattenedSMTProofChecks.unwrap
         ]
+
+    smtProofChecks =
+        if groupsAreDistinctAsExpected
+        then uncheckedSMTProofChecks
+        else error "SMT proof check groups should be distinct"
 
 
 asmFunNameToCFunName :: Ident -> Ident

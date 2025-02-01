@@ -84,7 +84,6 @@ internal-libraries:
       # external
       - deepseq
       - containers
-      - monad-logger
       - transformers
       - mtl
       - exceptions
