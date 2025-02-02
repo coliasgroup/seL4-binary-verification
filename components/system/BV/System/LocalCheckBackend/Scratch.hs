@@ -29,9 +29,9 @@ runScratch config targetDir mismatchDumpDir =
         input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter targetDir
         checks <- evalStages ctx input
         report <- localCheckBackend config checks
-        let brief = M.mapMaybe (preview _Left) report.unwrap
-        unless (M.null brief) $ do
-            forM_ (M.toAscList brief) $ \(pairingId, err) -> liftIO $ do
+        let failed = M.mapMaybe (preview _Left) report.unwrap
+        unless (M.null failed) $ do
+            forM_ (M.toAscList failed) $ \(pairingId, err) -> liftIO $ do
                 putStrLn $ "Check failure for " <> prettyPairingId pairingId <> ": " <> show err
             liftIO $ die "Some checks failed"
     ctx = EvalStagesContext
