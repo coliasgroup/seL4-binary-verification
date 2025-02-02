@@ -1,5 +1,8 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Redundant flip" #-}
 
 module BV.System.LocalCheckBackend
@@ -13,6 +16,8 @@ import BV.Core.AdornProofScript
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.ExecuteSMTProofChecks (SolverConfig)
 import BV.Core.Types
+import BV.SMTLIB2.Process
+import BV.SMTLIB2.Types
 import BV.System.CheckFingerprint
 import BV.System.CheckFrontend
 import BV.System.LocalCheckBackend.Cache
@@ -39,6 +44,7 @@ import qualified Data.Text as T
 import Data.Void (absurd)
 import GHC.Generics (Generic)
 import Optics (forOf)
+import System.Process (CreateProcess, proc)
 import Text.Printf (printf)
 
 data LocalCheckBackendConfig
@@ -49,7 +55,7 @@ data LocalCheckBackendConfig
   deriving (Eq, Generic, Ord, Show)
 
 localCheckBackend
-    :: (MonadUnliftIO m, MonadLogger m, MonadLocalCheckCache m)
+    :: (MonadUnliftIO m, MonadLogger m, MonadLocalCheckCache m, MonadMask m)
     => LocalCheckBackendConfig -> FlattenedSMTProofChecks SMTProofCheckDescription -> m CheckReport
 localCheckBackend config checks = withRunInIO $ \runInIO -> do
     (taskQueueIn, taskQueueControl) <- liftIO newTaskQueue
@@ -63,17 +69,20 @@ localCheckBackend config checks = withRunInIO $ \runInIO -> do
     either absurd id <$> race completeTasks (runInIO (checkFrontend taskQueueIn checks))
 
 checkGroup
-    :: (MonadUnliftIO m, MonadLogger m, MonadLocalCheckCache m)
+    :: (MonadUnliftIO m, MonadLogger m, MonadLocalCheckCache m, MonadMask m)
     => LocalCheckBackendConfig -> Throttle -> SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult ())
 checkGroup config throttle group = runExceptT $ do
     logDebugN . T.pack $ printf "Checking group: %s" (smtProofCheckGroupFingerprint (void group))
     filteredGroup <- filterGroupM group
     let filteredGroupWithLabels = zipWithT [0..] filteredGroup
     -- onlineResults <-
-    --     lift $ executeSMTProofCheckGroupOnline
-    --         config.solversConfig.online
-    --         config.solversConfig.onlineTimeout
-    --         filteredGroup
+    --     lift $ runSolver
+    --         (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
+    --         (\line -> logInfoN $ "Online solver stderr: " <> line)
+    --         (executeSMTProofCheckGroupOnline
+    --         (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
+    --         (Just (SolverTimeout config.solversConfig.onlineTimeout))
+    --         filteredGroup)
     undefined
 
 filterGroupM

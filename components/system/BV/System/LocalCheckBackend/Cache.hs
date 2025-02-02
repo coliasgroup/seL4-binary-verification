@@ -23,6 +23,8 @@ import Control.Monad.Reader (MonadTrans (lift), ReaderT (..))
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Free.Church (FT, iterT)
 import GHC.Generics (Generic)
+import Control.Monad.Catch (MonadMask, mask, uninterruptibleMask, generalBracket)
+import GHC.Stack (HasCallStack)
 
 data AcceptableSatResult
   = AcceptableSatResultSat

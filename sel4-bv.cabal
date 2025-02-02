@@ -228,6 +228,7 @@ library system
     , optics
     , optics-core
     , pretty-show
+    , process
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:smtlib2

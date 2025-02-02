@@ -163,6 +163,7 @@ internal-libraries:
       - attoparsec
       - megaparsec
       - cryptohash-sha256
+      - process
       - filepath
       - directory
       - monad-logger
