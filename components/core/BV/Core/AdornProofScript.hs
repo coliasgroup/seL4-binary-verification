@@ -16,7 +16,7 @@ data ProofScriptNodeLocation
 
 adornProofScriptWithProofScriptNodeLocationsWith
     :: (ProofScriptNodeLocation -> a -> b) -> ProofScript a -> ProofScript b
-adornProofScriptWithProofScriptNodeLocationsWith f proofScript = undefined
+adornProofScriptWithProofScriptNodeLocationsWith f = #root % traversed %~ f ProofScriptNodeLocation
 
 data SMTProofCheckDescription a
   = SMTProofCheckDescription
