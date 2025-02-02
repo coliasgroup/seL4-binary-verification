@@ -10,3 +10,6 @@
     - hack-inline-scripts-must-be-loaded
 
 - https://hackage.haskell.org/package/safe-exceptions
+
+- use for sexprs and beyond:
+    - https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/pattern_synonyms.html

@@ -40,6 +40,7 @@ import Data.Functor (void)
 import Data.List (uncons)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Maybe (catMaybes, fromJust)
+import Data.String (fromString)
 import qualified Data.Text as T
 import Data.Void (absurd)
 import GHC.Generics (Generic)
@@ -75,14 +76,15 @@ checkGroup config throttle group = runExceptT $ do
     logDebugN . T.pack $ printf "Checking group: %s" (smtProofCheckGroupFingerprint (void group))
     filteredGroup <- filterGroupM group
     let filteredGroupWithLabels = zipWithT [0..] filteredGroup
-    -- onlineResults <-
-    --     lift $ runSolver
-    --         (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
-    --         (\line -> logInfoN $ "Online solver stderr: " <> line)
-    --         (executeSMTProofCheckGroupOnline
-    --         (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
-    --         (Just (SolverTimeout config.solversConfig.onlineTimeout))
-    --         filteredGroup)
+    onlineResults <-
+        lift $ runSolver
+            (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
+            (\line -> logInfoN $ "Online solver stderr: " <> line)
+            (executeSMTProofCheckGroupOnline
+            (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
+            (Just (SolverTimeout config.solversConfig.onlineTimeout))
+            filteredGroup)
+    logInfoN . fromString $ show onlineResults
     undefined
 
 filterGroupM

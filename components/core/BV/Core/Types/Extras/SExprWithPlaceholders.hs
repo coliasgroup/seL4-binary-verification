@@ -34,6 +34,9 @@ memDomSortS = placeholderS SExprPlaceholderMemDomSort
 symbolS :: String -> S
 symbolS = atomS . symbolAtom
 
+keywordS :: String -> S
+keywordS = atomS . keywordAtom
+
 intS :: Integral a => a -> S
 intS = intWithS (atomS . numeralAtom. fromIntegral)
 
@@ -63,6 +66,12 @@ binOpS op x y = [symbolS op, x, y]
 bvaddS :: S -> S -> S
 bvaddS = binOpS "bvadd"
 
+notS :: S -> S
+notS x = ["not", x]
+
+andNS :: [S] -> S
+andNS xs = "and" : xs
+
 iteS :: S -> S -> S -> S
 iteS i t e = ["ite", i, t, e]
 
@@ -89,3 +98,13 @@ concatS = binOpS "concat"
 
 ixS :: String -> [S] -> S
 ixS s ixs = listS $ ["_", symbolS s] ++ ixs
+
+labelS :: String -> S -> S
+labelS label x = ["!", x, keywordS "named", symbolS label]
+
+--
+
+matchPatternS :: Eq a => GenericSExpr a -> GenericSExpr a -> Bool
+matchPatternS (Atom p) (Atom x) = p == x
+matchPatternS (List ps) (List xs) = length ps <= length xs && and (zipWith matchPatternS ps xs)
+matchPatternS _ _ = False

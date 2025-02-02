@@ -1,13 +1,16 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.Core.Types.SExprWithPlaceholders
-    ( AtomOrPlaceholder (..)
+    ( AtomOrPlaceholder
+    , GenericAtomOrPlaceholder (..)
     , SExprPlaceholder (..)
     , SExprWithPlaceholders
+    , checkSExprWithPlaceholders
     , readSExprWithPlaceholders
     , readSExprsWithPlaceholders
     , tryReadSExprWithPlaceholders
     , tryReadSExprsWithPlaceholders
+    , viewSExprWithPlaceholders
     ) where
 
 import BV.SMTLIB2.Types.SExpr
@@ -22,10 +25,12 @@ import qualified Text.ParserCombinators.ReadP as R
 
 type SExprWithPlaceholders = GenericSExpr AtomOrPlaceholder
 
-data AtomOrPlaceholder
-  = AtomOrPlaceholderAtom Atom
+data GenericAtomOrPlaceholder a
+  = AtomOrPlaceholderAtom a
   | AtomOrPlaceholderPlaceholder SExprPlaceholder
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
+
+type AtomOrPlaceholder = GenericAtomOrPlaceholder Atom
 
 data SExprPlaceholder
   = SExprPlaceholderMemSort
@@ -63,5 +68,11 @@ placeholderP :: R.ReadP SExprPlaceholder
 placeholderP = R.between (R.char '{') (R.char '}') $
     SExprPlaceholderMemSort <$ R.string "MemSort" <|> SExprPlaceholderMemDomSort <$ R.string "MemDomSort"
 
-instance IsString AtomOrPlaceholder where
+instance IsString a => IsString (GenericAtomOrPlaceholder a) where
     fromString = AtomOrPlaceholderAtom . fromString
+
+viewSExprWithPlaceholders :: SExprWithPlaceholders -> GenericSExpr (GenericAtomOrPlaceholder UncheckedAtom)
+viewSExprWithPlaceholders = fmap (fmap viewAtom)
+
+checkSExprWithPlaceholders :: GenericSExpr (GenericAtomOrPlaceholder UncheckedAtom) -> Maybe SExprWithPlaceholders
+checkSExprWithPlaceholders = traverse (traverse checkAtom)
