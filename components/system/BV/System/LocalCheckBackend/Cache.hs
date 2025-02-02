@@ -14,17 +14,14 @@ module BV.System.LocalCheckBackend.Cache
 
 import BV.Core.Types
 
+import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)
-import Control.Monad.Free (liftF)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO))
-import Control.Monad.Logger (MonadLogger (monadLoggerLog), runStderrLoggingT)
-import Control.Monad.Reader (MonadTrans (lift), ReaderT (..))
+import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Control.Monad.Logger (MonadLogger)
+import Control.Monad.Reader (MonadTrans (lift), ReaderT)
 import Control.Monad.Reader.Class (asks)
-import Control.Monad.Trans.Free.Church (FT, iterT)
 import GHC.Generics (Generic)
-import Control.Monad.Catch (MonadMask, mask, uninterruptibleMask, generalBracket)
-import GHC.Stack (HasCallStack)
 
 data AcceptableSatResult
   = AcceptableSatResultSat
@@ -35,26 +32,33 @@ class Monad m => MonadLocalCheckCache m where
     queryCache :: SMTProofCheck () -> m (Maybe AcceptableSatResult)
     updateCache :: SMTProofCheck () -> AcceptableSatResult -> m ()
 
+instance MonadLocalCheckCache m => MonadLocalCheckCache (ExceptT e m) where
+    queryCache check = lift $ queryCache check
+    updateCache check result = lift $ updateCache check result
+
 --
 
 newtype LocalCheckCacheT m a
-  = LocalCheckCacheT { unwrap :: FT LocalCheckCacheDSL (LocalCheckCacheTInner m) a }
+  = LocalCheckCacheT { unwrap :: LocalCheckCacheTInner m a }
   deriving
     ( Applicative
     , Functor
     , Generic
     , Monad
+    , MonadCatch
     , MonadError e
     , MonadFail
     , MonadIO
+    , MonadLogger
+    , MonadMask
+    , MonadThrow
+    , MonadUnliftIO
     )
 
-data LocalCheckCacheDSL a
-  = QueryCache (SMTProofCheck ()) (Maybe AcceptableSatResult -> a)
-  | UpdateCache (SMTProofCheck ()) AcceptableSatResult a
-  deriving (Functor, Generic)
-
 type LocalCheckCacheTInner m = ReaderT (LocalCheckCacheContext m) m
+
+runLocalCheckCacheT :: LocalCheckCacheT m a -> LocalCheckCacheTInner m a
+runLocalCheckCacheT = (.unwrap)
 
 data LocalCheckCacheContext m
   = LocalCheckCacheContext
@@ -62,28 +66,13 @@ data LocalCheckCacheContext m
       , updateCache :: SMTProofCheck () -> AcceptableSatResult -> m ()
       }
 
-runLocalCheckCacheT :: Monad m => LocalCheckCacheT m a -> LocalCheckCacheTInner m a
-runLocalCheckCacheT (LocalCheckCacheT inner) = iterT f inner
-  where
-    f = \case
-        QueryCache check cont -> do
-            queryCache' <- asks (.queryCache)
-            result <- lift $ queryCache' check
-            cont result
-        UpdateCache check result cont -> do
-            updateCache' <- asks (.updateCache)
-            lift $ updateCache' check result
-            cont
-
 instance Monad m => MonadLocalCheckCache (LocalCheckCacheT m) where
-    queryCache check = LocalCheckCacheT . liftF $ QueryCache check id
-    updateCache check result = LocalCheckCacheT . liftF $ UpdateCache check result ()
-
-instance MonadUnliftIO m => MonadUnliftIO (LocalCheckCacheT m) where
-    withRunInIO inner = LocalCheckCacheT . lift $ withRunInIO (\run -> inner (run . runLocalCheckCacheT))
-
-instance MonadLogger m => MonadLogger (LocalCheckCacheT m) where
-    monadLoggerLog loc source level msg = LocalCheckCacheT . lift $ monadLoggerLog loc source level msg
+    queryCache check = LocalCheckCacheT $ do
+        f <- asks (.queryCache)
+        lift $ f check
+    updateCache check result = LocalCheckCacheT $ do
+        f <- asks (.updateCache)
+        lift $ f check result
 
 liftIOLocalCheckCacheContext :: MonadIO m => LocalCheckCacheContext IO -> LocalCheckCacheContext m
 liftIOLocalCheckCacheContext ctx = LocalCheckCacheContext
@@ -96,11 +85,3 @@ trivialLocalCheckCacheContext = LocalCheckCacheContext
     { queryCache = \_check -> return Nothing
     , updateCache = \_check _result -> return ()
     }
-
---
-
--- TODO
-
-instance MonadLocalCheckCache m => MonadLocalCheckCache (ExceptT e m) where
-    queryCache check = lift $ queryCache check
-    updateCache check result = lift $ updateCache check result
