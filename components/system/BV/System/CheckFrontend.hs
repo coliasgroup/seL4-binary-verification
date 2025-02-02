@@ -3,7 +3,7 @@
 module BV.System.CheckFrontend
     ( CheckReport (..)
     , SMTProofCheckError (..)
-    , SMTProofCheckErrorWithLocations
+    , SMTProofCheckErrorWithDescriptions
     , SMTProofCheckResult
     , SMTProofCheckTask
     , checkFrontend
@@ -29,10 +29,9 @@ import Text.Printf (printf)
 
 type SMTProofCheckTask = Task (SMTProofCheckGroup SMTProofCheckDescription) (SMTProofCheckResult ())
 
--- type SMTProofCheckResult = Maybe (NonEmpty SMTProofCheckErrorWithLocations)
-type SMTProofCheckResult a = Either SMTProofCheckErrorWithLocations a
+type SMTProofCheckResult a = Either SMTProofCheckErrorWithDescriptions a
 
-type SMTProofCheckErrorWithLocations = (SMTProofCheckError, NonEmpty SMTProofCheckDescription)
+type SMTProofCheckErrorWithDescriptions = (SMTProofCheckError, NonEmpty SMTProofCheckDescription)
 
 data SMTProofCheckError
   = NoSolversAnswered

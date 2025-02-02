@@ -14,6 +14,7 @@ module BV.System.LocalCheckBackend.Cache
 
 import BV.Core.Types
 
+import Control.Monad.Except (ExceptT, MonadError)
 import Control.Monad.Free (liftF)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO))
@@ -36,7 +37,15 @@ class Monad m => MonadLocalCheckCache m where
 
 newtype LocalCheckCacheT m a
   = LocalCheckCacheT { unwrap :: FT LocalCheckCacheDSL (LocalCheckCacheTInner m) a }
-  deriving (Applicative, Functor, Generic, Monad, MonadFail, MonadIO)
+  deriving
+    ( Applicative
+    , Functor
+    , Generic
+    , Monad
+    , MonadError e
+    , MonadFail
+    , MonadIO
+    )
 
 data LocalCheckCacheDSL a
   = QueryCache (SMTProofCheck ()) (Maybe AcceptableSatResult -> a)
@@ -85,3 +94,11 @@ trivialLocalCheckCacheContext = LocalCheckCacheContext
     { queryCache = \_check -> return Nothing
     , updateCache = \_check _result -> return ()
     }
+
+--
+
+-- TODO
+
+instance MonadLocalCheckCache m => MonadLocalCheckCache (ExceptT e m) where
+    queryCache check = lift $ queryCache check
+    updateCache check result = lift $ updateCache check result

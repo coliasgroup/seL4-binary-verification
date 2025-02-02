@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant flip" #-}
 
 module BV.System.LocalCheckBackend
     ( AcceptableSatResult (..)
@@ -8,6 +10,7 @@ module BV.System.LocalCheckBackend
     ) where
 
 import BV.Core.AdornProofScript
+import BV.Core.ExecuteSMTProofChecks
 import BV.Core.ExecuteSMTProofChecks (SolverConfig)
 import BV.Core.Types
 import BV.System.CheckFingerprint
@@ -19,9 +22,10 @@ import BV.System.Throttle
 
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  race)
-import Control.Monad (forever)
+import Control.Monad (filterM, forever)
 import Control.Monad.Catch (MonadMask, MonadThrow, SomeException)
-import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
+import Control.Monad.Except (ExceptT (ExceptT), MonadError, runExceptT,
+                             throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import Control.Monad.Logger (MonadLogger, logDebugN, logInfoN)
@@ -29,10 +33,12 @@ import Control.Monad.State (evalState, state)
 import Control.Monad.Trans (lift)
 import Data.Functor (void)
 import Data.List (uncons)
-import Data.Maybe (fromJust)
+import Data.List.NonEmpty (NonEmpty ((:|)))
+import Data.Maybe (catMaybes, fromJust)
 import qualified Data.Text as T
 import Data.Void (absurd)
 import GHC.Generics (Generic)
+import Optics (forOf)
 import Text.Printf (printf)
 
 data LocalCheckBackendConfig
@@ -61,11 +67,28 @@ checkGroup
     => LocalCheckBackendConfig -> Throttle -> SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult ())
 checkGroup config throttle group = runExceptT $ do
     logDebugN . T.pack $ printf "Checking group: %s" (smtProofCheckGroupFingerprint (void group))
-    filteredGroup <- ExceptT $ filterGroupM group
+    filteredGroup <- filterGroupM group
+    let filteredGroupWithLabels = zipWithT [0..] filteredGroup
+    -- onlineResults <-
+    --     lift $ executeSMTProofCheckGroupOnline
+    --         config.solversConfig.online
+    --         config.solversConfig.onlineTimeout
+    --         filteredGroup
     undefined
 
-filterGroupM :: MonadLocalCheckCache m => SMTProofCheckGroup a -> m (SMTProofCheckResult (SMTProofCheckGroup a))
-filterGroupM = undefined
+filterGroupM
+    :: (MonadLogger m, MonadLocalCheckCache m, MonadError SMTProofCheckErrorWithDescriptions m)
+    => SMTProofCheckGroup SMTProofCheckDescription
+    -> m (SMTProofCheckGroup SMTProofCheckDescription)
+filterGroupM group = forOf #imps group $ \imps ->
+    -- TODO only reports first error
+    flip filterM imps (\imp -> do
+        let check = void $ SMTProofCheck group.setup imp
+        cached <- queryCache check
+        case cached of
+            Nothing -> return True
+            Just AcceptableSatResultUnsat -> return False
+            Just AcceptableSatResultSat -> throwError (SomeSolverAnsweredSat, imp.meta :| []))
 
 zipWithT :: Traversable f => [a] -> f b -> f (a, b)
 zipWithT as f = flip evalState as $ traverse m f
@@ -74,14 +97,14 @@ zipWithT as f = flip evalState as $ traverse m f
         a <- state (fromJust . uncons)
         return (a, b)
 
-online
-    :: ( MonadUnliftIO m
-       , MonadLogger m
-       , MonadThrow m
-       , MonadMask m
-       )
-    => SolverConfig
-    -> SMTProofCheckGroup a
-    -> m (Either SomeException (), [a])
-online config group = do
-    undefined
+-- online
+--     :: ( MonadUnliftIO m
+--        , MonadLogger m
+--        , MonadThrow m
+--        , MonadMask m
+--        )
+--     => SolverConfig
+--     -> SMTProofCheckGroup a
+--     -> m (Either SomeException (), [a])
+-- online config group = do
+--     undefined

@@ -37,14 +37,14 @@ data SMTProofCheckGroup a
       { setup :: [SExprWithPlaceholders]
       , imps :: [SMTProofCheckImp a]
       }
-  deriving (Eq, Functor, Generic, NFData, Ord, Show)
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
 data SMTProofCheck a
   = SMTProofCheck
       { setup :: [SExprWithPlaceholders]
       , imp :: SMTProofCheckImp a
       }
-  deriving (Eq, Functor, Generic, NFData, Ord, Show)
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
 data SMTProofCheckImp a
   = SMTProofCheckImp
