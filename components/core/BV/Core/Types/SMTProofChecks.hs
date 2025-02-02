@@ -69,39 +69,3 @@ data SMTProofCheckImp a
       , term :: SExprWithPlaceholders
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
-
--- TODO deduplicate with one base function
-
-traverseAndFilterChecksOfSMTProofCheckGroup
-    :: forall f a b. Applicative f => (SMTProofCheck a -> f (Maybe b)) -> SMTProofCheckGroup a -> f (SMTProofCheckGroup b)
-traverseAndFilterChecksOfSMTProofCheckGroup f group = traverseOf #imps g group
-  where
-    g :: [SMTProofCheckImp a] -> f [SMTProofCheckImp b]
-    g imps = toListOf (folded % folded) <$> traverse (h . SMTProofCheck group.setup) imps
-    h :: SMTProofCheck a -> f (Maybe (SMTProofCheckImp b))
-    h check = f check <&> \maybeMeta -> maybeMeta <&> \meta -> SMTProofCheckImp meta check.imp.term
-
-traverseChecksOfSMTProofCheckGroup
-    :: forall f a b. Applicative f => (SMTProofCheck a -> f b) -> SMTProofCheckGroup a -> f (SMTProofCheckGroup b)
-traverseChecksOfSMTProofCheckGroup f group = traverseOf #imps g group
-  where
-    g :: [SMTProofCheckImp a] -> f [SMTProofCheckImp b]
-    g = traverse (h . SMTProofCheck group.setup)
-    h :: SMTProofCheck a -> f (SMTProofCheckImp b)
-    h check = f check <&> \meta -> SMTProofCheckImp meta check.imp.term
-
-traverseAndFilterMetaOfSMTProofCheckGroup
-    :: forall f a b. Applicative f => (a -> f (Maybe b)) -> SMTProofCheckGroup a -> f (SMTProofCheckGroup b)
-traverseAndFilterMetaOfSMTProofCheckGroup f group = traverseOf #imps g group
-  where
-    g :: [SMTProofCheckImp a] -> f [SMTProofCheckImp b]
-    g imps = toListOf (folded % folded) <$> traverse h imps
-    h :: SMTProofCheckImp a -> f (Maybe (SMTProofCheckImp b))
-    h imp = f imp.meta <&> \maybeMeta -> maybeMeta <&> \meta -> SMTProofCheckImp meta imp.term
-
-traverseAndFilterChecksOfSMTProofCheckGroup_2
-    :: forall f t a b. (Applicative f, Foldable t) => (SMTProofCheck a -> f (t (SMTProofCheckImp b))) -> SMTProofCheckGroup a -> f (SMTProofCheckGroup b)
-traverseAndFilterChecksOfSMTProofCheckGroup_2 f group = traverseOf #imps g group
-  where
-    g :: [SMTProofCheckImp a] -> f [SMTProofCheckImp b]
-    g imps = toListOf (folded % folded) <$> traverse (f . SMTProofCheck group.setup) imps
