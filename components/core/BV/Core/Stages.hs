@@ -58,8 +58,8 @@ data StagesOutput
       , functions :: Program
       , pairings :: Pairings
       , problems :: Problems
-      , flattenedProofChecks :: FlattenedProofChecks String
-      , flattenedSMTProofChecks :: FlattenedSMTProofChecks ()
+      , compatProofChecks :: CompatProofChecks String
+      , compatSMTProofChecks :: CompatSMTProofChecks ()
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -71,8 +71,8 @@ stages input = StagesOutput
     , functions = collectedFunctions
     , pairings
     , problems
-    , flattenedProofChecks
-    , flattenedSMTProofChecks
+    , compatProofChecks
+    , compatSMTProofChecks
     }
 
   where
@@ -135,16 +135,16 @@ stages input = StagesOutput
                     PairingEqDirectionOut -> probSide.output
          in enumerateProofChecks lookupOrigVarName pairing problem proofScript
 
-    flattenedProofChecks = flattenProofChecks proofChecks
+    compatProofChecks = toCompatProofChecks proofChecks
 
     uncheckedSMTProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
 
-    flattenedSMTProofChecks = void $ flattenSMTProofChecks uncheckedSMTProofChecks
+    compatSMTProofChecks = void $ toCompatSMTProofChecks uncheckedSMTProofChecks
 
     groupsAreDistinctAsExpected = and
         [ length groups == S.size (S.fromList (map (.setup) groups))
-        | groups <- toList flattenedSMTProofChecks.unwrap
+        | groups <- toList compatSMTProofChecks.unwrap
         ]
 
     smtProofChecks =

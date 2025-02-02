@@ -4,7 +4,6 @@ module BV.Core.Types.ProofChecks
     ( EqHyp (..)
     , EqHypInduct (..)
     , EqHypSide (..)
-    , FlattenedProofChecks (..)
     , Hyp (..)
     , PcImpHyp (..)
     , PcImpHypSide (..)
@@ -15,7 +14,6 @@ module BV.Core.Types.ProofChecks
     , VisitCount (..)
     , VisitWithTag (..)
     , checkVisits
-    , flattenProofChecks
     , hypVisits
     ) where
 
@@ -24,21 +22,12 @@ import BV.Core.Types.Program
 import BV.Core.Types.ProofScript
 
 import Control.DeepSeq (NFData)
-import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 
 newtype ProofChecks a
   = ProofChecks { unwrap :: M.Map PairingId (ProofScript [ProofCheck a]) }
-  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
-  deriving newtype (NFData)
-
-flattenProofChecks :: ProofChecks a -> FlattenedProofChecks a
-flattenProofChecks (ProofChecks byPairing) = FlattenedProofChecks (M.map fold byPairing)
-
-newtype FlattenedProofChecks a
-  = FlattenedProofChecks { unwrap :: M.Map PairingId [ProofCheck a] }
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 

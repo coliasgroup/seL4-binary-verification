@@ -76,7 +76,7 @@ runScratch targetDir mismatchDumpDir =
                 , mismatchDumpDir = Just mismatchDumpDir
                 }
         structuredChecks <- evalStages ctx input
-        let checks = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions structuredChecks)
+        let checks = toCompatSMTProofChecks (adornSMTProofChecksWithDescriptions structuredChecks)
         report <- localCheckBackend config checks
         let brief = M.mapMaybe (preview _Left) report.unwrap
         forM_ (M.toAscList brief) $ \(pairingId, err) -> liftIO $ do

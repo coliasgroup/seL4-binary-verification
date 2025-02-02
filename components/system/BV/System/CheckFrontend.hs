@@ -52,7 +52,7 @@ checkFrontend
        , SupportsTask (SMTProofCheckGroup (SMTProofCheckDescription String)) (SMTProofCheckResult ()) t
        )
     => TaskQueueIn t
-    -> FlattenedSMTProofChecks (SMTProofCheckDescription String)
+    -> CompatSMTProofChecks (SMTProofCheckDescription String)
     -> m CheckReport
 checkFrontend taskQueueIn checks = withRunInIO $ \runInIO -> do
     runConcurrently $ do

@@ -77,6 +77,7 @@ library core
       BV.Core.Stages.InlineAssembly
       BV.Core.Stages.PseudoCompile
       BV.Core.Stages.Utils
+      BV.Core.Types.Compat
       BV.Core.Types.Extras.Expr
       BV.Core.Types.Extras.Pairing
       BV.Core.Types.Extras.ProofCheck

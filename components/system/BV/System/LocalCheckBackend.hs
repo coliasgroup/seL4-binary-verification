@@ -44,7 +44,7 @@ data LocalCheckBackendConfig
 
 localCheckBackend
     :: (MonadUnliftIO m, MonadLogger m, MonadLocalCheckCache m)
-    => LocalCheckBackendConfig -> FlattenedSMTProofChecks (SMTProofCheckDescription String) -> m CheckReport
+    => LocalCheckBackendConfig -> CompatSMTProofChecks (SMTProofCheckDescription String) -> m CheckReport
 localCheckBackend config checks = withRunInIO $ \runInIO -> do
     (taskQueueIn, taskQueueControl) <- liftIO newTaskQueue
     let completeTasks = do

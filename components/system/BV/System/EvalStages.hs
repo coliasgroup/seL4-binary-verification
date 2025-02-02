@@ -50,10 +50,10 @@ evalStages ctx input = do
     register noop targetDirFiles.pairings output.pairings
     logInfoN "Registering problems"
     register filterProblems targetDirFiles.problems output.problems
-    logInfoN "Registering flattened proof checks"
-    register noop targetDirFiles.proofChecks output.flattenedProofChecks
-    logInfoN "Registering flattened SMT proof checks"
-    register noop targetDirFiles.smtProofChecks output.flattenedSMTProofChecks
+    logInfoN "Registering proof checks"
+    register noop targetDirFiles.proofChecks output.compatProofChecks
+    logInfoN "Registering SMT proof checks"
+    register noop targetDirFiles.smtProofChecks output.compatSMTProofChecks
     logInfoN "Registered all intermediate artifacts"
     return output.smtProofChecks
   where
