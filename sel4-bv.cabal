@@ -304,12 +304,15 @@ executable check-scratch
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
     , containers
     , filepath
     , optics
+    , sel4-bv:core
     , sel4-bv:system
     , sel4-bv:test-utils
   default-language: GHC2021

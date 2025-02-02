@@ -25,46 +25,8 @@ import qualified Data.Map as M
 import Optics
 import System.Exit (die)
 
-config :: LocalCheckBackendConfig
-config = LocalCheckBackendConfig
-    { numCores = 12
-    , solversConfig
-    }
-
-solversConfig :: SolversConfig
-solversConfig = SolversConfig
-    { online = OnlineSolverConfig
-        { command = ["yices-smt2", "--incremental"]
-        , memoryMode = SolverMemoryModeWord8
-        }
-    , onlineTimeout = 30
-    , offline =
-        [ OfflineSolverGroupConfig
-            { command = ["yices-smt2"]
-            , memoryModes = allSolverMemoryModes
-            , scopes = allSolverScopes
-            }
-        -- , OfflineSolverGroupConfig
-        --     { command = ["z3", "-smt2", "-in"]
-        --     , memoryModes = allSolverMemoryModes
-        --     , scopes = allSolverScopes
-        --     }
-        -- , OfflineSolverGroupConfig
-        --     { command = ["cvc5", "--lang", "smt"]
-        --     , memoryModes = allSolverMemoryModes
-        --     , scopes = allSolverScopes
-        --     }
-        -- , OfflineSolverGroupConfig
-        --     { command = ["mathsat", "-input=smt2"]
-        --     , memoryModes = allSolverMemoryModes
-        --     , scopes = allSolverScopes
-        --     }
-        ]
-    , offlineTimeout = 6000
-    }
-
-runScratch :: TargetDir -> FilePath -> IO ()
-runScratch targetDir mismatchDumpDir =
+runScratch :: LocalCheckBackendConfig -> TargetDir -> FilePath -> IO ()
+runScratch config targetDir mismatchDumpDir =
     runStderrLoggingT $
         runReaderT (runLocalCheckCacheT go) trivialLocalCheckCacheContext
   where

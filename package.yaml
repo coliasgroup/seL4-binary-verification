@@ -221,7 +221,11 @@ executables:
   check-scratch:
     source-dirs: components/check-scratch
     main: Main.hs
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     dependencies:
+      - sel4-bv:core
       - sel4-bv:system
       - sel4-bv:test-utils
       # external

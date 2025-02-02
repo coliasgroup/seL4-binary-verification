@@ -2,6 +2,7 @@ module BV.System.SolversConfig
     ( OfflineSolverConfig (..)
     , OfflineSolverGroupConfig (..)
     , OnlineSolverConfig (..)
+    , SolverMemoryMode (..)
     , SolverScope (..)
     , SolversConfig (..)
     , allSolverMemoryModes
