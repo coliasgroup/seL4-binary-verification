@@ -4,23 +4,18 @@ module BV.System.LocalCheckBackend.Scratch
     ( runScratch
     ) where
 
-import BV.Core.AdornProofScript
-import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
 import BV.System.CheckFrontend
 import BV.System.EvalStages
 import BV.System.LocalCheckBackend
 import BV.System.LocalCheckBackend.Cache
 import BV.System.SeL4
-import BV.System.SolversConfig
 import BV.TargetDir
 
 import Control.Monad (forM_, unless)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Logger (MonadLogger (monadLoggerLog), runStderrLoggingT)
+import Control.Monad.Logger (runStderrLoggingT)
 import Control.Monad.Reader (runReaderT)
-import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Free.Church (FT)
 import qualified Data.Map as M
 import Optics
 import System.Exit (die)
@@ -45,8 +40,3 @@ runScratch config targetDir mismatchDumpDir =
         , referenceTargetDir = Just targetDir
         , mismatchDumpDir = Just mismatchDumpDir
         }
---
-
--- TODO HACK
-instance (MonadLogger m, Functor f) => MonadLogger (FT f m) where
-    monadLoggerLog loc source level msg = lift $ monadLoggerLog loc source level msg
