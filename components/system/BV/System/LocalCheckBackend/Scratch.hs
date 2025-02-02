@@ -70,8 +70,7 @@ runScratch targetDir mismatchDumpDir =
   where
     go = do
         input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter targetDir
-        structuredChecks <- evalStages ctx input
-        let checks = toCompatSMTProofChecks (adornSMTProofChecksWithDescriptions structuredChecks)
+        checks <- evalStages ctx input
         report <- localCheckBackend config checks
         let brief = M.mapMaybe (preview _Left) report.unwrap
         unless (M.null brief) $ do

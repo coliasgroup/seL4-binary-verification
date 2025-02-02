@@ -50,8 +50,8 @@ data TargetDirFiles
       , inlineScripts :: TargetDirFile InlineScripts
       , pairings :: TargetDirFile Pairings
       , proofs :: TargetDirFile (Proofs ())
-      , proofChecks :: TargetDirFile (CompatProofChecks String)
-      , smtProofChecks :: TargetDirFile (CompatSMTProofChecks ())
+      , proofChecks :: TargetDirFile CompatProofChecks
+      , smtProofChecks :: TargetDirFile CompatSMTProofChecks
       }
   deriving (Eq, Generic, Ord, Show)
 

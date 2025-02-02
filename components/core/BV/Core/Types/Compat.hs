@@ -14,18 +14,18 @@ import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-newtype CompatProofChecks a
-  = CompatProofChecks { unwrap :: M.Map PairingId [ProofCheck a] }
-  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
+newtype CompatProofChecks
+  = CompatProofChecks { unwrap :: M.Map PairingId [ProofCheck String] }
+  deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-toCompatProofChecks :: ProofChecks a -> CompatProofChecks a
+toCompatProofChecks :: ProofChecks String -> CompatProofChecks
 toCompatProofChecks (ProofChecks byPairing) = CompatProofChecks (M.map fold byPairing)
 
-newtype CompatSMTProofChecks a
-  = CompatSMTProofChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup a] }
-  deriving (Eq, Functor, Generic, Ord, Show)
+newtype CompatSMTProofChecks
+  = CompatSMTProofChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup ()] }
+  deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-toCompatSMTProofChecks :: SMTProofChecks a -> CompatSMTProofChecks a
+toCompatSMTProofChecks :: SMTProofChecks () -> CompatSMTProofChecks
 toCompatSMTProofChecks (SMTProofChecks byPairing) = CompatSMTProofChecks (M.map fold byPairing)

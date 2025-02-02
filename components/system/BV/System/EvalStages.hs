@@ -38,7 +38,7 @@ evalStages
     :: forall m. (MonadIO m, MonadFail m, MonadLogger m)
     => EvalStagesContext
     -> StagesInput
-    -> m (SMTProofChecks String)
+    -> m PreparedSMTProofChecks
 evalStages ctx input = do
     logWarnN . fromString $
         "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) output.unhandledInlineAssemblyFunctions)

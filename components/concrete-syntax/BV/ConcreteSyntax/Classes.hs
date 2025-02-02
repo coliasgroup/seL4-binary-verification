@@ -83,11 +83,11 @@ deriving via (JSONBVFile (Proofs ())) instance WriteBVFile BL.ByteString (Proofs
 deriving via (JSONBVFile Pairings) instance ReadBVFile BL.ByteString Pairings
 deriving via (JSONBVFile Pairings) instance WriteBVFile BL.ByteString Pairings
 
-deriving via (JSONBVFile (CompatProofChecks String)) instance ReadBVFile BL.ByteString (CompatProofChecks String)
-deriving via (JSONBVFile (CompatProofChecks String)) instance WriteBVFile BL.ByteString (CompatProofChecks String)
+deriving via (JSONBVFile CompatProofChecks) instance ReadBVFile BL.ByteString CompatProofChecks
+deriving via (JSONBVFile CompatProofChecks) instance WriteBVFile BL.ByteString CompatProofChecks
 
-deriving via (JSONBVFile (CompatSMTProofChecks ())) instance ReadBVFile BL.ByteString (CompatSMTProofChecks ())
-deriving via (JSONBVFile (CompatSMTProofChecks ())) instance WriteBVFile BL.ByteString (CompatSMTProofChecks ())
+deriving via (JSONBVFile CompatSMTProofChecks) instance ReadBVFile BL.ByteString CompatSMTProofChecks
+deriving via (JSONBVFile CompatSMTProofChecks) instance WriteBVFile BL.ByteString CompatSMTProofChecks
 
 -- HACK just for test in graph-refine/loop-example
 

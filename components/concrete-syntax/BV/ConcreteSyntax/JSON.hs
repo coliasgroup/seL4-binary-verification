@@ -77,9 +77,9 @@ instance FromJSON (ProofScript ()) where
 instance ToJSON (ProofScript ()) where
     toJSON = buildLine
 
-deriving instance FromJSON (CompatProofChecks String)
+deriving instance FromJSON CompatProofChecks
 
-deriving instance ToJSON (CompatProofChecks String)
+deriving instance ToJSON CompatProofChecks
 
 instance FromJSON (ProofCheck String) where
 
@@ -91,9 +91,9 @@ instance FromJSON Hyp where
 instance ToJSON Hyp where
     toJSON = buildLine
 
-deriving instance FromJSON (CompatSMTProofChecks ())
+deriving instance FromJSON CompatSMTProofChecks
 
-deriving instance ToJSON (CompatSMTProofChecks ())
+deriving instance ToJSON CompatSMTProofChecks
 
 instance FromJSON (SMTProofCheckGroup ()) where
 

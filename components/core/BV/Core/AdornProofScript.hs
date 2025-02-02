@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.AdornProofScript
     ( ProofScriptNodeLocation (..)
     , SMTProofCheckDescription (..)
@@ -7,25 +9,26 @@ module BV.Core.AdornProofScript
 
 import BV.Core.Types
 
+import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
 import Optics
 
 data ProofScriptNodeLocation
   = ProofScriptNodeLocation
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 adornProofScriptWithProofScriptNodeLocationsWith
     :: (ProofScriptNodeLocation -> a -> b) -> ProofScript a -> ProofScript b
 adornProofScriptWithProofScriptNodeLocationsWith f = #root % traversed %~ f ProofScriptNodeLocation
 
-data SMTProofCheckDescription a
+data SMTProofCheckDescription
   = SMTProofCheckDescription
       { proofScriptNodeLocation :: ProofScriptNodeLocation
-      , meta :: a
+      , meta :: String
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 adornSMTProofChecksWithDescriptions
-    :: SMTProofChecks a -> SMTProofChecks (SMTProofCheckDescription a)
+    :: SMTProofChecks String -> SMTProofChecks SMTProofCheckDescription
 adornSMTProofChecksWithDescriptions = #unwrap % traversed %~
     adornProofScriptWithProofScriptNodeLocationsWith (map . fmap . SMTProofCheckDescription)

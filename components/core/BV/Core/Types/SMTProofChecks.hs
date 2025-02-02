@@ -2,12 +2,14 @@
 
 module BV.Core.Types.SMTProofChecks
     ( AtomOrPlaceholder
+    , FlattenedSMTProofChecks (..)
     , SExprPlaceholder (..)
     , SExprWithPlaceholders
     , SMTProofCheck (..)
     , SMTProofCheckGroup (..)
     , SMTProofCheckImp (..)
     , SMTProofChecks (..)
+    , flattenSMTProofChecks
     , readSExprWithPlaceholders
     , readSExprsWithPlaceholders
     , splitSMTProofCheckGroup
@@ -20,6 +22,7 @@ import BV.Core.Types.ProofScript
 import BV.Core.Types.SExprWithPlaceholders
 
 import Control.DeepSeq (NFData)
+import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
@@ -55,3 +58,11 @@ splitSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck
     { setup = group.setup
     , imp
     }
+
+newtype FlattenedSMTProofChecks a
+  = FlattenedSMTProofChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup a] }
+  deriving (Eq, Functor, Generic, Ord, Show)
+  deriving newtype (NFData)
+
+flattenSMTProofChecks :: SMTProofChecks a -> FlattenedSMTProofChecks a
+flattenSMTProofChecks checks = FlattenedSMTProofChecks $ M.map fold checks.unwrap

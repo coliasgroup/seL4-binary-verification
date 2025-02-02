@@ -10,11 +10,14 @@ module BV.Core.Stages
     , module BV.Core.Stages.FormulatePairing
     , module BV.Core.Stages.InlineAssembly
     , module BV.Core.Stages.PseudoCompile
+    , PreparedSMTProofChecks
+    , SMTProofCheckDescription
     , StagesInput (..)
     , StagesOutput (..)
     , stages
     ) where
 
+import BV.Core.AdornProofScript
 import BV.Core.Stages.BuildProblem
 import BV.Core.Stages.CompileProofChecks
 import BV.Core.Stages.EnumerateProofChecks
@@ -22,7 +25,6 @@ import BV.Core.Stages.Fixup
 import BV.Core.Stages.FormulatePairing
 import BV.Core.Stages.InlineAssembly
 import BV.Core.Stages.PseudoCompile
-
 import BV.Core.Types
 import BV.Core.Types.Extras
 
@@ -50,7 +52,7 @@ data StagesInput
 
 data StagesOutput
   = StagesOutput
-      { smtProofChecks :: SMTProofChecks String
+      { smtProofChecks :: PreparedSMTProofChecks
         -- report
       , unhandledInlineAssemblyFunctions :: [Ident]
       , unhandledInstructionFunctions :: [Ident]
@@ -58,14 +60,16 @@ data StagesOutput
       , functions :: Program
       , pairings :: Pairings
       , problems :: Problems
-      , compatProofChecks :: CompatProofChecks String
-      , compatSMTProofChecks :: CompatSMTProofChecks ()
+      , compatProofChecks :: CompatProofChecks
+      , compatSMTProofChecks :: CompatSMTProofChecks
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+type PreparedSMTProofChecks = FlattenedSMTProofChecks SMTProofCheckDescription
+
 stages :: StagesInput -> StagesOutput
 stages input = StagesOutput
-    { smtProofChecks
+    { smtProofChecks = preparedSMTProofChecks
     , unhandledInlineAssemblyFunctions = unhandledAsmFunctionNames.c
     , unhandledInstructionFunctions = unhandledAsmFunctionNames.asm
     , functions = collectedFunctions
@@ -140,7 +144,7 @@ stages input = StagesOutput
     uncheckedSMTProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
 
-    compatSMTProofChecks = void $ toCompatSMTProofChecks uncheckedSMTProofChecks
+    compatSMTProofChecks = toCompatSMTProofChecks (void uncheckedSMTProofChecks)
 
     groupsAreDistinctAsExpected = and
         [ length groups == S.size (S.fromList (map (.setup) groups))
@@ -151,6 +155,8 @@ stages input = StagesOutput
         if groupsAreDistinctAsExpected
         then uncheckedSMTProofChecks
         else error "SMT proof check groups should be distinct"
+
+    preparedSMTProofChecks = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions smtProofChecks)
 
 
 asmFunNameToCFunName :: Ident -> Ident

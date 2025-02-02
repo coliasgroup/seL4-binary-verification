@@ -44,7 +44,7 @@ data LocalCheckBackendConfig
 
 localCheckBackend
     :: (MonadUnliftIO m, MonadLogger m, MonadLocalCheckCache m)
-    => LocalCheckBackendConfig -> CompatSMTProofChecks (SMTProofCheckDescription String) -> m CheckReport
+    => LocalCheckBackendConfig -> FlattenedSMTProofChecks SMTProofCheckDescription -> m CheckReport
 localCheckBackend config checks = withRunInIO $ \runInIO -> do
     (taskQueueIn, taskQueueControl) <- liftIO newTaskQueue
     let completeTasks = do
@@ -58,7 +58,7 @@ localCheckBackend config checks = withRunInIO $ \runInIO -> do
 
 checkGroup
     :: (MonadUnliftIO m, MonadLogger m, MonadLocalCheckCache m)
-    => LocalCheckBackendConfig -> Throttle -> SMTProofCheckGroup (SMTProofCheckDescription String) -> m (SMTProofCheckResult ())
+    => LocalCheckBackendConfig -> Throttle -> SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult ())
 checkGroup config throttle group = runExceptT $ do
     logDebugN . T.pack $ printf "Checking group: %s" (smtProofCheckGroupFingerprint (void group))
     filteredGroup <- ExceptT $ filterGroupM group

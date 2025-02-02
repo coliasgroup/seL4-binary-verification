@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module BV.System.Notes
     (
@@ -11,13 +12,13 @@ import BV.System.TaskQueue
 
 import GHC.Generics (Generic)
 
-type ProofSearchResult = Either (ProofScript ()) ProofSearchError
+-- type ProofSearchResult = Either (ProofScript ()) ProofSearchError
 
-data ProofSearchError
-  = ProofSearchError
-  deriving (Eq, Generic, Ord, Show)
+-- data ProofSearchError
+--   = ProofSearchError
+--   deriving (Eq, Generic, Ord, Show)
 
-data AnyTask
-  = TaskSMTProofCheckGroup (Task (SMTProofCheckGroup (SMTProofCheckDescription String)) (SMTProofCheckResult ()))
-  | TaskProofSearch (Task PairingId ProofSearchResult)
-  deriving (Eq, Generic)
+-- data AnyTask
+--   = TaskSMTProofCheckGroup (Task (SMTProofCheckGroup (SMTProofCheckDescription String)) (SMTProofCheckResult ()))
+--   | TaskProofSearch (Task PairingId ProofSearchResult)
+--   deriving (Eq, Generic)

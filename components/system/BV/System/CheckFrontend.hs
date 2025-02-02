@@ -27,12 +27,12 @@ import GHC.Generics (Generic)
 import Optics (ifor)
 import Text.Printf (printf)
 
-type SMTProofCheckTask = Task (SMTProofCheckGroup (SMTProofCheckDescription String)) (SMTProofCheckResult ())
+type SMTProofCheckTask = Task (SMTProofCheckGroup SMTProofCheckDescription) (SMTProofCheckResult ())
 
 -- type SMTProofCheckResult = Maybe (NonEmpty SMTProofCheckErrorWithLocations)
 type SMTProofCheckResult a = Either SMTProofCheckErrorWithLocations a
 
-type SMTProofCheckErrorWithLocations = (SMTProofCheckError, NonEmpty (SMTProofCheckDescription String))
+type SMTProofCheckErrorWithLocations = (SMTProofCheckError, NonEmpty SMTProofCheckDescription)
 
 data SMTProofCheckError
   = NoSolversAnswered
@@ -49,10 +49,10 @@ data CheckReport
 checkFrontend
     :: ( MonadUnliftIO m
        , MonadLogger m
-       , SupportsTask (SMTProofCheckGroup (SMTProofCheckDescription String)) (SMTProofCheckResult ()) t
+       , SupportsTask (SMTProofCheckGroup SMTProofCheckDescription) (SMTProofCheckResult ()) t
        )
     => TaskQueueIn t
-    -> CompatSMTProofChecks (SMTProofCheckDescription String)
+    -> FlattenedSMTProofChecks SMTProofCheckDescription
     -> m CheckReport
 checkFrontend taskQueueIn checks = withRunInIO $ \runInIO -> do
     runConcurrently $ do
