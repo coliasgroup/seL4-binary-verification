@@ -47,6 +47,8 @@ data StagesInput
       , inlineScripts :: InlineScripts
       , proofs :: Proofs ()
       , asmFunctionFilter :: Ident -> Bool
+        -- HACK
+      , compatSMTProofChecks :: CompatSMTProofChecks
       }
   deriving (Generic)
 
@@ -141,8 +143,13 @@ stages input = StagesOutput
 
     compatProofChecks = toCompatProofChecks proofChecks
 
-    uncheckedSMTProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    uncheckedSMTProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
+
+    uncheckedSMTProofChecks'nohack = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
+
+    uncheckedSMTProofChecks = uncheckedSMTProofChecks'hack
+    -- uncheckedSMTProofChecks = uncheckedSMTProofChecks'nohack
 
     compatSMTProofChecks = toCompatSMTProofChecks (void uncheckedSMTProofChecks)
 
@@ -161,3 +168,10 @@ stages input = StagesOutput
 
 asmFunNameToCFunName :: Ident -> Ident
 asmFunNameToCFunName = #unwrap %~ ("Kernel_C." ++)
+
+--
+
+liftCompatSMTProofChecks'hack :: CompatSMTProofChecks -> SMTProofChecks String
+liftCompatSMTProofChecks'hack compatChecks = SMTProofChecks $ M.map f compatChecks.unwrap
+  where
+    f groups = ProofScript (ProofNodeWith (("" <$) <$> groups) ProofNodeLeaf)
