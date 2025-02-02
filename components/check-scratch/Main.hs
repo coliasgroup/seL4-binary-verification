@@ -2,7 +2,7 @@ module Main
     ( main
     ) where
 
-import BV.System.LocalCheckBackend.Scratch (runScratch)
+import BV.System.LocalCheckBackend.Scratch
 import BV.Test.Utils
 
 import System.FilePath ((</>))

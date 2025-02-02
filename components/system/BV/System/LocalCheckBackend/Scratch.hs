@@ -15,7 +15,7 @@ import BV.System.SeL4
 import BV.System.SolversConfig
 import BV.TargetDir
 
-import Control.Monad (forM_)
+import Control.Monad (forM_, unless)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (MonadLogger (monadLoggerLog), runStderrLoggingT)
 import Control.Monad.Reader (runReaderT)
@@ -23,6 +23,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Free.Church (FT)
 import qualified Data.Map as M
 import Optics
+import System.Exit (die)
 
 config :: LocalCheckBackendConfig
 config = LocalCheckBackendConfig
@@ -69,19 +70,20 @@ runScratch targetDir mismatchDumpDir =
   where
     go = do
         input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter targetDir
-        let ctx = EvalStagesContext
-                { force = True
-                , dumpTargetDir = Nothing
-                , referenceTargetDir = Just targetDir
-                , mismatchDumpDir = Just mismatchDumpDir
-                }
         structuredChecks <- evalStages ctx input
         let checks = toCompatSMTProofChecks (adornSMTProofChecksWithDescriptions structuredChecks)
         report <- localCheckBackend config checks
         let brief = M.mapMaybe (preview _Left) report.unwrap
-        forM_ (M.toAscList brief) $ \(pairingId, err) -> liftIO $ do
-            putStrLn $ "Check failure for " <> prettyPairingId pairingId <> ": " <> show err
-
+        unless (M.null brief) $ do
+            forM_ (M.toAscList brief) $ \(pairingId, err) -> liftIO $ do
+                putStrLn $ "Check failure for " <> prettyPairingId pairingId <> ": " <> show err
+            liftIO $ die "Some checks failed"
+    ctx = EvalStagesContext
+        { force = True
+        , dumpTargetDir = Nothing
+        , referenceTargetDir = Just targetDir
+        , mismatchDumpDir = Just mismatchDumpDir
+        }
 --
 
 -- TODO HACK

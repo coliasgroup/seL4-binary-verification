@@ -66,6 +66,3 @@ checkFrontend taskQueueIn checks = withRunInIO $ \runInIO -> do
                             (smtProofCheckGroupFingerprint (void group))
                             (show result)
                     return result))
-
-inspect :: Monad m => (a -> m ()) -> m a -> m a
-inspect f m = m >>= \a -> f a >> return a
