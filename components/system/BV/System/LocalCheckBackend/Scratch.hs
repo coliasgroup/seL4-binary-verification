@@ -16,7 +16,6 @@ import BV.TargetDir
 import Control.Monad (forM_, unless, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (defaultOutput, runLoggingT)
-import Control.Monad.Reader (runReaderT)
 import qualified Data.Map as M
 import Optics
 import System.Exit (die)
@@ -32,8 +31,8 @@ runScratch config targetDir logDst mismatchDumpDir = do
                     defaultOutput stderr loc source level str
                 defaultOutput fileHandle loc source level str
         flip runLoggingT output $
-            flip runReaderT trivialLocalCheckCacheContext $
-                runLocalCheckCacheT run
+            flip runLocalCheckCacheT trivialLocalCheckCacheContext $
+                 run
   where
     run = do
         input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter targetDir

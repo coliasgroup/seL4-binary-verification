@@ -19,7 +19,7 @@ import Control.Monad.Except (ExceptT, MonadError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Logger (LoggingT, MonadLogger, MonadLoggerIO)
-import Control.Monad.Reader (MonadTrans (lift), ReaderT)
+import Control.Monad.Reader (MonadTrans (lift), ReaderT (runReaderT))
 import Control.Monad.Reader.Class (asks)
 import GHC.Generics (Generic)
 
@@ -62,8 +62,8 @@ newtype LocalCheckCacheT m a
 
 type LocalCheckCacheTInner m = ReaderT (LocalCheckCacheContext m) m
 
-runLocalCheckCacheT :: LocalCheckCacheT m a -> LocalCheckCacheTInner m a
-runLocalCheckCacheT = (.unwrap)
+runLocalCheckCacheT :: LocalCheckCacheT m a -> LocalCheckCacheContext m -> m a
+runLocalCheckCacheT = runReaderT . (.unwrap)
 
 data LocalCheckCacheContext m
   = LocalCheckCacheContext
