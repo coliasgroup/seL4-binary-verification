@@ -18,6 +18,7 @@ import BV.SMTLIB2.Types.Command
 
 import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExceptT)
 import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.State.Class (MonadState)
@@ -28,6 +29,7 @@ import Control.Monad.Writer (tell)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
+import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((<<%=))
 
@@ -41,18 +43,24 @@ executeSMTProofCheckGroupOffline
     => SolverConfig -> Maybe SolverTimeout -> SMTProofCheckGroup a -> m (Maybe SatResult)
 executeSMTProofCheckGroupOffline config timeout check = undefined
 
+data OnlineSolverAbortReason
+  = OnlineSolverAbortReasonTimeout
+  | OnlineSolverAbortReasonAnsweredSat
+  | OnlineSolverAbortReasonAnsweredUnknown
+  deriving (Eq, Generic, Ord, Show)
+
 executeSMTProofCheckGroupOnline
     :: (MonadSolver m, MonadThrow m)
     => SolverConfig
     -> Maybe SolverTimeout
     -> SMTProofCheckGroup a
-    -> m (Maybe a, [(a, SatResult)])
+    -> m (Either (a, OnlineSolverAbortReason) (), [a])
 executeSMTProofCheckGroupOnline config timeout group = do
     sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
     sendSimpleCommandExpectingSuccess $ SetLogic "QF_AUFBV"
     mapM_ sendExpectingSuccess (smtConfigPreamble config)
     mapM_ (sendExpectingSuccess . configureSExpr config) group.setup
-    (timeoutInfo, results) <- flip evalStateT 0 . runWriterT . runExceptT . forM_ group.imps $ \check -> do
+    (abortInfo, completed) <- flip evalStateT 0 . runWriterT . runExceptT . forM_ group.imps $ \check -> do
         let meta = check.meta
         let split = splitHyp check
         lift . sendSimpleCommandExpectingSuccess $ Push 1
@@ -60,12 +68,16 @@ executeSMTProofCheckGroupOnline config timeout group = do
             labeledHyp <- labelSExpr hyp
             lift . sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $
                 labeledHyp
-        result <- ExceptT $ maybe (Left meta) Right <$> checkSatWithTimeout timeout
-        tell [(meta, result)]
+        result <- ExceptT $ maybe (Left (meta, OnlineSolverAbortReasonTimeout)) Right <$> checkSatWithTimeout timeout
+        case result of
+            Sat -> throwError (meta, OnlineSolverAbortReasonAnsweredSat)
+            Unknown -> throwError (meta, OnlineSolverAbortReasonAnsweredUnknown)
+            Unsat -> return ()
+        tell [meta]
         lift . sendSimpleCommandExpectingSuccess $ Pop 1
         lift . sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $
             notS (andNS split)
-    return (timeoutInfo ^? _Left, results)
+    return (abortInfo, completed)
 
 labelSExpr :: MonadState Integer m => SExprWithPlaceholders -> m SExprWithPlaceholders
 labelSExpr sexpr = do

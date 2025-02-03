@@ -28,6 +28,10 @@ import BV.System.Utils.Logger
 import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
 
+import BV.SMTLIB2.Builder (buildSExpr)
+import BV.SMTLIB2.Process (SolverContext (SolverContext, recvWithTimeout),
+                           runSolverWith)
+import BV.System.Utils.Logger (logTraceGeneric)
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  race)
 import Control.Monad (filterM, forever)
@@ -44,6 +48,7 @@ import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Maybe (catMaybes, fromJust)
 import Data.String (fromString)
 import qualified Data.Text as T
+import Data.Text.Lazy.Builder
 import Data.Void (absurd)
 import GHC.Generics (Generic)
 import Optics (forOf)
@@ -81,15 +86,28 @@ checkGroup config throttle group =
             filteredGroup <- filterGroupM group
             let filteredGroupWithLabels = zipWithT [0..] filteredGroup
             onlineResults <-
-                lift $ runSolver
+                lift $ addLogContext' "online solver" $ runSolverWith
+                    modifyCtx
                     (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
-                    (\line -> logInfo $ "Online solver stderr: " ++ T.unpack line)
+                    (logInfoGeneric . addLogContextToStr "stderr")
                     (executeSMTProofCheckGroupOnline
                     (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
                     (Just (SolverTimeout config.solversConfig.onlineTimeout))
                     filteredGroup)
-            logInfo . fromString $ show onlineResults
+            logInfo $ show onlineResults
             undefined
+  where
+    modifyCtx ctx = SolverContext
+        { send = \req -> addLogContext "send" $ do
+            logTraceGeneric . toLazyText $ buildSExpr req
+            ctx.send req
+        , recvWithTimeout = \timeout -> addLogContext "recv" $ do
+            resp <- ctx.recvWithTimeout timeout
+            case resp of
+                Nothing -> logTrace "timeout"
+                Just sexpr -> logTraceGeneric . toLazyText $ buildSExpr sexpr
+            return resp
+        }
 
 filterGroupM
     :: (MonadLogger m, MonadLocalCheckCache m, MonadError SMTProofCheckErrorWithDescriptions m)
