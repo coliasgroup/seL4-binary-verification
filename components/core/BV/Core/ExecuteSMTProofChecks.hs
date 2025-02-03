@@ -60,9 +60,11 @@ executeSMTProofCheckGroupOnline config timeout group = do
     sendSimpleCommandExpectingSuccess $ SetLogic "QF_AUFBV"
     mapM_ sendExpectingSuccess (smtConfigPreamble config)
     mapM_ (sendExpectingSuccess . configureSExpr config) group.setup
-    (abortInfo, completed) <- flip evalStateT 0 . runWriterT . runExceptT . forM_ group.imps $ \check -> do
+    (abortInfo, completed) <- flip evalStateT 1 . runWriterT . runExceptT . forM_ group.imps $ \check -> do
         let meta = check.meta
-        let split = splitHyp check
+        let hyp = check.term
+        let hyp' = notS hyp
+        let split = splitHyp hyp'
         lift . sendSimpleCommandExpectingSuccess $ Push 1
         forM_ split $ \hyp -> do
             labeledHyp <- labelSExpr hyp
@@ -85,9 +87,8 @@ labelSExpr sexpr = do
     let label = "hyp" ++ show i
     return $ labelS label sexpr
 
-splitHyp :: SMTProofCheckImp a -> [SExprWithPlaceholders]
-splitHyp imp =
-    splitHypSExpr imp.term
+splitHyp :: SExprWithPlaceholders -> [SExprWithPlaceholders]
+splitHyp = splitHypSExpr
 --     if split
 --     then splitHypSExpr hyp
 --     else [hyp]
@@ -129,14 +130,12 @@ splitHypSExpr = fromJust . traverse checkSExprWithPlaceholders . go . viewSExprW
              ] ->
             go (notU p)
         List [ Atom (AtomOrPlaceholderAtom (SymbolAtom "=>"))
-             , List [ p
-                    , Atom (AtomOrPlaceholderAtom (SymbolAtom "false"))
-                    ]
+             , p
+             , Atom (AtomOrPlaceholderAtom (SymbolAtom "false"))
              ] ->
             go (notU p)
-        List [ Atom (AtomOrPlaceholderAtom (SymbolAtom "="))
-             , List args@[p, q]
-             ] | any isBool args ->
+        List (Atom (AtomOrPlaceholderAtom (SymbolAtom "=")) : args@[p, q])
+            | any isBool args ->
                 let (bool, term) = applyWhen (isBool q) swap (p, q)
                  in go (applyWhen (bool == "false") notU term)
         _ -> [hyp]
