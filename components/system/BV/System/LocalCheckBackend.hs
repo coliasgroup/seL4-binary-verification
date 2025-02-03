@@ -15,6 +15,7 @@ module BV.System.LocalCheckBackend
 import BV.Core.AdornProofScript
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.ExecuteSMTProofChecks (SolverConfig)
+import BV.Core.Stages
 import BV.Core.Types
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.Types
@@ -63,56 +64,48 @@ data LocalCheckBackendConfig
 
 localCheckBackend
     :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadLocalCheckCache m, MonadMask m)
-    => LocalCheckBackendConfig -> FlattenedSMTProofChecks SMTProofCheckDescription -> m CheckReport
+    => LocalCheckBackendConfig -> PreparedSMTProofChecks -> m CheckReport
 localCheckBackend config checks = do
-    (taskQueueIn, taskQueueControl) <- liftIO newTaskQueue
-    let completeTasks = addLoggerContext "backend" $ do
-            withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
-                forever $ do
-                    task <- liftIO $ acceptTask taskQueueControl
-                    let (group, withResult) = useTask task
-                    result <- checkGroup config throttle group
-                    liftIO $ withResult result
-    either absurd id <$> raceUnliftIO completeTasks (checkFrontend taskQueueIn checks)
+    withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
+        checkFrontend (checkGroup config throttle) checks
 
 checkGroup
     :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadLocalCheckCache m, MonadMask m)
     => LocalCheckBackendConfig -> Throttle -> SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult ())
 checkGroup config throttle group =
-    addLoggerContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
-        runExceptT $ do
-            logDebug "checking"
-            filteredGroup <- filterGroupM group
-            let filteredGroupWithLabels = zipWithT [0 :: Int ..] filteredGroup
-            onlineResults <-
-                lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ addLoggerContext "online solver" $ runSolverWith
-                    modifyCtx
-                    (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
-                    logStderr
-                    (executeSMTProofCheckGroupOnline
-                        (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
-                        (Just (SolverTimeout config.solversConfig.onlineTimeout))
-                        filteredGroupWithLabels)
-            let (exit, completed) = onlineResults
-            forM_ completed $ \(i, _) -> do
-                let check = ungroupSMTProofCheckGroup filteredGroupWithLabels !! i
-                addLoggerContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
-                    logInfo "complete"
-                updateCache check AcceptableSatResultUnsat
-            case exit of
-                Right _ -> return ()
-                Left ((i, loc), abort) -> do
-                    case abort of
-                        OnlineSolverAbortReasonTimeout -> do
-                            return ()
-                        OnlineSolverAbortReasonAnsweredSat -> do
-                            updateCache (ungroupSMTProofCheckGroup filteredGroupWithLabels !! i) AcceptableSatResultSat
-                            throwError (SomeSolverAnsweredSat, loc :| [])
-                        OnlineSolverAbortReasonAnsweredUnknown -> do
-                            return ()
-            let remaining = filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta))
-            unless (null remaining.imps) $ do
-                undefined
+    runExceptT $ do
+        logDebug "checking"
+        filteredGroup <- filterGroupM group
+        let filteredGroupWithLabels = zipWithT [0 :: Int ..] filteredGroup
+        onlineResults <-
+            lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ addLoggerContext "online solver" $ runSolverWith
+                modifyCtx
+                (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
+                logStderr
+                (executeSMTProofCheckGroupOnline
+                    (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
+                    (Just (SolverTimeout config.solversConfig.onlineTimeout))
+                    filteredGroupWithLabels)
+        let (exit, completed) = onlineResults
+        forM_ completed $ \(i, _) -> do
+            let check = ungroupSMTProofCheckGroup filteredGroupWithLabels !! i
+            addLoggerContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
+                logInfo "complete"
+            updateCache check AcceptableSatResultUnsat
+        case exit of
+            Right _ -> return ()
+            Left ((i, loc), abort) -> do
+                case abort of
+                    OnlineSolverAbortReasonTimeout -> do
+                        return ()
+                    OnlineSolverAbortReasonAnsweredSat -> do
+                        updateCache (ungroupSMTProofCheckGroup filteredGroupWithLabels !! i) AcceptableSatResultSat
+                        throwError (SomeSolverAnsweredSat, loc :| [])
+                    OnlineSolverAbortReasonAnsweredUnknown -> do
+                        return ()
+        let remaining = filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta))
+        unless (null remaining.imps) $ do
+            undefined
   where
     logStderr = logInfoGeneric . addLoggerContextToStr "stderr"
     modifyCtx ctx = SolverContext

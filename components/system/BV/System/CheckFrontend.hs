@@ -7,11 +7,11 @@ module BV.System.CheckFrontend
     , SMTProofCheckError (..)
     , SMTProofCheckErrorWithDescriptions
     , SMTProofCheckResult
-    , SMTProofCheckTask
     , checkFrontend
     ) where
 
 import BV.Core.AdornProofScript
+import BV.Core.Stages
 import BV.Core.Types
 import BV.System.CheckFingerprint
 import BV.System.TaskQueue
@@ -29,8 +29,6 @@ import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Optics (ifor)
 import Text.Printf (printf)
-
-type SMTProofCheckTask = Task (SMTProofCheckGroup SMTProofCheckDescription) (SMTProofCheckResult ())
 
 type SMTProofCheckResult a = Either SMTProofCheckErrorWithDescriptions a
 
@@ -51,12 +49,11 @@ data CheckReport
 checkFrontend
     :: ( MonadUnliftIO m
        , MonadLoggerAddContext m
-       , SupportsTask (SMTProofCheckGroup SMTProofCheckDescription) (SMTProofCheckResult ()) t
        )
-    => TaskQueueIn t
-    -> FlattenedSMTProofChecks SMTProofCheckDescription
+    => (SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult ()))
+    -> PreparedSMTProofChecks
     -> m CheckReport
-checkFrontend taskQueueIn checks = addLoggerContext "frontend" $ do
+checkFrontend f checks =
     runConcurrentlyUnliftIO $ do
         CheckReport <$> ifor checks.unwrap (\pairingId checksForPairing -> concurrentlyUnliftIO $ do
             addLoggerContext pairingId.asm.unwrap $ do
@@ -64,6 +61,6 @@ checkFrontend taskQueueIn checks = addLoggerContext "frontend" $ do
                     for_ checksForPairing (\group -> concurrentlyUnliftIOE $ do
                         addLoggerContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
                             logTrace "sending task"
-                            result <- liftIO $ submitTaskAndWait taskQueueIn group
-                            logInfo $ printf "task result: %s" (show result)
+                            result <- f group
+                            logInfo $ printf "result: %s" (show result)
                             return result))
