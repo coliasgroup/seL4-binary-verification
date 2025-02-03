@@ -17,6 +17,7 @@ module BV.System.Utils.Logger
     , noTraceAnd
     ) where
 
+import Control.Monad.Except (ExceptT, mapExceptT)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger (LogLevel (..), LogSource, LogStr,
                              LoggingT (LoggingT, runLoggingT), MonadLogger,
@@ -36,6 +37,9 @@ instance MonadIO m => MonadLoggerAddContext (LoggingT m) where
 
 instance MonadLoggerAddContext m => MonadLoggerAddContext (ReaderT r m) where
     addLoggerContext = mapReaderT . addLoggerContext
+
+instance MonadLoggerAddContext m => MonadLoggerAddContext (ExceptT e m) where
+    addLoggerContext = mapExceptT . addLoggerContext
 
 addLoggerContextToStr :: ToLogStr a => String -> a -> LogStr
 addLoggerContextToStr ctx str = toLogStr ("[" ++ ctx ++ "] ") <> toLogStr str

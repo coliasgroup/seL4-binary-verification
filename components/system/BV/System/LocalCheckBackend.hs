@@ -34,7 +34,7 @@ import BV.SMTLIB2.Process (SolverContext (SolverContext, recvWithTimeout),
 import BV.System.Utils.Logger (logTraceGeneric)
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  race)
-import Control.Monad (filterM, forM_, forever)
+import Control.Monad (filterM, forM_, forever, unless)
 import Control.Monad.Catch (MonadMask, MonadThrow, SomeException)
 import Control.Monad.Except (ExceptT (ExceptT), MonadError, runExceptT,
                              throwError)
@@ -93,11 +93,12 @@ checkGroup config throttle group =
                         (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
                         (Just (SolverTimeout config.solversConfig.onlineTimeout))
                         filteredGroupWithLabels)
-            logInfo $ "results: " ++ show onlineResults
             let (exit, completed) = onlineResults
-            -- let completedChecks = ungroupSMTProofCheckGroup filteredGroupWithLabels
             forM_ completed $ \(i, _) -> do
-                updateCache (ungroupSMTProofCheckGroup filteredGroupWithLabels !! i) AcceptableSatResultUnsat
+                let check = ungroupSMTProofCheckGroup filteredGroupWithLabels !! i
+                addLoggerContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
+                    logInfo "complete"
+                updateCache check AcceptableSatResultUnsat
             case exit of
                 Right _ -> return ()
                 Left ((i, loc), abort) -> do
@@ -109,8 +110,9 @@ checkGroup config throttle group =
                             throwError (SomeSolverAnsweredSat, loc :| [])
                         OnlineSolverAbortReasonAnsweredUnknown -> do
                             return ()
-                    let remaining = filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta))
-                    undefined
+            let remaining = filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta))
+            unless (null remaining.imps) $ do
+                undefined
   where
     logStderr = logInfoGeneric . addLoggerContextToStr "stderr"
     modifyCtx ctx = SolverContext
