@@ -50,19 +50,19 @@ data CheckReport
 
 checkFrontend
     :: ( MonadUnliftIO m
-       , MonadLoggerIO m
+       , MonadLoggerAddContext m
        , SupportsTask (SMTProofCheckGroup SMTProofCheckDescription) (SMTProofCheckResult ()) t
        )
     => TaskQueueIn t
     -> FlattenedSMTProofChecks SMTProofCheckDescription
     -> m CheckReport
-checkFrontend taskQueueIn checks = addLogContext' "frontend" $ do
+checkFrontend taskQueueIn checks = addLoggerContext "frontend" $ do
     runConcurrentlyUnliftIO $ do
         CheckReport <$> ifor checks.unwrap (\pairingId checksForPairing -> concurrentlyUnliftIO $ do
-            addLogContext' pairingId.asm.unwrap $ do
+            addLoggerContext pairingId.asm.unwrap $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\group -> concurrentlyUnliftIOE $ do
-                        addLogContext' (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
+                        addLoggerContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
                             logTrace "sending task"
                             result <- liftIO $ submitTaskAndWait taskQueueIn group
                             logInfo $ printf "task result: %s" (show result)

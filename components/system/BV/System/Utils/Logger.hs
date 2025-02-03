@@ -1,9 +1,6 @@
 module BV.System.Utils.Logger
     ( MonadLogger
-    , MonadLoggerIO
-    , addLogContext
-    , addLogContext'
-    , addLogContextToStr
+    , MonadLoggerAddContext (..)
     , levelTrace
     , logDebug
     , logDebugGeneric
@@ -17,36 +14,31 @@ module BV.System.Utils.Logger
     , logWarnGeneric
     , noTrace
     , noTraceAnd
+    , addLoggerContextToStr
     ) where
 
-import Control.Monad.Logger (LogLevel (..), LogSource, LogStr,
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Logger (LogLevel (..), LogSource,
                              LoggingT (LoggingT, runLoggingT), MonadLogger,
-                             MonadLoggerIO (askLoggerIO), ToLogStr (toLogStr),
-                             logDebugN, logErrorN, logInfoN, logOtherN,
-                             logWarnN, logWithoutLoc)
+                             ToLogStr, logDebugN, logErrorN, logInfoN,
+                             logOtherN, logWarnN, logWithoutLoc, toLogStr, LogStr)
 import qualified Data.Text as T
+import Control.Monad.Reader (ReaderT, mapReaderT)
 
-prependToLogs :: String -> LoggingT m a -> LoggingT m a
-prependToLogs prefix m =
-    LoggingT $ \logger ->
-        runLoggingT m $ \loc source level str ->
-            logger loc source level (toLogStr prefix <> str)
+class MonadLogger m => MonadLoggerAddContext m where
+    addLoggerContext :: String -> m a -> m a
 
-prependToLogs' :: MonadLoggerIO m => String -> LoggingT m a -> m a
-prependToLogs' prefix m = do
-    logger <- askLoggerIO
-    runLoggingT m $
-        \loc source level str ->
-            logger loc source level (toLogStr prefix <> str)
+instance MonadIO m => MonadLoggerAddContext (LoggingT m) where
+    addLoggerContext ctx m =
+        LoggingT $ \logger ->
+            runLoggingT m $ \loc source level str ->
+                logger loc source level (addLoggerContextToStr ctx str)
 
-addLogContext :: String -> LoggingT m a -> LoggingT m a
-addLogContext ctx = prependToLogs $ "[" ++ ctx ++ "] "
+instance MonadLoggerAddContext m => MonadLoggerAddContext (ReaderT r m) where
+    addLoggerContext = mapReaderT . addLoggerContext
 
-addLogContext' :: MonadLoggerIO m => String -> LoggingT m a -> m a
-addLogContext' ctx = prependToLogs' $ "[" ++ ctx ++ "] "
-
-addLogContextToStr :: ToLogStr a => String -> a -> LogStr
-addLogContextToStr ctx str = toLogStr ("[" ++ ctx ++ "] ") <> toLogStr str
+addLoggerContextToStr :: ToLogStr a => String -> a -> LogStr
+addLoggerContextToStr ctx str = toLogStr ("[" ++ ctx ++ "] ") <> toLogStr str
 
 logTrace :: MonadLogger m => String -> m ()
 logTrace = logOtherN levelTrace . T.pack

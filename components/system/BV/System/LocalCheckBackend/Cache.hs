@@ -13,6 +13,7 @@ module BV.System.LocalCheckBackend.Cache
     ) where
 
 import BV.Core.Types
+import BV.System.Utils.Logger (MonadLoggerAddContext)
 
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)
@@ -58,6 +59,7 @@ newtype LocalCheckCacheT m a
     , MonadMask
     , MonadThrow
     , MonadUnliftIO
+    , MonadLoggerAddContext
     )
 
 type LocalCheckCacheTInner m = ReaderT (LocalCheckCacheContext m) m

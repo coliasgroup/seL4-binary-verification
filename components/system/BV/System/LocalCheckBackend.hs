@@ -63,11 +63,11 @@ data LocalCheckBackendConfig
   deriving (Eq, Generic, Ord, Show)
 
 localCheckBackend
-    :: (MonadUnliftIO m, MonadLoggerIO m, MonadLocalCheckCache m, MonadMask m)
+    :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadLocalCheckCache m, MonadMask m)
     => LocalCheckBackendConfig -> FlattenedSMTProofChecks SMTProofCheckDescription -> m CheckReport
 localCheckBackend config checks = do
     (taskQueueIn, taskQueueControl) <- liftIO newTaskQueue
-    let completeTasks = addLogContext' "backend" $ do
+    let completeTasks = addLoggerContext "backend" $ do
             withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
                 forever $ do
                     task <- liftIO $ acceptTask taskQueueControl
@@ -77,19 +77,19 @@ localCheckBackend config checks = do
     either absurd id <$> raceUnliftIO completeTasks (checkFrontend taskQueueIn checks)
 
 checkGroup
-    :: (MonadUnliftIO m, MonadLoggerIO m, MonadLocalCheckCache m, MonadMask m)
+    :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadLocalCheckCache m, MonadMask m)
     => LocalCheckBackendConfig -> Throttle -> SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult ())
 checkGroup config throttle group =
-    addLogContext' (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
+    addLoggerContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
         runExceptT $ do
             logDebug "checking"
             filteredGroup <- filterGroupM group
             let filteredGroupWithLabels = zipWithT [0 :: Integer ..] filteredGroup
             onlineResults <-
-                lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ addLogContext' "online solver" $ runSolverWith
+                lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ addLoggerContext "online solver" $ runSolverWith
                     modifyCtx
                     (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
-                    (logInfoGeneric . addLogContextToStr "stderr")
+                    (logInfoGeneric . addLoggerContextToStr "stderr")
                     (executeSMTProofCheckGroupOnline
                     (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
                     (Just (SolverTimeout config.solversConfig.onlineTimeout))
@@ -98,10 +98,10 @@ checkGroup config throttle group =
             undefined
   where
     modifyCtx ctx = SolverContext
-        { send = \req -> addLogContext "send" $ do
+        { send = \req -> addLoggerContext "send" $ do
             logTraceGeneric . toLazyText $ buildSExpr req
             ctx.send req
-        , recvWithTimeout = \timeout -> addLogContext "recv" $ do
+        , recvWithTimeout = \timeout -> addLoggerContext "recv" $ do
             resp <- ctx.recvWithTimeout timeout
             case resp of
                 Nothing -> logTrace "timeout"
