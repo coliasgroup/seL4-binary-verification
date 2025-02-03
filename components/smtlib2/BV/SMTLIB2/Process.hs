@@ -3,10 +3,11 @@
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 
 module BV.SMTLIB2.Process
-    ( SolverContext
+    ( SolverContext (..)
     , SolverProcessException (..)
     , SolverT
     , runSolver
+    , runSolverWith
     ) where
 
 import BV.SMTLIB2.Builder
@@ -18,14 +19,13 @@ import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  cancelWith, wait, withAsync)
 import Control.Concurrent.STM
 import Control.Exception (Exception, SomeException)
-import Control.Monad.Catch (MonadThrow, finally, try)
+import Control.Monad.Catch (MonadCatch, MonadThrow, finally, try)
 import Control.Monad.Catch.Pure (MonadMask)
-import Control.Monad.Free (liftF)
+import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, toIO)
 import Control.Monad.Reader (MonadTrans (lift), ReaderT (..), runReaderT)
 import Control.Monad.Reader.Class (asks)
-import Control.Monad.Trans.Free.Church (FT, iterT)
 import Data.Conduit (Flush (Chunk, Flush), runConduit, yield, (.|))
 import Data.Conduit.Attoparsec (conduitParser)
 import qualified Data.Conduit.List as CL
@@ -41,18 +41,26 @@ import qualified Data.Text.Lazy.Builder as TB
 import GHC.Generics (Generic)
 import System.Process (CreateProcess)
 
-data SolverDSL a
-  = Send SExpr a
-  | RecvWithTimeout (Maybe SolverTimeout) (Maybe SExpr -> a)
-  deriving (Functor, Generic)
-
-instance Monad m => MonadSolver (FT SolverDSL m) where
-    send msg = liftF $ Send msg ()
-    recvWithTimeout maybeTimeout = liftF $ RecvWithTimeout maybeTimeout id
-
-type SolverT m = FT SolverDSL (SolverTInner m)
+newtype SolverT m a
+  = SolverT { unwrap :: SolverTInner m a }
+  deriving
+    ( Applicative
+    , Functor
+    , Generic
+    , Monad
+    , MonadCatch
+    , MonadError e
+    , MonadFail
+    , MonadIO
+    , MonadMask
+    , MonadThrow
+    , MonadUnliftIO
+    )
 
 type SolverTInner m = ReaderT (SolverContext m) m
+
+runSolverT :: Monad m => SolverT m a -> SolverContext m -> m a
+runSolverT = runReaderT . (.unwrap)
 
 data SolverContext m
   = SolverContext
@@ -60,27 +68,29 @@ data SolverContext m
       , recvWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
       }
 
+instance Monad m => MonadSolver (SolverT m) where
+    send req = SolverT $ do
+        f <- asks (.send)
+        lift $ f req
+    recvWithTimeout timeout = SolverT $ do
+        f <- asks (.recvWithTimeout)
+        lift $ f timeout
+
 liftIOContext :: MonadIO m => SolverContext IO -> SolverContext m
 liftIOContext ctx = SolverContext
     { send = liftIO . ctx.send
     , recvWithTimeout = liftIO . ctx.recvWithTimeout
     }
 
-runSolverT :: Monad m => SolverT m a -> SolverTInner m a
-runSolverT = iterT $ \case
-    Send req cont -> do
-        send' <- asks (.send)
-        lift $ send' req
-        cont
-    RecvWithTimeout maybeSeconds cont -> do
-        recvWithTimeout' <- asks (.recvWithTimeout)
-        resp <- lift $ recvWithTimeout' maybeSeconds
-        cont resp
-
 runSolver
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
     => CreateProcess -> (T.Text -> m ()) -> SolverT m a -> m a
-runSolver cmd logStderr m = do
+runSolver = runSolverWith id
+
+runSolverWith
+    :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
+    => (SolverContext m -> SolverContext m) -> CreateProcess -> (T.Text -> m ()) -> SolverT m a -> m a
+runSolverWith modifyCtx cmd logStderr m = do
     ((FlushInput procStdin, closeProcStdin), procStdout, procStderr, processHandle) <-
         liftIO $ streamingProcess cmd
 
@@ -119,7 +129,7 @@ runSolver cmd logStderr m = do
             <|> SolverProcessExceptionLogging <$> Concurrently (try logging)
             <|> SolverProcessExceptionTermination <$ Concurrently termination
 
-    interaction <- toIO $ runReaderT (runSolverT m) (liftIOContext ctx)
+    interaction <- toIO $ runSolverT m (modifyCtx (liftIOContext ctx))
 
     let run =
             withAsync env $ \envA ->
