@@ -3,7 +3,8 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 
 module BV.Core.ExecuteSMTProofChecks
-    ( SolverConfig (..)
+    ( OnlineSolverAbortReason (..)
+    , SolverConfig (..)
     , SolverMemoryMode (..)
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline

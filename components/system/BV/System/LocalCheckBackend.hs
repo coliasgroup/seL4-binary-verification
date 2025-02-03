@@ -34,7 +34,7 @@ import BV.SMTLIB2.Process (SolverContext (SolverContext, recvWithTimeout),
 import BV.System.Utils.Logger (logTraceGeneric)
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  race)
-import Control.Monad (filterM, forever)
+import Control.Monad (filterM, forM_, forever)
 import Control.Monad.Catch (MonadMask, MonadThrow, SomeException)
 import Control.Monad.Except (ExceptT (ExceptT), MonadError, runExceptT,
                              throwError)
@@ -43,7 +43,6 @@ import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import Control.Monad.State (evalState, state)
 import Control.Monad.Trans (lift)
 import Data.Functor (void)
-import Data.List (uncons)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Maybe (catMaybes, fromJust)
 import Data.String (fromString)
@@ -51,7 +50,7 @@ import qualified Data.Text as T
 import Data.Text.Lazy.Builder
 import Data.Void (absurd)
 import GHC.Generics (Generic)
-import Optics (forOf)
+import Optics
 import System.Process (CreateProcess, proc)
 import Text.Printf (printf)
 
@@ -84,19 +83,36 @@ checkGroup config throttle group =
         runExceptT $ do
             logDebug "checking"
             filteredGroup <- filterGroupM group
-            let filteredGroupWithLabels = zipWithT [0 :: Integer ..] filteredGroup
+            let filteredGroupWithLabels = zipWithT [0 :: Int ..] filteredGroup
             onlineResults <-
                 lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ addLoggerContext "online solver" $ runSolverWith
                     modifyCtx
                     (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
-                    (logInfoGeneric . addLoggerContextToStr "stderr")
+                    logStderr
                     (executeSMTProofCheckGroupOnline
-                    (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
-                    (Just (SolverTimeout config.solversConfig.onlineTimeout))
-                    filteredGroupWithLabels)
+                        (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
+                        (Just (SolverTimeout config.solversConfig.onlineTimeout))
+                        filteredGroupWithLabels)
             logInfo $ "results: " ++ show onlineResults
-            undefined
+            let (exit, completed) = onlineResults
+            -- let completedChecks = ungroupSMTProofCheckGroup filteredGroupWithLabels
+            forM_ completed $ \(i, _) -> do
+                updateCache (ungroupSMTProofCheckGroup filteredGroupWithLabels !! i) AcceptableSatResultUnsat
+            case exit of
+                Right _ -> return ()
+                Left ((i, loc), abort) -> do
+                    case abort of
+                        OnlineSolverAbortReasonTimeout -> do
+                            return ()
+                        OnlineSolverAbortReasonAnsweredSat -> do
+                            updateCache (ungroupSMTProofCheckGroup filteredGroupWithLabels !! i) AcceptableSatResultSat
+                            throwError (SomeSolverAnsweredSat, loc :| [])
+                        OnlineSolverAbortReasonAnsweredUnknown -> do
+                            return ()
+                    let remaining = filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta))
+                    undefined
   where
+    logStderr = logInfoGeneric . addLoggerContextToStr "stderr"
     modifyCtx ctx = SolverContext
         { send = \req -> addLoggerContext "send" $ do
             logTraceGeneric . toLazyText $ buildSExpr req

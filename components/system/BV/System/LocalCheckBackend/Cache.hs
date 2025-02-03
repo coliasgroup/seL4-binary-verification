@@ -22,6 +22,7 @@ import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Logger (LoggingT, MonadLogger, MonadLoggerIO)
 import Control.Monad.Reader (MonadTrans (lift), ReaderT (runReaderT))
 import Control.Monad.Reader.Class (asks)
+import Data.Functor (void)
 import GHC.Generics (Generic)
 
 data AcceptableSatResult
@@ -30,8 +31,8 @@ data AcceptableSatResult
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadLocalCheckCache m where
-    queryCache :: SMTProofCheck () -> m (Maybe AcceptableSatResult)
-    updateCache :: SMTProofCheck () -> AcceptableSatResult -> m ()
+    queryCache :: SMTProofCheck a -> m (Maybe AcceptableSatResult)
+    updateCache :: SMTProofCheck a -> AcceptableSatResult -> m ()
 
 instance MonadLocalCheckCache m => MonadLocalCheckCache (ExceptT e m) where
     queryCache check = lift $ queryCache check
@@ -55,11 +56,11 @@ newtype LocalCheckCacheT m a
     , MonadFail
     , MonadIO
     , MonadLogger
+    , MonadLoggerAddContext
     , MonadLoggerIO
     , MonadMask
     , MonadThrow
     , MonadUnliftIO
-    , MonadLoggerAddContext
     )
 
 type LocalCheckCacheTInner m = ReaderT (LocalCheckCacheContext m) m
@@ -76,10 +77,10 @@ data LocalCheckCacheContext m
 instance Monad m => MonadLocalCheckCache (LocalCheckCacheT m) where
     queryCache check = LocalCheckCacheT $ do
         f <- asks (.queryCache)
-        lift $ f check
+        lift $ f (void check)
     updateCache check result = LocalCheckCacheT $ do
         f <- asks (.updateCache)
-        lift $ f check result
+        lift $ f (void check) result
 
 liftIOLocalCheckCacheContext :: MonadIO m => LocalCheckCacheContext IO -> LocalCheckCacheContext m
 liftIOLocalCheckCacheContext ctx = LocalCheckCacheContext

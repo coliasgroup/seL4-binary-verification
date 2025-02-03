@@ -1,6 +1,7 @@
 module BV.System.Utils.Logger
     ( MonadLogger
     , MonadLoggerAddContext (..)
+    , addLoggerContextToStr
     , levelTrace
     , logDebug
     , logDebugGeneric
@@ -14,16 +15,15 @@ module BV.System.Utils.Logger
     , logWarnGeneric
     , noTrace
     , noTraceAnd
-    , addLoggerContextToStr
     ) where
 
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Logger (LogLevel (..), LogSource,
+import Control.Monad.Logger (LogLevel (..), LogSource, LogStr,
                              LoggingT (LoggingT, runLoggingT), MonadLogger,
                              ToLogStr, logDebugN, logErrorN, logInfoN,
-                             logOtherN, logWarnN, logWithoutLoc, toLogStr, LogStr)
-import qualified Data.Text as T
+                             logOtherN, logWarnN, logWithoutLoc, toLogStr)
 import Control.Monad.Reader (ReaderT, mapReaderT)
+import qualified Data.Text as T
 
 class MonadLogger m => MonadLoggerAddContext m where
     addLoggerContext :: String -> m a -> m a

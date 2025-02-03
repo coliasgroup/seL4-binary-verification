@@ -12,9 +12,9 @@ module BV.Core.Types.SMTProofChecks
     , flattenSMTProofChecks
     , readSExprWithPlaceholders
     , readSExprsWithPlaceholders
-    , splitSMTProofCheckGroup
     , tryReadSExprWithPlaceholders
     , tryReadSExprsWithPlaceholders
+    , ungroupSMTProofCheckGroup
     ) where
 
 import BV.Core.Types.Pairing
@@ -53,8 +53,8 @@ data SMTProofCheckImp a
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
-splitSMTProofCheckGroup :: SMTProofCheckGroup a -> [SMTProofCheck a]
-splitSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck
+ungroupSMTProofCheckGroup :: SMTProofCheckGroup a -> [SMTProofCheck a]
+ungroupSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck
     { setup = group.setup
     , imp
     }
