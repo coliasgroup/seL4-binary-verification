@@ -84,17 +84,17 @@ checkGroup config throttle group =
         runExceptT $ do
             logDebug "checking"
             filteredGroup <- filterGroupM group
-            let filteredGroupWithLabels = zipWithT [0..] filteredGroup
+            let filteredGroupWithLabels = zipWithT [0 :: Integer ..] filteredGroup
             onlineResults <-
-                lift $ addLogContext' "online solver" $ runSolverWith
+                lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ addLogContext' "online solver" $ runSolverWith
                     modifyCtx
                     (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
                     (logInfoGeneric . addLogContextToStr "stderr")
                     (executeSMTProofCheckGroupOnline
                     (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
                     (Just (SolverTimeout config.solversConfig.onlineTimeout))
-                    filteredGroup)
-            logInfo $ show onlineResults
+                    filteredGroupWithLabels)
+            logInfo $ "results: " ++ show onlineResults
             undefined
   where
     modifyCtx ctx = SolverContext
