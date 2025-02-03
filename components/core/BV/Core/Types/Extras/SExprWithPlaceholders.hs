@@ -70,7 +70,7 @@ notS :: S -> S
 notS x = ["not", x]
 
 andNS :: [S] -> S
-andNS xs = "and" : xs
+andNS xs = List $ "and" : xs
 
 iteS :: S -> S -> S -> S
 iteS i t e = ["ite", i, t, e]

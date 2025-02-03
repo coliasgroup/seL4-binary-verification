@@ -18,7 +18,7 @@ import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
-import Control.Monad.Logger (MonadLogger)
+import Control.Monad.Logger (LoggingT, MonadLogger, MonadLoggerIO)
 import Control.Monad.Reader (MonadTrans (lift), ReaderT)
 import Control.Monad.Reader.Class (asks)
 import GHC.Generics (Generic)
@@ -36,6 +36,10 @@ instance MonadLocalCheckCache m => MonadLocalCheckCache (ExceptT e m) where
     queryCache check = lift $ queryCache check
     updateCache check result = lift $ updateCache check result
 
+instance MonadLocalCheckCache m => MonadLocalCheckCache (LoggingT m) where
+    queryCache check = lift $ queryCache check
+    updateCache check result = lift $ updateCache check result
+
 --
 
 newtype LocalCheckCacheT m a
@@ -50,6 +54,7 @@ newtype LocalCheckCacheT m a
     , MonadFail
     , MonadIO
     , MonadLogger
+    , MonadLoggerIO
     , MonadMask
     , MonadThrow
     , MonadUnliftIO

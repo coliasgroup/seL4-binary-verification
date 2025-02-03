@@ -58,11 +58,13 @@ executeSMTProofCheckGroupOnline config timeout group = do
         lift . sendSimpleCommandExpectingSuccess $ Push 1
         forM_ split $ \hyp -> do
             labeledHyp <- labelSExpr hyp
-            lift . sendSimpleCommandExpectingSuccess $ Assert (Assertion (configureSExpr config labeledHyp))
+            lift . sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $
+                labeledHyp
         result <- ExceptT $ maybe (Left meta) Right <$> checkSatWithTimeout timeout
         tell [(meta, result)]
         lift . sendSimpleCommandExpectingSuccess $ Pop 1
-        lift . sendSimpleCommandExpectingSuccess . Assert $ notS (andNS split)
+        lift . sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $
+            notS (andNS split)
     return (timeoutInfo ^? _Left, results)
 
 labelSExpr :: MonadState Integer m => SExprWithPlaceholders -> m SExprWithPlaceholders

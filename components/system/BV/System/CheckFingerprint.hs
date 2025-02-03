@@ -27,7 +27,7 @@ newtype SMTProofCheckFingerprint
   = SMTProofCheckFingerprint { unwrap :: ByteString }
   deriving (Eq, Generic, Ord, Show)
 
-smtProofCheckFingerprint :: SMTProofCheck () -> SMTProofCheckFingerprint
+smtProofCheckFingerprint :: SMTProofCheck a -> SMTProofCheckFingerprint
 smtProofCheckFingerprint check =
     SMTProofCheckFingerprint . hashlazy . encodeUtf8 . toLazyText . buildSExprWithPlaceholders $
         [ "SMTProofCheck"
@@ -39,7 +39,7 @@ newtype SMTProofCheckGroupFingerprint
   = SMTProofCheckGroupFingerprint { unwrap :: ByteString }
   deriving (Eq, Generic, Ord, Show)
 
-smtProofCheckGroupFingerprint :: SMTProofCheckGroup () -> SMTProofCheckGroupFingerprint
+smtProofCheckGroupFingerprint :: SMTProofCheckGroup a -> SMTProofCheckGroupFingerprint
 smtProofCheckGroupFingerprint group =
     SMTProofCheckGroupFingerprint . hashlazy . encodeUtf8 . toLazyText . buildSExprWithPlaceholders $
         [ "SMTProofCheckGroup"

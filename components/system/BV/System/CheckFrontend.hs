@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.System.CheckFrontend
@@ -13,12 +15,14 @@ import BV.Core.AdornProofScript
 import BV.Core.Types
 import BV.System.CheckFingerprint
 import BV.System.TaskQueue
+import BV.System.Utils
+import BV.System.Utils.UnliftIO.Async
 
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  ConcurrentlyE (..))
 import Control.Monad (void)
-import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO))
-import Control.Monad.Logger (MonadLogger, logInfoN)
+import Control.Monad.IO.Unlift (MonadIO (liftIO), MonadUnliftIO (withRunInIO))
+import Control.Monad.Logger (MonadLogger, MonadLoggerIO, logInfoN)
 import Data.Foldable (for_)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map as M
@@ -47,21 +51,20 @@ data CheckReport
 
 checkFrontend
     :: ( MonadUnliftIO m
-       , MonadLogger m
+       , MonadLoggerIO m
        , SupportsTask (SMTProofCheckGroup SMTProofCheckDescription) (SMTProofCheckResult ()) t
        )
     => TaskQueueIn t
     -> FlattenedSMTProofChecks SMTProofCheckDescription
     -> m CheckReport
-checkFrontend taskQueueIn checks = withRunInIO $ \runInIO -> do
-    runConcurrently $ do
-        CheckReport <$> ifor checks.unwrap (\pairingId checksForPairing -> Concurrently $ do
-            runConcurrentlyE $ do
-                for_ checksForPairing (\group -> ConcurrentlyE $ do
-                    result <- submitTaskAndWait taskQueueIn group
-                    runInIO $ do
-                        logInfoN . T.pack $ printf "Group result (%s): %s %s"
-                            (prettyPairingId pairingId)
-                            (smtProofCheckGroupFingerprint (void group))
-                            (show result)
-                    return result))
+checkFrontend taskQueueIn checks = addLogContext' "frontend" $ do
+    runConcurrentlyUnliftIO $ do
+        CheckReport <$> ifor checks.unwrap (\pairingId checksForPairing -> concurrentlyUnliftIO $ do
+            addLogContext' pairingId.asm.unwrap $ do
+                runConcurrentlyUnliftIOE $ do
+                    for_ checksForPairing (\group -> concurrentlyUnliftIOE $ do
+                        addLogContext' (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
+                            logTraceN "sending task"
+                            result <- liftIO $ submitTaskAndWait taskQueueIn group
+                            logInfoN . T.pack $ printf "task result: %s" (show result)
+                            return result))

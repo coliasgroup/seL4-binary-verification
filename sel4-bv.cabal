@@ -197,6 +197,8 @@ library system
       BV.System.TaskQueue
       BV.System.Throttle
       BV.System.Utils
+      BV.System.Utils.UnliftIO.Async
+      BV.System.Utils.UnliftIO.Throttle
   hs-source-dirs:
       components/system
   default-extensions:
