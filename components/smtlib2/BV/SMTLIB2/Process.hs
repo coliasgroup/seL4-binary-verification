@@ -3,7 +3,8 @@
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 
 module BV.SMTLIB2.Process
-    ( SolverProcessException (..)
+    ( SolverContext
+    , SolverProcessException (..)
     , SolverT
     , runSolver
     ) where
@@ -51,16 +52,16 @@ instance Monad m => MonadSolver (FT SolverDSL m) where
 
 type SolverT m = FT SolverDSL (SolverTInner m)
 
-type SolverTInner m = ReaderT (SolverTInnerContext m) m
+type SolverTInner m = ReaderT (SolverContext m) m
 
-data SolverTInnerContext m
-  = SolverTInnerContext
+data SolverContext m
+  = SolverContext
       { send :: SExpr -> m ()
       , recvWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
       }
 
-liftIOContext :: MonadIO m => SolverTInnerContext IO -> SolverTInnerContext m
-liftIOContext ctx = SolverTInnerContext
+liftIOContext :: MonadIO m => SolverContext IO -> SolverContext m
+liftIOContext ctx = SolverContext
     { send = liftIO . ctx.send
     , recvWithTimeout = liftIO . ctx.recvWithTimeout
     }
@@ -107,7 +108,7 @@ runSolver cmd logStderr m = do
 
     let termination = waitForStreamingProcess processHandle
 
-    let ctx = SolverTInnerContext
+    let ctx = SolverContext
             { send = sink
             , recvWithTimeout = \maybeTimeout ->
                 readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
