@@ -14,9 +14,9 @@ module BV.System.LocalCheckBackend
 
 import BV.Core.AdornProofScript
 import BV.Core.ExecuteSMTProofChecks
-import BV.Core.ExecuteSMTProofChecks (SolverConfig)
 import BV.Core.Stages
 import BV.Core.Types
+import BV.SMTLIB2.Builder
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.Types
 import BV.System.CheckFingerprint
@@ -29,10 +29,6 @@ import BV.System.Utils.Logger
 import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
 
-import BV.SMTLIB2.Builder (buildSExpr)
-import BV.SMTLIB2.Process (SolverContext (SolverContext, recvWithTimeout),
-                           runSolverWith)
-import BV.System.Utils.Logger (logTraceGeneric)
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  race)
 import Control.Monad (filterM, forM_, forever, unless)
@@ -67,12 +63,12 @@ localCheckBackend
     => LocalCheckBackendConfig -> PreparedSMTProofChecks -> m CheckReport
 localCheckBackend config checks = do
     withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
-        checkFrontend (checkGroup config throttle) checks
+        checkFrontend (checkGroup config.solversConfig throttle) checks
 
 checkGroup
     :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadLocalCheckCache m, MonadMask m)
-    => LocalCheckBackendConfig -> Throttle -> SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult ())
-checkGroup config throttle group =
+    => SolversConfig -> Throttle -> SMTProofCheckGroup i -> m (SMTProofCheckResult i ())
+checkGroup solversConfig throttle group =
     runExceptT $ do
         logDebug "checking"
         filteredGroup <- filterGroupM group
@@ -80,11 +76,11 @@ checkGroup config throttle group =
         onlineResults <-
             lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ addLoggerContext "online solver" $ runSolverWith
                 modifyCtx
-                (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
+                (uncurry proc (fromJust (uncons solversConfig.online.command)))
                 logStderr
                 (executeSMTProofCheckGroupOnline
-                    (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
-                    (Just (SolverTimeout config.solversConfig.onlineTimeout))
+                    (SolverConfig { memoryMode = solversConfig.online.memoryMode })
+                    (Just (SolverTimeout solversConfig.onlineTimeout))
                     filteredGroupWithLabels)
         let (exit, completed) = onlineResults
         forM_ completed $ \(i, _) -> do
@@ -121,9 +117,9 @@ checkGroup config throttle group =
         }
 
 filterGroupM
-    :: (MonadLogger m, MonadLocalCheckCache m, MonadError SMTProofCheckErrorWithDescriptions m)
-    => SMTProofCheckGroup SMTProofCheckDescription
-    -> m (SMTProofCheckGroup SMTProofCheckDescription)
+    :: (MonadLogger m, MonadLocalCheckCache m, MonadError (SMTProofCheckError i) m)
+    => SMTProofCheckGroup i
+    -> m (SMTProofCheckGroup i)
 filterGroupM group = forOf #imps group $ \imps ->
     -- TODO only reports first error
     flip filterM imps (\imp -> do

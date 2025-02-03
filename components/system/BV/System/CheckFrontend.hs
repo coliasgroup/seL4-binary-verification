@@ -4,8 +4,8 @@
 
 module BV.System.CheckFrontend
     ( CheckReport (..)
-    , SMTProofCheckError (..)
-    , SMTProofCheckErrorWithDescriptions
+    , SMTProofCheckError
+    , SMTProofCheckErrorCause (..)
     , SMTProofCheckResult
     , checkFrontend
     ) where
@@ -30,11 +30,11 @@ import GHC.Generics (Generic)
 import Optics (ifor)
 import Text.Printf (printf)
 
-type SMTProofCheckResult a = Either SMTProofCheckErrorWithDescriptions a
+type SMTProofCheckResult i a = Either (SMTProofCheckError i) a
 
-type SMTProofCheckErrorWithDescriptions = (SMTProofCheckError, NonEmpty SMTProofCheckDescription)
+type SMTProofCheckError i = (SMTProofCheckErrorCause, NonEmpty i)
 
-data SMTProofCheckError
+data SMTProofCheckErrorCause
   = NoSolversAnswered
   | SomeSolverAnsweredSat
   | AllSolversAnsweredUnknown
@@ -42,7 +42,7 @@ data SMTProofCheckError
 
 data CheckReport
   = CheckReport
-      { unwrap :: M.Map PairingId (SMTProofCheckResult ())
+      { unwrap :: M.Map PairingId (SMTProofCheckResult SMTProofCheckDescription ())
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -50,7 +50,7 @@ checkFrontend
     :: ( MonadUnliftIO m
        , MonadLoggerAddContext m
        )
-    => (SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult ()))
+    => (SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult SMTProofCheckDescription ()))
     -> PreparedSMTProofChecks
     -> m CheckReport
 checkFrontend f checks =
