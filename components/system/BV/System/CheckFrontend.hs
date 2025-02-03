@@ -15,14 +15,13 @@ import BV.Core.AdornProofScript
 import BV.Core.Types
 import BV.System.CheckFingerprint
 import BV.System.TaskQueue
-import BV.System.Utils
+import BV.System.Utils.Logger
 import BV.System.Utils.UnliftIO.Async
 
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  ConcurrentlyE (..))
 import Control.Monad (void)
 import Control.Monad.IO.Unlift (MonadIO (liftIO), MonadUnliftIO (withRunInIO))
-import Control.Monad.Logger (MonadLogger, MonadLoggerIO, logInfoN)
 import Data.Foldable (for_)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map as M
@@ -64,7 +63,7 @@ checkFrontend taskQueueIn checks = addLogContext' "frontend" $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\group -> concurrentlyUnliftIOE $ do
                         addLogContext' (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
-                            logTraceN "sending task"
+                            logTrace "sending task"
                             result <- liftIO $ submitTaskAndWait taskQueueIn group
-                            logInfoN . T.pack $ printf "task result: %s" (show result)
+                            logInfo $ printf "task result: %s" (show result)
                             return result))

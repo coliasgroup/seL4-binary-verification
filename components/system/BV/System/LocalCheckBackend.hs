@@ -24,7 +24,7 @@ import BV.System.LocalCheckBackend.Cache
 import BV.System.SolversConfig
 import BV.System.TaskQueue
 import BV.System.Throttle
-import BV.System.Utils
+import BV.System.Utils.Logger
 import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
 
@@ -36,7 +36,6 @@ import Control.Monad.Except (ExceptT (ExceptT), MonadError, runExceptT,
                              throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
-import Control.Monad.Logger (MonadLogger, MonadLoggerIO, logDebugN, logInfoN)
 import Control.Monad.State (evalState, state)
 import Control.Monad.Trans (lift)
 import Data.Functor (void)
@@ -78,18 +77,18 @@ checkGroup
 checkGroup config throttle group =
     addLogContext' (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
         runExceptT $ do
-            logDebugN "checking"
+            logDebug "checking"
             filteredGroup <- filterGroupM group
             let filteredGroupWithLabels = zipWithT [0..] filteredGroup
             onlineResults <-
                 lift $ runSolver
                     (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
-                    (\line -> logInfoN $ "Online solver stderr: " <> line)
+                    (\line -> logInfo $ "Online solver stderr: " ++ T.unpack line)
                     (executeSMTProofCheckGroupOnline
                     (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
                     (Just (SolverTimeout config.solversConfig.onlineTimeout))
                     filteredGroup)
-            logInfoN . fromString $ show onlineResults
+            logInfo . fromString $ show onlineResults
             undefined
 
 filterGroupM

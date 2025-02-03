@@ -13,6 +13,7 @@ main :: IO ()
 main = runScratch
     config
     testSeL4TargetDirSmall
+    (tmpDir </> "check-scratch.log")
     (tmpDir </> "mismatch")
 
 config :: LocalCheckBackendConfig

@@ -10,22 +10,32 @@ import BV.System.EvalStages
 import BV.System.LocalCheckBackend
 import BV.System.LocalCheckBackend.Cache
 import BV.System.SeL4
+import BV.System.Utils.Logger
 import BV.TargetDir
 
-import Control.Monad (forM_, unless)
+import Control.Monad (forM_, unless, when)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Logger (runStderrLoggingT)
+import Control.Monad.Logger (defaultOutput, runLoggingT)
 import Control.Monad.Reader (runReaderT)
 import qualified Data.Map as M
 import Optics
 import System.Exit (die)
+import System.IO (BufferMode (LineBuffering), IOMode (WriteMode), hSetBuffering,
+                  stderr, withFile)
 
-runScratch :: LocalCheckBackendConfig -> TargetDir -> FilePath -> IO ()
-runScratch config targetDir mismatchDumpDir =
-    runStderrLoggingT $
-        runReaderT (runLocalCheckCacheT go) trivialLocalCheckCacheContext
+runScratch :: LocalCheckBackendConfig -> TargetDir -> FilePath -> FilePath -> IO ()
+runScratch config targetDir logDst mismatchDumpDir = do
+    withFile logDst WriteMode $ \fileHandle -> do
+        hSetBuffering fileHandle LineBuffering
+        let output loc source level str = do
+                when (noTrace source level) $ do
+                    defaultOutput stderr loc source level str
+                defaultOutput fileHandle loc source level str
+        flip runLoggingT output $
+            flip runReaderT trivialLocalCheckCacheContext $
+                runLocalCheckCacheT run
   where
-    go = do
+    run = do
         input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter targetDir
         checks <- evalStages ctx input
         report <- localCheckBackend config checks
