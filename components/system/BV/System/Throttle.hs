@@ -57,6 +57,8 @@ controlThrottle throttleControl initialUnits = flip evalStateT throttleState0 . 
     msg <- liftIO $ readChan throttleControl.chan
     case msg of
         Borrow (Value { gate, priority, units }) -> do
+            unless (units >= 0) $ do
+                fail "negative units"
             unless (units <= initialUnits) $ do
                 fail $ printf
                     "throttle error: requested number of units (%s) exceeds total number of units (%s)"
@@ -89,7 +91,7 @@ controlThrottle throttleControl initialUnits = flip evalStateT throttleState0 . 
                     return (priority, units, i, gate)
              in listToMaybe $ mapMaybe f (M.toList byValue)
     whenJust toOpen $ \(priority, units, i, gate) -> do
-        #availableUnits %= (-) units
+        #availableUnits %= subtract units
         assign (#byValue % at priority % _Just % at units % _Just % ix i % _2) True
         liftIO $ putMVar gate ()
   where
