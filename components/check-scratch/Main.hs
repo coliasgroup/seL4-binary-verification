@@ -46,8 +46,8 @@ solversConfig = SolversConfig
     , offlineTimeout = 6000
     }
   where
-    f command@(name:_) = OfflineSolverGroupConfig
-        { name
+    f command@(commandName:_) = OfflineSolverGroupConfig
+        { commandName
         , command
         , memoryModes = allSolverMemoryModes
         , scopes = allSolverScopes

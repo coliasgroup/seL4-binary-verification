@@ -36,7 +36,7 @@ data OnlineSolverConfig
 
 data OfflineSolverGroupConfig
   = OfflineSolverGroupConfig
-      { name :: String
+      { commandName :: String
       , command :: [String]
       , memoryModes :: [SolverMemoryMode]
       , scopes :: [SolverScope]
@@ -56,16 +56,17 @@ allSolverMemoryModes = [SolverMemoryModeWord8, SolverMemoryModeWord32]
 
 data OfflineSolverConfig
   = OfflineSolverConfig
-      { command :: [String]
+      { commandName :: String
+      , command :: [String]
       , memoryMode :: SolverMemoryMode
       }
   deriving (Eq, Generic, Ord, Show)
 
 offlineSolverConfigsForScope :: SolverScope -> SolversConfig -> [OfflineSolverConfig]
 offlineSolverConfigsForScope scope (SolversConfig { offline }) = flip concatMap offline $
-    \OfflineSolverGroupConfig { command, memoryModes, scopes } -> do
+    \OfflineSolverGroupConfig { commandName, command, memoryModes, scopes } -> do
         unless (scope `elem` scopes) empty
-        OfflineSolverConfig command <$> memoryModes
+        OfflineSolverConfig commandName command <$> memoryModes
 
 numOfflineSolverConfigsForScope :: SolverScope ->  SolversConfig -> Integer
 numOfflineSolverConfigsForScope scope = genericLength . offlineSolverConfigsForScope scope

@@ -19,6 +19,7 @@ import BV.System.Frontend
 import BV.System.SolversConfig
 import BV.System.Throttle
 import BV.System.Utils.Logger
+import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
 
@@ -48,8 +49,8 @@ data BackendCoreConfig
   deriving (Eq, Generic, Ord, Show)
 
 offlineOnly :: Bool
-offlineOnly = False
--- offlineOnly = True
+-- offlineOnly = False
+offlineOnly = True
 
 backendCore
     :: forall m i. (MonadUnliftIO m, MonadLoggerContextStack m, MonadCache m, MonadMask m)
@@ -110,30 +111,33 @@ backendCore config throttle group =
                             parallelResult <-
                                 lift . runConcurrentlyUnliftIOE . sequenceA_ .
                                 flip map (offlineSolverConfigsForScope SolverScopeAll config.solversConfig) $ \solver ->
-                                    concurrentlyUnliftIOE $ pushLogContext "solver _" $ do
+                                    concurrentlyUnliftIOE $ pushLogContext ("solver " ++ solver.commandName) $ do
+                                        logInfo "running solver"
+                                        stopWatch <- newStopWatch
                                         checkSatOutcome <- do
-                                            logInfo "running solver"
                                             runSolver'
                                                 solver.command
                                                 (executeSMTProofCheckGroupOffline
                                                     (Just (SolverTimeout config.solversConfig.offlineTimeout))
                                                     (SolverConfig { memoryMode = solver.memoryMode })
                                                     remaining)
+                                        secs <- elapsedToSeconds <$> getElapsed stopWatch
+                                        let elapsedSuffix = printf " (%.2fs)" (fromRational secs :: Double)
                                         case checkSatOutcome of
                                             Nothing -> do
                                                 logInfo "timeout"
                                                 return $ Right ()
                                             Just Sat -> do
-                                                logInfo "answered sat"
+                                                logInfo $ "answered sat" ++ elapsedSuffix
                                                 forM_ (ungroupSMTProofCheckGroup remaining) $ \check ->
                                                     updateCache check AcceptableSatResultSat
                                                 return $ Left (Left (SomeSolverAnsweredSat, locs))
                                             Just Unsat -> do
-                                                logInfo "answered unsat"
+                                                logInfo $ "answered unsat" ++ elapsedSuffix
                                                 -- updateCache check AcceptableSatResultUnsat
                                                 return $ Left (Right ())
                                             Just Unknown -> do
-                                                logInfo "answered unknown"
+                                                logInfo $ "answered unknown" ++ elapsedSuffix
                                                 return $ Right ()
                             case parallelResult of
                                 Right () -> do
@@ -146,29 +150,32 @@ backendCore config throttle group =
                             parallelResult <-
                                 lift . runConcurrentlyUnliftIOE . sequenceA_ .
                                 flip map (offlineSolverConfigsForScope SolverScopeHyp config.solversConfig) $ \solver ->
-                                    concurrentlyUnliftIOE $ pushLogContext "solver _" $ do
+                                    concurrentlyUnliftIOE $ pushLogContext ("solver " ++ solver.commandName) $ do
+                                        logInfo "running solver"
+                                        stopWatch <- newStopWatch
                                         checkSatOutcome <- do
-                                            logInfo "running solver"
                                             runSolver'
                                                 solver.command
                                                 (executeSMTProofCheckOffline
                                                     (Just (SolverTimeout config.solversConfig.offlineTimeout))
                                                     (SolverConfig { memoryMode = solver.memoryMode })
                                                     check)
+                                        secs <- elapsedToSeconds <$> getElapsed stopWatch
+                                        let elapsedSuffix = printf " (%.2fs)" (fromRational secs :: Double)
                                         case checkSatOutcome of
                                             Nothing -> do
                                                 logInfo "timeout"
                                                 return $ Right ()
                                             Just Sat -> do
-                                                logInfo "answered sat"
+                                                logInfo $ "answered sat" ++ elapsedSuffix
                                                 updateCache check AcceptableSatResultSat
                                                 return $ Left (Left (SomeSolverAnsweredSat, locs))
                                             Just Unsat -> do
-                                                logInfo "answered unsat"
+                                                logInfo $ "answered unsat" ++ elapsedSuffix
                                                 updateCache check AcceptableSatResultUnsat
                                                 return $ Left (Right ())
                                             Just Unknown -> do
-                                                logInfo "answered unknown"
+                                                logInfo $ "answered unknown" ++ elapsedSuffix
                                                 return $ Right ()
                             case parallelResult of
                                 Right () -> do
