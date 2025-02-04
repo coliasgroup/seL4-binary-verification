@@ -1,4 +1,7 @@
-{ pkgs }:
+{ pkgs
+, mathsat5
+, sonolar
+}:
 
 let
   ghcVersion = "98";
@@ -36,7 +39,12 @@ pkgs.mkShell {
     inotify-tools
 
     yices
+    bitwuzla
     z3
+    cvc5
+    cvc4
+    mathsat5
+    sonolar
   ];
 
   shellHook = ''

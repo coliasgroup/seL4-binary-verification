@@ -38,11 +38,16 @@ in rec {
 
   inherit pkgs;
 
-  shell = pkgs.callPackage ./shell.nix {};
+  shell = pkgs.callPackage ./shell.nix {
+    inherit mathsat5 sonolar;
+  };
 
   stacklock = pkgs.callPackage ./stacklock.nix {};
 
   stacklockPkgSet = stacklock.pkgSet;
 
   package = stacklockPkgSet.sel4-bv;
+
+  mathsat5 = pkgs.callPackage ./solvers/mathsat5.nix {};
+  sonolar = pkgs.callPackage ./solvers/sonolar.nix {};
 }
