@@ -18,18 +18,13 @@ import BV.SMTLIB2.Command
 
 import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
-import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except (runExceptT)
-import Control.Monad.State (evalStateT)
-import Control.Monad.State.Class (MonadState)
-import Control.Monad.Trans.Writer (runWriterT)
-import Control.Monad.Writer (tell)
+import Control.Monad.Except (runExceptT, throwError)
+import Control.Monad.State (MonadState, evalStateT, get, modify)
+import Control.Monad.Writer (runWriterT, tell)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
 import GHC.Generics (Generic)
-import Optics
-import Optics.State.Operators ((<<%=))
 
 logic :: String
 logic = "QF_AUFBV"
@@ -99,7 +94,8 @@ executeSMTProofCheckGroupOnline config timeout group = do
 
 labelHyp :: MonadState Integer m => SExprWithPlaceholders -> m SExprWithPlaceholders
 labelHyp sexpr = do
-    i <- simple <<%= (+ 1)
+    i <- get
+    modify (+ 1)
     let label = "hyp" ++ show i
     return $ labelS label sexpr
 
