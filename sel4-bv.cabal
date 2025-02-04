@@ -50,7 +50,7 @@ library concrete-syntax
     , megaparsec
     , optics-core
     , sel4-bv:core
-    , sel4-bv:smtlib2-types
+    , sel4-bv:smtlib2
     , text
   default-language: GHC2021
 
@@ -115,7 +115,7 @@ library core
     , optics
     , optics-core
     , pretty-show
-    , sel4-bv:smtlib2-types
+    , sel4-bv:smtlib2
     , transformers
   default-language: GHC2021
 
@@ -144,7 +144,7 @@ library smtlib2-process
     , free
     , mtl
     , process
-    , sel4-bv:smtlib2-types
+    , sel4-bv:smtlib2
     , stm
     , text
     , unliftio-core
@@ -152,15 +152,6 @@ library smtlib2-process
 
 library smtlib2-types
   visibility: public
-  exposed-modules:
-      BV.SMTLIB2.Types
-      BV.SMTLIB2.Types.Command
-      BV.SMTLIB2.Types.SExpr
-      BV.SMTLIB2.Types.SExpr.Build
-      BV.SMTLIB2.Types.SExpr.Parse.Attoparsec
-      BV.SMTLIB2.Types.SExpr.Parse.Megaparsec
-      BV.SMTLIB2.Types.SExpr.Read
-      BV.SMTLIB2.Types.SExpr.Show
   hs-source-dirs:
       components/smtlib2-types
   default-extensions:
@@ -237,8 +228,8 @@ library system
     , process
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
-    , sel4-bv:smtlib2-types
     , sel4-bv:target-dir
     , stm
     , tasty
@@ -442,8 +433,8 @@ test-suite smtlib2-test
     , mtl
     , optics-core
     , process
+    , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
-    , sel4-bv:smtlib2-types
     , sel4-bv:target-dir
     , tasty
     , tasty-hunit

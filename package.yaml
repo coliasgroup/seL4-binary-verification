@@ -29,9 +29,9 @@ dependencies:
 
 internal-libraries:
 
-  smtlib2-types:
+  smtlib2:
     visibility: public
-    source-dirs: components/smtlib2-types
+    source-dirs: components/smtlib2
     default-extensions:
       - DuplicateRecordFields
       - NoFieldSelectors
@@ -54,7 +54,7 @@ internal-libraries:
       - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
-      - sel4-bv:smtlib2-types
+      - sel4-bv:smtlib2
       # external
       - mtl
       - free
@@ -80,7 +80,7 @@ internal-libraries:
       - BV.Core.AdornProofScript
       - BV.Core.ExecuteSMTProofChecks
     dependencies:
-      - sel4-bv:smtlib2-types
+      - sel4-bv:smtlib2
       # external
       - deepseq
       - containers
@@ -105,7 +105,7 @@ internal-libraries:
       - BV.ConcreteSyntax
     dependencies:
       - sel4-bv:core
-      - sel4-bv:smtlib2-types
+      - sel4-bv:smtlib2
       # external
       - containers
       - dlist
@@ -142,7 +142,7 @@ internal-libraries:
       - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
-      - sel4-bv:smtlib2-types
+      - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
       - sel4-bv:core
       - sel4-bv:concrete-syntax
@@ -268,7 +268,7 @@ tests:
     source-dirs: components/smtlib2-test
     main: Main.hs
     dependencies:
-      - sel4-bv:smtlib2-types
+      - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
       - sel4-bv:target-dir
       # external
