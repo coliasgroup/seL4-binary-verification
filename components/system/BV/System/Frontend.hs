@@ -14,18 +14,13 @@ import BV.Core.AdornProofScript
 import BV.Core.Stages
 import BV.Core.Types
 import BV.System.Fingerprinting
-import BV.System.TaskQueue
 import BV.System.Utils.Logger
 import BV.System.Utils.UnliftIO.Async
 
-import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
-                                 ConcurrentlyE (..))
-import Control.Monad (void)
-import Control.Monad.IO.Unlift (MonadIO (liftIO), MonadUnliftIO (withRunInIO))
+import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.Foldable (for_)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map as M
-import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Optics (ifor)
 import Text.Printf (printf)
