@@ -2,7 +2,7 @@
 
 {-# HLINT ignore "Avoid lambda" #-}
 
-module BV.System.LocalCheckBackend.Cache
+module BV.System.Cache
     ( AcceptableSatResult (..)
     , CacheContext (..)
     , CacheT

@@ -185,11 +185,11 @@ library smtlib2-types
 library system
   visibility: public
   exposed-modules:
+      BV.System.Cache
       BV.System.EvalStages
       BV.System.Fingerprinting
       BV.System.Frontend
       BV.System.LocalCheckBackend
-      BV.System.LocalCheckBackend.Cache
       BV.System.LocalCheckBackend.Scratch
       BV.System.Notes
       BV.System.SeL4

@@ -5,10 +5,10 @@ module BV.System.LocalCheckBackend.Scratch
     ) where
 
 import BV.Core.Types
+import BV.System.Cache
 import BV.System.EvalStages
 import BV.System.Frontend
 import BV.System.LocalCheckBackend
-import BV.System.LocalCheckBackend.Cache
 import BV.System.SeL4
 import BV.System.Utils.Logger
 import BV.TargetDir
