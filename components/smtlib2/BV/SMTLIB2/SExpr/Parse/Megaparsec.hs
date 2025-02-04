@@ -89,7 +89,7 @@ tryReadSExpr :: String -> Either String SExpr
 tryReadSExpr = tryReadWith parseSExpr
 
 tryReadSExprs :: String -> Either String [SExpr]
-tryReadSExprs = tryReadWith (parseSExpr `sepBy` consumeAnySExprWhitespace)
+tryReadSExprs = tryReadWith (consumeAnySExprWhitespace *> many (parseSExpr <* consumeAnySExprWhitespace))
 
 readSExpr :: HasCallStack => String -> SExpr
 readSExpr = either error id . tryReadSExpr
