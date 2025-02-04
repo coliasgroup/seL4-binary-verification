@@ -47,47 +47,55 @@ data BackendCoreConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
+offlineOnly :: Bool
+-- offlineOnly = False
+offlineOnly = True
+
 backendCore
     :: forall m i. (MonadUnliftIO m, MonadLoggerAddContext m, MonadCache m, MonadMask m)
     => BackendCoreConfig -> Throttle -> SMTProofCheckGroup i -> m (SMTProofCheckResult i ())
 backendCore config throttle group =
     runExceptT $ do
         filteredGroup <- filterGroupM group
-        remaining <- addLoggerContext "online solver" $ do
-            let filteredGroupWithLabels = zipWithT [0 :: Int ..] filteredGroup
-            onlineResults <-
-                lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ runSolver'
-                    config.solversConfig.online.command
-                    (executeSMTProofCheckGroupOnline
-                        (Just (SolverTimeout config.solversConfig.onlineTimeout))
-                        (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
-                        filteredGroupWithLabels)
-            let (exit, completed) = onlineResults
-            forM_ completed $ \(i, _) -> do
-                let check = ungroupSMTProofCheckGroup filteredGroupWithLabels !! i
-                addLoggerContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
-                    logInfo "success"
-                updateCache check AcceptableSatResultUnsat
-            case exit of
-                Right _ -> return ()
-                Left ((i, loc), abort) -> do
+        remaining <-
+            if offlineOnly
+            then return filteredGroup
+            else addLoggerContext "online" $ do
+                let filteredGroupWithLabels = zipWithT [0 :: Int ..] filteredGroup
+                logInfo "running solver"
+                onlineResults <-
+                    lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ runSolver'
+                        config.solversConfig.online.command
+                        (executeSMTProofCheckGroupOnline
+                            (Just (SolverTimeout config.solversConfig.onlineTimeout))
+                            (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
+                            filteredGroupWithLabels)
+                let (exit, completed) = onlineResults
+                forM_ completed $ \(i, _) -> do
                     let check = ungroupSMTProofCheckGroup filteredGroupWithLabels !! i
                     addLoggerContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
-                        case abort of
-                            OnlineSolverAbortReasonTimeout -> do
-                                logInfo "timeout"
-                                return ()
-                            OnlineSolverAbortReasonAnsweredSat -> do
-                                logInfo "answered sat"
-                                updateCache (ungroupSMTProofCheckGroup filteredGroupWithLabels !! i) AcceptableSatResultSat
-                                throwError (SomeSolverAnsweredSat, loc :| [])
-                            OnlineSolverAbortReasonAnsweredUnknown -> do
-                                logInfo "answered unknown"
-                                return ()
-            let remaining = fmap snd
-                    (filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta)))
-            return remaining
-        unless (null remaining.imps) $ do
+                        logInfo "success"
+                    updateCache check AcceptableSatResultUnsat
+                case exit of
+                    Right _ -> return ()
+                    Left ((i, loc), abort) -> do
+                        let check = ungroupSMTProofCheckGroup filteredGroupWithLabels !! i
+                        addLoggerContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
+                            case abort of
+                                OnlineSolverAbortReasonTimeout -> do
+                                    logInfo "timeout"
+                                    return ()
+                                OnlineSolverAbortReasonAnsweredSat -> do
+                                    logInfo "answered sat"
+                                    updateCache (ungroupSMTProofCheckGroup filteredGroupWithLabels !! i) AcceptableSatResultSat
+                                    throwError (SomeSolverAnsweredSat, loc :| [])
+                                OnlineSolverAbortReasonAnsweredUnknown -> do
+                                    logInfo "answered unknown"
+                                    return ()
+                let remaining = fmap snd
+                        (filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta)))
+                return remaining
+        unless (null remaining.imps) $ addLoggerContext "offline" $ do
             let doAll = length remaining.imps > 1
             let units = numOfflineSolverConfigsForScope SolverScopeHyp config.solversConfig +
                     if doAll
@@ -97,14 +105,15 @@ backendCore config throttle group =
                 let concAll =
                         if not doAll
                         then empty
-                        else concurrentlyUnliftIO . runExceptT $ do
+                        else concurrentlyUnliftIO . runExceptT $ addLoggerContext "all" $ do
                             let locs = fromJust (nonEmpty (map (.meta) remaining.imps))
                             parallelResult <-
                                 lift . runConcurrentlyUnliftIOE . sequenceA_ .
                                 flip map (offlineSolverConfigsForScope SolverScopeAll config.solversConfig) $ \solver ->
-                                    concurrentlyUnliftIOE $ do
-                                        checkSatOutcome <-
-                                            addLoggerContext "offline solver all _" $ runSolver'
+                                    concurrentlyUnliftIOE $ addLoggerContext "solver _" $ do
+                                        checkSatOutcome <- do
+                                            logInfo "running solver"
+                                            runSolver'
                                                 solver.command
                                                 (executeSMTProofCheckGroupOffline
                                                     (Just (SolverTimeout config.solversConfig.offlineTimeout))
@@ -131,15 +140,16 @@ backendCore config throttle group =
                                     throwError (AllSolversTimedOutOrAnsweredUnknown, locs)
                                 Left definitiveAnswer -> do
                                     liftEither definitiveAnswer
-                let concHyps = concurrentlyUnliftIO . runExceptT $ do
+                let concHyps = concurrentlyUnliftIO . runExceptT . addLoggerContext "hyp" $ do
                         forM_ (ungroupSMTProofCheckGroup remaining) $ \check -> do
                             let locs = check.imp.meta :| []
                             parallelResult <-
                                 lift . runConcurrentlyUnliftIOE . sequenceA_ .
                                 flip map (offlineSolverConfigsForScope SolverScopeHyp config.solversConfig) $ \solver ->
-                                    concurrentlyUnliftIOE $ do
-                                        checkSatOutcome <-
-                                            addLoggerContext "offline solver hyp _" $ runSolver'
+                                    concurrentlyUnliftIOE $ addLoggerContext "solver _" $ do
+                                        checkSatOutcome <- do
+                                            logInfo "running solver"
+                                            runSolver'
                                                 solver.command
                                                 (executeSMTProofCheckOffline
                                                     (Just (SolverTimeout config.solversConfig.offlineTimeout))

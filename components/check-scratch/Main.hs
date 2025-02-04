@@ -14,6 +14,7 @@ main :: IO ()
 main = runScratch
     config
     testSeL4TargetDirSmall
+    -- testSeL4TargetDirBig
     (tmpDir </> "check-scratch.log.txt")
     (tmpDir </> "mismatch")
 
@@ -33,26 +34,18 @@ solversConfig = SolversConfig
         }
     , onlineTimeout = 30
     , offline =
-        [ OfflineSolverGroupConfig
-            { command = ["yices-smt2"]
-            , memoryModes = allSolverMemoryModes
-            , scopes = allSolverScopes
-            }
-        -- , OfflineSolverGroupConfig
-        --     { command = ["z3", "-smt2", "-in"]
-        --     , memoryModes = allSolverMemoryModes
-        --     , scopes = allSolverScopes
-        --     }
-        -- , OfflineSolverGroupConfig
-        --     { command = ["cvc5", "--lang", "smt"]
-        --     , memoryModes = allSolverMemoryModes
-        --     , scopes = allSolverScopes
-        --     }
-        -- , OfflineSolverGroupConfig
-        --     { command = ["mathsat", "-input=smt2"]
-        --     , memoryModes = allSolverMemoryModes
-        --     , scopes = allSolverScopes
-        --     }
+        [ f ["yices-smt2"]
+        , f ["bitwuzla"]
+        , f ["cvc5", "--lang", "smt"]
+        -- [ f ["z3", "-smt2", "-in"]
+        -- [ f ["mathsat", "-input=smt2"]
+        -- [ f ["sonolar", "--input-format=smtlib2"]
         ]
     , offlineTimeout = 6000
     }
+  where
+    f command = OfflineSolverGroupConfig
+        { command
+        , memoryModes = allSolverMemoryModes
+        , scopes = allSolverScopes
+        }
