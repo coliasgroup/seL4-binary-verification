@@ -6,12 +6,13 @@ module BV.System.Utils.StopWatch
     , elapsedToSeconds
     , getElapsed
     , newStopWatch
+    , time
     ) where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Ratio ((%))
 import GHC.Clock (getMonotonicTimeNSec)
 import GHC.Word (Word64)
-import Data.Ratio ((%))
 
 newtype StopWatch
   = StopWatch { startNSec :: Word64 }
@@ -31,3 +32,10 @@ getElapsed sw = do
 
 elapsedToSeconds :: Elapsed -> Rational
 elapsedToSeconds elapsed = toInteger elapsed.nsecs % (10^9)
+
+time :: MonadIO m => m a -> m (a, Elapsed)
+time m = do
+    stopWatch <- newStopWatch
+    a <- m
+    elapsed <- getElapsed stopWatch
+    return (a, elapsed)
