@@ -4,6 +4,9 @@ module BV.System.Utils.UnliftIO.Async
     , ConcurrentlyUnliftIOE
     , concurrentlyUnliftIO
     , concurrentlyUnliftIOE
+    , concurrentlyUnliftIO_
+    , makeConcurrentlyUnliftIO
+    , makeConcurrentlyUnliftIOE
     , raceUnliftIO
     , raceUnliftIO_
     , runConcurrentlyUnliftIO
@@ -12,7 +15,8 @@ module BV.System.Utils.UnliftIO.Async
 
 import Control.Applicative (Alternative)
 import Control.Concurrent.Async (Concurrently (Concurrently),
-                                 ConcurrentlyE (ConcurrentlyE), race, race_,
+                                 ConcurrentlyE (ConcurrentlyE), concurrently,
+                                 concurrentlyE, concurrently_, race, race_,
                                  runConcurrently, runConcurrentlyE)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, UnliftIO, askUnliftIO, unliftIO,
@@ -33,8 +37,8 @@ instance (Semigroup a, Monoid a) => Monoid (ConcurrentlyUnliftIO m a) where
     mempty = pure mempty
     mappend = (<>)
 
-concurrentlyUnliftIO :: MonadUnliftIO m => m a -> ConcurrentlyUnliftIO m a
-concurrentlyUnliftIO m = ConcurrentlyUnliftIO . ReaderT $ \unliftIO' -> Concurrently (unliftIO unliftIO' m)
+makeConcurrentlyUnliftIO :: MonadUnliftIO m => m a -> ConcurrentlyUnliftIO m a
+makeConcurrentlyUnliftIO m = ConcurrentlyUnliftIO . ReaderT $ \unliftIO' -> Concurrently (unliftIO unliftIO' m)
 
 runConcurrentlyUnliftIO :: MonadUnliftIO m => ConcurrentlyUnliftIO m a -> m a
 runConcurrentlyUnliftIO m = askUnliftIO >>= liftIO . runConcurrently . runReaderT m.unwrap
@@ -53,8 +57,8 @@ instance (Semigroup a, Monoid a) => Monoid (ConcurrentlyUnliftIOE m e a) where
     mempty = pure mempty
     mappend = (<>)
 
-concurrentlyUnliftIOE :: MonadUnliftIO m => m (Either e a) -> ConcurrentlyUnliftIOE m e a
-concurrentlyUnliftIOE m = ConcurrentlyUnliftIOE . ReaderT $ \unliftIO' -> ConcurrentlyE (unliftIO unliftIO' m)
+makeConcurrentlyUnliftIOE :: MonadUnliftIO m => m (Either e a) -> ConcurrentlyUnliftIOE m e a
+makeConcurrentlyUnliftIOE m = ConcurrentlyUnliftIOE . ReaderT $ \unliftIO' -> ConcurrentlyE (unliftIO unliftIO' m)
 
 runConcurrentlyUnliftIOE :: MonadUnliftIO m => ConcurrentlyUnliftIOE m e a -> m (Either e a)
 runConcurrentlyUnliftIOE m = askUnliftIO >>= liftIO . runConcurrentlyE . runReaderT m.unwrap
@@ -64,3 +68,12 @@ raceUnliftIO left right = withRunInIO $ \run -> race (run left) (run right)
 
 raceUnliftIO_ :: MonadUnliftIO m => m a -> m b -> m ()
 raceUnliftIO_ left right = withRunInIO $ \run -> race_ (run left) (run right)
+
+concurrentlyUnliftIO :: MonadUnliftIO m => m a -> m b -> m (a, b)
+concurrentlyUnliftIO left right = withRunInIO $ \run -> concurrently (run left) (run right)
+
+concurrentlyUnliftIO_ :: MonadUnliftIO m => m a -> m b -> m ()
+concurrentlyUnliftIO_ left right = withRunInIO $ \run -> concurrently_ (run left) (run right)
+
+concurrentlyUnliftIOE :: MonadUnliftIO m => m (Either e a) -> m (Either e b) -> m (Either e (a, b))
+concurrentlyUnliftIOE left right = withRunInIO $ \run -> concurrentlyE (run left) (run right)

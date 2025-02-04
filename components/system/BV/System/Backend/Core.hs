@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-type-defaults #-}
 
 {-# HLINT ignore "Redundant flip" #-}
 
@@ -25,7 +26,6 @@ import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
 
-import Control.Applicative (empty, (<|>))
 import Control.Monad (filterM, unless)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (ExceptT (ExceptT), MonadError, liftEither,
@@ -104,8 +104,9 @@ backendCoreOnline config throttle group = do
             (groupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta)))
     return remaining
 
+-- TODO return units when they become available with more granularity
 backendCoreOffline
-    :: (MonadUnliftIO m, MonadLoggerContextStack m, MonadCache m, MonadMask m)
+    :: forall m i. (MonadUnliftIO m, MonadLoggerContextStack m, MonadCache m, MonadMask m)
     => SolversConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m ()
 backendCoreOffline config throttle group = do
     let doAll = length group.imps > 1
@@ -114,75 +115,88 @@ backendCoreOffline config throttle group = do
             then numOfflineSolverConfigsForScope SolverScopeAll config
             else 0
     mapExceptT (withThrottleUnliftIO throttle (Priority 0) (Units units)) $ do
-        let concAll =
+        let allLocs = fromJust (nonEmpty (map (.meta) group.imps))
+        let concAll :: ConclusionT (SMTProofCheckResult i ()) m ()
+            concAll =
                 if not doAll
-                then empty
-                else concurrentlyUnliftIO . runExceptT . pushLogContext "all" $ do
-                    let locs = fromJust (nonEmpty (map (.meta) group.imps))
-                    parallelResult <-
-                        lift . runConcurrentlyUnliftIOE .
-                            for_ (offlineSolverConfigsForScope SolverScopeAll config) $ \solver ->
-                                concurrentlyUnliftIOE . runExceptT . pushLogContext ("solver " ++ solver.commandName) $ do
-                                    logInfo "running solver"
-                                    (checkSatOutcome, elapsed) <- time . lift $ do
-                                        runSolver'
-                                            solver.command
-                                            (executeSMTProofCheckGroupOffline
-                                                (Just (SolverTimeout config.offlineTimeout))
-                                                (SolverConfig { memoryMode = solver.memoryMode })
-                                                group)
-                                    let elapsedSuffix = makeElapsedSuffix elapsed
-                                    case checkSatOutcome of
-                                        Nothing -> do
-                                            logInfo "timeout"
-                                        Just Sat -> do
-                                            logInfo $ "answered sat" ++ elapsedSuffix
-                                            for_ (ungroupSMTProofCheckGroup group) $ \check ->
-                                                updateCache check AcceptableSatResultSat
-                                            throwError $ Left (SomeSolverAnsweredSat, locs)
-                                        Just Unsat -> do
-                                            logInfo $ "answered unsat" ++ elapsedSuffix
-                                            -- TODO what should we tell to the cache?
-                                            throwError $ Right ()
-                                        Just Unknown -> do
-                                            logInfo $ "answered unknown" ++ elapsedSuffix
-                    interpretParallelResult locs parallelResult
-        let concHyps = concurrentlyUnliftIO . runExceptT . pushLogContext "hyp" $ do
-                for_ (ungroupSMTProofCheckGroup group) $ \check -> do
-                    let locs = check.imp.meta :| []
-                    parallelResult <-
-                        lift . runConcurrentlyUnliftIOE .
-                            for_ (offlineSolverConfigsForScope SolverScopeHyp config) $ \solver ->
-                                concurrentlyUnliftIOE . runExceptT . pushLogContext ("solver " ++ solver.commandName) $ do
-                                    logInfo "running solver"
-                                    (checkSatOutcome, elapsed) <- time . lift $ do
-                                        runSolver'
-                                            solver.command
-                                            (executeSMTProofCheckOffline
-                                                (Just (SolverTimeout config.offlineTimeout))
-                                                (SolverConfig { memoryMode = solver.memoryMode })
-                                                check)
-                                    let elapsedSuffix = makeElapsedSuffix elapsed
-                                    case checkSatOutcome of
-                                        Nothing -> do
-                                            logInfo "timeout"
-                                        Just Sat -> do
-                                            logInfo $ "answered sat" ++ elapsedSuffix
-                                            updateCache check AcceptableSatResultSat
-                                            throwError $ Left (SomeSolverAnsweredSat, locs)
-                                        Just Unsat -> do
-                                            logInfo $ "answered unsat" ++ elapsedSuffix
-                                            updateCache check AcceptableSatResultUnsat
-                                            throwError $ Right ()
-                                        Just Unknown -> do
-                                            logInfo $ "answered unknown" ++ elapsedSuffix
-                    interpretParallelResult locs parallelResult
-        ExceptT . runConcurrentlyUnliftIO $ concAll <|> concHyps
+                then return ()
+                else pushLogContext "all" . runConcurrentlyUnliftIOC $ do
+                    for_ (offlineSolverConfigsForScope SolverScopeAll config) $ \solver ->
+                        makeConcurrentlyUnliftIOC . pushSolverLogContext solver $ do
+                            logInfo "running solver"
+                            (checkSatOutcome, elapsed) <- time . lift $ do
+                                runSolver'
+                                    solver.command
+                                    (executeSMTProofCheckGroupOffline
+                                        (Just (SolverTimeout config.offlineTimeout))
+                                        (SolverConfig { memoryMode = solver.memoryMode })
+                                        group)
+                            let elapsedSuffix = makeElapsedSuffix elapsed
+                            case checkSatOutcome of
+                                Nothing -> do
+                                    logInfo "timeout"
+                                Just Sat -> do
+                                    logInfo $ "answered sat" ++ elapsedSuffix
+                                    for_ (ungroupSMTProofCheckGroup group) $ \check ->
+                                        updateCache check AcceptableSatResultSat
+                                    throwConclusion $ Left (SomeSolverAnsweredSat, allLocs)
+                                Just Unsat -> do
+                                    logInfo $ "answered unsat" ++ elapsedSuffix
+                                    -- TODO what should we tell to the cache?
+                                    throwConclusion $ Right ()
+                                Just Unknown -> do
+                                    logInfo $ "answered unknown" ++ elapsedSuffix
+        let concHyps :: ConclusionT (SMTProofCheckResult i ()) m ()
+            concHyps = do
+                    hypsConclusion :: Maybe (Maybe i) <- lift . runConclusionT $ do
+                        for_ (zip [1..] (ungroupSMTProofCheckGroup group)) $ \(hypLabel, check) ->
+                            pushLogContext ("hyp " ++ show hypLabel) $ do
+                            -- let loc = check.imp.meta :| []
+                                hypConclusion <- lift . runConclusionT $ do
+                                    runConcurrentlyUnliftIOC .
+                                        for_ (offlineSolverConfigsForScope SolverScopeHyp config) $ \solver ->
+                                            makeConcurrentlyUnliftIOC . pushSolverLogContext solver $ do
+                                                logInfo "running solver"
+                                                (checkSatOutcome, elapsed) <- time . lift $ do
+                                                    runSolver'
+                                                        solver.command
+                                                        (executeSMTProofCheckOffline
+                                                            (Just (SolverTimeout config.offlineTimeout))
+                                                            (SolverConfig { memoryMode = solver.memoryMode })
+                                                            check)
+                                                let elapsedSuffix = makeElapsedSuffix elapsed
+                                                case checkSatOutcome of
+                                                    Nothing -> do
+                                                        logInfo "timeout"
+                                                    Just Sat -> do
+                                                        logInfo $ "answered sat" ++ elapsedSuffix
+                                                        updateCache check AcceptableSatResultSat
+                                                        throwConclusion $ Left check.imp.meta
+                                                    Just Unsat -> do
+                                                        logInfo $ "answered unsat" ++ elapsedSuffix
+                                                        updateCache check AcceptableSatResultUnsat
+                                                        throwConclusion $ Right ()
+                                                    Just Unknown -> do
+                                                        logInfo $ "answered unknown" ++ elapsedSuffix
+                                case hypConclusion of
+                                    Nothing -> throwConclusion Nothing
+                                    Just (Right ()) -> return ()
+                                    Just (Left satLoc) -> throwConclusion (Just satLoc)
+                    case hypsConclusion of
+                        Nothing -> throwConclusion (Right ())
+                        Just (Just satLoc) -> throwConclusion (Left (SomeSolverAnsweredSat, satLoc :| []))
+                        Just Nothing -> return ()
+        conclusion <- lift . runConclusionT $ concurrentlyUnliftIOC_ concAll concHyps
+        case conclusion of
+            Nothing -> throwError (AllSolversTimedOutOrAnsweredUnknown, allLocs)
+            Just c -> liftEither c
   where
+    pushSolverLogContext solver = pushLogContext ("solver " ++ solver.commandName ++ " " ++ memMode)
+      where
+        memMode = case solver.memoryMode of
+            SolverMemoryModeWord8 -> "word8"
+            SolverMemoryModeWord32 -> "word32"
     makeElapsedSuffix elapsed = printf " (%.2fs)" (fromRational (elapsedToSeconds elapsed) :: Double)
-    interpretParallelResult locs = \case
-        Right () -> throwError (AllSolversTimedOutOrAnsweredUnknown, locs)
-        Left definitiveAnswer -> liftEither definitiveAnswer
 
 runSolver' :: (MonadUnliftIO m, MonadMask m, MonadLoggerContextStack m) => [String] -> SolverT m a -> m a
 runSolver' cmd = runSolverWith
@@ -216,3 +230,24 @@ keepUncached group = forOf #imps group $ \imps ->
             Nothing -> return True
             Just AcceptableSatResultUnsat -> return False
             Just AcceptableSatResultSat -> throwError (SomeSolverAnsweredSat, imp.meta :| []))
+
+--
+
+type ConclusionT c m a = ExceptT c m a
+
+runConclusionT :: Monad m => ConclusionT c m () -> m (Maybe c)
+runConclusionT m = preview _Left <$> runExceptT m
+
+throwConclusion :: Monad m => c -> ConclusionT c m ()
+throwConclusion = throwError
+
+type ConcurrentlyUnliftIOC m c = ConcurrentlyUnliftIOE m c ()
+
+makeConcurrentlyUnliftIOC :: MonadUnliftIO m => ConclusionT c m () -> ConcurrentlyUnliftIOC m c
+makeConcurrentlyUnliftIOC m = makeConcurrentlyUnliftIOE (runExceptT m)
+
+runConcurrentlyUnliftIOC :: MonadUnliftIO m => ConcurrentlyUnliftIOC m c -> ConclusionT c m ()
+runConcurrentlyUnliftIOC m = ExceptT $ runConcurrentlyUnliftIOE m
+
+concurrentlyUnliftIOC_ :: MonadUnliftIO m => ConclusionT c m () -> ConclusionT c m () -> ConclusionT c m ()
+concurrentlyUnliftIOC_ left right = runConcurrentlyUnliftIOC $ makeConcurrentlyUnliftIOC left *> makeConcurrentlyUnliftIOC right

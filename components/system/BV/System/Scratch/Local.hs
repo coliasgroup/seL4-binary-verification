@@ -13,7 +13,7 @@ import BV.System.SeL4
 import BV.System.Utils.Logger
 import BV.TargetDir
 
-import Control.Monad (forM_, unless, when)
+import Control.Monad (forM_, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (defaultOutput, runLoggingT)
 import qualified Data.Map as M
@@ -39,10 +39,13 @@ runScratch config targetDir logDst mismatchDumpDir = do
         checks <- evalStages ctx input
         report <- localBackend config checks
         let failed = M.mapMaybe (preview _Left) report.unwrap
-        unless (M.null failed) $ do
-            forM_ (M.toAscList failed) $ \(pairingId, err) -> liftIO $ do
-                putStrLn $ "Check failure for " <> prettyPairingId pairingId <> ": " <> show err
-            liftIO $ die "Some checks failed"
+        if M.null failed
+            then do
+                liftIO $ putStrLn "All checks passed"
+            else do
+                forM_ (M.toAscList failed) $ \(pairingId, err) -> liftIO $ do
+                    putStrLn $ "Check failure for " <> prettyPairingId pairingId <> ": " <> show err
+                liftIO $ die "Some checks failed"
     ctx = EvalStagesContext
         { force = True
         , dumpTargetDir = Nothing

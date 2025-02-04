@@ -15,6 +15,7 @@ import BV.Core.Stages
 import BV.Core.Types
 import BV.System.Fingerprinting
 import BV.System.Utils.Logger
+import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async
 
 import Control.Monad.IO.Unlift (MonadUnliftIO)
@@ -48,15 +49,17 @@ frontend
     => (SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult SMTProofCheckDescription ()))
     -> PreparedSMTProofChecks
     -> m Report
-frontend f checks =
-    runConcurrentlyUnliftIO $ do
-        Report <$> ifor checks.unwrap (\pairingId checksForPairing -> concurrentlyUnliftIO $ do
+frontend f checks = do
+    (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
+        Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
             pushLogContext pairingId.asm.unwrap $ do
                 runConcurrentlyUnliftIOE $ do
-                    for_ checksForPairing (\group -> concurrentlyUnliftIOE $ do
+                    for_ checksForPairing (\group -> makeConcurrentlyUnliftIOE $ do
                         pushLogContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
                             result <- f group
                             logInfo $ case result of
                                 Right _ -> "success"
                                 Left failure -> "failure: " ++ show failure
                             return result))
+    logInfo $ printf "report complete after %.2fs" (fromRational (elapsedToSeconds elapsed) :: Double)
+    return report
