@@ -124,6 +124,7 @@ library smtlib2
   exposed-modules:
       BV.SMTLIB2
       BV.SMTLIB2.Command
+      BV.SMTLIB2.Monad
       BV.SMTLIB2.SExpr
       BV.SMTLIB2.SExpr.Build
       BV.SMTLIB2.SExpr.Parse.Attoparsec
