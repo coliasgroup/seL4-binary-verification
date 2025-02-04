@@ -29,7 +29,7 @@ import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
-import Optics.Core (Lens', view)
+import Optics (Lens', view)
 
 data PairingOf a
   = PairingOf

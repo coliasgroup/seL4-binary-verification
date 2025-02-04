@@ -21,7 +21,7 @@ import Data.List (find)
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
-import Optics.Core
+import Optics
 
 data NodeGraph
   = NodeGraph

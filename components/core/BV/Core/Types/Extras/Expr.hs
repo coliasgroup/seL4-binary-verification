@@ -9,7 +9,6 @@ import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
 import GHC.Stack (HasCallStack)
 import Optics
-import Optics.Core.Extras (is)
 
 boolT :: ExprType
 boolT = ExprTypeBool

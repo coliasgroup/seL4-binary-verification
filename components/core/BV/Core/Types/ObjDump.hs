@@ -11,7 +11,7 @@ module BV.Core.Types.ObjDump
 import Control.DeepSeq (NFData)
 import Data.Map (Map)
 import GHC.Generics (Generic)
-import Optics.Core
+import Optics
 
 data ObjDumpInfo
   = ObjDumpInfo

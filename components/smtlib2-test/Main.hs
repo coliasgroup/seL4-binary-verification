@@ -20,7 +20,7 @@ import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Text.Lazy.IO as TL
-import Optics.Core
+import Optics
 import System.FilePath ((</>))
 import System.FilePath.Glob (compile, globDir1)
 import System.Process (CreateProcess, proc)

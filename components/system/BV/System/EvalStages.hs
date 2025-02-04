@@ -19,7 +19,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
-import Optics.Core
+import Optics
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 

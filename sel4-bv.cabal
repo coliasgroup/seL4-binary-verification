@@ -48,7 +48,7 @@ library concrete-syntax
     , containers
     , dlist
     , megaparsec
-    , optics-core
+    , optics
     , sel4-bv:core
     , sel4-bv:smtlib2
     , text
@@ -113,7 +113,6 @@ library core
     , filepath
     , mtl
     , optics
-    , optics-core
     , pretty-show
     , sel4-bv:smtlib2
     , transformers
@@ -233,7 +232,6 @@ library system
     , monad-logger
     , mtl
     , optics
-    , optics-core
     , pretty-show
     , process
     , sel4-bv:concrete-syntax
@@ -441,7 +439,7 @@ test-suite smtlib2-test
     , filepath
     , megaparsec
     , mtl
-    , optics-core
+    , optics
     , process
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process

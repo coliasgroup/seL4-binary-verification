@@ -4,6 +4,7 @@ module BV.Core.Utils
     , ensureM
     , expecting
     , expectingIx
+    , is
     , optionals
     , partially
     , partially_
@@ -15,10 +16,10 @@ module BV.Core.Utils
 import Control.Monad (when)
 import Data.Either (fromRight)
 import Data.Function (applyWhen)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust)
 import Data.Monoid (Last (Last, getLast))
 import GHC.Stack (HasCallStack)
-import Optics.Core
+import Optics
 
 ensure :: HasCallStack => Bool -> a -> a
 ensure p = applyWhen (not p) (error "ensure failed")
@@ -70,3 +71,6 @@ partially optic = withAffineTraversal optic $ \match update ->
 
 partially_ :: HasCallStack => AffineFold s a -> Getter s a
 partially_ optic = to (fromJust . preview optic)
+
+is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
+is k s = isJust (preview k s)

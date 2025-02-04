@@ -22,7 +22,7 @@ import Data.String (fromString)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as TL
 import Data.Void (Void)
-import Optics.Core (at, (%), (&), (?~))
+import Optics (at, (%), (&), (?~))
 import Text.Megaparsec
 import Text.Megaparsec.Char
 

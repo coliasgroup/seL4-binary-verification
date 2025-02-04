@@ -87,7 +87,6 @@ internal-libraries:
       - transformers
       - mtl
       - exceptions
-      - optics-core
       - optics
       - file-embed
       # TODO for debugging
@@ -109,7 +108,7 @@ internal-libraries:
       # external
       - containers
       - dlist
-      - optics-core
+      - optics
       - bytestring
       - text
       - megaparsec
@@ -154,7 +153,6 @@ internal-libraries:
       - mtl
       - exceptions
       - free
-      - optics-core
       - optics
       - async
       - stm
@@ -272,7 +270,7 @@ tests:
       - sel4-bv:smtlib2-process
       - sel4-bv:target-dir
       # external
-      - optics-core
+      - optics
       - mtl
       - text
       - attoparsec

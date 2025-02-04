@@ -46,7 +46,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.String (IsString (..))
 import GHC.Generics (Generic)
-import Optics.Core
+import Optics
 
 newtype Ident
   = Ident { unwrap :: String }
