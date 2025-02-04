@@ -31,8 +31,12 @@ logic = "QF_AUFBV"
 
 executeSMTProofCheckOffline
     :: (MonadSolver m, MonadThrow m)
-    => SolverConfig -> Maybe SolverTimeout -> SMTProofCheck a -> m (Maybe SatResult)
-executeSMTProofCheckOffline config timeout check = do
+    => Maybe SolverTimeout -> SolverConfig -> SMTProofCheck a -> m (Maybe SatResult)
+executeSMTProofCheckOffline timeout config check = do
+    sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
+    sendSimpleCommandExpectingSuccess $ SetLogic logic
+    mapM_ sendExpectingSuccess (smtConfigPreamble config)
+    mapM_ (sendExpectingSuccess . configureSExpr config) check.setup
     sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $ goal
     checkSatWithTimeout timeout
   where
@@ -40,9 +44,9 @@ executeSMTProofCheckOffline config timeout check = do
 
 executeSMTProofCheckGroupOffline
     :: (MonadSolver m, MonadThrow m)
-    => SolverConfig -> Maybe SolverTimeout -> SMTProofCheckGroup a -> m (Maybe SatResult)
-executeSMTProofCheckGroupOffline config timeout group =
-    executeSMTProofCheckOffline config timeout $ SMTProofCheck
+    => Maybe SolverTimeout -> SolverConfig -> SMTProofCheckGroup a -> m (Maybe SatResult)
+executeSMTProofCheckGroupOffline timeout config group =
+    executeSMTProofCheckOffline timeout config $ SMTProofCheck
         { setup = group.setup
         , imp = SMTProofCheckImp
             { meta = map (.meta) group.imps
@@ -56,13 +60,14 @@ data OnlineSolverAbortReason
   | OnlineSolverAbortReasonAnsweredUnknown
   deriving (Eq, Generic, Ord, Show)
 
+-- TODO add hook for successful unsat results? (e.g. for a cache update or logging action)
 executeSMTProofCheckGroupOnline
     :: (MonadSolver m, MonadThrow m)
-    => SolverConfig
-    -> Maybe SolverTimeout
+    => Maybe SolverTimeout
+    -> SolverConfig
     -> SMTProofCheckGroup a
     -> m (Either (a, OnlineSolverAbortReason) (), [a])
-executeSMTProofCheckGroupOnline config timeout group = do
+executeSMTProofCheckGroupOnline timeout config group = do
     sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
     sendSimpleCommandExpectingSuccess $ SetLogic logic
     mapM_ sendExpectingSuccess (smtConfigPreamble config)

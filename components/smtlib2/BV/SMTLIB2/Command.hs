@@ -81,6 +81,7 @@ sendExpectingSuccessE req = do
 sendExpectingSuccess :: (MonadSolver m, MonadThrow m) => SExpr -> m ()
 sendExpectingSuccess = exceptTToThrow . sendExpectingSuccessE
 
+-- TODO Unknown { reason :: String }
 data SatResult
   = Sat
   | Unsat

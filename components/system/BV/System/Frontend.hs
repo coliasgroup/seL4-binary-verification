@@ -32,7 +32,7 @@ type SMTProofCheckError i = (SMTProofCheckErrorCause, NonEmpty i)
 data SMTProofCheckErrorCause
   = NoSolversAnswered
   | SomeSolverAnsweredSat
-  | AllSolversAnsweredUnknown
+  | AllSolversTimedOutOrAnsweredUnknown
   deriving (Eq, Generic, Ord, Show)
 
 data Report
@@ -55,7 +55,8 @@ frontend f checks =
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\group -> concurrentlyUnliftIOE $ do
                         addLoggerContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
-                            logTrace "sending task"
                             result <- f group
-                            logInfo $ printf "result: %s" (show result)
+                            logInfo $ case result of
+                                Right _ -> "success"
+                                Left failure -> "failure: " ++ show failure
                             return result))
