@@ -18,7 +18,7 @@ import BV.Core.Types
 import BV.SMTLIB2.Builder
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.Types
-import BV.System.BackendCore
+import BV.System.Backend.Core
 import BV.System.Cache
 import BV.System.Fingerprinting
 import BV.System.Frontend

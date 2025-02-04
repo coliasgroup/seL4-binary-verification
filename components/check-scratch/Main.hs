@@ -2,7 +2,7 @@ module Main
     ( main
     ) where
 
-import BV.System.BackendCore
+import BV.System.Backend.Core
 import BV.System.LocalCheckBackend
 import BV.System.LocalCheckBackend.Scratch
 import BV.System.SolversConfig

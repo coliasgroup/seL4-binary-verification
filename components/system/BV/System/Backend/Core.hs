@@ -5,7 +5,7 @@
 
 {-# HLINT ignore "Redundant flip" #-}
 
-module BV.System.BackendCore
+module BV.System.Backend.Core
     ( BackendCoreConfig (..)
     , backendCore
     ) where
