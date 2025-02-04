@@ -55,9 +55,9 @@ withoutTimeout = fmap fromJust
 
 sendRecvWithTimeoutE :: (MonadSolver m, MonadError CommandError m) => Maybe SolverTimeout -> SExpr -> m (Maybe SExpr)
 sendRecvWithTimeoutE timeout req = do
-    send req
+    sendSExpr req
     runMaybeT $ do
-        resp <- MaybeT $ recvWithTimeout timeout
+        resp <- MaybeT $ recvSExprWithTimeout timeout
         case viewSExpr resp of
             List ["error", Atom (StringAtom s)] -> throwError (ErrorResponse s)
             _ -> return resp
@@ -153,7 +153,7 @@ data FunDeclaration
   deriving (Eq, Generic, NFData, Ord, Show)
 
 sendSimpleCommand :: MonadSolver m => SimpleCommand -> m ()
-sendSimpleCommand = send . simpleCommandToSExpr
+sendSimpleCommand = sendSExpr . simpleCommandToSExpr
 
 sendSimpleCommandExpectingSuccessE :: (MonadSolver m, MonadError CommandError m) => SimpleCommand -> m ()
 sendSimpleCommandExpectingSuccessE = sendExpectingSuccessE . simpleCommandToSExpr

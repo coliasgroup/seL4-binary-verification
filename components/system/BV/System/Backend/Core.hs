@@ -82,11 +82,11 @@ backendCore config throttle group =
   where
     logStderr = logInfoGeneric . addLoggerContextToStr "stderr"
     modifyCtx ctx = SolverContext
-        { send = \req -> addLoggerContext "send" $ do
+        { sendSExpr = \req -> addLoggerContext "send" $ do
             logTraceGeneric . toLazyText $ buildSExpr req
-            ctx.send req
-        , recvWithTimeout = \timeout -> addLoggerContext "recv" $ do
-            resp <- ctx.recvWithTimeout timeout
+            ctx.sendSExpr req
+        , recvSExprWithTimeout = \timeout -> addLoggerContext "recv" $ do
+            resp <- ctx.recvSExprWithTimeout timeout
             case resp of
                 Nothing -> logTrace "timeout"
                 Just sexpr -> logTraceGeneric . toLazyText $ buildSExpr sexpr

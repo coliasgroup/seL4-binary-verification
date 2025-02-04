@@ -64,22 +64,22 @@ runSolverT = runReaderT . (.unwrap)
 
 data SolverContext m
   = SolverContext
-      { send :: SExpr -> m ()
-      , recvWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
+      { sendSExpr :: SExpr -> m ()
+      , recvSExprWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
       }
 
 instance Monad m => MonadSolver (SolverT m) where
-    send req = SolverT $ do
-        f <- asks (.send)
+    sendSExpr req = SolverT $ do
+        f <- asks (.sendSExpr)
         lift $ f req
-    recvWithTimeout timeout = SolverT $ do
-        f <- asks (.recvWithTimeout)
+    recvSExprWithTimeout timeout = SolverT $ do
+        f <- asks (.recvSExprWithTimeout)
         lift $ f timeout
 
 liftIOContext :: MonadIO m => SolverContext IO -> SolverContext m
 liftIOContext ctx = SolverContext
-    { send = liftIO . ctx.send
-    , recvWithTimeout = liftIO . ctx.recvWithTimeout
+    { sendSExpr = liftIO . ctx.sendSExpr
+    , recvSExprWithTimeout = liftIO . ctx.recvSExprWithTimeout
     }
 
 runSolver
@@ -119,8 +119,8 @@ runSolverWith modifyCtx cmd logStderr m = do
     let termination = waitForStreamingProcess processHandle
 
     let ctx = SolverContext
-            { send = sink
-            , recvWithTimeout = \maybeTimeout ->
+            { sendSExpr = sink
+            , recvSExprWithTimeout = \maybeTimeout ->
                 readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
             }
 

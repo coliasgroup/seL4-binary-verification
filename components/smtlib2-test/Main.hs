@@ -86,9 +86,9 @@ solverAgrees :: FilePath -> [SExpr] -> [SExpr] -> IO ()
 solverAgrees inPath sexprsIn sexprsOut = do
     r <- runSolverSimple $ do
             forM_ sexprsIn $ \sexprIn -> do
-                send sexprIn
+                sendSExpr sexprIn
             forM_ sexprsOut $ \sexprOut -> do
-                sexprOut' <- recv
+                sexprOut' <- recvSExpr
                 liftIO $ assertEqual inPath sexprOut sexprOut'
     case r of
         Left err -> assertFailure $ show err

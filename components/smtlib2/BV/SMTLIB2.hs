@@ -5,7 +5,7 @@ module BV.SMTLIB2
     , SolverTimeout (..)
     , readSExpr
     , readSExprs
-    , recv
+    , recvSExpr
     , tryReadSExpr
     , tryReadSExprs
     ) where
@@ -27,20 +27,20 @@ newtype SolverTimeout
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadSolver m where
-    send :: SExpr -> m ()
-    recvWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
+    sendSExpr :: SExpr -> m ()
+    recvSExprWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
 
-recv :: MonadSolver m => m SExpr
-recv = fromJust <$> recvWithTimeout Nothing
+recvSExpr :: MonadSolver m => m SExpr
+recvSExpr = fromJust <$> recvSExprWithTimeout Nothing
 
 instance MonadSolver m => MonadSolver (ExceptT e m) where
-    send = lift . send
-    recvWithTimeout = lift . recvWithTimeout
+    sendSExpr = lift . sendSExpr
+    recvSExprWithTimeout = lift . recvSExprWithTimeout
 
 instance MonadSolver m => MonadSolver (StateT s m) where
-    send = lift . send
-    recvWithTimeout = lift . recvWithTimeout
+    sendSExpr = lift . sendSExpr
+    recvSExprWithTimeout = lift . recvSExprWithTimeout
 
 instance (Monoid w, MonadSolver m) => MonadSolver (WriterT w m) where
-    send = lift . send
-    recvWithTimeout = lift . recvWithTimeout
+    sendSExpr = lift . sendSExpr
+    recvSExprWithTimeout = lift . recvSExprWithTimeout
