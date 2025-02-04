@@ -53,8 +53,8 @@ tests = testGroup "Tests"
 
 runSolverSimple :: ExceptT CommandError (SolverT IO) a -> IO (Either CommandError a)
 runSolverSimple m = runSolver
-    configCreateProc
     T.putStrLn
+    configCreateProc
     (runExceptT m)
 
 parsersAndBuildersAgreePath :: FilePath -> IO [SExpr]

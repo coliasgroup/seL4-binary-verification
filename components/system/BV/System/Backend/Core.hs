@@ -53,8 +53,8 @@ backendCore config throttle group =
         onlineResults <-
             lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ addLoggerContext "online solver" $ runSolverWith
                 modifyCtx
+                stderrSink
                 (uncurry proc (fromJust (uncons config.solversConfig.online.command)))
-                logStderr
                 (executeSMTProofCheckGroupOnline
                     (SolverConfig { memoryMode = config.solversConfig.online.memoryMode })
                     (Just (SolverTimeout config.solversConfig.onlineTimeout))
@@ -80,7 +80,7 @@ backendCore config throttle group =
         unless (null remaining.imps) $ do
             undefined
   where
-    logStderr = logInfoGeneric . addLoggerContextToStr "stderr"
+    stderrSink = logInfoGeneric . addLoggerContextToStr "stderr"
     modifyCtx ctx = SolverContext
         { sendSExpr = \req -> addLoggerContext "send" $ do
             logTraceGeneric . toLazyText $ buildSExpr req

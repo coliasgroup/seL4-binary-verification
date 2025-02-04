@@ -84,13 +84,13 @@ liftIOContext ctx = SolverContext
 
 runSolver
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
-    => CreateProcess -> (T.Text -> m ()) -> SolverT m a -> m a
+    => (T.Text -> m ()) -> CreateProcess -> SolverT m a -> m a
 runSolver = runSolverWith id
 
 runSolverWith
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
-    => (SolverContext m -> SolverContext m) -> CreateProcess -> (T.Text -> m ()) -> SolverT m a -> m a
-runSolverWith modifyCtx cmd logStderr m = do
+    => (SolverContext m -> SolverContext m) -> (T.Text -> m ()) -> CreateProcess -> SolverT m a -> m a
+runSolverWith modifyCtx stderrSink cmd m = do
     ((FlushInput procStdin, closeProcStdin), procStdout, procStderr, processHandle) <-
         liftIO $ streamingProcess cmd
 
@@ -114,7 +114,7 @@ runSolverWith modifyCtx cmd logStderr m = do
                procStderr
             .| decodeUtf8
             .| CT.lines
-            .| CL.mapM_ logStderr
+            .| CL.mapM_ stderrSink
 
     let termination = waitForStreamingProcess processHandle
 
