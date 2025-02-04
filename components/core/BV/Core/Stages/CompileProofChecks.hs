@@ -6,6 +6,9 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 
+-- TODO
+{-# OPTIONS -Wno-all #-}
+
 module BV.Core.Stages.CompileProofChecks
     ( compileProofChecks
     ) where
