@@ -19,8 +19,8 @@ import BV.Core.Types
 import BV.SMTLIB2.Builder
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.Types
-import BV.System.CheckFingerprint
 import BV.System.CheckFrontend
+import BV.System.Fingerprinting
 import BV.System.LocalCheckBackend.Cache
 import BV.System.SolversConfig
 import BV.System.TaskQueue

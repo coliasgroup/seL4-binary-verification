@@ -13,7 +13,7 @@ module BV.System.CheckFrontend
 import BV.Core.AdornProofScript
 import BV.Core.Stages
 import BV.Core.Types
-import BV.System.CheckFingerprint
+import BV.System.Fingerprinting
 import BV.System.TaskQueue
 import BV.System.Utils.Logger
 import BV.System.Utils.UnliftIO.Async

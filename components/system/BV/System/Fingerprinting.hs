@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.System.CheckFingerprint
+module BV.System.Fingerprinting
     ( SMTProofCheckFingerprint (..)
     , SMTProofCheckGroupFingerprint (..)
     , prettySMTProofCheckFingerprint
