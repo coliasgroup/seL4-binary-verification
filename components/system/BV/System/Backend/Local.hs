@@ -5,7 +5,7 @@
 
 {-# HLINT ignore "Redundant flip" #-}
 
-module BV.System.LocalCheckBackend
+module BV.System.Backend.Local
     ( AcceptableSatResult (..)
     , LocalCheckBackendConfig (..)
     , localCheckBackend

@@ -3,7 +3,7 @@ module Main
     ) where
 
 import BV.System.Backend.Core
-import BV.System.LocalCheckBackend
+import BV.System.Backend.Local
 import BV.System.LocalCheckBackend.Scratch
 import BV.System.SolversConfig
 import BV.Test.Utils

@@ -186,11 +186,11 @@ library system
   visibility: public
   exposed-modules:
       BV.System.Backend.Core
+      BV.System.Backend.Local
       BV.System.Cache
       BV.System.EvalStages
       BV.System.Fingerprinting
       BV.System.Frontend
-      BV.System.LocalCheckBackend
       BV.System.LocalCheckBackend.Scratch
       BV.System.Notes
       BV.System.SeL4
