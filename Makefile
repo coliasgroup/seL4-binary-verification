@@ -23,11 +23,11 @@ clean: hpack
 
 .PHONY: build
 build: hpack
-	cabal build
+	cabal build --enable-tests
 
 .PHONY: check
 check: hpack
-	cabal build
+	cabal build --enable-tests
 
 .PHONY:
 test: hpack
