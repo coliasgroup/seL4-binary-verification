@@ -36,7 +36,8 @@ data OnlineSolverConfig
 
 data OfflineSolverGroupConfig
   = OfflineSolverGroupConfig
-      { command :: [String]
+      { name :: String
+      , command :: [String]
       , memoryModes :: [SolverMemoryMode]
       , scopes :: [SolverScope]
       }

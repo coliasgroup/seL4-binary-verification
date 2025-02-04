@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module Main
     ( main
     ) where
@@ -44,8 +46,9 @@ solversConfig = SolversConfig
     , offlineTimeout = 6000
     }
   where
-    f command = OfflineSolverGroupConfig
-        { command
+    f command@(name:_) = OfflineSolverGroupConfig
+        { name
+        , command
         , memoryModes = allSolverMemoryModes
         , scopes = allSolverScopes
         }
