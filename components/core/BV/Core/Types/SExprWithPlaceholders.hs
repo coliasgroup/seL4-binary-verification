@@ -13,8 +13,8 @@ module BV.Core.Types.SExprWithPlaceholders
     , viewSExprWithPlaceholders
     ) where
 
-import BV.SMTLIB2.Types.SExpr
-import BV.SMTLIB2.Types.SExpr.Read (anySExprWhitespaceP, atomP, genericSExprP)
+import BV.SMTLIB2.SExpr
+import BV.SMTLIB2.SExpr.Read (anySExprWhitespaceP, atomP, genericSExprP)
 
 import Control.Applicative (many, (<|>))
 import Control.DeepSeq (NFData)

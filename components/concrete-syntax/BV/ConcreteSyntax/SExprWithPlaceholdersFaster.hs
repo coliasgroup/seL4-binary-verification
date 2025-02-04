@@ -5,7 +5,7 @@ module BV.ConcreteSyntax.SExprWithPlaceholdersFaster
     ) where
 
 import BV.Core.Types
-import BV.SMTLIB2.Types.SExpr.Parse.Attoparsec
+import BV.SMTLIB2.SExpr.Parse.Attoparsec
 
 import Control.Applicative ((<|>))
 import Data.Attoparsec.Text

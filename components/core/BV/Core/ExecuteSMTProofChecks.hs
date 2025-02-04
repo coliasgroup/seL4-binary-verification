@@ -14,8 +14,8 @@ module BV.Core.ExecuteSMTProofChecks
 import BV.Core.ConfigureSMT
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.SMTLIB2.Types
-import BV.SMTLIB2.Types.Command
+import BV.SMTLIB2
+import BV.SMTLIB2.Command
 
 import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.SMTLIB2.Types.SExpr.Build
+module BV.SMTLIB2.SExpr.Build
     ( buildAtom
     , buildGenericSExpr
     , buildSExpr
@@ -8,7 +8,7 @@ module BV.SMTLIB2.Types.SExpr.Build
     , buildUncheckedSExpr
     ) where
 
-import BV.SMTLIB2.Types.SExpr
+import BV.SMTLIB2.SExpr
 
 import Data.Text.Lazy.Builder
 import Data.Text.Lazy.Builder.Int

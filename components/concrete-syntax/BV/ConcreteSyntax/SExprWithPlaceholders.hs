@@ -6,8 +6,8 @@ module BV.ConcreteSyntax.SExprWithPlaceholders
     ) where
 
 import BV.Core.Types
-import BV.SMTLIB2.Types.SExpr.Build
-import BV.SMTLIB2.Types.SExpr.Parse.Megaparsec
+import BV.SMTLIB2.SExpr.Build
+import BV.SMTLIB2.SExpr.Parse.Megaparsec
 
 import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Builder (Builder)

@@ -14,7 +14,7 @@ import BV.Core.Stages.Utils
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
-import BV.SMTLIB2.Types
+import BV.SMTLIB2
 
 import Control.DeepSeq (NFData)
 import Control.Monad.RWS (RWS, modify, runRWS, tell)

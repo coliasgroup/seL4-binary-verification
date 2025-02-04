@@ -1,5 +1,5 @@
-module BV.SMTLIB2.Types
-    ( module BV.SMTLIB2.Types.SExpr
+module BV.SMTLIB2
+    ( module BV.SMTLIB2.SExpr
     , MonadSolver (..)
     , SolverTimeout (..)
     , readAtom
@@ -11,8 +11,8 @@ module BV.SMTLIB2.Types
     , tryReadSExprs
     ) where
 
-import BV.SMTLIB2.Types.SExpr
-import BV.SMTLIB2.Types.SExpr.Read
+import BV.SMTLIB2.SExpr
+import BV.SMTLIB2.SExpr.Read
 
 import Control.Monad.Except (ExceptT)
 import Control.Monad.State (StateT)

@@ -5,7 +5,7 @@ module BV.Core.Types.Extras.SExprWithPlaceholders where
 
 import BV.Core.Types.SExprWithPlaceholders
 import BV.Core.Utils
-import BV.SMTLIB2.Types
+import BV.SMTLIB2
 
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)

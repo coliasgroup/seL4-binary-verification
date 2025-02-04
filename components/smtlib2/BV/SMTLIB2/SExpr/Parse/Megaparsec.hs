@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.SMTLIB2.Types.SExpr.Parse.Megaparsec
+module BV.SMTLIB2.SExpr.Parse.Megaparsec
     ( consumeAnySExprWhitespace
     , consumeSomeSExprWhitespace
     , parseAtom
@@ -12,7 +12,7 @@ module BV.SMTLIB2.Types.SExpr.Parse.Megaparsec
     , tryReadSExprs
     ) where
 
-import BV.SMTLIB2.Types.SExpr
+import BV.SMTLIB2.SExpr
 
 import Control.Monad (void)
 import Data.Bifunctor (first)

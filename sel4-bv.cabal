@@ -119,6 +119,40 @@ library core
     , transformers
   default-language: GHC2021
 
+library smtlib2
+  visibility: public
+  exposed-modules:
+      BV.SMTLIB2
+      BV.SMTLIB2.Command
+      BV.SMTLIB2.SExpr
+      BV.SMTLIB2.SExpr.Build
+      BV.SMTLIB2.SExpr.Parse.Attoparsec
+      BV.SMTLIB2.SExpr.Parse.Megaparsec
+      BV.SMTLIB2.SExpr.Read
+      BV.SMTLIB2.SExpr.Show
+  hs-source-dirs:
+      components/smtlib2
+  default-extensions:
+      FunctionalDependencies
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      attoparsec
+    , base
+    , deepseq
+    , exceptions
+    , megaparsec
+    , mtl
+    , text
+    , transformers
+  default-language: GHC2021
+
 library smtlib2-process
   visibility: public
   exposed-modules:
@@ -148,31 +182,6 @@ library smtlib2-process
     , stm
     , text
     , unliftio-core
-  default-language: GHC2021
-
-library smtlib2-types
-  visibility: public
-  hs-source-dirs:
-      components/smtlib2-types
-  default-extensions:
-      FunctionalDependencies
-      OverloadedLabels
-      OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
-      DuplicateRecordFields
-      NoFieldSelectors
-  ghc-options: -Wall -Wno-unused-do-bind
-  build-depends:
-      attoparsec
-    , base
-    , deepseq
-    , exceptions
-    , megaparsec
-    , mtl
-    , text
-    , transformers
   default-language: GHC2021
 
 library system

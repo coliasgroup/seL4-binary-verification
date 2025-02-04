@@ -3,7 +3,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.SMTLIB2.Types.SExpr
+module BV.SMTLIB2.SExpr
     ( Atom
     , GenericSExpr (..)
     , SExpr

@@ -8,7 +8,7 @@ module BV.Core.ConfigureSMT
     ) where
 
 import BV.Core.Types
-import BV.SMTLIB2.Types
+import BV.SMTLIB2
 
 import Data.FileEmbed (embedStringFile, makeRelativeToProject)
 import GHC.Generics (Generic)

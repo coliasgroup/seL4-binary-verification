@@ -1,4 +1,4 @@
-module BV.SMTLIB2.Types.SExpr.Read
+module BV.SMTLIB2.SExpr.Read
     ( anySExprWhitespaceP
     , atomP
     , genericSExprP
@@ -12,7 +12,7 @@ module BV.SMTLIB2.Types.SExpr.Read
     , tryReadSExprs
     ) where
 
-import BV.SMTLIB2.Types.SExpr
+import BV.SMTLIB2.SExpr
 
 import Control.Applicative ((<|>))
 import Data.Char (isDigit, isSpace)

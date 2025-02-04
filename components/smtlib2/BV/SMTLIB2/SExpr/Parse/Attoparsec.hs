@@ -2,7 +2,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
-module BV.SMTLIB2.Types.SExpr.Parse.Attoparsec
+module BV.SMTLIB2.SExpr.Parse.Attoparsec
     ( consumeAnySExprWhitespace
     , consumeSomeSExprWhitespace
     , parseAtom
@@ -10,7 +10,7 @@ module BV.SMTLIB2.Types.SExpr.Parse.Attoparsec
     , parseSExpr
     ) where
 
-import BV.SMTLIB2.Types.SExpr
+import BV.SMTLIB2.SExpr
 
 import Control.Applicative ((<|>))
 import Control.Monad (void)

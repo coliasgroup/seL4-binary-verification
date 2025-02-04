@@ -11,8 +11,8 @@ module BV.System.Backend.Core
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
 import BV.SMTLIB2.Process
-import BV.SMTLIB2.Types
-import BV.SMTLIB2.Types.SExpr.Build
+import BV.SMTLIB2
+import BV.SMTLIB2.SExpr.Build
 import BV.System.Cache
 import BV.System.Fingerprinting
 import BV.System.Frontend

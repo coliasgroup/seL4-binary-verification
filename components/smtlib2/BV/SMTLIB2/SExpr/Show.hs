@@ -1,11 +1,11 @@
-module BV.SMTLIB2.Types.SExpr.Show
+module BV.SMTLIB2.SExpr.Show
     ( showAtom
     , showSExpr
     , showUncheckedSExpr
     ) where
 
-import BV.SMTLIB2.Types.SExpr
-import BV.SMTLIB2.Types.SExpr.Build
+import BV.SMTLIB2.SExpr
+import BV.SMTLIB2.SExpr.Build
 
 import qualified Data.Text.Lazy as TL
 import Data.Text.Lazy.Builder (Builder, toLazyText)

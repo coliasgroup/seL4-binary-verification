@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.SMTLIB2.Types.Command
+module BV.SMTLIB2.Command
     ( Assertion (..)
     , CommandError (..)
     , FunDeclaration (..)
@@ -28,7 +28,7 @@ module BV.SMTLIB2.Types.Command
     , simpleCommandToSExpr
     ) where
 
-import BV.SMTLIB2.Types
+import BV.SMTLIB2
 
 import Control.DeepSeq (NFData)
 import Control.Exception (Exception, toException)
