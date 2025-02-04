@@ -4,7 +4,7 @@ module Main
 
 import BV.System.Backend.Core
 import BV.System.Backend.Local
-import BV.System.LocalCheckBackend.Scratch
+import BV.System.Scratch.Local
 import BV.System.SolversConfig
 import BV.Test.Utils
 

@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module BV.System.LocalCheckBackend.Scratch
+module BV.System.Scratch.Local
     ( runScratch
     ) where
 

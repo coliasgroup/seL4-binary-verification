@@ -191,8 +191,8 @@ library system
       BV.System.EvalStages
       BV.System.Fingerprinting
       BV.System.Frontend
-      BV.System.LocalCheckBackend.Scratch
       BV.System.Notes
+      BV.System.Scratch.Local
       BV.System.SeL4
       BV.System.SolversConfig
       BV.System.TaskQueue
