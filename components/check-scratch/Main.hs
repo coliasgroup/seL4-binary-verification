@@ -17,8 +17,8 @@ main = runScratch
     (tmpDir </> "check-scratch.log.txt")
     (tmpDir </> "mismatch")
 
-config :: LocalCheckBackendConfig
-config = LocalCheckBackendConfig
+config :: LocalBackendConfig
+config = LocalBackendConfig
     { numCores = 12
     , backendCoreConfig = BackendCoreConfig
         { solversConfig

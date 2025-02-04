@@ -4,9 +4,8 @@
 {-# HLINT ignore "Redundant flip" #-}
 
 module BV.System.Backend.Local
-    ( AcceptableSatResult (..)
-    , LocalCheckBackendConfig (..)
-    , localCheckBackend
+    ( LocalBackendConfig (..)
+    , localBackend
     ) where
 
 import BV.Core.Stages
@@ -21,16 +20,16 @@ import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import GHC.Generics (Generic)
 
-data LocalCheckBackendConfig
-  = LocalCheckBackendConfig
+data LocalBackendConfig
+  = LocalBackendConfig
       { numCores :: Integer
       , backendCoreConfig :: BackendCoreConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
-localCheckBackend
+localBackend
     :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadCache m, MonadMask m)
-    => LocalCheckBackendConfig -> PreparedSMTProofChecks -> m Report
-localCheckBackend config checks = do
+    => LocalBackendConfig -> PreparedSMTProofChecks -> m Report
+localBackend config checks = do
     withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
         frontend (backendCore config.backendCoreConfig throttle) checks

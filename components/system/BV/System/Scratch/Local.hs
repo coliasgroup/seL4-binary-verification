@@ -22,7 +22,7 @@ import System.Exit (die)
 import System.IO (BufferMode (LineBuffering), IOMode (WriteMode), hSetBuffering,
                   stderr, withFile)
 
-runScratch :: LocalCheckBackendConfig -> TargetDir -> FilePath -> FilePath -> IO ()
+runScratch :: LocalBackendConfig -> TargetDir -> FilePath -> FilePath -> IO ()
 runScratch config targetDir logDst mismatchDumpDir = do
     withFile logDst WriteMode $ \fileHandle -> do
         hSetBuffering fileHandle LineBuffering
@@ -37,7 +37,7 @@ runScratch config targetDir logDst mismatchDumpDir = do
     run = do
         input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter targetDir
         checks <- evalStages ctx input
-        report <- localCheckBackend config checks
+        report <- localBackend config checks
         let failed = M.mapMaybe (preview _Left) report.unwrap
         unless (M.null failed) $ do
             forM_ (M.toAscList failed) $ \(pairingId, err) -> liftIO $ do
