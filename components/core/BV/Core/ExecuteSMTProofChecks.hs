@@ -35,14 +35,25 @@ logic :: String
 logic = "QF_AUFBV"
 
 executeSMTProofCheckOffline
-    :: MonadSolver m
+    :: (MonadSolver m, MonadThrow m)
     => SolverConfig -> Maybe SolverTimeout -> SMTProofCheck a -> m (Maybe SatResult)
-executeSMTProofCheckOffline config timeout check = undefined
+executeSMTProofCheckOffline config timeout check = do
+    sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $ goal
+    checkSatWithTimeout timeout
+  where
+    goal = notS check.imp.term
 
 executeSMTProofCheckGroupOffline
-    :: MonadSolver m
+    :: (MonadSolver m, MonadThrow m)
     => SolverConfig -> Maybe SolverTimeout -> SMTProofCheckGroup a -> m (Maybe SatResult)
-executeSMTProofCheckGroupOffline config timeout check = undefined
+executeSMTProofCheckGroupOffline config timeout group =
+    executeSMTProofCheckOffline config timeout $ SMTProofCheck
+        { setup = group.setup
+        , imp = SMTProofCheckImp
+            { meta = map (.meta) group.imps
+            , term = foldr1 andS (map (.term) group.imps)
+            }
+        }
 
 data OnlineSolverAbortReason
   = OnlineSolverAbortReasonTimeout
@@ -65,9 +76,10 @@ executeSMTProofCheckGroupOnline config timeout group = do
         flip evalStateT 1 {- matches graph-refine -} .
         runWriterT .
         runExceptT .
-            forM_ group.imps $ \check -> do
-                let meta = check.meta
-                let hyps = splitHyp (notS check.term)
+            forM_ group.imps $ \imp -> do
+                let meta = imp.meta
+                let goal = notS imp.term
+                let hyps = splitHyp goal
                 sendSimpleCommandExpectingSuccess $ Push 1
                 forM_ hyps $ \hyp -> do
                     labeledHyp <- labelHyp hyp

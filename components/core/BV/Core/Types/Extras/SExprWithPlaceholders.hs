@@ -69,6 +69,9 @@ bvaddS = binOpS "bvadd"
 notS :: S -> S
 notS x = ["not", x]
 
+andS :: S -> S -> S
+andS = binOpS "and"
+
 andNS :: [S] -> S
 andNS xs = List $ "and" : xs
 
