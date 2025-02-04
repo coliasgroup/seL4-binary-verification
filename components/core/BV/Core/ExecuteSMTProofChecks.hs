@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
@@ -95,8 +94,8 @@ labelHyp sexpr = do
 splitHyp :: SExprWithPlaceholders -> [SExprWithPlaceholders]
 splitHyp = fromJust . traverse checkSExprWithPlaceholders . go . viewSExprWithPlaceholders
   where
-    notU x = ["not", x]
-    isBool = (`elem` (["true", "false"] :: [_]))
+    notU x = List ["not", x]
+    isBool = (`elem` ["true", "false"])
     go hyp = case hyp of
         List (Atom (AtomOrPlaceholderAtom (SymbolAtom "and")) : args) ->
             concatMap go args
