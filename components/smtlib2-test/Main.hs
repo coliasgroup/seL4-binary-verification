@@ -4,9 +4,9 @@ module Main
     ( main
     ) where
 
-import BV.SMTLIB2.Process
 import BV.SMTLIB2
 import BV.SMTLIB2.Command
+import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build
 import qualified BV.SMTLIB2.SExpr.Parse.Attoparsec as SA
 import qualified BV.SMTLIB2.SExpr.Parse.Megaparsec as SM
