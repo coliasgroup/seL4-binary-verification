@@ -48,8 +48,8 @@ data BackendCoreConfig
   deriving (Eq, Generic, Ord, Show)
 
 offlineOnly :: Bool
--- offlineOnly = False
-offlineOnly = True
+offlineOnly = False
+-- offlineOnly = True
 
 backendCore
     :: forall m i. (MonadUnliftIO m, MonadLoggerAddContext m, MonadCache m, MonadMask m)
