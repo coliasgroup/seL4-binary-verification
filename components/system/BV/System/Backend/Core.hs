@@ -10,9 +10,9 @@ module BV.System.Backend.Core
 
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
-import BV.SMTLIB2.Builder
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.Types
+import BV.SMTLIB2.Types.SExpr.Build
 import BV.System.Cache
 import BV.System.Fingerprinting
 import BV.System.Frontend

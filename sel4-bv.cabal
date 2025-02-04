@@ -51,6 +51,7 @@ library concrete-syntax
     , optics-core
     , sel4-bv:core
     , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-types
     , text
   default-language: GHC2021
 
@@ -122,7 +123,6 @@ library core
 library smtlib2
   visibility: public
   exposed-modules:
-      BV.SMTLIB2.Builder
       BV.SMTLIB2.Parser.Attoparsec
       BV.SMTLIB2.Parser.Megaparsec
       BV.SMTLIB2.Process
@@ -161,6 +161,7 @@ library smtlib2-types
       BV.SMTLIB2.Types
       BV.SMTLIB2.Types.Command
       BV.SMTLIB2.Types.SExpr
+      BV.SMTLIB2.Types.SExpr.Build
       BV.SMTLIB2.Types.SExpr.Read
   hs-source-dirs:
       components/smtlib2-types
@@ -179,6 +180,7 @@ library smtlib2-types
     , deepseq
     , exceptions
     , mtl
+    , text
     , transformers
   default-language: GHC2021
 

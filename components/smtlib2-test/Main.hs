@@ -4,12 +4,12 @@ module Main
     ( main
     ) where
 
-import BV.SMTLIB2.Builder as SB
-import BV.SMTLIB2.Parser.Attoparsec as SA
-import BV.SMTLIB2.Parser.Megaparsec as SM
+import qualified BV.SMTLIB2.Parser.Attoparsec as SA
+import qualified BV.SMTLIB2.Parser.Megaparsec as SM
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.Types
 import BV.SMTLIB2.Types.Command
+import BV.SMTLIB2.Types.SExpr.Build
 
 import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT)

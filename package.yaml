@@ -42,6 +42,7 @@ internal-libraries:
       - transformers
       - mtl
       - exceptions
+      - text
 
   smtlib2:
     visibility: public
@@ -104,6 +105,7 @@ internal-libraries:
       - BV.ConcreteSyntax
     dependencies:
       - sel4-bv:core
+      - sel4-bv:smtlib2-types
       - sel4-bv:smtlib2
       # external
       - containers
