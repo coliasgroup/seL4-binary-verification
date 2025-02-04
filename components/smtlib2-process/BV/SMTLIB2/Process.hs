@@ -19,13 +19,11 @@ import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  cancelWith, wait, withAsync)
 import Control.Concurrent.STM
 import Control.Exception (Exception, SomeException)
-import Control.Monad.Catch (MonadCatch, MonadThrow, finally, try)
-import Control.Monad.Catch.Pure (MonadMask)
+import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow, finally, try)
 import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, toIO)
-import Control.Monad.Reader (MonadTrans (lift), ReaderT (..), runReaderT)
-import Control.Monad.Reader.Class (asks)
+import Control.Monad.Reader (MonadTrans (lift), ReaderT, asks, runReaderT)
 import Data.Conduit (Flush (Chunk, Flush), runConduit, yield, (.|))
 import Data.Conduit.Attoparsec (conduitParser)
 import qualified Data.Conduit.List as CL

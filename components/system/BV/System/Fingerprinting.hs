@@ -21,7 +21,7 @@ import Data.Text.Lazy.Builder (toLazyText)
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import GHC.Generics (Generic)
 import GHC.IsList (fromList)
-import Text.Printf (PrintfArg (..), formatString)
+import Text.Printf (PrintfArg (formatArg), formatString)
 
 newtype SMTProofCheckFingerprint
   = SMTProofCheckFingerprint { unwrap :: ByteString }

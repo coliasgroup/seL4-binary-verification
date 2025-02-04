@@ -14,9 +14,12 @@ import BV.ConcreteSyntax.SExprWithPlaceholders (buildSExprWithPlaceholders)
 import BV.ConcreteSyntax.SExprWithPlaceholdersFaster (parseSExprWithPlaceholdersFaster)
 import BV.Core.Types
 
-import Data.Aeson
+import Data.Aeson (FromJSON (..), FromJSONKey (..),
+                   FromJSONKeyFunction (FromJSONKeyTextParser), ToJSON (..),
+                   ToJSONKey (..), ToJSONKeyFunction (ToJSONKeyText),
+                   Value (..), object, withObject, withText, (.:), (.=))
 import Data.Aeson.Encoding as A
-import Data.Aeson.Types
+import Data.Aeson.Types (Parser)
 import qualified Data.Attoparsec.Text as AP
 import Data.Char (isSpace)
 import Data.String (fromString)

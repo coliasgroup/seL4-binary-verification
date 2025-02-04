@@ -13,3 +13,5 @@
 
 - use for sexprs and beyond:
     - https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/pattern_synonyms.html
+
+- use optics instead of optics core

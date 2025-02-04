@@ -6,7 +6,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 
 import Control.Monad (forM_)
-import Control.Monad.State
+import Control.Monad.State (State, execState, gets, modify)
 import Data.Foldable (find)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)

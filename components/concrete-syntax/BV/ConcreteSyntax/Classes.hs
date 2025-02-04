@@ -18,7 +18,7 @@ import BV.Core.Types
 import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Builder as TL
+import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Text.Lazy.IO as TL
 
 class IsContents a where
@@ -61,7 +61,7 @@ instance (ParseFile a, BuildToFile a) => ReadBVFile TL.Text (GraphLangLikeBVFile
     readBVContents fp c = GraphLangLikeBVFile <$> parseWholeFile fp c
 
 instance (ParseFile a, BuildToFile a) => WriteBVFile TL.Text (GraphLangLikeBVFile a) where
-    writeBVContents (GraphLangLikeBVFile a) = TL.toLazyText (buildToFile a)
+    writeBVContents (GraphLangLikeBVFile a) = TB.toLazyText (buildToFile a)
 
 --
 

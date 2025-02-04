@@ -18,7 +18,7 @@ import BV.ConcreteSyntax
 import BV.Core.Stages
 import BV.Core.Types
 
-import Control.Exception (Exception (..), throwIO)
+import Control.Exception (Exception (displayException), throwIO)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
 import Data.Bifunctor (first)
 import GHC.Generics (Generic)

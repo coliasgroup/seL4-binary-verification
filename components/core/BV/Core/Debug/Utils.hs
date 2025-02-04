@@ -4,7 +4,7 @@ module BV.Core.Debug.Utils
     ) where
 
 import Data.Maybe (fromJust)
-import System.FilePath
+import System.FilePath ((<.>), (</>))
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Text.Show.Pretty as H
 

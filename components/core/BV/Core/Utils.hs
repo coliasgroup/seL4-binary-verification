@@ -1,6 +1,7 @@
 module BV.Core.Utils
     ( adjacently
     , ensure
+    , ensureM
     , expecting
     , expectingIx
     , optionals
@@ -21,6 +22,9 @@ import Optics.Core
 
 ensure :: HasCallStack => Bool -> a -> a
 ensure p = applyWhen (not p) (error "ensure failed")
+
+ensureM :: (Applicative f, HasCallStack) => Bool -> f ()
+ensureM p = ensure p $ pure ()
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
 liftIso f l r =

@@ -5,7 +5,7 @@ module BV.System.Utils.UnliftIO.Throttle
 
 import BV.System.Throttle
 
-import Control.Monad.IO.Unlift
+import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 
 withThrottlingUnliftIO :: MonadUnliftIO m => Units -> (Throttle -> m a) -> m a
 withThrottlingUnliftIO availableUnits f =

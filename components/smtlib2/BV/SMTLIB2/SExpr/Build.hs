@@ -10,8 +10,8 @@ module BV.SMTLIB2.SExpr.Build
 
 import BV.SMTLIB2.SExpr
 
-import Data.Text.Lazy.Builder
-import Data.Text.Lazy.Builder.Int
+import Data.Text.Lazy.Builder (Builder, fromString, singleton)
+import Data.Text.Lazy.Builder.Int (decimal)
 
 buildGenericSExpr :: (a -> Builder) -> GenericSExpr a -> Builder
 buildGenericSExpr f = \case

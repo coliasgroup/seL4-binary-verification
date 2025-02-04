@@ -10,16 +10,14 @@ module BV.System.EvalStages
 import BV.ConcreteSyntax
 import BV.Core.Stages
 import BV.Core.Types
+import BV.System.Utils.Logger
 import BV.TargetDir
 
 import Control.DeepSeq (NFData, deepseq, force)
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Logger
 import Data.Function (applyWhen)
 import qualified Data.Map as M
-import Data.String (fromString)
-import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Optics.Core
 import System.Directory (createDirectoryIfMissing)
@@ -40,37 +38,37 @@ evalStages
     -> StagesInput
     -> m PreparedSMTProofChecks
 evalStages ctx input = do
-    logWarnN . fromString $
+    logWarn $
         "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) output.unhandledInlineAssemblyFunctions)
-    logWarnN . fromString $
+    logWarn $
         "Unhandled instrcution functions (Asm side): " ++ show (map (.unwrap) output.unhandledInstructionFunctions)
-    logInfoN "Registering functions"
+    logInfo "Registering functions"
     register noop targetDirFiles.functions output.functions
-    logInfoN "Registering pairings"
+    logInfo "Registering pairings"
     register noop targetDirFiles.pairings output.pairings
-    logInfoN "Registering problems"
+    logInfo "Registering problems"
     register filterProblems targetDirFiles.problems output.problems
-    logInfoN "Registering proof checks"
+    logInfo "Registering proof checks"
     register noop targetDirFiles.proofChecks output.compatProofChecks
-    logInfoN "Registering SMT proof checks"
+    logInfo "Registering SMT proof checks"
     register noop targetDirFiles.smtProofChecks output.compatSMTProofChecks
-    logInfoN "Registered all intermediate artifacts"
+    logInfo "Registered all intermediate artifacts"
     return output.smtProofChecks
   where
     output = stages input
     register :: forall a c. (Eq a, NFData a, ReadBVFile c a, WriteBVFile c a) => (a -> a -> a) -> TargetDirFile a -> a -> m ()
     register f file actual = applyWhen ctx.force (deepseq actual) $ do
         whenJust ctx.dumpTargetDir $ \dumpTargetDir -> do
-            logInfoN $ "Dumping " <> T.pack file.relativePath
+            logInfo $ "Dumping " ++ file.relativePath
             liftIO $ writeTargetDirFile dumpTargetDir file actual
         whenJust ctx.referenceTargetDir $ \referenceTargetDir -> do
             expected <- liftIO $ readTargetDirFile referenceTargetDir file
             let actual' = f expected actual
             when (maybeForce actual' /= maybeForce expected) $ do
-                logErrorN $ "Intermediate artifact mismatch for " <> T.pack file.relativePath
+                logError $ "Intermediate artifact mismatch for " ++ file.relativePath
                 whenJust ctx.mismatchDumpDir $ \mismatchDumpDir -> do
                     let d = mismatchDumpDir </> file.relativePath
-                    logInfoN $ "Writing mismatch to " <> T.pack d
+                    logInfo $ "Writing mismatch to " ++ d
                     liftIO $ do
                         createDirectoryIfMissing True d
                         writeBVFile (d </> "actual.txt") actual'
