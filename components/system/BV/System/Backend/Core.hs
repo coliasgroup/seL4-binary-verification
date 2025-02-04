@@ -19,17 +19,20 @@ import BV.System.Frontend
 import BV.System.SolversConfig
 import BV.System.Throttle
 import BV.System.Utils.Logger
+import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
 
+import Control.Applicative (asum, empty, (<|>))
 import Control.Monad (filterM, forM_, unless)
 import Control.Monad.Catch (MonadMask)
-import Control.Monad.Except (MonadError, runExceptT, throwError)
+import Control.Monad.Except (ExceptT (ExceptT), MonadError, mapExceptT,
+                             runExceptT, throwError)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.State (evalState, state)
 import Control.Monad.Trans (lift)
 import Data.Functor (void)
 import Data.List.NonEmpty (NonEmpty ((:|)))
-import Data.Maybe (fromJust)
+import Data.Maybe (catMaybes, fromJust, mapMaybe)
 import Data.Text.Lazy.Builder
 import GHC.Generics (Generic)
 import Optics
@@ -43,7 +46,7 @@ data BackendCoreConfig
   deriving (Eq, Generic, Ord, Show)
 
 backendCore
-    :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadCache m, MonadMask m)
+    :: forall m i. (MonadUnliftIO m, MonadLoggerAddContext m, MonadCache m, MonadMask m)
     => BackendCoreConfig -> Throttle -> SMTProofCheckGroup i -> m (SMTProofCheckResult i ())
 backendCore config throttle group =
     runExceptT $ do
@@ -76,9 +79,42 @@ backendCore config throttle group =
                         throwError (SomeSolverAnsweredSat, loc :| [])
                     OnlineSolverAbortReasonAnsweredUnknown -> do
                         return ()
-        let remaining = filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta))
+        let remaining = fmap snd
+                (filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta)))
         unless (null remaining.imps) $ do
-            undefined
+            let doAll = length remaining.imps > 1
+            let units = numOfflineSolverConfigsForScope SolverScopeHyp config.solversConfig +
+                    if doAll
+                    then numOfflineSolverConfigsForScope SolverScopeAll config.solversConfig
+                    else 0
+            mapExceptT (withThrottleUnliftIO throttle (Priority 0) (Units units)) $ do
+                let concAll =
+                        if doAll
+                        then empty
+                        else empty
+                        -- then ConcurrentlyUnliftIOE $ do
+                let concHyps = concurrentlyUnliftIO . runExceptT $ do
+                        forM_ (ungroupSMTProofCheckGroup remaining) $ \check -> do
+                            ExceptT . runConcurrentlyUnliftIO . asum . flip map (offlineSolverConfigsForScope SolverScopeHyp config.solversConfig) $ \solver -> concurrentlyUnliftIO $ do
+                                result <-
+                                    addLoggerContext "offline solver _" $ runSolverWith
+                                        modifyCtx
+                                        stderrSink
+                                        (uncurry proc (fromJust (uncons solver.command)))
+                                        (executeSMTProofCheckOffline
+                                            (SolverConfig { memoryMode = solver.memoryMode })
+                                            (Just (SolverTimeout config.solversConfig.offlineTimeout))
+                                            check)
+                                case result of
+                                    Nothing -> return ()
+                                    Just Sat -> undefined
+                                    Just Unsat -> undefined
+                                    Just Unknown -> undefined
+                                        -- updateCache (ungroupSMTProofCheckGroup filteredGroupWithLabels !! i) AcceptableSatResultSat
+                                        -- throwError (SomeSolverAnsweredSat, loc :| [])
+                                return $ Right ()
+                ExceptT . runConcurrentlyUnliftIO $ concAll <|> concHyps
+
   where
     stderrSink = logInfoGeneric . addLoggerContextToStr "stderr"
     modifyCtx ctx = SolverContext
@@ -113,15 +149,3 @@ zipWithT as f = flip evalState as $ traverse m f
     m b = do
         a <- state (fromJust . uncons)
         return (a, b)
-
--- online
---     :: ( MonadUnliftIO m
---        , MonadLogger m
---        , MonadThrow m
---        , MonadMask m
---        )
---     => SolverConfig
---     -> SMTProofCheckGroup a
---     -> m (Either SomeException (), [a])
--- online config group = do
---     undefined
