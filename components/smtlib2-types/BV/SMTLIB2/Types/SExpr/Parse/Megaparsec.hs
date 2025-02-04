@@ -6,14 +6,20 @@ module BV.SMTLIB2.Types.SExpr.Parse.Megaparsec
     , parseAtom
     , parseGenericSExpr
     , parseSExpr
+    , readSExpr
+    , readSExprs
+    , tryReadSExpr
+    , tryReadSExprs
     ) where
 
 import BV.SMTLIB2.Types.SExpr
 
 import Control.Monad (void)
+import Data.Bifunctor (first)
 import Data.Char (isSpace)
-import qualified Data.Text.Lazy as TL (Text, unpack)
+import qualified Data.Text.Lazy as TL (Text, pack, unpack)
 import Data.Void (Void)
+import GHC.Stack (HasCallStack)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -71,3 +77,22 @@ symbolP :: Parser UncheckedAtom
 symbolP = fmap SymbolAtom $
     (:) <$> satisfy isValidSymbolAtomFirstChar
         <*> (TL.unpack <$> takeWhileP (Just "symbol suffix character") isValidSymbolAtomSubsequentChar)
+
+--
+
+tryReadWith :: Parser a -> String -> Either String a
+tryReadWith p s = first errorBundlePretty $ parse p' "" (TL.pack s)
+  where
+    p' = consumeAnySExprWhitespace *> p <* consumeAnySExprWhitespace <* eof
+
+tryReadSExpr :: String -> Either String SExpr
+tryReadSExpr = tryReadWith parseSExpr
+
+tryReadSExprs :: String -> Either String [SExpr]
+tryReadSExprs = tryReadWith (parseSExpr `sepBy` consumeAnySExprWhitespace)
+
+readSExpr :: HasCallStack => String -> SExpr
+readSExpr = either error id . tryReadSExpr
+
+readSExprs :: HasCallStack => String -> [SExpr]
+readSExprs = either error id . tryReadSExprs
