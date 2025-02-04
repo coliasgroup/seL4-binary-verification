@@ -163,6 +163,7 @@ library smtlib2-types
       BV.SMTLIB2.Types.SExpr
       BV.SMTLIB2.Types.SExpr.Build
       BV.SMTLIB2.Types.SExpr.Read
+      BV.SMTLIB2.Types.SExpr.Show
   hs-source-dirs:
       components/smtlib2-types
   default-extensions:

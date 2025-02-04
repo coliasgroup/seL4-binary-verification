@@ -38,27 +38,16 @@ module BV.SMTLIB2.Types.SExpr
     , isValidSymbolAtom
     , isValidSymbolAtomFirstChar
     , isValidSymbolAtomSubsequentChar
-      --
-    , showGenericSExpr
-    , showSExpr
-    , showUncheckedSExpr
-    , showsAtom
-    , showsGenericSExpr
-    , showsSExpr
-    , showsUncheckedAtom
-    , showsUncheckedSExpr
     ) where
 
 import Control.DeepSeq (NFData)
 import Data.Char (isDigit, isHexDigit, isLetter, isPrint, isSpace)
 import Data.Maybe (fromJust)
-import Data.Monoid (Endo (Endo, appEndo))
 import Data.String (IsString, fromString)
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import GHC.IsList (IsList (..))
 import GHC.Natural (Natural)
-import Numeric (showInt)
 
 data GenericSExpr a
   = Atom a
@@ -193,46 +182,6 @@ isValidKeywordAtom s = not (null s) && all isValidKeywordAtomChar s
 
 isValidKeywordAtomChar :: Char -> Bool
 isValidKeywordAtomChar c = isLetter c || isDigit c || c `elem` ("~!@$%^&*_-+=<>.?/" :: String)
-
-showSExpr :: SExpr -> String
-showSExpr = showGenericSExpr showsAtom
-
-showsSExpr :: SExpr -> ShowS
-showsSExpr = showsGenericSExpr showsAtom
-
-showUncheckedSExpr :: UncheckedSExpr -> String
-showUncheckedSExpr = showGenericSExpr showsUncheckedAtom
-
-showsUncheckedSExpr :: UncheckedSExpr -> ShowS
-showsUncheckedSExpr = showsGenericSExpr showsUncheckedAtom
-
-showGenericSExpr :: (a -> ShowS) -> GenericSExpr a -> String
-showGenericSExpr f = ($ "") . showsGenericSExpr f
-
-showsGenericSExpr ::  (a -> ShowS) -> GenericSExpr a -> ShowS
-showsGenericSExpr f = \case
-    Atom a -> f a
-    List [] -> showString "()"
-    List (x:xs) ->
-          showChar '('
-        . showsGenericSExpr f x
-        . foldr (\x' acc -> showChar ' ' . showsGenericSExpr f x' . acc) (showChar ')') xs
-
-showsAtom :: Atom -> ShowS
-showsAtom = showsUncheckedAtom . viewAtom
-
-showsUncheckedAtom :: UncheckedAtom -> ShowS
-showsUncheckedAtom = \case
-    NumeralAtom n -> showInt n
-    HexadecimalAtom s -> showString "#x" . showString s
-    BinaryAtom s -> showString "#b" . showString s
-    StringAtom s -> showChar '\"' . appEndo (foldMap (Endo . escapeChar) s) . showChar '\"'
-    SymbolAtom s -> showString s
-    KeywordAtom s -> showString ":" . showString s
-  where
-    escapeChar = \case
-        '"' -> showString "\"\""
-        c -> showChar c
 
 instance IsString Atom where
     fromString = symbolAtom

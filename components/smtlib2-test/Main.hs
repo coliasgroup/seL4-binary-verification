@@ -64,11 +64,8 @@ parsersAndBuildersAgree :: String -> TL.Text -> IO [SExpr]
 parsersAndBuildersAgree src s = do
     parsed <- parsersAgree src s
     let built = TB.toLazyText . foldMap ((<> "\n") . buildSExpr) $ parsed
-    let shown = TL.pack $ concatMap ((++ "\n") . showSExpr) parsed
     parsedBuilt <- parsersAgree (src ++ " (built)") built
-    parsedShown <- parsersAgree (src ++ " (shown)") shown
     assertEqual "" parsed parsedBuilt
-    assertEqual "" parsed parsedShown
     return parsed
 
 parsersAgree :: String -> TL.Text -> IO [SExpr]
