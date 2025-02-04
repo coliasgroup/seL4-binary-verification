@@ -119,7 +119,7 @@ splitHyp = fromJust . traverse checkSExprWithPlaceholders . go . viewSExprWithPl
                     , p
                     ]
              ] ->
-            go (notU p)
+            go p
         List [ Atom (AtomOrPlaceholderAtom (SymbolAtom "=>"))
              , p
              , Atom (AtomOrPlaceholderAtom (SymbolAtom "false"))
