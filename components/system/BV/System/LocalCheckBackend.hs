@@ -60,10 +60,10 @@ data LocalCheckBackendConfig
 
 localCheckBackend
     :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadLocalCheckCache m, MonadMask m)
-    => LocalCheckBackendConfig -> PreparedSMTProofChecks -> m CheckReport
+    => LocalCheckBackendConfig -> PreparedSMTProofChecks -> m Report
 localCheckBackend config checks = do
     withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
-        checkFrontend (checkGroup config.solversConfig throttle) checks
+        frontend (checkGroup config.solversConfig throttle) checks
 
 checkGroup
     :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadLocalCheckCache m, MonadMask m)

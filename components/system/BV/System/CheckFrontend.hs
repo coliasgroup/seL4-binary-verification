@@ -3,11 +3,11 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.System.CheckFrontend
-    ( CheckReport (..)
+    ( Report (..)
     , SMTProofCheckError
     , SMTProofCheckErrorCause (..)
     , SMTProofCheckResult
-    , checkFrontend
+    , frontend
     ) where
 
 import BV.Core.AdornProofScript
@@ -40,22 +40,22 @@ data SMTProofCheckErrorCause
   | AllSolversAnsweredUnknown
   deriving (Eq, Generic, Ord, Show)
 
-data CheckReport
-  = CheckReport
+data Report
+  = Report
       { unwrap :: M.Map PairingId (SMTProofCheckResult SMTProofCheckDescription ())
       }
   deriving (Eq, Generic, Ord, Show)
 
-checkFrontend
+frontend
     :: ( MonadUnliftIO m
        , MonadLoggerAddContext m
        )
     => (SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult SMTProofCheckDescription ()))
     -> PreparedSMTProofChecks
-    -> m CheckReport
-checkFrontend f checks =
+    -> m Report
+frontend f checks =
     runConcurrentlyUnliftIO $ do
-        CheckReport <$> ifor checks.unwrap (\pairingId checksForPairing -> concurrentlyUnliftIO $ do
+        Report <$> ifor checks.unwrap (\pairingId checksForPairing -> concurrentlyUnliftIO $ do
             addLoggerContext pairingId.asm.unwrap $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\group -> concurrentlyUnliftIOE $ do
