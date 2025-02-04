@@ -50,7 +50,6 @@ library concrete-syntax
     , megaparsec
     , optics-core
     , sel4-bv:core
-    , sel4-bv:smtlib2
     , sel4-bv:smtlib2-types
     , text
   default-language: GHC2021
@@ -120,12 +119,12 @@ library core
     , transformers
   default-language: GHC2021
 
-library smtlib2
+library smtlib2-process
   visibility: public
   exposed-modules:
       BV.SMTLIB2.Process
   hs-source-dirs:
-      components/smtlib2
+      components/smtlib2-process
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
@@ -238,7 +237,7 @@ library system
     , process
     , sel4-bv:concrete-syntax
     , sel4-bv:core
-    , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-process
     , sel4-bv:smtlib2-types
     , sel4-bv:target-dir
     , stm
@@ -443,7 +442,7 @@ test-suite smtlib2-test
     , mtl
     , optics-core
     , process
-    , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-process
     , sel4-bv:smtlib2-types
     , sel4-bv:target-dir
     , tasty

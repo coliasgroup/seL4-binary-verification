@@ -46,9 +46,9 @@ internal-libraries:
       - attoparsec
       - megaparsec
 
-  smtlib2:
+  smtlib2-process:
     visibility: public
-    source-dirs: components/smtlib2
+    source-dirs: components/smtlib2-process
     default-extensions:
       - DuplicateRecordFields
       - NoFieldSelectors
@@ -106,7 +106,6 @@ internal-libraries:
     dependencies:
       - sel4-bv:core
       - sel4-bv:smtlib2-types
-      - sel4-bv:smtlib2
       # external
       - containers
       - dlist
@@ -144,7 +143,7 @@ internal-libraries:
     # exposed-modules: # TODO
     dependencies:
       - sel4-bv:smtlib2-types
-      - sel4-bv:smtlib2
+      - sel4-bv:smtlib2-process
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
@@ -270,7 +269,7 @@ tests:
     main: Main.hs
     dependencies:
       - sel4-bv:smtlib2-types
-      - sel4-bv:smtlib2
+      - sel4-bv:smtlib2-process
       - sel4-bv:target-dir
       # external
       - optics-core
