@@ -18,6 +18,7 @@ import BV.Core.Types
 import BV.SMTLIB2.Builder
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.Types
+import BV.System.BackendCore
 import BV.System.Cache
 import BV.System.Fingerprinting
 import BV.System.Frontend
@@ -53,7 +54,7 @@ import Text.Printf (printf)
 data LocalCheckBackendConfig
   = LocalCheckBackendConfig
       { numCores :: Integer
-      , solversConfig :: SolversConfig
+      , backendCoreConfig :: BackendCoreConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -62,88 +63,4 @@ localCheckBackend
     => LocalCheckBackendConfig -> PreparedSMTProofChecks -> m Report
 localCheckBackend config checks = do
     withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
-        frontend (checkGroup config.solversConfig throttle) checks
-
-checkGroup
-    :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadCache m, MonadMask m)
-    => SolversConfig -> Throttle -> SMTProofCheckGroup i -> m (SMTProofCheckResult i ())
-checkGroup solversConfig throttle group =
-    runExceptT $ do
-        logDebug "checking"
-        filteredGroup <- filterGroupM group
-        let filteredGroupWithLabels = zipWithT [0 :: Int ..] filteredGroup
-        onlineResults <-
-            lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ addLoggerContext "online solver" $ runSolverWith
-                modifyCtx
-                (uncurry proc (fromJust (uncons solversConfig.online.command)))
-                logStderr
-                (executeSMTProofCheckGroupOnline
-                    (SolverConfig { memoryMode = solversConfig.online.memoryMode })
-                    (Just (SolverTimeout solversConfig.onlineTimeout))
-                    filteredGroupWithLabels)
-        let (exit, completed) = onlineResults
-        forM_ completed $ \(i, _) -> do
-            let check = ungroupSMTProofCheckGroup filteredGroupWithLabels !! i
-            addLoggerContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
-                logInfo "complete"
-            updateCache check AcceptableSatResultUnsat
-        case exit of
-            Right _ -> return ()
-            Left ((i, loc), abort) -> do
-                case abort of
-                    OnlineSolverAbortReasonTimeout -> do
-                        return ()
-                    OnlineSolverAbortReasonAnsweredSat -> do
-                        updateCache (ungroupSMTProofCheckGroup filteredGroupWithLabels !! i) AcceptableSatResultSat
-                        throwError (SomeSolverAnsweredSat, loc :| [])
-                    OnlineSolverAbortReasonAnsweredUnknown -> do
-                        return ()
-        let remaining = filteredGroupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta))
-        unless (null remaining.imps) $ do
-            undefined
-  where
-    logStderr = logInfoGeneric . addLoggerContextToStr "stderr"
-    modifyCtx ctx = SolverContext
-        { send = \req -> addLoggerContext "send" $ do
-            logTraceGeneric . toLazyText $ buildSExpr req
-            ctx.send req
-        , recvWithTimeout = \timeout -> addLoggerContext "recv" $ do
-            resp <- ctx.recvWithTimeout timeout
-            case resp of
-                Nothing -> logTrace "timeout"
-                Just sexpr -> logTraceGeneric . toLazyText $ buildSExpr sexpr
-            return resp
-        }
-
-filterGroupM
-    :: (MonadLogger m, MonadCache m, MonadError (SMTProofCheckError i) m)
-    => SMTProofCheckGroup i
-    -> m (SMTProofCheckGroup i)
-filterGroupM group = forOf #imps group $ \imps ->
-    -- TODO only reports first error
-    flip filterM imps (\imp -> do
-        let check = void $ SMTProofCheck group.setup imp
-        cached <- queryCache check
-        case cached of
-            Nothing -> return True
-            Just AcceptableSatResultUnsat -> return False
-            Just AcceptableSatResultSat -> throwError (SomeSolverAnsweredSat, imp.meta :| []))
-
-zipWithT :: Traversable f => [a] -> f b -> f (a, b)
-zipWithT as f = flip evalState as $ traverse m f
-  where
-    m b = do
-        a <- state (fromJust . uncons)
-        return (a, b)
-
--- online
---     :: ( MonadUnliftIO m
---        , MonadLogger m
---        , MonadThrow m
---        , MonadMask m
---        )
---     => SolverConfig
---     -> SMTProofCheckGroup a
---     -> m (Either SomeException (), [a])
--- online config group = do
---     undefined
+        frontend (backendCore config.backendCoreConfig throttle) checks

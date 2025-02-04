@@ -2,6 +2,7 @@ module Main
     ( main
     ) where
 
+import BV.System.BackendCore
 import BV.System.LocalCheckBackend
 import BV.System.LocalCheckBackend.Scratch
 import BV.System.SolversConfig
@@ -19,7 +20,9 @@ main = runScratch
 config :: LocalCheckBackendConfig
 config = LocalCheckBackendConfig
     { numCores = 12
-    , solversConfig
+    , backendCoreConfig = BackendCoreConfig
+        { solversConfig
+        }
     }
 
 solversConfig :: SolversConfig
