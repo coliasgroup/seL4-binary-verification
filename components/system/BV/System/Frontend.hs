@@ -2,7 +2,7 @@
 
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module BV.System.CheckFrontend
+module BV.System.Frontend
     ( Report (..)
     , SMTProofCheckError
     , SMTProofCheckErrorCause (..)

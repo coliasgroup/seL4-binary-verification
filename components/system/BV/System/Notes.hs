@@ -7,7 +7,7 @@ module BV.System.Notes
 
 import BV.Core.AdornProofScript
 import BV.Core.Types
-import BV.System.CheckFrontend
+import BV.System.Frontend
 import BV.System.TaskQueue
 
 import GHC.Generics (Generic)

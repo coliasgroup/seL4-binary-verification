@@ -5,8 +5,8 @@ module BV.System.LocalCheckBackend.Scratch
     ) where
 
 import BV.Core.Types
-import BV.System.CheckFrontend
 import BV.System.EvalStages
+import BV.System.Frontend
 import BV.System.LocalCheckBackend
 import BV.System.LocalCheckBackend.Cache
 import BV.System.SeL4
