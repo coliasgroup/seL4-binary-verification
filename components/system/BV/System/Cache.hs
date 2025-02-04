@@ -13,7 +13,7 @@ module BV.System.Cache
     ) where
 
 import BV.Core.Types
-import BV.System.Utils.Logger (MonadLoggerAddContext)
+import BV.System.Utils.Logger (MonadLoggerContextStack)
 
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)
@@ -55,7 +55,7 @@ newtype CacheT m a
     , MonadFail
     , MonadIO
     , MonadLogger
-    , MonadLoggerAddContext
+    , MonadLoggerContextStack
     , MonadLoggerIO
     , MonadMask
     , MonadThrow

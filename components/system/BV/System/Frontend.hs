@@ -43,7 +43,7 @@ data Report
 
 frontend
     :: ( MonadUnliftIO m
-       , MonadLoggerAddContext m
+       , MonadLoggerContextStack m
        )
     => (SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult SMTProofCheckDescription ()))
     -> PreparedSMTProofChecks
@@ -51,10 +51,10 @@ frontend
 frontend f checks =
     runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> concurrentlyUnliftIO $ do
-            addLoggerContext pairingId.asm.unwrap $ do
+            pushLogContext pairingId.asm.unwrap $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\group -> concurrentlyUnliftIOE $ do
-                        addLoggerContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
+                        pushLogContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
                             result <- f group
                             logInfo $ case result of
                                 Right _ -> "success"

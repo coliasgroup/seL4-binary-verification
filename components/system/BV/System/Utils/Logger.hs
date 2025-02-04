@@ -1,6 +1,6 @@
 module BV.System.Utils.Logger
     ( MonadLogger
-    , MonadLoggerAddContext (..)
+    , MonadLoggerContextStack (..)
     , addLoggerContextToStr
     , levelTrace
     , logDebug
@@ -26,20 +26,20 @@ import Control.Monad.Logger (LogLevel (..), LogSource, LogStr,
 import Control.Monad.Reader (ReaderT, mapReaderT)
 import qualified Data.Text as T
 
-class MonadLogger m => MonadLoggerAddContext m where
-    addLoggerContext :: String -> m a -> m a
+class MonadLogger m => MonadLoggerContextStack m where
+    pushLogContext :: String -> m a -> m a
 
-instance MonadIO m => MonadLoggerAddContext (LoggingT m) where
-    addLoggerContext ctx m =
+instance MonadIO m => MonadLoggerContextStack (LoggingT m) where
+    pushLogContext ctx m =
         LoggingT $ \logger ->
             runLoggingT m $ \loc source level str ->
                 logger loc source level (addLoggerContextToStr ctx str)
 
-instance MonadLoggerAddContext m => MonadLoggerAddContext (ReaderT r m) where
-    addLoggerContext = mapReaderT . addLoggerContext
+instance MonadLoggerContextStack m => MonadLoggerContextStack (ReaderT r m) where
+    pushLogContext = mapReaderT . pushLogContext
 
-instance MonadLoggerAddContext m => MonadLoggerAddContext (ExceptT e m) where
-    addLoggerContext = mapExceptT . addLoggerContext
+instance MonadLoggerContextStack m => MonadLoggerContextStack (ExceptT e m) where
+    pushLogContext = mapExceptT . pushLogContext
 
 addLoggerContextToStr :: ToLogStr a => String -> a -> LogStr
 addLoggerContextToStr ctx str = toLogStr ("[" ++ ctx ++ "] ") <> toLogStr str
