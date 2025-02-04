@@ -10,9 +10,9 @@ module BV.SMTLIB2.Process
     , runSolverWith
     ) where
 
-import BV.SMTLIB2.Parser.Attoparsec
 import BV.SMTLIB2.Types
 import BV.SMTLIB2.Types.SExpr.Build
+import BV.SMTLIB2.Types.SExpr.Parse.Attoparsec
 
 import Control.Applicative ((<|>))
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),

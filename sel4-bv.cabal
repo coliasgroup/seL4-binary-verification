@@ -123,8 +123,6 @@ library core
 library smtlib2
   visibility: public
   exposed-modules:
-      BV.SMTLIB2.Parser.Attoparsec
-      BV.SMTLIB2.Parser.Megaparsec
       BV.SMTLIB2.Process
   hs-source-dirs:
       components/smtlib2
@@ -140,13 +138,11 @@ library smtlib2
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
-    , attoparsec
     , base
     , conduit
     , conduit-extra
     , exceptions
     , free
-    , megaparsec
     , mtl
     , process
     , sel4-bv:smtlib2-types
@@ -162,6 +158,8 @@ library smtlib2-types
       BV.SMTLIB2.Types.Command
       BV.SMTLIB2.Types.SExpr
       BV.SMTLIB2.Types.SExpr.Build
+      BV.SMTLIB2.Types.SExpr.Parse.Attoparsec
+      BV.SMTLIB2.Types.SExpr.Parse.Megaparsec
       BV.SMTLIB2.Types.SExpr.Read
       BV.SMTLIB2.Types.SExpr.Show
   hs-source-dirs:
@@ -177,9 +175,11 @@ library smtlib2-types
       NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      base
+      attoparsec
+    , base
     , deepseq
     , exceptions
+    , megaparsec
     , mtl
     , text
     , transformers

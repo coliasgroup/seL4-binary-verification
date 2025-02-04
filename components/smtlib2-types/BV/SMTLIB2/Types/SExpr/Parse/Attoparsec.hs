@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.SMTLIB2.Parser.Megaparsec
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
+module BV.SMTLIB2.Types.SExpr.Parse.Attoparsec
     ( consumeAnySExprWhitespace
     , consumeSomeSExprWhitespace
     , parseAtom
@@ -8,23 +10,20 @@ module BV.SMTLIB2.Parser.Megaparsec
     , parseSExpr
     ) where
 
-import BV.SMTLIB2.Types
+import BV.SMTLIB2.Types.SExpr
 
+import Control.Applicative ((<|>))
 import Control.Monad (void)
+import Data.Attoparsec.Text as A
 import Data.Char (isSpace)
-import qualified Data.Text.Lazy as TL (Text, unpack)
-import Data.Void (Void)
-import Text.Megaparsec
-import Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer as L
-
-type Parser = Parsec Void TL.Text
+import qualified Data.Text as T (unpack)
+import Text.Megaparsec (between)
 
 skipLineComment :: Char -> Parser ()
-skipLineComment prefix = char prefix *> void (takeWhileP (Just "line comment") (/= '\n'))
+skipLineComment prefix = char prefix *> skipWhile (/= '\n')
 
 consumeSomeSExprWhitespace :: Parser ()
-consumeSomeSExprWhitespace = skipSome $ void (takeWhile1P (Just "space") isSpace) <|> skipLineComment ';'
+consumeSomeSExprWhitespace = skipMany1 $ void (takeWhile1 isSpace) <|> skipLineComment ';'
 
 consumeAnySExprWhitespace :: Parser ()
 consumeAnySExprWhitespace = option () consumeSomeSExprWhitespace
@@ -38,13 +37,13 @@ parseGenericSExpr p = go
     go = Atom <$> p
         <|> List <$> between (string "(" <* consumeAnySExprWhitespace)
                              (string ")")
-                             (many (go <* consumeAnySExprWhitespace))
+                             (many' (go <* consumeAnySExprWhitespace))
 
 parseAtom :: Parser Atom
 parseAtom = unsafeAtom <$> choice
-    [ NumeralAtom <$> L.decimal
-    , HexadecimalAtom . TL.unpack <$> ("#x" *> takeWhile1P (Just "hexadecimal digit") isValidHexadecimalAtomChar)
-    , BinaryAtom . TL.unpack <$> ("#b" *> takeWhile1P (Just "binary digit") isValidBinaryAtomChar)
+    [ NumeralAtom <$> decimal
+    , HexadecimalAtom . T.unpack <$> ("#x" *> takeWhile1 isValidHexadecimalAtomChar)
+    , BinaryAtom . T.unpack <$> ("#b" *> takeWhile1 isValidBinaryAtomChar)
     , stringP
     , symbolP
     , keywordP
@@ -57,7 +56,7 @@ stringP = StringAtom <$> (char '"' *> go)
         c <- satisfy isValidStringAtomChar
         case c of
             '"' -> do
-                next <- optional (try (lookAhead anySingle))
+                next <- peekChar
                 case next of
                     Just '"' -> char '"' *> (('"':) <$> go)
                     _ -> return []
@@ -65,9 +64,9 @@ stringP = StringAtom <$> (char '"' *> go)
 
 keywordP :: Parser UncheckedAtom
 keywordP = fmap KeywordAtom $
-    ":" *> (TL.unpack <$> takeWhile1P (Just "symbol suffix character") isValidKeywordAtomChar)
+    ":" *> (T.unpack <$> A.takeWhile1 isValidKeywordAtomChar)
 
 symbolP :: Parser UncheckedAtom
 symbolP = fmap SymbolAtom $
     (:) <$> satisfy isValidSymbolAtomFirstChar
-        <*> (TL.unpack <$> takeWhileP (Just "symbol suffix character") isValidSymbolAtomSubsequentChar)
+        <*> (T.unpack <$> A.takeWhile isValidSymbolAtomSubsequentChar)
