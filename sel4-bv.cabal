@@ -341,6 +341,23 @@ executable cli
     , sel4-bv:system
   default-language: GHC2021
 
+executable normalize-smtlib2
+  main-is: Main.hs
+  hs-source-dirs:
+      components/utils/normalize-smtlib2
+  default-extensions:
+      FunctionalDependencies
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      base
+    , sel4-bv:smtlib2
+  default-language: GHC2021
+
 executable profiling-scratch
   main-is: Main.hs
   hs-source-dirs:

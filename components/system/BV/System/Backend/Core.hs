@@ -12,6 +12,7 @@ module BV.System.Backend.Core
 
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
+import BV.SMTLIB2
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build
@@ -95,8 +96,8 @@ backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online
                         logInfo "answered sat"
                         updateCache (ungroupSMTProofCheckGroup groupWithLabels !! i) AcceptableSatResultSat
                         throwError (SomeSolverAnsweredSat, loc :| [])
-                    OnlineSolverAbortReasonAnsweredUnknown -> do
-                        logInfo "answered unknown"
+                    OnlineSolverAbortReasonAnsweredUnknown reason -> do
+                        logInfo $ "answered unknown: " ++ showSExpr reason
                         return ()
     let remaining = fmap snd
             (groupWithLabels & #imps %~ filter ((\(i, _) -> i `notElem` map fst completed) . (.meta)))
@@ -143,8 +144,8 @@ backendCoreOffline config throttle group = mapExceptT (withPushLogContext "offli
                                     logInfo $ "answered unsat" ++ elapsedSuffix
                                     -- TODO what should we tell to the cache?
                                     throwConclusion $ Right ()
-                                Just Unknown -> do
-                                    logInfo $ "answered unknown" ++ elapsedSuffix
+                                Just (Unknown reason) -> do
+                                    logInfo $ "answered unknown: " ++ showSExpr reason ++ " " ++ elapsedSuffix
         let concHyps :: ConclusionT (SMTProofCheckResult i ()) m ()
             concHyps = do
                     hypsConclusion :: Maybe (Maybe i) <- lift . runConclusionT $ do
@@ -174,8 +175,8 @@ backendCoreOffline config throttle group = mapExceptT (withPushLogContext "offli
                                                         logInfo $ "answered unsat" ++ elapsedSuffix
                                                         updateCache check AcceptableSatResultUnsat
                                                         throwConclusion $ Right ()
-                                                    Just Unknown -> do
-                                                        logInfo $ "answered unknown" ++ elapsedSuffix
+                                                    Just (Unknown reason) -> do
+                                                        logInfo $ "answered unknown: " ++ showSExpr reason ++ " " ++ elapsedSuffix
                                 case hypConclusion of
                                     Nothing -> throwConclusion Nothing
                                     Just (Right ()) -> return ()

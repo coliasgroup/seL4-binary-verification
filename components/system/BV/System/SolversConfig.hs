@@ -5,8 +5,8 @@ module BV.System.SolversConfig
     , SolverMemoryMode (..)
     , SolverScope (..)
     , SolversConfig (..)
+    , allModelConfigs
     , allSolverScopes
-    , allSolverSonfigs
     , numOfflineSolverConfigsForScope
     , offlineSolverConfigsForScope
     ) where
@@ -52,8 +52,8 @@ data SolverScope
 allSolverScopes :: [SolverScope]
 allSolverScopes = [SolverScopeHyp, SolverScopeAll]
 
-allSolverSonfigs :: [ModelConfig]
-allSolverSonfigs = do
+allModelConfigs :: [ModelConfig]
+allModelConfigs = do
     memoryMode <- [SolverMemoryModeWord8, SolverMemoryModeWord32]
     return $ ModelConfig { memoryMode }
 

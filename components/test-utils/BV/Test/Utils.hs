@@ -27,6 +27,9 @@ testSeL4TargetDirSmall = TargetDir $ testTargetDir "small"
 testSeL4TargetDirSmallTrace :: TargetDir
 testSeL4TargetDirSmallTrace = TargetDir $ testTargetDir "small-trace"
 
+testSeL4TargetDirSmallTraceOfflineOnly :: TargetDir
+testSeL4TargetDirSmallTraceOfflineOnly = TargetDir $ testTargetDir "small-trace-offline-only"
+
 testSeL4TargetDirFocused :: TargetDir
 testSeL4TargetDirFocused = TargetDir $ testTargetDir "focused"
 

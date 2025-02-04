@@ -57,7 +57,7 @@ executeSMTProofCheckGroupOffline timeout config group =
 data OnlineSolverAbortReason
   = OnlineSolverAbortReasonTimeout
   | OnlineSolverAbortReasonAnsweredSat
-  | OnlineSolverAbortReasonAnsweredUnknown
+  | OnlineSolverAbortReasonAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 
 -- TODO add hook for successful unsat results? (e.g. for a cache update or logging action)
@@ -88,7 +88,7 @@ executeSMTProofCheckGroupOnline timeout config group = do
                     maybe (throwError (meta, OnlineSolverAbortReasonTimeout)) return
                 case result of
                     Sat -> throwError (meta, OnlineSolverAbortReasonAnsweredSat)
-                    Unknown -> throwError (meta, OnlineSolverAbortReasonAnsweredUnknown)
+                    Unknown reason -> throwError (meta, OnlineSolverAbortReasonAnsweredUnknown reason)
                     Unsat -> return ()
                 tell [meta]
                 sendSimpleCommandExpectingSuccess $ Pop 1

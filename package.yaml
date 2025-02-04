@@ -202,6 +202,12 @@ executables:
       - -rtsopts
       - -with-rtsopts=-N
 
+  normalize-smtlib2:
+    source-dirs: components/utils/normalize-smtlib2
+    main: Main.hs
+    dependencies:
+      - sel4-bv:smtlib2
+
   profiling-scratch:
     source-dirs: components/profiling-scratch
     main: Main.hs

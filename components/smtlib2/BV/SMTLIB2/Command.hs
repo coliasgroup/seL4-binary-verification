@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.SMTLIB2.Command
@@ -35,6 +36,7 @@ import Control.Exception (Exception, toException)
 import Control.Monad ((>=>))
 import Control.Monad.Catch (MonadThrow, throwM)
 import Control.Monad.Except (ExceptT, MonadError, runExceptT, throwError)
+import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), runMaybeT)
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
@@ -85,17 +87,22 @@ sendExpectingSuccess = exceptTToThrow . sendExpectingSuccessE
 data SatResult
   = Sat
   | Unsat
-  | Unknown
+  | Unknown SExpr
   deriving (Eq, Generic, NFData, Ord, Show)
 
 checkSatWithTimeoutE :: (MonadSolver m, MonadError CommandError m) => Maybe SolverTimeout -> m (Maybe SatResult)
 checkSatWithTimeoutE timeout = runMaybeT $ do
-    resp <- MaybeT $ sendRecvWithTimeoutE timeout $ List ["check-sat"]
-    case resp of
+    checkSatResp <- MaybeT $ sendRecvWithTimeoutE timeout $ List ["check-sat"]
+    case checkSatResp of
         "sat" -> return Sat
         "unsat" -> return Unsat
-        "unknown" -> return Unknown
-        _ -> throwError (UnexpectedResponse resp)
+        "unknown" -> do
+            let reasonUnkownKeyword = Atom (keywordAtom "reason-unkown")
+            reasonUnknownResp <- lift $ sendRecvE ["get-info", reasonUnkownKeyword]
+            case reasonUnknownResp of
+                [kw, reason] | kw == reasonUnkownKeyword -> return (Unknown reason)
+                _ -> throwError (UnexpectedResponse reasonUnknownResp)
+        _ -> throwError (UnexpectedResponse checkSatResp)
 
 checkSatWithTimeout :: (MonadSolver m, MonadThrow m) => Maybe SolverTimeout -> m (Maybe SatResult)
 checkSatWithTimeout timeout = exceptTToThrow $ checkSatWithTimeoutE timeout

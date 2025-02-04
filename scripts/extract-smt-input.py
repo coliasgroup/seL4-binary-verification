@@ -13,13 +13,21 @@ def main():
     file = args.file
     context = args.context
     recv = args.recv
-    sep = context + ' [{}] '.format('recv' if recv else 'send')
+
+    dir_sep = '[{}] '.format('recv' if recv else 'send')
 
     for line in file:
-        parts = line.split(sep, maxsplit=1)
-        if len(parts) > 1:
-            chunk = parts[1]
+        chunk = drop_through(line, [context, dir_sep])
+        if chunk is not None:
             sys.stdout.write(chunk)
+
+def drop_through(s, seps):
+    for sep in seps:
+        parts = s.split(sep, maxsplit=1)
+        if len(parts) < 2:
+            return None
+        s = parts[1]
+    return s
 
 if __name__ == '__main__':
     main()
