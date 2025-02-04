@@ -8,7 +8,6 @@
 module BV.System.LocalCheckBackend
     ( AcceptableSatResult (..)
     , LocalCheckBackendConfig (..)
-    , MonadLocalCheckCache (..)
     , localCheckBackend
     ) where
 
@@ -59,14 +58,14 @@ data LocalCheckBackendConfig
   deriving (Eq, Generic, Ord, Show)
 
 localCheckBackend
-    :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadLocalCheckCache m, MonadMask m)
+    :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadCache m, MonadMask m)
     => LocalCheckBackendConfig -> PreparedSMTProofChecks -> m Report
 localCheckBackend config checks = do
     withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
         frontend (checkGroup config.solversConfig throttle) checks
 
 checkGroup
-    :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadLocalCheckCache m, MonadMask m)
+    :: (MonadUnliftIO m, MonadLoggerAddContext m, MonadCache m, MonadMask m)
     => SolversConfig -> Throttle -> SMTProofCheckGroup i -> m (SMTProofCheckResult i ())
 checkGroup solversConfig throttle group =
     runExceptT $ do
@@ -117,7 +116,7 @@ checkGroup solversConfig throttle group =
         }
 
 filterGroupM
-    :: (MonadLogger m, MonadLocalCheckCache m, MonadError (SMTProofCheckError i) m)
+    :: (MonadLogger m, MonadCache m, MonadError (SMTProofCheckError i) m)
     => SMTProofCheckGroup i
     -> m (SMTProofCheckGroup i)
 filterGroupM group = forOf #imps group $ \imps ->

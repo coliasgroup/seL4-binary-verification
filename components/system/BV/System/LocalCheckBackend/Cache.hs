@@ -4,12 +4,12 @@
 
 module BV.System.LocalCheckBackend.Cache
     ( AcceptableSatResult (..)
-    , LocalCheckCacheContext (..)
-    , LocalCheckCacheT
-    , MonadLocalCheckCache (..)
-    , liftIOLocalCheckCacheContext
-    , runLocalCheckCacheT
-    , trivialLocalCheckCacheContext
+    , CacheContext (..)
+    , CacheT
+    , MonadCache (..)
+    , liftIOCacheContext
+    , runCacheT
+    , trivialCacheContext
     ) where
 
 import BV.Core.Types
@@ -30,22 +30,22 @@ data AcceptableSatResult
   | AcceptableSatResultUnsat
   deriving (Eq, Generic, Ord, Show)
 
-class Monad m => MonadLocalCheckCache m where
+class Monad m => MonadCache m where
     queryCache :: SMTProofCheck a -> m (Maybe AcceptableSatResult)
     updateCache :: SMTProofCheck a -> AcceptableSatResult -> m ()
 
-instance MonadLocalCheckCache m => MonadLocalCheckCache (ExceptT e m) where
+instance MonadCache m => MonadCache (ExceptT e m) where
     queryCache check = lift $ queryCache check
     updateCache check result = lift $ updateCache check result
 
-instance MonadLocalCheckCache m => MonadLocalCheckCache (LoggingT m) where
+instance MonadCache m => MonadCache (LoggingT m) where
     queryCache check = lift $ queryCache check
     updateCache check result = lift $ updateCache check result
 
 --
 
-newtype LocalCheckCacheT m a
-  = LocalCheckCacheT { unwrap :: LocalCheckCacheTInner m a }
+newtype CacheT m a
+  = CacheT { unwrap :: CacheTInner m a }
   deriving
     ( Applicative
     , Functor
@@ -63,33 +63,33 @@ newtype LocalCheckCacheT m a
     , MonadUnliftIO
     )
 
-type LocalCheckCacheTInner m = ReaderT (LocalCheckCacheContext m) m
+type CacheTInner m = ReaderT (CacheContext m) m
 
-runLocalCheckCacheT :: LocalCheckCacheT m a -> LocalCheckCacheContext m -> m a
-runLocalCheckCacheT = runReaderT . (.unwrap)
+runCacheT :: CacheT m a -> CacheContext m -> m a
+runCacheT = runReaderT . (.unwrap)
 
-data LocalCheckCacheContext m
-  = LocalCheckCacheContext
+data CacheContext m
+  = CacheContext
       { queryCache :: SMTProofCheck () -> m (Maybe AcceptableSatResult)
       , updateCache :: SMTProofCheck () -> AcceptableSatResult -> m ()
       }
 
-instance Monad m => MonadLocalCheckCache (LocalCheckCacheT m) where
-    queryCache check = LocalCheckCacheT $ do
+instance Monad m => MonadCache (CacheT m) where
+    queryCache check = CacheT $ do
         f <- asks (.queryCache)
         lift $ f (void check)
-    updateCache check result = LocalCheckCacheT $ do
+    updateCache check result = CacheT $ do
         f <- asks (.updateCache)
         lift $ f (void check) result
 
-liftIOLocalCheckCacheContext :: MonadIO m => LocalCheckCacheContext IO -> LocalCheckCacheContext m
-liftIOLocalCheckCacheContext ctx = LocalCheckCacheContext
+liftIOCacheContext :: MonadIO m => CacheContext IO -> CacheContext m
+liftIOCacheContext ctx = CacheContext
     { queryCache = \check -> liftIO $ ctx.queryCache check
     , updateCache = \check result -> liftIO $ ctx.updateCache check result
     }
 
-trivialLocalCheckCacheContext :: Monad m => LocalCheckCacheContext m
-trivialLocalCheckCacheContext = LocalCheckCacheContext
+trivialCacheContext :: Monad m => CacheContext m
+trivialCacheContext = CacheContext
     { queryCache = \_check -> return Nothing
     , updateCache = \_check _result -> return ()
     }
