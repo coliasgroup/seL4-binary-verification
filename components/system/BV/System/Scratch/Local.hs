@@ -29,7 +29,8 @@ runScratch config targetDir logDst mismatchDumpDir = do
         let output loc source level str = do
                 when (noTrace source level) $ do
                     defaultOutput stderr loc source level str
-                defaultOutput fileHandle loc source level str
+                when (noTrace source level) $ do
+                    defaultOutput fileHandle loc source level str
         flip (runLoggingT . runSimpleLoggingWithContextT) output $
             flip runCacheT trivialCacheContext $
                  run
