@@ -5,13 +5,14 @@ module BV.System.SolversConfig
     , SolverMemoryMode (..)
     , SolverScope (..)
     , SolversConfig (..)
-    , allSolverMemoryModes
     , allSolverScopes
+    , allSolverSonfigs
     , numOfflineSolverConfigsForScope
     , offlineSolverConfigsForScope
     ) where
 
 import BV.Core.ExecuteSMTProofChecks
+import BV.SMTLIB2.Monad
 
 import Control.Applicative (empty)
 import Control.Monad (unless)
@@ -21,16 +22,16 @@ import GHC.Generics (Generic)
 data SolversConfig
   = SolversConfig
       { online :: OnlineSolverConfig
-      , onlineTimeout :: Integer
+      , onlineTimeout :: SolverTimeout
       , offline :: [OfflineSolverGroupConfig]
-      , offlineTimeout :: Integer
+      , offlineTimeout :: SolverTimeout
       }
   deriving (Eq, Generic, Ord, Show)
 
 data OnlineSolverConfig
   = OnlineSolverConfig
       { command :: [String]
-      , memoryMode :: SolverMemoryMode
+      , config :: ModelConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -38,7 +39,7 @@ data OfflineSolverGroupConfig
   = OfflineSolverGroupConfig
       { commandName :: String
       , command :: [String]
-      , memoryModes :: [SolverMemoryMode]
+      , configs :: [ModelConfig]
       , scopes :: [SolverScope]
       }
   deriving (Eq, Generic, Ord, Show)
@@ -51,22 +52,24 @@ data SolverScope
 allSolverScopes :: [SolverScope]
 allSolverScopes = [SolverScopeHyp, SolverScopeAll]
 
-allSolverMemoryModes :: [SolverMemoryMode]
-allSolverMemoryModes = [SolverMemoryModeWord8, SolverMemoryModeWord32]
+allSolverSonfigs :: [ModelConfig]
+allSolverSonfigs = do
+    memoryMode <- [SolverMemoryModeWord8, SolverMemoryModeWord32]
+    return $ ModelConfig { memoryMode }
 
 data OfflineSolverConfig
   = OfflineSolverConfig
       { commandName :: String
       , command :: [String]
-      , memoryMode :: SolverMemoryMode
+      , config :: ModelConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
 offlineSolverConfigsForScope :: SolverScope -> SolversConfig -> [OfflineSolverConfig]
 offlineSolverConfigsForScope scope (SolversConfig { offline }) = flip concatMap offline $
-    \OfflineSolverGroupConfig { commandName, command, memoryModes, scopes } -> do
+    \OfflineSolverGroupConfig { commandName, command, configs, scopes } -> do
         unless (scope `elem` scopes) empty
-        OfflineSolverConfig commandName command <$> memoryModes
+        OfflineSolverConfig commandName command <$> configs
 
 numOfflineSolverConfigsForScope :: SolverScope ->  SolversConfig -> Integer
 numOfflineSolverConfigsForScope scope = genericLength . offlineSolverConfigsForScope scope

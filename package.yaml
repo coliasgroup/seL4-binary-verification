@@ -225,6 +225,7 @@ executables:
       - DuplicateRecordFields
       - NoFieldSelectors
     dependencies:
+      - sel4-bv:smtlib2
       - sel4-bv:core
       - sel4-bv:system
       - sel4-bv:test-utils

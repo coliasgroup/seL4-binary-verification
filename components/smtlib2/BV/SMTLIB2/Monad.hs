@@ -1,7 +1,9 @@
 module BV.SMTLIB2.Monad
     ( MonadSolver (..)
-    , SolverTimeout (..)
+    , SolverTimeout
     , recvSExpr
+    , solverTimeoutFromSeconds
+    , solverTimeoutToSeconds
     ) where
 
 import BV.SMTLIB2.SExpr
@@ -12,10 +14,20 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT)
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
+import GHC.Stack (HasCallStack)
 
 newtype SolverTimeout
   = SolverTimeout { seconds :: Integer }
   deriving (Eq, Generic, Ord, Show)
+
+solverTimeoutFromSeconds :: HasCallStack => Integer -> SolverTimeout
+solverTimeoutFromSeconds seconds =
+    if seconds < 0
+    then error "negative timeout"
+    else SolverTimeout seconds
+
+solverTimeoutToSeconds :: SolverTimeout -> Integer
+solverTimeoutToSeconds = (.seconds)
 
 class Monad m => MonadSolver m where
     sendSExpr :: SExpr -> m ()

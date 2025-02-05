@@ -3,6 +3,7 @@
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 
 {-# HLINT ignore "Redundant flip" #-}
+{-# HLINT ignore "Use null" #-}
 
 module BV.System.Backend.Core
     ( BackendCoreConfig (..)
@@ -11,7 +12,6 @@ module BV.System.Backend.Core
 
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
-import BV.SMTLIB2
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build
@@ -26,7 +26,7 @@ import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
 
-import Control.Monad (filterM, unless)
+import Control.Monad (filterM, when)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (ExceptT (ExceptT), MonadError, liftEither,
                              mapExceptT, runExceptT, throwError)
@@ -60,23 +60,21 @@ backendCore config throttle group = runExceptT $ do
     slow <-
         if offlineOnly
         then return uncached
-        else withPushLogContext "online" $ do
-            backendCoreOnline config.solversConfig throttle uncached
-    unless (null slow.imps) $ withPushLogContext "offline" $ do
-        backendCoreOffline config.solversConfig throttle slow
+        else backendCoreOnline config.solversConfig throttle uncached
+    backendCoreOffline config.solversConfig throttle slow
 
 backendCoreOnline
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
     => SolversConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m (SMTProofCheckGroup i)
-backendCoreOnline config throttle group = do
+backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online") $ do
     let groupWithLabels = zipTraversableWith (,) [0 :: Int ..] group
     logInfo "running solver"
     onlineResults <-
         lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ runSolver'
             config.online.command
             (executeSMTProofCheckGroupOnline
-                (Just (SolverTimeout config.onlineTimeout))
-                (SolverConfig { memoryMode = config.online.memoryMode })
+                (Just config.onlineTimeout)
+                config.online.config
                 groupWithLabels)
     let (exit, completed) = onlineResults
     for_ completed $ \(i, _) -> do
@@ -108,13 +106,14 @@ backendCoreOnline config throttle group = do
 backendCoreOffline
     :: forall m i. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
     => SolversConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m ()
-backendCoreOffline config throttle group = do
+backendCoreOffline config throttle group = mapExceptT (withPushLogContext "offline") $ do
+    let doAny = length group.imps > 0
     let doAll = length group.imps > 1
     let units = numOfflineSolverConfigsForScope SolverScopeHyp config +
             if doAll
             then numOfflineSolverConfigsForScope SolverScopeAll config
             else 0
-    mapExceptT (withThrottleUnliftIO throttle (Priority 0) (Units units)) $ do
+    when doAny . mapExceptT (withThrottleUnliftIO throttle (Priority 0) (Units units)) $ do
         let allLocs = fromJust (nonEmpty (map (.meta) group.imps))
         let concAll :: ConclusionT (SMTProofCheckResult i ()) m ()
             concAll =
@@ -128,8 +127,8 @@ backendCoreOffline config throttle group = do
                                 runSolver'
                                     solver.command
                                     (executeSMTProofCheckGroupOffline
-                                        (Just (SolverTimeout config.offlineTimeout))
-                                        (SolverConfig { memoryMode = solver.memoryMode })
+                                        (Just config.offlineTimeout)
+                                        solver.config
                                         group)
                             let elapsedSuffix = makeElapsedSuffix elapsed
                             case checkSatOutcome of
@@ -151,7 +150,6 @@ backendCoreOffline config throttle group = do
                     hypsConclusion :: Maybe (Maybe i) <- lift . runConclusionT $ do
                         for_ (zip [1..] (ungroupSMTProofCheckGroup group)) $ \(hypLabel, check) ->
                             withPushLogContext ("hyp " ++ show hypLabel) $ do
-                            -- let loc = check.imp.meta :| []
                                 hypConclusion <- lift . runConclusionT $ do
                                     runConcurrentlyUnliftIOC .
                                         for_ (offlineSolverConfigsForScope SolverScopeHyp config) $ \solver ->
@@ -161,8 +159,8 @@ backendCoreOffline config throttle group = do
                                                     runSolver'
                                                         solver.command
                                                         (executeSMTProofCheckOffline
-                                                            (Just (SolverTimeout config.offlineTimeout))
-                                                            (SolverConfig { memoryMode = solver.memoryMode })
+                                                            (Just config.offlineTimeout)
+                                                            solver.config
                                                             check)
                                                 let elapsedSuffix = makeElapsedSuffix elapsed
                                                 case checkSatOutcome of
@@ -193,7 +191,7 @@ backendCoreOffline config throttle group = do
   where
     pushSolverLogContext solver = withPushLogContext ("solver " ++ solver.commandName ++ " " ++ memMode)
       where
-        memMode = case solver.memoryMode of
+        memMode = case solver.config.memoryMode of
             SolverMemoryModeWord8 -> "word8"
             SolverMemoryModeWord32 -> "word32"
     makeElapsedSuffix elapsed = printf " (%.2fs)" (fromRational (elapsedToSeconds elapsed) :: Double)

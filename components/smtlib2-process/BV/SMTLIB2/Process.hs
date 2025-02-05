@@ -158,7 +158,7 @@ readTChanWithTimeout maybeMicroseconds chan = case maybeMicroseconds of
     Nothing -> Just <$> atomically (readTChan chan)
 
 solverTimeoutToMicroseconds :: SolverTimeout -> Int
-solverTimeoutToMicroseconds timeout = fromIntegerChecked (timeout.seconds * 10^6)
+solverTimeoutToMicroseconds timeout = fromIntegerChecked (solverTimeoutToSeconds timeout * 10^6)
 
 fromIntegerChecked :: forall a. (Bounded a, Integral a) => Integer -> a
 fromIntegerChecked x =

@@ -2,15 +2,15 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 
 module BV.Core.ExecuteSMTProofChecks
-    ( OnlineSolverAbortReason (..)
-    , SolverConfig (..)
+    ( ModelConfig (..)
+    , OnlineSolverAbortReason (..)
     , SolverMemoryMode (..)
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
     ) where
 
-import BV.Core.ConfigureSMT
+import BV.Core.ModelConfig
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.SMTLIB2
@@ -31,11 +31,11 @@ logic = "QF_AUFBV"
 
 executeSMTProofCheckOffline
     :: (MonadSolver m, MonadThrow m)
-    => Maybe SolverTimeout -> SolverConfig -> SMTProofCheck a -> m (Maybe SatResult)
+    => Maybe SolverTimeout -> ModelConfig -> SMTProofCheck a -> m (Maybe SatResult)
 executeSMTProofCheckOffline timeout config check = do
     sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
     sendSimpleCommandExpectingSuccess $ SetLogic logic
-    mapM_ sendExpectingSuccess (smtConfigPreamble config)
+    mapM_ sendExpectingSuccess (modelConfigPreamble config)
     mapM_ (sendExpectingSuccess . configureSExpr config) check.setup
     sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $ goal
     checkSatWithTimeout timeout
@@ -44,7 +44,7 @@ executeSMTProofCheckOffline timeout config check = do
 
 executeSMTProofCheckGroupOffline
     :: (MonadSolver m, MonadThrow m)
-    => Maybe SolverTimeout -> SolverConfig -> SMTProofCheckGroup a -> m (Maybe SatResult)
+    => Maybe SolverTimeout -> ModelConfig -> SMTProofCheckGroup a -> m (Maybe SatResult)
 executeSMTProofCheckGroupOffline timeout config group =
     executeSMTProofCheckOffline timeout config $ SMTProofCheck
         { setup = group.setup
@@ -64,13 +64,13 @@ data OnlineSolverAbortReason
 executeSMTProofCheckGroupOnline
     :: (MonadSolver m, MonadThrow m)
     => Maybe SolverTimeout
-    -> SolverConfig
+    -> ModelConfig
     -> SMTProofCheckGroup a
     -> m (Either (a, OnlineSolverAbortReason) (), [a])
 executeSMTProofCheckGroupOnline timeout config group = do
     sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
     sendSimpleCommandExpectingSuccess $ SetLogic logic
-    mapM_ sendExpectingSuccess (smtConfigPreamble config)
+    mapM_ sendExpectingSuccess (modelConfigPreamble config)
     mapM_ (sendExpectingSuccess . configureSExpr config) group.setup
     (abortInfo, completed) <-
         flip evalStateT 1 {- matches graph-refine -} .

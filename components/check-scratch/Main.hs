@@ -4,6 +4,8 @@ module Main
     ( main
     ) where
 
+import BV.Core.ExecuteSMTProofChecks
+import BV.SMTLIB2.Monad
 import BV.System.Backend.Core
 import BV.System.Backend.Local
 import BV.System.Scratch.Local
@@ -34,9 +36,9 @@ solversConfig :: SolversConfig
 solversConfig = SolversConfig
     { online = OnlineSolverConfig
         { command = ["yices-smt2", "--incremental"]
-        , memoryMode = SolverMemoryModeWord8
+        , config = ModelConfig { memoryMode = SolverMemoryModeWord8 }
         }
-    , onlineTimeout = 30
+    , onlineTimeout = solverTimeoutFromSeconds 30
     , offline =
         [ f ["yices-smt2"]
         , f ["bitwuzla"]
@@ -46,13 +48,13 @@ solversConfig = SolversConfig
         -- [ f ["mathsat", "-input=smt2"]
         -- [ f ["sonolar", "--input-format=smtlib2"]
         ]
-    , offlineTimeout = 6000
+    , offlineTimeout = solverTimeoutFromSeconds  6000
     }
   where
     f command@(commandName:_) = OfflineSolverGroupConfig
         { commandName
         , command
-        , memoryModes = allSolverMemoryModes
+        , configs = allSolverSonfigs
         -- , memoryModes = [SolverMemoryModeWord8]
         , scopes = allSolverScopes
         -- , scopes = [SolverScopeHyp]

@@ -65,10 +65,10 @@ library core
   other-modules:
       BV.Core
       BV.Core.Arch
-      BV.Core.ConfigureSMT
       BV.Core.Debug.Utils
       BV.Core.Graph
       BV.Core.Logic
+      BV.Core.ModelConfig
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks
@@ -319,6 +319,7 @@ executable check-scratch
     , filepath
     , optics
     , sel4-bv:core
+    , sel4-bv:smtlib2
     , sel4-bv:system
     , sel4-bv:test-utils
   default-language: GHC2021

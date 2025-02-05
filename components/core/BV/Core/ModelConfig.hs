@@ -1,10 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module BV.Core.ConfigureSMT
-    ( SolverConfig (..)
+module BV.Core.ModelConfig
+    ( ModelConfig (..)
     , SolverMemoryMode (..)
     , configureSExpr
-    , smtConfigPreamble
+    , modelConfigPreamble
     ) where
 
 import BV.Core.Types
@@ -13,8 +13,8 @@ import BV.SMTLIB2
 import Data.FileEmbed (embedStringFile, makeRelativeToProject)
 import GHC.Generics (Generic)
 
-data SolverConfig
-  = SolverConfig
+data ModelConfig
+  = ModelConfig
       { memoryMode :: SolverMemoryMode
       }
   deriving (Eq, Generic, Ord, Show)
@@ -24,7 +24,7 @@ data SolverMemoryMode
   | SolverMemoryModeWord32
   deriving (Eq, Generic, Ord, Show)
 
-configureSExpr :: SolverConfig -> SExprWithPlaceholders -> SExpr
+configureSExpr :: ModelConfig -> SExprWithPlaceholders -> SExpr
 configureSExpr config ex = do
     atomOrPlaceholder <- ex
     case atomOrPlaceholder of
@@ -35,8 +35,8 @@ configureSExpr config ex = do
   where
     config' = memoryModeConfig config.memoryMode
 
-smtConfigPreamble :: SolverConfig -> [SExpr]
-smtConfigPreamble config = map (configureSExpr config) (memoryModeConfig config.memoryMode).preamble
+modelConfigPreamble :: ModelConfig -> [SExpr]
+modelConfigPreamble config = map (configureSExpr config) (memoryModeConfig config.memoryMode).preamble
 
 memoryModeConfig :: SolverMemoryMode -> SolverMemoryModeConfig
 memoryModeConfig = \case
