@@ -74,7 +74,7 @@ runSimpleLoggingWithContextT m = LoggingT $ \logAction ->
         LoggingWithContextEnv
             { context = []
             , logAction = \context loc source level msg ->
-                logAction loc source level (showContext context <> " " <> msg)
+                logAction loc source level (showContext context <> msg)
             }
   where
     showContext = foldMap (\ctx -> "[" <> toLogStr ctx <> "] ")
