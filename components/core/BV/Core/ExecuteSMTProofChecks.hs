@@ -19,6 +19,7 @@ import BV.SMTLIB2.Command
 import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (runExceptT, throwError)
+import Control.Monad.State (MonadState, evalStateT, get, modify)
 import Control.Monad.Writer (runWriterT, tell)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
@@ -56,7 +57,11 @@ data OnlineSolverAbortReason
   | OnlineSolverAbortReasonAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 
--- TODO add hook for successful unsat results? (e.g. for a cache update or logging action)
+-- TODO
+-- - Add hook for successful unsat results? (e.g. for a cache update or logging action)
+-- TODO
+-- - This hyp numbering doesn't match graph-refine.
+--   In graph-refine, it is global, whereas here it resets for each call to this function
 executeSMTProofCheckGroupOnline
     :: (MonadSolver m, MonadThrow m)
     => Maybe SolverTimeout
@@ -66,15 +71,17 @@ executeSMTProofCheckGroupOnline
 executeSMTProofCheckGroupOnline timeout config group = do
     commonSetup config group.setup
     (abortInfo, completed) <-
+        flip evalStateT 1 {- matches graph-refine -} .
         runWriterT .
         runExceptT .
             forM_ group.imps $ \imp -> do
                 let meta = imp.meta
                 let goal = notS imp.term
                 let hyps = splitHyp goal
-                let labeledHyps = zipWith labelHyp [1..] hyps -- 1-indexed to match graph-refine
                 sendSimpleCommandExpectingSuccess $ Push 1
-                mapM_ sendAssert labeledHyps
+                forM_ hyps $ \hyp -> do
+                    labeledHyp <- labelHyp hyp
+                    sendAssert labeledHyp
                 result <- checkSatWithTimeout timeout >>=
                     maybe (throwError (meta, OnlineSolverAbortReasonTimeout)) return
                 case result of
@@ -99,8 +106,12 @@ commonSetup config setup = do
     mapM_ sendExpectingSuccess (modelConfigPreamble config)
     mapM_ (sendExpectingSuccess . configureSExpr config) setup
 
-labelHyp :: Integer -> SExprWithPlaceholders -> SExprWithPlaceholders
-labelHyp i = labelS ("hyp" ++ show i)
+labelHyp :: MonadState Integer m => SExprWithPlaceholders -> m SExprWithPlaceholders
+labelHyp sexpr = do
+    i <- get
+    modify (+ 1)
+    let label = "hyp" ++ show i
+    return $ labelS label sexpr
 
 splitHyp :: SExprWithPlaceholders -> [SExprWithPlaceholders]
 splitHyp = fromJust . traverse checkSExprWithPlaceholders . go . viewSExprWithPlaceholders
