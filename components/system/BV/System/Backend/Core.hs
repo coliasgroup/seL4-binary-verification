@@ -53,7 +53,7 @@ offlineOnly :: Bool
 offlineOnly = True
 
 backendCore
-    :: forall m i. (MonadUnliftIO m, MonadLoggerWithContextStack m, MonadCache m, MonadMask m)
+    :: forall m i. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
     => BackendCoreConfig -> Throttle -> SMTProofCheckGroup i -> m (SMTProofCheckResult i ())
 backendCore config throttle group = runExceptT $ do
     uncached <- keepUncached group
@@ -66,7 +66,7 @@ backendCore config throttle group = runExceptT $ do
         backendCoreOffline config.solversConfig throttle slow
 
 backendCoreOnline
-    :: (MonadUnliftIO m, MonadLoggerWithContextStack m, MonadCache m, MonadMask m)
+    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
     => SolversConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m (SMTProofCheckGroup i)
 backendCoreOnline config throttle group = do
     let groupWithLabels = zipTraversableWith (,) [0 :: Int ..] group
@@ -106,7 +106,7 @@ backendCoreOnline config throttle group = do
 
 -- TODO return units when they become available with more granularity
 backendCoreOffline
-    :: forall m i. (MonadUnliftIO m, MonadLoggerWithContextStack m, MonadCache m, MonadMask m)
+    :: forall m i. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
     => SolversConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m ()
 backendCoreOffline config throttle group = do
     let doAll = length group.imps > 1
@@ -198,7 +198,7 @@ backendCoreOffline config throttle group = do
             SolverMemoryModeWord32 -> "word32"
     makeElapsedSuffix elapsed = printf " (%.2fs)" (fromRational (elapsedToSeconds elapsed) :: Double)
 
-runSolver' :: (MonadUnliftIO m, MonadMask m, MonadLoggerWithContextStack m) => [String] -> SolverT m a -> m a
+runSolver' :: (MonadUnliftIO m, MonadMask m, MonadLoggerWithContext m) => [String] -> SolverT m a -> m a
 runSolver' cmd = runSolverWith
     modifyCtx
     stderrSink

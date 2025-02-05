@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.System.Utils.Logger
-    ( LoggingWithContextStackT (LoggingWithContextStackT)
+    ( LoggingWithContextT (LoggingWithContextT)
     , MonadLogger
-    , MonadLoggerWithContextStack (..)
+    , MonadLoggerWithContext (..)
     , addLoggerContextToStr
     , levelTrace
     , logDebug
@@ -18,7 +18,7 @@ module BV.System.Utils.Logger
     , logWarnGeneric
     , noTrace
     , noTraceAnd
-    , runSimpleLoggingWithContextStackT
+    , runSimpleLoggingWithContextT
     ) where
 
 import Control.Monad.Except (ExceptT, mapExceptT)
@@ -33,35 +33,35 @@ import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Optics (ViewableOptic (gview), (%~))
 
-class MonadLogger m => MonadLoggerWithContextStack m where
+class MonadLogger m => MonadLoggerWithContext m where
     pushLogContext :: String -> m a -> m a
 
-instance MonadLoggerWithContextStack m => MonadLoggerWithContextStack (ReaderT r m) where
+instance MonadLoggerWithContext m => MonadLoggerWithContext (ReaderT r m) where
     pushLogContext = mapReaderT . pushLogContext
 
-instance MonadLoggerWithContextStack m => MonadLoggerWithContextStack (ExceptT e m) where
+instance MonadLoggerWithContext m => MonadLoggerWithContext (ExceptT e m) where
     pushLogContext = mapExceptT . pushLogContext
 
 type LogContextEntry = String
 
 type LogContextStack = [LogContextEntry]
 
-newtype LoggingWithContextStackT m a
-  = LoggingWithContextStackT { unwrap :: ReaderT LoggingWithContextStackTContext m a }
+newtype LoggingWithContextT m a
+  = LoggingWithContextT { unwrap :: ReaderT LoggingWithContextTContext m a }
   deriving (Applicative, Functor, Monad)
 
-data LoggingWithContextStackTContext
-  = LoggingWithContextStackTContext
+data LoggingWithContextTContext
+  = LoggingWithContextTContext
       { contextStack :: LogContextStack
       , logAction :: LogContextStack -> Loc -> LogSource -> LogLevel -> LogStr -> IO ()
       }
   deriving (Generic)
 
-runSimpleLoggingWithContextStackT :: MonadIO m => LoggingWithContextStackT m a -> LoggingT m a
-runSimpleLoggingWithContextStackT m = LoggingT $ \logAction ->
+runSimpleLoggingWithContextT :: MonadIO m => LoggingWithContextT m a -> LoggingT m a
+runSimpleLoggingWithContextT m = LoggingT $ \logAction ->
     runReaderT
         m.unwrap
-        LoggingWithContextStackTContext
+        LoggingWithContextTContext
             { contextStack = []
             , logAction = \contextStack loc source level msg ->
                 logAction loc source level (showContextStack contextStack <> " " <> msg)
@@ -69,16 +69,16 @@ runSimpleLoggingWithContextStackT m = LoggingT $ \logAction ->
   where
     showContextStack = foldMap (\ctx -> "[" <> toLogStr ctx <> "]")
 
-instance MonadIO m => MonadLogger (LoggingWithContextStackT m) where
-    monadLoggerLog loc source level msg = LoggingWithContextStackT $ do
+instance MonadIO m => MonadLogger (LoggingWithContextT m) where
+    monadLoggerLog loc source level msg = LoggingWithContextT $ do
         contextStack <- gview #contextStack
         logAction <- gview #logAction
         liftIO $ logAction contextStack loc source level (toLogStr msg)
 
-instance MonadIO m => MonadLoggerWithContextStack (LoggingWithContextStackT m) where
-    pushLogContext ctx m = LoggingWithContextStackT $ withReaderT (#contextStack %~ (++ [ctx])) m.unwrap
+instance MonadIO m => MonadLoggerWithContext (LoggingWithContextT m) where
+    pushLogContext ctx m = LoggingWithContextT $ withReaderT (#contextStack %~ (++ [ctx])) m.unwrap
 
-instance MonadIO m => MonadLoggerWithContextStack (LoggingT m) where
+instance MonadIO m => MonadLoggerWithContext (LoggingT m) where
     pushLogContext ctx m =
         LoggingT $ \logger ->
             runLoggingT m $ \loc source level str ->
