@@ -34,13 +34,13 @@ import GHC.Generics (Generic)
 import Optics (ViewableOptic (gview), (%~))
 
 class MonadLogger m => MonadLoggerWithContext m where
-    pushLogContext :: String -> m a -> m a
+    withPushLogContext :: String -> m a -> m a
 
 instance MonadLoggerWithContext m => MonadLoggerWithContext (ReaderT r m) where
-    pushLogContext = mapReaderT . pushLogContext
+    withPushLogContext = mapReaderT . withPushLogContext
 
 instance MonadLoggerWithContext m => MonadLoggerWithContext (ExceptT e m) where
-    pushLogContext = mapExceptT . pushLogContext
+    withPushLogContext = mapExceptT . withPushLogContext
 
 type LogContextEntry = String
 
@@ -86,7 +86,7 @@ instance MonadIO m => MonadLogger (LoggingWithContextT m) where
         liftIO $ logAction context loc source level (toLogStr msg)
 
 instance MonadIO m => MonadLoggerWithContext (LoggingWithContextT m) where
-    pushLogContext entry m = LoggingWithContextT $ withReaderT (#context %~ (++ [entry])) m.unwrap
+    withPushLogContext entry m = LoggingWithContextT $ withReaderT (#context %~ (++ [entry])) m.unwrap
 
 logTrace :: MonadLogger m => String -> m ()
 logTrace = logOtherN levelTrace . T.pack

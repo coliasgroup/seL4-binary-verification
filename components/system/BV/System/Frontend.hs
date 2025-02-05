@@ -52,10 +52,10 @@ frontend
 frontend f checks = do
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
-            pushLogContext pairingId.asm.unwrap $ do
+            withPushLogContext pairingId.asm.unwrap $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\group -> makeConcurrentlyUnliftIOE $ do
-                        pushLogContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
+                        withPushLogContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
                             result <- f group
                             logInfo $ case result of
                                 Right _ -> "success"

@@ -60,9 +60,9 @@ backendCore config throttle group = runExceptT $ do
     slow <-
         if offlineOnly
         then return uncached
-        else pushLogContext "online" $ do
+        else withPushLogContext "online" $ do
             backendCoreOnline config.solversConfig throttle uncached
-    unless (null slow.imps) $ pushLogContext "offline" $ do
+    unless (null slow.imps) $ withPushLogContext "offline" $ do
         backendCoreOffline config.solversConfig throttle slow
 
 backendCoreOnline
@@ -81,14 +81,14 @@ backendCoreOnline config throttle group = do
     let (exit, completed) = onlineResults
     for_ completed $ \(i, _) -> do
         let check = ungroupSMTProofCheckGroup groupWithLabels !! i
-        pushLogContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
+        withPushLogContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
             logInfo "answered unsat"
         updateCache check AcceptableSatResultUnsat
     case exit of
         Right _ -> return ()
         Left ((i, loc), abort) -> do
             let check = ungroupSMTProofCheckGroup groupWithLabels !! i
-            pushLogContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
+            withPushLogContext (printf "check %.12v" (smtProofCheckFingerprint check)) $ do
                 case abort of
                     OnlineSolverAbortReasonTimeout -> do
                         logInfo "timeout"
@@ -120,7 +120,7 @@ backendCoreOffline config throttle group = do
             concAll =
                 if not doAll
                 then return ()
-                else pushLogContext "all" . runConcurrentlyUnliftIOC $ do
+                else withPushLogContext "all" . runConcurrentlyUnliftIOC $ do
                     for_ (offlineSolverConfigsForScope SolverScopeAll config) $ \solver ->
                         makeConcurrentlyUnliftIOC . pushSolverLogContext solver $ do
                             logInfo "running solver"
@@ -150,7 +150,7 @@ backendCoreOffline config throttle group = do
             concHyps = do
                     hypsConclusion :: Maybe (Maybe i) <- lift . runConclusionT $ do
                         for_ (zip [1..] (ungroupSMTProofCheckGroup group)) $ \(hypLabel, check) ->
-                            pushLogContext ("hyp " ++ show hypLabel) $ do
+                            withPushLogContext ("hyp " ++ show hypLabel) $ do
                             -- let loc = check.imp.meta :| []
                                 hypConclusion <- lift . runConclusionT $ do
                                     runConcurrentlyUnliftIOC .
@@ -191,7 +191,7 @@ backendCoreOffline config throttle group = do
             Nothing -> throwError (AllSolversTimedOutOrAnsweredUnknown, allLocs)
             Just c -> liftEither c
   where
-    pushSolverLogContext solver = pushLogContext ("solver " ++ solver.commandName ++ " " ++ memMode)
+    pushSolverLogContext solver = withPushLogContext ("solver " ++ solver.commandName ++ " " ++ memMode)
       where
         memMode = case solver.memoryMode of
             SolverMemoryModeWord8 -> "word8"
@@ -204,12 +204,12 @@ runSolver' cmd = runSolverWith
     stderrSink
     (uncurry proc (fromJust (uncons cmd)))
   where
-    stderrSink = pushLogContext "stderr" . logInfoGeneric
+    stderrSink = withPushLogContext "stderr" . logInfoGeneric
     modifyCtx ctx = SolverContext
-        { sendSExpr = \req -> pushLogContext "send" $ do
+        { sendSExpr = \req -> withPushLogContext "send" $ do
             logTraceGeneric . toLazyText $ buildSExpr req
             ctx.sendSExpr req
-        , recvSExprWithTimeout = \timeout -> pushLogContext "recv" $ do
+        , recvSExprWithTimeout = \timeout -> withPushLogContext "recv" $ do
             resp <- ctx.recvSExprWithTimeout timeout
             case resp of
                 Nothing -> logTrace "timeout"
