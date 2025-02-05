@@ -109,7 +109,7 @@ backendCoreOffline
     => SolversConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m ()
 backendCoreOffline config throttle group = mapExceptT (withPushLogContext "offline") $ do
     let doAny = length group.imps > 0
-    let doAll = length group.imps > 1
+    let doAll = length group.imps > 1 || numOfflineSolverConfigsForScope SolverScopeHyp config == 0
     let units = numOfflineSolverConfigsForScope SolverScopeHyp config +
             if doAll
             then numOfflineSolverConfigsForScope SolverScopeAll config
