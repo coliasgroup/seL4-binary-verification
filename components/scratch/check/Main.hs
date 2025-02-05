@@ -18,9 +18,9 @@ main :: IO ()
 main = runScratch
     config
     -- testSeL4TargetDirSmall
-    testSeL4TargetDirSmallTraceOfflineOnly
+    -- testSeL4TargetDirSmallTraceOfflineOnly
     -- testSeL4TargetDirFocusedTrace
-    -- testSeL4TargetDirBig
+    testSeL4TargetDirBig
     (tmpDir </> "logs/check-scratch.log.txt")
     (tmpDir </> "mismatch")
 
@@ -42,7 +42,7 @@ solversConfig = SolversConfig
     , onlineTimeout = solverTimeoutFromSeconds 30
     , offline =
         [ f ["yices-smt2"]
-        -- , f ["bitwuzla"]
+        , f ["bitwuzla"]
         -- , f ["cvc5", "--lang", "smt"]
         -- [ f ["cvc5", "--lang", "smt"]
         -- , f ["z3", "-smt2", "-in"]
@@ -56,10 +56,10 @@ solversConfig = SolversConfig
     f command@(commandName:_) = OfflineSolverGroupConfig
         { commandName
         , command
-        -- , configs = allModelConfigs
+        , configs = allModelConfigs
         -- , configs = [ModelConfig { memoryMode = SolverMemoryModeWord8 }]
-        , configs = [ModelConfig { memoryMode = SolverMemoryModeWord32 }]
-        -- , scopes = allSolverScopes
+        -- , configs = [ModelConfig { memoryMode = SolverMemoryModeWord32 }]
+        , scopes = allSolverScopes
         -- , scopes = [SolverScopeHyp]
-        , scopes = [SolverScopeAll]
+        -- , scopes = [SolverScopeAll]
         }
