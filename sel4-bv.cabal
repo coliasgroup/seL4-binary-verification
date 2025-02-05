@@ -302,7 +302,7 @@ library test-utils
 executable check-scratch
   main-is: Main.hs
   hs-source-dirs:
-      components/check-scratch
+      components/scratch/check
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
@@ -361,7 +361,7 @@ executable normalize-smtlib2
 executable profiling-scratch
   main-is: Main.hs
   hs-source-dirs:
-      components/profiling-scratch
+      components/scratch/profiling
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
