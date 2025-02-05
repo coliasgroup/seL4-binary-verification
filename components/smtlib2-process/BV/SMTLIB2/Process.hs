@@ -18,16 +18,17 @@ import Control.Applicative ((<|>))
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  cancelWith, wait, withAsync)
 import Control.Concurrent.STM
-import Control.Exception (Exception, SomeException)
-import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow, finally, try)
+import Control.Exception (Exception, SomeException, bracket)
+import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow, try)
 import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO, toIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO), toIO)
 import Control.Monad.Reader (MonadTrans (lift), ReaderT, asks, runReaderT)
 import Data.Conduit (Flush (Chunk, Flush), runConduit, yield, (.|))
 import Data.Conduit.Attoparsec (conduitParser)
 import qualified Data.Conduit.List as CL
-import Data.Conduit.Process (FlushInput (FlushInput), streamingProcess,
+import Data.Conduit.Process (FlushInput (FlushInput),
+                             closeStreamingProcessHandle, streamingProcess,
                              streamingProcessHandleRaw, terminateProcess,
                              waitForStreamingProcess)
 import Data.Conduit.Text (decodeUtf8)
@@ -88,57 +89,55 @@ runSolver = runSolverWith id
 runSolverWith
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
     => (SolverContext m -> SolverContext m) -> (T.Text -> m ()) -> CreateProcess -> SolverT m a -> m a
-runSolverWith modifyCtx stderrSink cmd m = do
-    ((FlushInput procStdin, closeProcStdin), procStdout, procStderr, processHandle) <-
-        liftIO $ streamingProcess cmd
+runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
+    (streamingProcess cmd)
+    (\(_, _, _, sph) -> closeStreamingProcessHandle sph *> terminateProcess (streamingProcessHandleRaw sph))
+    $ \(FlushInput procStdin, procStdout, procStderr, processHandle) -> run $ do
 
-    sourceChan <- liftIO newTChanIO
+        sourceChan <- liftIO newTChanIO
 
-    let sexprToChunks sexpr = map T.encodeUtf8 (TL.toChunks (TB.toLazyText (buildSExpr sexpr <> "\n")))
+        let sexprToChunks sexpr = map T.encodeUtf8 (TL.toChunks (TB.toLazyText (buildSExpr sexpr <> "\n")))
 
-    let sink sexpr = runConduit $
-               (mapM_ (yield . Chunk) (sexprToChunks sexpr) >> yield Flush)
-            .| procStdin
+        let sink sexpr = runConduit $
+                (mapM_ (yield . Chunk) (sexprToChunks sexpr) >> yield Flush)
+                .| procStdin
 
-    let source = runConduit $
-               procStdout
-            .| decodeUtf8
-            .| conduitParser (Just <$> parseSExpr <|> Nothing <$ consumeSomeSExprWhitespace)
-            .| CL.map snd
-            .| CL.concat
-            .| CL.mapM_ (atomically . writeTChan sourceChan)
+        let source = runConduit $
+                procStdout
+                .| decodeUtf8
+                .| conduitParser (Just <$> parseSExpr <|> Nothing <$ consumeSomeSExprWhitespace)
+                .| CL.map snd
+                .| CL.concat
+                .| CL.mapM_ (atomically . writeTChan sourceChan)
 
-    logging <- toIO . runConduit $
-               procStderr
-            .| decodeUtf8
-            .| CT.lines
-            .| CL.mapM_ stderrSink
+        logging <- toIO . runConduit $
+                procStderr
+                .| decodeUtf8
+                .| CT.lines
+                .| CL.mapM_ stderrSink
 
-    let termination = waitForStreamingProcess processHandle
+        let termination = waitForStreamingProcess processHandle
 
-    let ctx = SolverContext
-            { sendSExpr = sink
-            , recvSExprWithTimeout = \maybeTimeout ->
-                readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
-            }
+        let ctx = SolverContext
+                { sendSExpr = sink
+                , recvSExprWithTimeout = \maybeTimeout ->
+                    readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
+                }
 
-    let env = runConcurrently $
-                SolverProcessExceptionSource <$> Concurrently (try source)
-            <|> SolverProcessExceptionLogging <$> Concurrently (try logging)
-            <|> SolverProcessExceptionTermination <$ Concurrently termination
+        let env = runConcurrently $
+                    SolverProcessExceptionSource <$> Concurrently (try source)
+                <|> SolverProcessExceptionLogging <$> Concurrently (try logging)
+                <|> SolverProcessExceptionTermination <$ Concurrently termination
 
-    interaction <- toIO $ runSolverT m (modifyCtx (liftIOContext ctx))
+        interaction <- toIO $ runSolverT m (modifyCtx (liftIOContext ctx))
 
-    let run =
-            withAsync env $ \envA ->
-                withAsync interaction $ \interactionA ->
-                    let propagate = do
-                            ex <- wait envA
-                            cancelWith interactionA ex
-                     in withAsync propagate $ \_ ->
-                            wait interactionA
-
-    liftIO $ (run <* closeProcStdin) `finally` terminateProcess (streamingProcessHandleRaw processHandle)
+        liftIO . withAsync env $ \envA ->
+            withAsync interaction $ \interactionA ->
+                let propagate = do
+                        ex <- wait envA
+                        cancelWith interactionA ex
+                in withAsync propagate $ \_ ->
+                        wait interactionA
 
 data SolverProcessException
   = SolverProcessExceptionSource (Either SomeException ())
