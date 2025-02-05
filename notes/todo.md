@@ -3,7 +3,6 @@
 - PermeableOptic
 - swap order of PairingOf
 - use left/right instead of asm/c for PairingOf
-- TargetDir: TODO abstract targetDirEntry field, use MonadError String
 
 - graph-refine flags:
     - hack-proofs-must-be-loaded
@@ -13,5 +12,3 @@
 
 - use for sexprs and beyond:
     - https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/pattern_synonyms.html
-
-- use optics instead of optics core
