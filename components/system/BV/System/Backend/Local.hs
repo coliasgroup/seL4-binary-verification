@@ -28,7 +28,7 @@ data LocalBackendConfig
   deriving (Eq, Generic, Ord, Show)
 
 localBackend
-    :: (MonadUnliftIO m, MonadLoggerContextStack m, MonadCache m, MonadMask m)
+    :: (MonadUnliftIO m, MonadLoggerWithContextStack m, MonadCache m, MonadMask m)
     => LocalBackendConfig -> PreparedSMTProofChecks -> m Report
 localBackend config checks = do
     withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do

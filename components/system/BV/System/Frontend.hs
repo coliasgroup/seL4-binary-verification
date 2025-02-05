@@ -44,7 +44,7 @@ data Report
 
 frontend
     :: ( MonadUnliftIO m
-       , MonadLoggerContextStack m
+       , MonadLoggerWithContextStack m
        )
     => (SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult SMTProofCheckDescription ()))
     -> PreparedSMTProofChecks
