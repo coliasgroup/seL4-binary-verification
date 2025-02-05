@@ -149,7 +149,7 @@ backendCoreOffline config throttle group = mapExceptT (withPushLogContext "offli
         let concHyps :: ConclusionT (SMTProofCheckResult i ()) m ()
             concHyps = do
                     hypsConclusion :: Maybe (Maybe i) <- lift . runConclusionT $ do
-                        for_ (zip [1..] (ungroupSMTProofCheckGroup group)) $ \(hypLabel, check) ->
+                        for_ (zip [0..] (ungroupSMTProofCheckGroup group)) $ \(hypLabel, check) ->
                             withPushLogContext ("hyp " ++ show hypLabel) $ do
                                 hypConclusion <- lift . runConclusionT $ do
                                     runConcurrentlyUnliftIOC .

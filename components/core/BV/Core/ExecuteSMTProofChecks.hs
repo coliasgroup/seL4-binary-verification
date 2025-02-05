@@ -19,7 +19,6 @@ import BV.SMTLIB2.Command
 import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (runExceptT, throwError)
-import Control.Monad.State (MonadState, evalStateT, get, modify)
 import Control.Monad.Writer (runWriterT, tell)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
@@ -33,10 +32,7 @@ executeSMTProofCheckOffline
     :: (MonadSolver m, MonadThrow m)
     => Maybe SolverTimeout -> ModelConfig -> SMTProofCheck a -> m (Maybe SatResult)
 executeSMTProofCheckOffline timeout config check = do
-    sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
-    sendSimpleCommandExpectingSuccess $ SetLogic logic
-    mapM_ sendExpectingSuccess (modelConfigPreamble config)
-    mapM_ (sendExpectingSuccess . configureSExpr config) check.setup
+    commonSetup config check.setup
     sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $ goal
     checkSatWithTimeout timeout
   where
@@ -68,22 +64,17 @@ executeSMTProofCheckGroupOnline
     -> SMTProofCheckGroup a
     -> m (Either (a, OnlineSolverAbortReason) (), [a])
 executeSMTProofCheckGroupOnline timeout config group = do
-    sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
-    sendSimpleCommandExpectingSuccess $ SetLogic logic
-    mapM_ sendExpectingSuccess (modelConfigPreamble config)
-    mapM_ (sendExpectingSuccess . configureSExpr config) group.setup
+    commonSetup config group.setup
     (abortInfo, completed) <-
-        flip evalStateT 1 {- matches graph-refine -} .
         runWriterT .
         runExceptT .
             forM_ group.imps $ \imp -> do
                 let meta = imp.meta
                 let goal = notS imp.term
                 let hyps = splitHyp goal
+                let labeledHyps = zipWith labelHyp [1..] hyps -- 1-indexed to match graph-refine
                 sendSimpleCommandExpectingSuccess $ Push 1
-                forM_ hyps $ \hyp -> do
-                    labeledHyp <- labelHyp hyp
-                    sendAssert labeledHyp
+                mapM_ sendAssert labeledHyps
                 result <- checkSatWithTimeout timeout >>=
                     maybe (throwError (meta, OnlineSolverAbortReasonTimeout)) return
                 case result of
@@ -97,12 +88,19 @@ executeSMTProofCheckGroupOnline timeout config group = do
   where
     sendAssert = sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config
 
-labelHyp :: MonadState Integer m => SExprWithPlaceholders -> m SExprWithPlaceholders
-labelHyp sexpr = do
-    i <- get
-    modify (+ 1)
-    let label = "hyp" ++ show i
-    return $ labelS label sexpr
+commonSetup
+    :: (MonadSolver m, MonadThrow m)
+    => ModelConfig
+    -> [SExprWithPlaceholders]
+    -> m ()
+commonSetup config setup = do
+    sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
+    sendSimpleCommandExpectingSuccess $ SetLogic logic
+    mapM_ sendExpectingSuccess (modelConfigPreamble config)
+    mapM_ (sendExpectingSuccess . configureSExpr config) setup
+
+labelHyp :: Integer -> SExprWithPlaceholders -> SExprWithPlaceholders
+labelHyp i = labelS ("hyp" ++ show i)
 
 splitHyp :: SExprWithPlaceholders -> [SExprWithPlaceholders]
 splitHyp = fromJust . traverse checkSExprWithPlaceholders . go . viewSExprWithPlaceholders
