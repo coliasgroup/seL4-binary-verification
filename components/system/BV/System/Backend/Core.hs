@@ -204,7 +204,7 @@ runSolver' cmd = runSolverWith
     stderrSink
     (uncurry proc (fromJust (uncons cmd)))
   where
-    stderrSink = logInfoGeneric . addLoggerContextToStr "stderr"
+    stderrSink = pushLogContext "stderr" . logInfoGeneric
     modifyCtx ctx = SolverContext
         { sendSExpr = \req -> pushLogContext "send" $ do
             logTraceGeneric . toLazyText $ buildSExpr req
