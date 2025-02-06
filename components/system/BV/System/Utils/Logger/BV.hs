@@ -28,12 +28,12 @@ addLoggingToCacheContext :: MonadLoggerWithContext m => CacheContext m -> CacheC
 addLoggingToCacheContext ctx =
     CacheContext
         { queryCache = \check -> withPushLogContext "query" . withPushLogContextCheck check $ do
-            logDebug "querying"
+            logTrace "querying"
             resp <- ctx.queryCache check
-            logDebug $ "got: " ++ show resp
+            logTrace $ "got: " ++ show resp
             return resp
         , updateCache = \check result -> withPushLogContext "update" . withPushLogContextCheck check $ do
-            logDebug $ "sending: " ++ show result
+            logTrace $ "sending: " ++ show result
             ctx.updateCache check result
-            logDebug "done"
+            logTrace "done"
         }

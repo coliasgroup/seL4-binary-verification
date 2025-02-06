@@ -61,7 +61,7 @@ ungroupSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck
 
 newtype FlattenedSMTProofChecks a
   = FlattenedSMTProofChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup a] }
-  deriving (Eq, Functor, Generic, Ord, Show)
+  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
 flattenSMTProofChecks :: SMTProofChecks a -> FlattenedSMTProofChecks a

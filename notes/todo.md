@@ -14,3 +14,9 @@
     - https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/pattern_synonyms.html
 
 - error: one(_) | all(nonempty)
+
+- Rename ProofCheck -> IntermediateProofCheck
+         SMTProofCheck -> ProofCheck
+
+- newtype ByPairing a = ByPairing { unwrap :: M.Map PairingId a }
+  (or type alias)
