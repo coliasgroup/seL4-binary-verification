@@ -12,7 +12,6 @@ module BV.System.Frontend
 
 import BV.Core.AdornProofScript
 import BV.Core.Types
-import BV.System.Fingerprinting
 import BV.System.Utils.Logger
 import BV.System.Utils.Logger.BV
 import BV.System.Utils.StopWatch
@@ -48,7 +47,7 @@ frontend
        , MonadLoggerWithContext m
        )
     => (SMTProofCheckGroupWithFingerprints SMTProofCheckDescription -> m (SMTProofCheckResult SMTProofCheckDescription ()))
-    -> FlattenedSMTProofChecksWithFingerprints SMTProofCheckDescription
+    -> PreparedSMTProofChecksWithFingerprints
     -> m Report
 frontend f checks = do
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
@@ -56,7 +55,7 @@ frontend f checks = do
             withPushLogContextPairing pairingId $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\group -> makeConcurrentlyUnliftIOE $ do
-                        withPushLogContextCheckGroup group.fingerprint $ do
+                        withPushLogContextCheckGroup group $ do
                             result <- f group
                             logInfo $ case result of
                                 Right _ -> "success"

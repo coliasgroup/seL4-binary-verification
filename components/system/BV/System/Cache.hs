@@ -8,8 +8,10 @@ module BV.System.Cache
     , CacheT
     , MonadCache (..)
     , liftIOCacheContext
+    , queryCache
     , runCacheT
     , trivialCacheContext
+    , updateCache
     ) where
 
 import BV.System.Fingerprinting
@@ -29,16 +31,22 @@ data AcceptableSatResult
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadCache m where
-    queryCache :: SMTProofCheckFingerprint -> m (Maybe AcceptableSatResult)
-    updateCache :: SMTProofCheckFingerprint -> AcceptableSatResult -> m ()
+    queryCacheUsingFingerprint :: SMTProofCheckFingerprint -> m (Maybe AcceptableSatResult)
+    updateCacheUsingFingerprint :: AcceptableSatResult -> SMTProofCheckFingerprint -> m ()
+
+queryCache :: (MonadCache m, HasEmbeddedFingerprint SMTProofCheckFingerprint a) => a -> m (Maybe AcceptableSatResult)
+queryCache = queryCacheUsingFingerprint . embeddedFingerprint
+
+updateCache :: (MonadCache m, HasEmbeddedFingerprint SMTProofCheckFingerprint a) => AcceptableSatResult -> a -> m ()
+updateCache r = updateCacheUsingFingerprint r . embeddedFingerprint
 
 instance MonadCache m => MonadCache (ExceptT e m) where
-    queryCache check = lift $ queryCache check
-    updateCache check result = lift $ updateCache check result
+    queryCacheUsingFingerprint check = lift $ queryCache check
+    updateCacheUsingFingerprint result check = lift $ updateCache result check
 
 instance MonadCache m => MonadCache (LoggingT m) where
-    queryCache check = lift $ queryCache check
-    updateCache check result = lift $ updateCache check result
+    queryCacheUsingFingerprint check = lift $ queryCache check
+    updateCacheUsingFingerprint result check = lift $ updateCache result check
 
 --
 
@@ -68,26 +76,26 @@ runCacheT = runReaderT . (.unwrap)
 
 data CacheContext m
   = CacheContext
-      { queryCache :: SMTProofCheckFingerprint -> m (Maybe AcceptableSatResult)
-      , updateCache :: SMTProofCheckFingerprint -> AcceptableSatResult -> m ()
+      { queryCacheUsingFingerprint :: SMTProofCheckFingerprint -> m (Maybe AcceptableSatResult)
+      , updateCacheUsingFingerprint :: AcceptableSatResult -> SMTProofCheckFingerprint -> m ()
       }
 
 instance Monad m => MonadCache (CacheT m) where
-    queryCache fingerprint = CacheT $ do
-        f <- asks (.queryCache)
+    queryCacheUsingFingerprint fingerprint = CacheT $ do
+        f <- asks (.queryCacheUsingFingerprint)
         lift $ f fingerprint
-    updateCache fingerprint result = CacheT $ do
-        f <- asks (.updateCache)
-        lift $ f fingerprint result
+    updateCacheUsingFingerprint result fingerprint = CacheT $ do
+        f <- asks (.updateCacheUsingFingerprint)
+        lift $ f result fingerprint
 
 liftIOCacheContext :: MonadIO m => CacheContext IO -> CacheContext m
 liftIOCacheContext ctx = CacheContext
-    { queryCache = \check -> liftIO $ ctx.queryCache check
-    , updateCache = \check result -> liftIO $ ctx.updateCache check result
+    { queryCacheUsingFingerprint = \check -> liftIO $ ctx.queryCacheUsingFingerprint check
+    , updateCacheUsingFingerprint = \result check -> liftIO $ ctx.updateCacheUsingFingerprint result check
     }
 
 trivialCacheContext :: Monad m => CacheContext m
 trivialCacheContext = CacheContext
-    { queryCache = \_check -> return Nothing
-    , updateCache = \_check _result -> return ()
+    { queryCacheUsingFingerprint = \_check -> return Nothing
+    , updateCacheUsingFingerprint = \_result _check -> return ()
     }

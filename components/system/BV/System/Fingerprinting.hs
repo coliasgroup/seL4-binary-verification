@@ -2,7 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.System.Fingerprinting
-    ( SMTProofCheckFingerprint (..)
+    ( HasEmbeddedFingerprint (..)
+    , SMTProofCheckFingerprint (..)
     , SMTProofCheckGroupFingerprint (..)
     , prettySMTProofCheckFingerprint
     , prettySMTProofCheckFingerprintShort
@@ -74,3 +75,12 @@ prettySMTProofCheckGroupFingerprintShort = take shortFingerprintLength . prettyS
 
 -- instance PrintfArg SMTProofCheckGroupFingerprint where
 --   formatArg = formatString . prettySMTProofCheckGroupFingerprint
+
+class HasEmbeddedFingerprint b a | a -> b where
+    embeddedFingerprint :: a -> b
+
+instance HasEmbeddedFingerprint SMTProofCheckFingerprint SMTProofCheckFingerprint where
+    embeddedFingerprint = id
+
+instance HasEmbeddedFingerprint SMTProofCheckGroupFingerprint SMTProofCheckGroupFingerprint where
+    embeddedFingerprint = id

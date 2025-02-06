@@ -56,3 +56,9 @@ adornWithFingerprints (FlattenedSMTProofChecks byPairing) =
                                 in SMTProofCheckMetaWithFingerprint fingerprint meta
 
 type PreparedSMTProofChecksWithFingerprints = FlattenedSMTProofChecksWithFingerprints SMTProofCheckDescription
+
+instance HasEmbeddedFingerprint SMTProofCheckFingerprint (SMTProofCheckWithFingerprint a) where
+    embeddedFingerprint check = check.imp.meta.fingerprint
+
+instance HasEmbeddedFingerprint SMTProofCheckGroupFingerprint (SMTProofCheckGroupWithFingerprints a) where
+    embeddedFingerprint group = group.fingerprint
