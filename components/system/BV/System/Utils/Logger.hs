@@ -4,6 +4,7 @@ module BV.System.Utils.Logger
     ( LoggingWithContextT
     , MonadLogger
     , MonadLoggerWithContext (..)
+    , filterLevelsBelow
     , levelTrace
     , logDebug
     , logDebugGeneric
@@ -86,7 +87,10 @@ instance MonadIO m => MonadLogger (LoggingWithContextT m) where
         liftIO $ logAction context loc source level (toLogStr msg)
 
 instance MonadIO m => MonadLoggerWithContext (LoggingWithContextT m) where
-    withPushLogContext entry m = LoggingWithContextT $ withReaderT (#context %~ (++ [entry])) m.unwrap
+    withPushLogContext entry m =
+        if ']' `elem` entry
+        then error "log context entry may not contain ']'"
+        else LoggingWithContextT $ withReaderT (#context %~ (++ [entry])) m.unwrap
 
 logTrace :: MonadLogger m => String -> m ()
 logTrace = logOtherN levelTrace . T.pack
@@ -129,3 +133,12 @@ noTrace _source level = level /= levelTrace
 
 noTraceAnd :: (LogSource -> LogLevel -> Bool) -> LogSource -> LogLevel -> Bool
 noTraceAnd p source level = noTrace source level && p source level
+
+filterLevelsBelow :: LogLevel -> LogSource -> LogLevel -> Bool
+filterLevelsBelow minLevel _source level =
+    if minLevel == levelTrace
+    then True
+    else
+        if level == levelTrace
+        then False
+        else level >= minLevel

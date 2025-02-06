@@ -76,7 +76,7 @@ backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online
     for_ (map (.inner) completed) $ \(i, _) -> do
         let check = checkAt i
         withPushLogContextCheck check $ do
-            logInfo "answered unsat"
+            logDebug "answered unsat"
         updateCache AcceptableSatResultUnsat check
     case exit of
         Right () -> return ()
@@ -86,13 +86,13 @@ backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online
             withPushLogContextCheck check $ do
                 case abort of
                     OnlineSolverAbortReasonTimeout -> do
-                        logInfo "timeout"
+                        logDebug "timeout"
                     OnlineSolverAbortReasonAnsweredSat -> do
-                        logInfo "answered sat"
+                        logDebug "answered sat"
                         updateCache AcceptableSatResultSat check
                         throwError $ SMTProofCheckError SomeSolverAnsweredSat (SMTProofCheckSourceCheck (fmap snd meta))
                     OnlineSolverAbortReasonAnsweredUnknown reason -> do
-                        logInfo $ "answered unknown: " ++ showSExpr reason
+                        logDebug $ "answered unknown: " ++ showSExpr reason
     let remaining = fmap snd
             (groupWithLabels & #inner % #imps %~ filter ((\(i, _) -> i `notElem` map (fst . (.inner)) completed) . (.inner) . (.meta)))
     return remaining
@@ -205,7 +205,7 @@ withPushLogContextOfflineSolver solver = withPushLogContext ("solver " ++ solver
 
 runSolver' :: (MonadUnliftIO m, MonadMask m, MonadLoggerWithContext m, MonadCache m) => [String] -> SolverT m a -> m (a, Elapsed)
 runSolver' cmd soverM = do
-    logInfo "running solver"
+    logDebug "running solver"
     time $ runSolverWithLogging
         (uncurry proc (fromJust (uncons cmd)))
         soverM
@@ -216,13 +216,13 @@ runSolver'' cmd soverM = do
     let elapsedSuffix = makeElapsedSuffix elapsed
     case checkSatOutcome of
         Nothing -> do
-            logInfo "timeout"
+            logDebug "timeout"
         Just Sat -> do
-            logInfo $ "answered sat" ++ elapsedSuffix
+            logDebug $ "answered sat" ++ elapsedSuffix
         Just Unsat -> do
-            logInfo $ "answered unsat" ++ elapsedSuffix
+            logDebug $ "answered unsat" ++ elapsedSuffix
         Just (Unknown reason) -> do
-            logInfo $ "answered unknown: " ++ showSExpr reason ++ " " ++ elapsedSuffix
+            logDebug $ "answered unknown: " ++ showSExpr reason ++ " " ++ elapsedSuffix
     return checkSatOutcome
 
 runSolver'''

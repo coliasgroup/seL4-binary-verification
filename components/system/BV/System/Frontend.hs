@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
@@ -19,11 +20,13 @@ import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async
 import BV.System.WithFingerprints
 
+import Control.Concurrent.STM (atomically, newTVarIO, readTVar, writeTVar)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.Foldable (for_)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
-import Optics (ifor)
+import Optics
 import Text.Printf (printf)
 
 type SMTProofCheckResult i a = Either (SMTProofCheckError i) a
@@ -60,6 +63,9 @@ frontend
     -> PreparedSMTProofChecksWithFingerprints
     -> m Report
 frontend f checks = do
+    let allGroups = checks ^.. #unwrap % folded % folded
+    let numGroups = length allGroups
+    completedGroups <- liftIO $ newTVarIO (0 :: Integer)
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
             withPushLogContextPairing pairingId $ do
@@ -70,6 +76,12 @@ frontend f checks = do
                             logInfo $ case result of
                                 Right _ -> "success"
                                 Left failure -> "failure: " ++ show failure
+                            n <- liftIO . atomically $ do
+                                n' <- readTVar completedGroups
+                                let n = n' + 1
+                                writeTVar completedGroups n
+                                return n
+                            logInfo $ printf "%d/%d groups checked" n numGroups
                             return result))
     logInfo $ printf "report complete after %.2fs" (fromRational (elapsedToSeconds elapsed) :: Double)
     return report
