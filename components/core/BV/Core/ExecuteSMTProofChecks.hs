@@ -19,7 +19,6 @@ import BV.SMTLIB2.Command
 import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (runExceptT, throwError)
-import Control.Monad.State (MonadState, evalStateT, get, modify)
 import Control.Monad.Writer (runWriterT, tell)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
@@ -71,7 +70,6 @@ executeSMTProofCheckGroupOnline
 executeSMTProofCheckGroupOnline timeout config group = do
     commonSetup config group.setup
     (abortInfo, completed) <-
-        flip evalStateT 1 {- matches graph-refine -} .
         runWriterT .
         runExceptT .
             forM_ group.imps $ \imp -> do
@@ -79,9 +77,7 @@ executeSMTProofCheckGroupOnline timeout config group = do
                 let goal = notS imp.term
                 let hyps = splitHyp goal
                 sendSimpleCommandExpectingSuccess $ Push 1
-                forM_ hyps $ \hyp -> do
-                    labeledHyp <- labelHyp hyp
-                    sendAssert labeledHyp
+                mapM_ sendAssert hyps
                 result <- checkSatWithTimeout timeout >>=
                     maybe (throwError (meta, OnlineSolverAbortReasonTimeout)) return
                 case result of
@@ -105,13 +101,6 @@ commonSetup config setup = do
     sendSimpleCommandExpectingSuccess $ SetLogic logic
     mapM_ sendExpectingSuccess (modelConfigPreamble config)
     mapM_ (sendExpectingSuccess . configureSExpr config) setup
-
-labelHyp :: MonadState Integer m => SExprWithPlaceholders -> m SExprWithPlaceholders
-labelHyp sexpr = do
-    i <- get
-    modify (+ 1)
-    let label = "hyp" ++ show i
-    return $ labelS label sexpr
 
 splitHyp :: SExprWithPlaceholders -> [SExprWithPlaceholders]
 splitHyp = fromJust . traverse checkSExprWithPlaceholders . go . viewSExprWithPlaceholders
