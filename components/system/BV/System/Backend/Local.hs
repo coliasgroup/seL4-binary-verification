@@ -16,6 +16,7 @@ import BV.System.Throttle
 import BV.System.Utils.Logger
 import BV.System.Utils.UnliftIO.Throttle
 
+import BV.System.Fingerprinting (FlattenedSMTProofChecksWithFingerprints)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import GHC.Generics (Generic)
@@ -29,7 +30,7 @@ data LocalBackendConfig
 
 localBackend
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => LocalBackendConfig -> PreparedSMTProofChecks -> m Report
+    => LocalBackendConfig -> FlattenedSMTProofChecksWithFingerprints SMTProofCheckDescription -> m Report
 localBackend config checks = do
     withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
         frontend (backendCore config.backendCoreConfig throttle) checks

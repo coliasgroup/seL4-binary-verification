@@ -90,7 +90,7 @@ instance PrintfArg SMTProofCheckGroupFingerprint where
 data SMTProofCheckMetaWithFingerprint a
   = SMTProofCheckMetaWithFingerprint
       { fingerprint :: SMTProofCheckFingerprint
-      , meta :: a
+      , inner :: a
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
@@ -101,7 +101,7 @@ type SMTProofCheckGroupWithCheckFingerprints a = SMTProofCheckGroup (SMTProofChe
 data SMTProofCheckGroupWithFingerprints a
   = SMTProofCheckGroupWithFingerprint
       { fingerprint :: SMTProofCheckGroupFingerprint
-      , group :: SMTProofCheckGroupWithCheckFingerprints a
+      , inner :: SMTProofCheckGroupWithCheckFingerprints a
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 

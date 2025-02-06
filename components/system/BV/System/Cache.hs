@@ -12,7 +12,7 @@ module BV.System.Cache
     , trivialCacheContext
     ) where
 
-import BV.Core.Types
+import BV.System.Fingerprinting
 import BV.System.Utils.Logger (MonadLoggerWithContext)
 
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
@@ -21,7 +21,6 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Logger (LoggingT, MonadLogger, MonadLoggerIO)
 import Control.Monad.Reader (MonadTrans (lift), ReaderT (runReaderT), asks)
-import Data.Functor (void)
 import GHC.Generics (Generic)
 
 data AcceptableSatResult
@@ -30,8 +29,8 @@ data AcceptableSatResult
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadCache m where
-    queryCache :: SMTProofCheck a -> m (Maybe AcceptableSatResult)
-    updateCache :: SMTProofCheck a -> AcceptableSatResult -> m ()
+    queryCache :: SMTProofCheckFingerprint -> m (Maybe AcceptableSatResult)
+    updateCache :: SMTProofCheckFingerprint -> AcceptableSatResult -> m ()
 
 instance MonadCache m => MonadCache (ExceptT e m) where
     queryCache check = lift $ queryCache check
@@ -69,17 +68,17 @@ runCacheT = runReaderT . (.unwrap)
 
 data CacheContext m
   = CacheContext
-      { queryCache :: SMTProofCheck () -> m (Maybe AcceptableSatResult)
-      , updateCache :: SMTProofCheck () -> AcceptableSatResult -> m ()
+      { queryCache :: SMTProofCheckFingerprint -> m (Maybe AcceptableSatResult)
+      , updateCache :: SMTProofCheckFingerprint -> AcceptableSatResult -> m ()
       }
 
 instance Monad m => MonadCache (CacheT m) where
-    queryCache check = CacheT $ do
+    queryCache fingerprint = CacheT $ do
         f <- asks (.queryCache)
-        lift $ f (void check)
-    updateCache check result = CacheT $ do
+        lift $ f fingerprint
+    updateCache fingerprint result = CacheT $ do
         f <- asks (.updateCache)
-        lift $ f (void check) result
+        lift $ f fingerprint result
 
 liftIOCacheContext :: MonadIO m => CacheContext IO -> CacheContext m
 liftIOCacheContext ctx = CacheContext

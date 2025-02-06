@@ -16,13 +16,13 @@ withPushLogContextPairing :: MonadLoggerWithContext m => PairingId -> m a -> m a
 withPushLogContextPairing pairingId = withPushLogContext $
     "pairing " ++ pairingId.asm.unwrap
 
-withPushLogContextCheckGroup :: MonadLoggerWithContext m => SMTProofCheckGroup b -> m a -> m a
-withPushLogContextCheckGroup group = withPushLogContext $
-    "group " ++ prettySMTProofCheckGroupFingerprintShort (smtProofCheckGroupFingerprint group)
+withPushLogContextCheckGroup :: MonadLoggerWithContext m => SMTProofCheckGroupFingerprint -> m a -> m a
+withPushLogContextCheckGroup fingerprint = withPushLogContext $
+    "group " ++ prettySMTProofCheckGroupFingerprintShort fingerprint
 
-withPushLogContextCheck :: MonadLoggerWithContext m => SMTProofCheck b -> m a -> m a
-withPushLogContextCheck check = withPushLogContext $
-    "check " ++ prettySMTProofCheckFingerprintShort (smtProofCheckFingerprint check)
+withPushLogContextCheck :: MonadLoggerWithContext m => SMTProofCheckFingerprint -> m a -> m a
+withPushLogContextCheck fingerprint = withPushLogContext $
+    "check " ++ prettySMTProofCheckFingerprintShort fingerprint
 
 addLoggingToCacheContext :: MonadLoggerWithContext m => CacheContext m -> CacheContext m
 addLoggingToCacheContext ctx =

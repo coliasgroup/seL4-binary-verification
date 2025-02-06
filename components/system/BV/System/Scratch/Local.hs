@@ -8,6 +8,7 @@ import BV.Core.Types
 import BV.System.Backend.Local
 import BV.System.Cache
 import BV.System.EvalStages
+import BV.System.Fingerprinting
 import BV.System.Frontend
 import BV.System.SeL4
 import BV.System.Utils.Logger
@@ -38,7 +39,7 @@ runScratch config targetDir logDst mismatchDumpDir = do
     run = do
         input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter targetDir
         checks <- evalStages ctx input
-        report <- localBackend config checks
+        report <- localBackend config (adornWithFingerprints checks)
         let failed = M.mapMaybe (preview _Left) report.unwrap
         if M.null failed
             then do

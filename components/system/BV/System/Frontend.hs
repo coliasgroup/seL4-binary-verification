@@ -11,8 +11,8 @@ module BV.System.Frontend
     ) where
 
 import BV.Core.AdornProofScript
-import BV.Core.Stages
 import BV.Core.Types
+import BV.System.Fingerprinting
 import BV.System.Utils.Logger
 import BV.System.Utils.Logger.BV
 import BV.System.Utils.StopWatch
@@ -28,7 +28,7 @@ import Text.Printf (printf)
 
 type SMTProofCheckResult i a = Either (SMTProofCheckError i) a
 
-type SMTProofCheckError i = (SMTProofCheckErrorCause, NonEmpty i)
+type SMTProofCheckError i = (SMTProofCheckErrorCause, NonEmpty (SMTProofCheckMetaWithFingerprint i))
 
 data SMTProofCheckErrorCause
   = NoSolversAnswered
@@ -46,8 +46,8 @@ frontend
     :: ( MonadUnliftIO m
        , MonadLoggerWithContext m
        )
-    => (SMTProofCheckGroup SMTProofCheckDescription -> m (SMTProofCheckResult SMTProofCheckDescription ()))
-    -> PreparedSMTProofChecks
+    => (SMTProofCheckGroupWithFingerprints SMTProofCheckDescription -> m (SMTProofCheckResult SMTProofCheckDescription ()))
+    -> FlattenedSMTProofChecksWithFingerprints SMTProofCheckDescription
     -> m Report
 frontend f checks = do
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
@@ -55,7 +55,7 @@ frontend f checks = do
             withPushLogContextPairing pairingId $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\group -> makeConcurrentlyUnliftIOE $ do
-                        withPushLogContextCheckGroup group $ do
+                        withPushLogContextCheckGroup group.fingerprint $ do
                             result <- f group
                             logInfo $ case result of
                                 Right _ -> "success"
