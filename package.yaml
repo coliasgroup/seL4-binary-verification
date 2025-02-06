@@ -209,7 +209,7 @@ executables:
       - sel4-bv:smtlib2
 
   profiling-scratch:
-    source-dirs: components/scratch/profiling
+    source-dirs: components/scratch/profiling-scratch
     main: Main.hs
     dependencies:
       - sel4-bv:core
@@ -225,7 +225,7 @@ executables:
       - -with-rtsopts=-N
 
   check-scratch:
-    source-dirs: components/scratch/check
+    source-dirs: components/scratch/check-scratch
     main: Main.hs
     default-extensions:
       - DuplicateRecordFields

@@ -277,8 +277,10 @@ library target-dir
   default-language: GHC2021
 
 library test-utils
+  exposed-modules:
+      BV.Test.Utils
   hs-source-dirs:
-      components/test-utils
+      components/tests/test-utils
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
@@ -301,7 +303,7 @@ library test-utils
 executable check-scratch
   main-is: Main.hs
   hs-source-dirs:
-      components/scratch/check
+      components/scratch/check-scratch
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
@@ -360,7 +362,7 @@ executable normalize-smtlib2
 executable profiling-scratch
   main-is: Main.hs
   hs-source-dirs:
-      components/scratch/profiling
+      components/scratch/profiling-scratch
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
@@ -382,7 +384,7 @@ test-suite concrete-syntax-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   hs-source-dirs:
-      components/concrete-syntax-test
+      components/tests/concrete-syntax-test
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
@@ -413,7 +415,7 @@ test-suite core-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   hs-source-dirs:
-      components/core-test
+      components/tests/core-test
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
@@ -441,7 +443,7 @@ test-suite smtlib2-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   hs-source-dirs:
-      components/smtlib2-test
+      components/tests/smtlib2-test
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
@@ -471,7 +473,7 @@ test-suite system-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   hs-source-dirs:
-      components/system-test
+      components/tests/system-test
   default-extensions:
       FunctionalDependencies
       OverloadedLabels
