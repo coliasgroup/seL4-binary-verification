@@ -15,6 +15,7 @@ import BV.Core.Stages
 import BV.Core.Types
 import BV.System.Fingerprinting
 import BV.System.Utils.Logger
+import BV.System.Utils.Logger.BV
 import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async
 
@@ -52,10 +53,10 @@ frontend
 frontend f checks = do
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
-            withPushLogContext pairingId.asm.unwrap $ do
+            withPushLogContextPairing pairingId $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\group -> makeConcurrentlyUnliftIOE $ do
-                        withPushLogContext (printf "group %.12v" (smtProofCheckGroupFingerprint group)) $ do
+                        withPushLogContextCheckGroup group $ do
                             result <- f group
                             logInfo $ case result of
                                 Right _ -> "success"

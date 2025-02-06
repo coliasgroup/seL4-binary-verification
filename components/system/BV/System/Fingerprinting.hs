@@ -5,7 +5,9 @@ module BV.System.Fingerprinting
     ( SMTProofCheckFingerprint (..)
     , SMTProofCheckGroupFingerprint (..)
     , prettySMTProofCheckFingerprint
+    , prettySMTProofCheckFingerprintShort
     , prettySMTProofCheckGroupFingerprint
+    , prettySMTProofCheckGroupFingerprintShort
     , smtProofCheckFingerprint
     , smtProofCheckGroupFingerprint
     ) where
@@ -55,6 +57,15 @@ prettySMTProofCheckFingerprint = prettyHash . (.unwrap)
 
 prettySMTProofCheckGroupFingerprint :: SMTProofCheckGroupFingerprint -> String
 prettySMTProofCheckGroupFingerprint = prettyHash . (.unwrap)
+
+shortFingerprintLength :: Int
+shortFingerprintLength = 12
+
+prettySMTProofCheckFingerprintShort :: SMTProofCheckFingerprint -> String
+prettySMTProofCheckFingerprintShort = take shortFingerprintLength . prettySMTProofCheckFingerprint
+
+prettySMTProofCheckGroupFingerprintShort :: SMTProofCheckGroupFingerprint -> String
+prettySMTProofCheckGroupFingerprintShort = take shortFingerprintLength . prettySMTProofCheckGroupFingerprint
 
 instance PrintfArg SMTProofCheckFingerprint where
   formatArg = formatString . prettySMTProofCheckFingerprint
