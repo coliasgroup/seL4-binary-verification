@@ -4,9 +4,10 @@
 
 module BV.System.Frontend
     ( Report (..)
-    , SMTProofCheckError
+    , SMTProofCheckError (..)
     , SMTProofCheckErrorCause (..)
     , SMTProofCheckResult
+    , SMTProofCheckSource (..)
     , frontend
     ) where
 
@@ -28,12 +29,22 @@ import Text.Printf (printf)
 
 type SMTProofCheckResult i a = Either (SMTProofCheckError i) a
 
-type SMTProofCheckError i = (SMTProofCheckErrorCause, NonEmpty (SMTProofCheckMetaWithFingerprint i))
+data SMTProofCheckError i
+  = SMTProofCheckError
+      { cause :: SMTProofCheckErrorCause
+      , source :: SMTProofCheckSource i
+      }
+  deriving (Eq, Generic, Ord, Show)
 
 data SMTProofCheckErrorCause
   = NoSolversAnswered
   | SomeSolverAnsweredSat
   | AllSolversTimedOutOrAnsweredUnknown
+  deriving (Eq, Generic, Ord, Show)
+
+data SMTProofCheckSource i
+  = SMTProofCheckSourceCheck (SMTProofCheckMetaWithFingerprint i)
+  | SMTProofCheckSourceSyntheticGroup [SMTProofCheckMetaWithFingerprint i]
   deriving (Eq, Generic, Ord, Show)
 
 data Report
