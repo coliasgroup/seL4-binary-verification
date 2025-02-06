@@ -19,8 +19,8 @@ main = runScratch
     config
     -- testSeL4TargetDirSmall
     -- testSeL4TargetDirSmallTraceOfflineOnly
-    -- testSeL4TargetDirFocusedTrace
-    testSeL4TargetDirBig
+    testSeL4TargetDirFocusedTrace
+    -- testSeL4TargetDirBig
     (tmpDir </> "logs/check-scratch.log.txt")
     (tmpDir </> "mismatch")
 
@@ -46,20 +46,20 @@ solversConfig = SolversConfig
             , f ["bitwuzla"]
             -- , f ["cvc5", "--lang", "smt"]
             -- [ f ["cvc5", "--lang", "smt"]
-            -- , f ["z3", "-smt2", "-in"]
+            , f ["z3", "-smt2", "-in"]
             -- [ f ["z3", "-smt2", "-in"]
             -- [ f ["mathsat", "-input=smt2"]
             -- [ f ["sonolar", "--input-format=smtlib2"]
             ]
-        , timeout = solverTimeoutFromSeconds  6000
+        , timeout = solverTimeoutFromSeconds 6000
         }
     }
   where
     f command@(commandName:_) = OfflineSolverGroupConfig
         { commandName
         , command
-        , scopes = allSolverScopes
-        -- , scopes = [SolverScopeHyp]
+        -- , scopes = allSolverScopes
+        , scopes = [SolverScopeHyp]
         -- , scopes = [SolverScopeAll]
         , modelConfigs = allModelConfigs
         -- , modelConfigs = [ModelConfig { memoryMode = SolverMemoryModeWord8 }]

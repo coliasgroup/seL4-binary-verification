@@ -51,8 +51,8 @@ data BackendCoreConfig
   deriving (Eq, Generic, Ord, Show)
 
 offlineOnly :: Bool
-offlineOnly = False
--- offlineOnly = True
+-- offlineOnly = False
+offlineOnly = True
 
 backendCore
     :: forall m i. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
@@ -166,8 +166,8 @@ backendCoreOfflineHyp config group = (units, concM)
     units = Units (numOfflineSolverConfigsForScope SolverScopeHyp config.groups)
     concM = do
         hypsConclusion :: Maybe (Maybe i) <- lift . runConclusionT $ do
-            for_ (zip [0..] (ungroupSMTProofCheckGroup group)) $ \(hypLabel, check) ->
-                withPushLogContext ("hyp " ++ show hypLabel) $ do
+            for_ (ungroupSMTProofCheckGroup group) $ \check ->
+                withPushLogContextCheck check $ do
                     hypConclusion <- lift . runConclusionT $ do
                         runConcurrentlyUnliftIOC .
                             for_ (offlineSolverConfigsForScope SolverScopeHyp config.groups) $ \solver ->
@@ -247,15 +247,9 @@ keepUncached group = forOf #imps group $ \imps ->
         withPushLogContextCheck check $ do
             cached <- queryCache check
             case cached of
-                Nothing -> do
-                    logDebug "not present"
-                    return True
-                Just AcceptableSatResultUnsat -> do
-                    logDebug "found unsat"
-                    return False
-                Just AcceptableSatResultSat -> do
-                    logDebug "found sat"
-                    throwError (SomeSolverAnsweredSat, imp.meta :| []))
+                Nothing -> return True
+                Just AcceptableSatResultUnsat -> return False
+                Just AcceptableSatResultSat -> throwError (SomeSolverAnsweredSat, imp.meta :| []))
 
 pushSolverLogContext :: MonadLoggerWithContext m => OfflineSolverConfig -> m a -> m a
 pushSolverLogContext solver = withPushLogContext ("solver " ++ solver.commandName ++ " " ++ memMode)

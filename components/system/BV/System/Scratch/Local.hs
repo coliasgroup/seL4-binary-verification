@@ -29,15 +29,17 @@ runScratch config targetDir logDst mismatchDumpDir = do
         let output loc source level str = do
                 when (noTrace source level) $ do
                     defaultOutput stderr loc source level str
-                when (noTrace source level) $ do
+                -- when (noTrace source level) $ do
+                when True $ do
                     defaultOutput fileHandle loc source level str
         flip (runLoggingT . runSimpleLoggingWithContextT) output $
             flip runCacheT trivialCacheContext $
                  run
   where
     run = do
-        input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter targetDir
-        checks <- evalStages ctx input
+        input <- liftIO $ readStagesInput asmFunctionFilter targetDir
+        checks' <- evalStages ctx input
+        let checks = checks' & #unwrap %~ M.filterWithKey (\k _v -> postAsmFunctionFilter k.asm.unwrap)
         report <- localBackend config checks
         let failed = M.mapMaybe (preview _Left) report.unwrap
         if M.null failed
@@ -47,9 +49,13 @@ runScratch config targetDir logDst mismatchDumpDir = do
                 forM_ (M.toAscList failed) $ \(pairingId, err) -> liftIO $ do
                     putStrLn $ "Check failure for " <> prettyPairingId pairingId <> ": " <> show err
                 liftIO $ die "Some checks failed"
+    asmFunctionFilter = defaultSeL4AsmFunctionFilter
+    -- postAsmFunctionFilter = (`elem` ["handleSyscall", "handleInterruptEntry"])
+    postAsmFunctionFilter = (`elem` ["handleSyscall"])
     ctx = EvalStagesContext
         { force = True
         , dumpTargetDir = Nothing
-        , referenceTargetDir = Just targetDir
+        -- , referenceTargetDir = Just targetDir
+        , referenceTargetDir = Nothing
         , mismatchDumpDir = Just mismatchDumpDir
         }
