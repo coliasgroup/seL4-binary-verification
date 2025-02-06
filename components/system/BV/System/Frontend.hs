@@ -21,7 +21,6 @@ import BV.System.WithFingerprints
 
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.Foldable (for_)
-import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics (ifor)
