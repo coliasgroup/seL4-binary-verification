@@ -5,6 +5,8 @@ module BV.System.Utils.Logger
     , MonadLogger
     , MonadLoggerWithContext (..)
     , filterLevelsBelow
+    , hackLogOutput
+    , hackLogStr
     , levelTrace
     , logDebug
     , logDebugGeneric
@@ -18,6 +20,7 @@ module BV.System.Utils.Logger
     , logWarnGeneric
     , noTrace
     , noTraceAnd
+    , runHackLoggingWithContextT
     , runSimpleLoggingWithContextT
     ) where
 
@@ -27,12 +30,18 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Logger (Loc, LogLevel (..), LogSource, LogStr,
                              LoggingT (LoggingT), MonadLogger (monadLoggerLog),
-                             ToLogStr, logDebugN, logErrorN, logInfoN,
-                             logOtherN, logWarnN, logWithoutLoc, toLogStr)
+                             ToLogStr, fromLogStr, logDebugN, logErrorN,
+                             logInfoN, logOtherN, logWarnN, logWithoutLoc,
+                             toLogStr)
 import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT, withReaderT)
+import qualified Data.ByteString as B
+import Data.String (fromString)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Builder as TL
 import GHC.Generics (Generic)
 import Optics (ViewableOptic (gview), (%~))
+import System.IO (Handle)
 
 class MonadLogger m => MonadLoggerWithContext m where
     withPushLogContext :: String -> m a -> m a
@@ -67,18 +76,6 @@ data LoggingWithContextEnv
       , logAction :: LogContext -> Loc -> LogSource -> LogLevel -> LogStr -> IO ()
       }
   deriving (Generic)
-
-runSimpleLoggingWithContextT :: MonadIO m => LoggingWithContextT m a -> LoggingT m a
-runSimpleLoggingWithContextT m = LoggingT $ \logAction ->
-    runReaderT
-        m.unwrap
-        LoggingWithContextEnv
-            { context = []
-            , logAction = \context loc source level msg ->
-                logAction loc source level (showContext context <> msg)
-            }
-  where
-    showContext = foldMap (\ctx -> "[" <> toLogStr ctx <> "] ")
 
 instance MonadIO m => MonadLogger (LoggingWithContextT m) where
     monadLoggerLog loc source level msg = LoggingWithContextT $ do
@@ -139,3 +136,47 @@ filterLevelsBelow minLevel _source level
   | minLevel == levelTrace = True
   | level == levelTrace = False
   | otherwise = level >= minLevel
+
+--
+
+runSimpleLoggingWithContextT :: MonadIO m => LoggingWithContextT m a -> LoggingT m a
+runSimpleLoggingWithContextT m = LoggingT $ \logAction ->
+    runReaderT
+        m.unwrap
+        LoggingWithContextEnv
+            { context = []
+            , logAction = \context loc source level msg ->
+                logAction loc source level (showContext context <> msg)
+            }
+  where
+    showContext = foldMap (\ctx -> "[" <> toLogStr ctx <> "] ")
+
+runHackLoggingWithContextT :: MonadIO m => LoggingWithContextT m a -> LoggingT m a
+runHackLoggingWithContextT m = LoggingT $ \logAction ->
+    runReaderT
+        m.unwrap
+        LoggingWithContextEnv
+            { context = []
+            , logAction = \context loc _source level msg ->
+                logAction loc (buildContext context) level msg
+            }
+  where
+    buildContext = TL.toStrict . TL.toLazyText . foldMap (\ctx -> "[" <> fromString ctx <> "] ")
+
+hackLogOutput :: Handle -> Loc -> LogSource -> LogLevel -> LogStr -> IO ()
+hackLogOutput h loc ctx level msg = B.hPutStr h . fromLogStr $ hackLogStr loc ctx level msg
+
+hackLogStr :: Loc -> LogSource -> LogLevel -> LogStr -> LogStr
+hackLogStr _loc ctx level msg =
+    "[" <> defaultLogLevelStr level <> "] " <>
+    "(" <> toLogStr (show ctxLength) <> "," <> toLogStr (show msgLength) <> ") " <>
+    ctxLogStr <> msg <> "\n"
+  where
+    ctxLogStr = toLogStr ctx
+    ctxLength = B.length (fromLogStr ctxLogStr)
+    msgLength = B.length (fromLogStr msg)
+
+defaultLogLevelStr :: LogLevel -> LogStr
+defaultLogLevelStr level = case level of
+    LevelOther t -> toLogStr t
+    _ -> toLogStr . drop 5 $ show level

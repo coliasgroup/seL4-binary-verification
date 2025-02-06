@@ -16,8 +16,7 @@ import BV.TargetDir
 
 import Control.Monad (forM_, when)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Logger (LogLevel (LevelDebug, LevelInfo), defaultOutput,
-                             runLoggingT)
+import Control.Monad.Logger (LogLevel (LevelDebug, LevelInfo), runLoggingT)
 import qualified Data.Map as M
 import Optics
 import System.Exit (die)
@@ -30,11 +29,11 @@ runScratch config targetDir logDst mismatchDumpDir = do
         hSetBuffering fileHandle LineBuffering
         let output loc source level str = do
                 when (filterLevelsBelow LevelInfo source level) $ do
-                    defaultOutput stderr loc source level str
+                    hackLogOutput stderr loc source level str
                 when (filterLevelsBelow LevelDebug source level) $ do
                 -- when (filterLevelsBelow levelTrace source level) $ do
-                    defaultOutput fileHandle loc source level str
-        flip (runLoggingT . runSimpleLoggingWithContextT) output $
+                    hackLogOutput fileHandle loc source level str
+        flip (runLoggingT . runHackLoggingWithContextT) output $
             flip runCacheT trivialCacheContext $
                  run
   where

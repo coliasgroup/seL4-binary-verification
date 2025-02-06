@@ -21,7 +21,7 @@ main = runScratch
     -- testSeL4TargetDirSmallTraceOfflineOnly
     -- testSeL4TargetDirFocusedTrace
     testSeL4TargetDirBig
-    (tmpDir </> "logs/check-scratch.log.txt")
+    (tmpDir </> "logs/check-scratch.log2.txt")
     (tmpDir </> "mismatch")
 
 config :: LocalBackendConfig
