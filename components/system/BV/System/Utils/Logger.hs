@@ -135,10 +135,7 @@ noTraceAnd :: (LogSource -> LogLevel -> Bool) -> LogSource -> LogLevel -> Bool
 noTraceAnd p source level = noTrace source level && p source level
 
 filterLevelsBelow :: LogLevel -> LogSource -> LogLevel -> Bool
-filterLevelsBelow minLevel _source level =
-    if minLevel == levelTrace
-    then True
-    else
-        if level == levelTrace
-        then False
-        else level >= minLevel
+filterLevelsBelow minLevel _source level
+  | minLevel == levelTrace = True
+  | level == levelTrace = False
+  | otherwise = level >= minLevel
