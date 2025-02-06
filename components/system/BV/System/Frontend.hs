@@ -17,6 +17,7 @@ import BV.System.Utils.Logger
 import BV.System.Utils.Logger.BV
 import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async
+import BV.System.WithFingerprints
 
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.Foldable (for_)

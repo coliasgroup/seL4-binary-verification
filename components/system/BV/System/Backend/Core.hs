@@ -28,6 +28,7 @@ import BV.System.Utils.Logger.BV
 import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
+import BV.System.WithFingerprints
 
 import Control.Monad (filterM, when)
 import Control.Monad.Catch (MonadMask)

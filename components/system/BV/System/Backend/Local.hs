@@ -15,8 +15,8 @@ import BV.System.Frontend
 import BV.System.Throttle
 import BV.System.Utils.Logger
 import BV.System.Utils.UnliftIO.Throttle
+import BV.System.WithFingerprints
 
-import BV.System.Fingerprinting (FlattenedSMTProofChecksWithFingerprints)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import GHC.Generics (Generic)

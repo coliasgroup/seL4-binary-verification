@@ -205,6 +205,7 @@ library system
       BV.System.Utils.StopWatch
       BV.System.Utils.UnliftIO.Async
       BV.System.Utils.UnliftIO.Throttle
+      BV.System.WithFingerprints
   hs-source-dirs:
       components/system
   default-extensions:
