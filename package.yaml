@@ -175,7 +175,7 @@ internal-libraries:
       - tasty-hunit
 
   test-utils:
-    source-dirs: components/test-utils
+    source-dirs: components/tests/test-utils
     default-extensions:
       - DuplicateRecordFields
       - NoFieldSelectors
@@ -248,7 +248,7 @@ executables:
 tests:
 
   core-test:
-    source-dirs: components/core-test
+    source-dirs: components/tests/core-test
     main: Main.hs
     dependencies:
       - sel4-bv:core
@@ -270,7 +270,7 @@ tests:
       - -with-rtsopts=-N
 
   smtlib2-test:
-    source-dirs: components/smtlib2-test
+    source-dirs: components/tests/smtlib2-test
     main: Main.hs
     dependencies:
       - sel4-bv:smtlib2
@@ -294,7 +294,7 @@ tests:
       - -with-rtsopts=-N
 
   concrete-syntax-test:
-    source-dirs: components/concrete-syntax-test
+    source-dirs: components/tests/concrete-syntax-test
     main: Main.hs
     dependencies:
       - sel4-bv:core
@@ -319,7 +319,7 @@ tests:
       - -with-rtsopts=-N
 
   system-test:
-    source-dirs: components/system-test
+    source-dirs: components/tests/system-test
     main: Main.hs
     dependencies:
       - sel4-bv:system

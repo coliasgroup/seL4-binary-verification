@@ -277,8 +277,6 @@ library target-dir
   default-language: GHC2021
 
 library test-utils
-  exposed-modules:
-      BV.Test.Utils
   hs-source-dirs:
       components/test-utils
   default-extensions:
