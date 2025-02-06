@@ -2,6 +2,7 @@ module BV.System.Throttle
     ( Priority (..)
     , Throttle
     , Units (..)
+    , defaultPriority
     , withThrottle
     , withThrottling
     ) where
@@ -134,7 +135,10 @@ data Value
 
 newtype Priority
   = Priority { unwrap :: Integer }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, Num, Ord, Show)
+
+defaultPriority :: Priority
+defaultPriority = 0
 
 newtype Units
   = Units { unwrap :: Integer }
