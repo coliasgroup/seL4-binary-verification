@@ -12,3 +12,5 @@
 
 - use for sexprs and beyond:
     - https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/pattern_synonyms.html
+
+- error: one(_) | all(nonempty)

@@ -5,13 +5,6 @@ module BV.System.Notes
     (
     ) where
 
-import BV.Core.AdornProofScript
-import BV.Core.Types
-import BV.System.Frontend
-import BV.System.TaskQueue
-
-import GHC.Generics (Generic)
-
 -- type ProofSearchResult = Either (ProofScript ()) ProofSearchError
 
 -- data ProofSearchError

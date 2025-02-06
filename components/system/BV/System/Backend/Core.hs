@@ -61,19 +61,19 @@ backendCore config throttle group = runExceptT $ do
     slow <-
         if offlineOnly
         then return uncached
-        else backendCoreOnline config.solversConfig throttle uncached
-    backendCoreOffline config.solversConfig throttle slow
+        else backendCoreOnline config.solversConfig.online throttle uncached
+    backendCoreOffline config.solversConfig.offline throttle slow
 
 backendCoreOnline
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => SolversConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m (SMTProofCheckGroup i)
+    => OnlineSolverConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m (SMTProofCheckGroup i)
 backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online") $ do
     ((exit, completed), _elapsed) <-
         lift $ withThrottleUnliftIO throttle (Priority 0) (Units 1) $ runSolver'
-            config.online.command
+            config.command
             (executeSMTProofCheckGroupOnline
-                (Just config.onlineTimeout)
-                config.online.config
+                (Just config.timeout)
+                config.modelConfig
                 groupWithLabels)
     for_ completed $ \(i, _) -> do
         let check = checkAt i
@@ -106,7 +106,7 @@ backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online
 -- TODO return units when they become available with more granularity
 backendCoreOffline
     :: forall m i. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => SolversConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m ()
+    => OfflineSolversConfig -> Throttle -> SMTProofCheckGroup i -> ExceptT (SMTProofCheckError i) m ()
 backendCoreOffline config throttle group =
     mapExceptT (withPushLogContext "offline") $ do
         when doAny . mapExceptT (withThrottleUnliftIO throttle (Priority 0) unitsTotal) $ do
@@ -116,7 +116,7 @@ backendCoreOffline config throttle group =
                 Just c -> liftEither c
   where
     doAny = length group.imps > 0
-    doAll = length group.imps > 1 || numOfflineSolverConfigsForScope SolverScopeHyp config == 0
+    doAll = length group.imps > 1 || numOfflineSolverConfigsForScope SolverScopeHyp config.groups == 0
     unitsTotal = unitsAll + unitsHyp
     (unitsAll, concAll) =
         if doAll
@@ -128,18 +128,18 @@ backendCoreOffline config throttle group =
 -- TODO return units when they become available with more granularity
 backendCoreOfflineAll
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => SolversConfig -> SMTProofCheckGroup i -> (Units, ConclusionT (SMTProofCheckResult i ()) m ())
+    => OfflineSolversConfig -> SMTProofCheckGroup i -> (Units, ConclusionT (SMTProofCheckResult i ()) m ())
 backendCoreOfflineAll config group = (units, concM)
   where
-    units = Units (numOfflineSolverConfigsForScope SolverScopeAll config)
+    units = Units (numOfflineSolverConfigsForScope SolverScopeAll config.groups)
     allLocs = fromJust (nonEmpty (map (.meta) group.imps))
     concM = withPushLogContext "all" . runConcurrentlyUnliftIOC $ do
-        for_ (offlineSolverConfigsForScope SolverScopeAll config) $ \solver ->
+        for_ (offlineSolverConfigsForScope SolverScopeAll config.groups) $ \solver ->
             makeConcurrentlyUnliftIOC . pushSolverLogContext solver $ do
                 (checkSatOutcome, elapsed) <- lift $ runSolver'
                     solver.command
                     (executeSMTProofCheckGroupOffline
-                        (Just config.offlineTimeout)
+                        (Just config.timeout)
                         solver.config
                         group)
                 let elapsedSuffix = makeElapsedSuffix elapsed
@@ -161,22 +161,22 @@ backendCoreOfflineAll config group = (units, concM)
 -- TODO return units when they become available with more granularity
 backendCoreOfflineHyp
     :: forall m i. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => SolversConfig -> SMTProofCheckGroup i -> (Units, ConclusionT (SMTProofCheckResult i ()) m ())
+    => OfflineSolversConfig -> SMTProofCheckGroup i -> (Units, ConclusionT (SMTProofCheckResult i ()) m ())
 backendCoreOfflineHyp config group = (units, concM)
   where
-    units = Units (numOfflineSolverConfigsForScope SolverScopeHyp config)
+    units = Units (numOfflineSolverConfigsForScope SolverScopeHyp config.groups)
     concM = do
         hypsConclusion :: Maybe (Maybe i) <- lift . runConclusionT $ do
             for_ (zip [0..] (ungroupSMTProofCheckGroup group)) $ \(hypLabel, check) ->
                 withPushLogContext ("hyp " ++ show hypLabel) $ do
                     hypConclusion <- lift . runConclusionT $ do
                         runConcurrentlyUnliftIOC .
-                            for_ (offlineSolverConfigsForScope SolverScopeHyp config) $ \solver ->
+                            for_ (offlineSolverConfigsForScope SolverScopeHyp config.groups) $ \solver ->
                                 makeConcurrentlyUnliftIOC . pushSolverLogContext solver $ do
                                     (checkSatOutcome, elapsed) <- lift $ runSolver'
                                         solver.command
                                         (executeSMTProofCheckOffline
-                                            (Just config.offlineTimeout)
+                                            (Just config.timeout)
                                             solver.config
                                             check)
                                     let elapsedSuffix = makeElapsedSuffix elapsed

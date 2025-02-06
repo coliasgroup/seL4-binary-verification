@@ -13,7 +13,6 @@ module BV.System.Frontend
 import BV.Core.AdornProofScript
 import BV.Core.Stages
 import BV.Core.Types
-import BV.System.Fingerprinting
 import BV.System.Utils.Logger
 import BV.System.Utils.Logger.BV
 import BV.System.Utils.StopWatch

@@ -37,29 +37,31 @@ solversConfig :: SolversConfig
 solversConfig = SolversConfig
     { online = OnlineSolverConfig
         { command = ["yices-smt2", "--incremental"]
-        , config = ModelConfig { memoryMode = SolverMemoryModeWord8 }
+        , modelConfig = ModelConfig { memoryMode = SolverMemoryModeWord8 }
+        , timeout = solverTimeoutFromSeconds 30
         }
-    , onlineTimeout = solverTimeoutFromSeconds 30
-    , offline =
-        [ f ["yices-smt2"]
-        , f ["bitwuzla"]
-        -- , f ["cvc5", "--lang", "smt"]
-        -- [ f ["cvc5", "--lang", "smt"]
-        -- , f ["z3", "-smt2", "-in"]
-        -- [ f ["z3", "-smt2", "-in"]
-        -- [ f ["mathsat", "-input=smt2"]
-        -- [ f ["sonolar", "--input-format=smtlib2"]
-        ]
-    , offlineTimeout = solverTimeoutFromSeconds  6000
+    , offline = OfflineSolversConfig
+        { groups =
+            [ f ["yices-smt2"]
+            , f ["bitwuzla"]
+            -- , f ["cvc5", "--lang", "smt"]
+            -- [ f ["cvc5", "--lang", "smt"]
+            -- , f ["z3", "-smt2", "-in"]
+            -- [ f ["z3", "-smt2", "-in"]
+            -- [ f ["mathsat", "-input=smt2"]
+            -- [ f ["sonolar", "--input-format=smtlib2"]
+            ]
+        , timeout = solverTimeoutFromSeconds  6000
+        }
     }
   where
     f command@(commandName:_) = OfflineSolverGroupConfig
         { commandName
         , command
-        , configs = allModelConfigs
-        -- , configs = [ModelConfig { memoryMode = SolverMemoryModeWord8 }]
-        -- , configs = [ModelConfig { memoryMode = SolverMemoryModeWord32 }]
         , scopes = allSolverScopes
         -- , scopes = [SolverScopeHyp]
         -- , scopes = [SolverScopeAll]
+        , modelConfigs = allModelConfigs
+        -- , modelConfigs = [ModelConfig { memoryMode = SolverMemoryModeWord8 }]
+        -- , modelConfigs = [ModelConfig { memoryMode = SolverMemoryModeWord32 }]
         }

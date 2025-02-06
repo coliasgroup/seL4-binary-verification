@@ -1,6 +1,7 @@
 module BV.System.SolversConfig
     ( OfflineSolverConfig (..)
     , OfflineSolverGroupConfig (..)
+    , OfflineSolversConfig (..)
     , OnlineSolverConfig (..)
     , SolverMemoryMode (..)
     , SolverScope (..)
@@ -22,16 +23,22 @@ import GHC.Generics (Generic)
 data SolversConfig
   = SolversConfig
       { online :: OnlineSolverConfig
-      , onlineTimeout :: SolverTimeout
-      , offline :: [OfflineSolverGroupConfig]
-      , offlineTimeout :: SolverTimeout
+      , offline :: OfflineSolversConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
 data OnlineSolverConfig
   = OnlineSolverConfig
       { command :: [String]
-      , config :: ModelConfig
+      , modelConfig :: ModelConfig
+      , timeout :: SolverTimeout
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+data OfflineSolversConfig
+  = OfflineSolversConfig
+      { groups :: [OfflineSolverGroupConfig]
+      , timeout :: SolverTimeout
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -39,8 +46,8 @@ data OfflineSolverGroupConfig
   = OfflineSolverGroupConfig
       { commandName :: String
       , command :: [String]
-      , configs :: [ModelConfig]
       , scopes :: [SolverScope]
+      , modelConfigs :: [ModelConfig]
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -65,11 +72,11 @@ data OfflineSolverConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
-offlineSolverConfigsForScope :: SolverScope -> SolversConfig -> [OfflineSolverConfig]
-offlineSolverConfigsForScope scope (SolversConfig { offline }) = flip concatMap offline $
-    \OfflineSolverGroupConfig { commandName, command, configs, scopes } -> do
+offlineSolverConfigsForScope :: SolverScope -> [OfflineSolverGroupConfig] -> [OfflineSolverConfig]
+offlineSolverConfigsForScope scope groups = flip concatMap groups $
+    \OfflineSolverGroupConfig { commandName, command, scopes, modelConfigs } -> do
         unless (scope `elem` scopes) empty
-        OfflineSolverConfig commandName command <$> configs
+        OfflineSolverConfig commandName command <$> modelConfigs
 
-numOfflineSolverConfigsForScope :: SolverScope ->  SolversConfig -> Integer
+numOfflineSolverConfigsForScope :: SolverScope ->  [OfflineSolverGroupConfig] -> Integer
 numOfflineSolverConfigsForScope scope = genericLength . offlineSolverConfigsForScope scope
