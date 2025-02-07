@@ -28,8 +28,9 @@ import BV.Core.Stages.PseudoCompile
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Control.DeepSeq (NFData)
+import Control.DeepSeq (NFData, liftRnf)
 import Control.Monad (guard)
+import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
 import Data.Foldable (toList)
 import Data.Functor (void)
 import Data.Map ((!))
@@ -114,7 +115,11 @@ stages input = StagesOutput
 
     lookupFunction (WithTag tag funName) = (pairingSide tag finalPrograms).functions ! funName
 
-    problems = Problems . M.fromList $ do
+    -- TODO parallelism probably overkill
+    problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
+    -- problems = problems'
+
+    problems' = Problems . M.fromList $ do
         pairingId <- normalFunctionPairingIds
         let namedFuns = (\funName prog -> Named funName (prog.functions ! funName)) <$> pairingId <*> finalPrograms
         guard $ isJust namedFuns.c.value.body
@@ -125,7 +130,12 @@ stages input = StagesOutput
 
     provenProblems = problems & #unwrap %~ \m -> M.restrictKeys m (M.keysSet input.proofs.unwrap)
 
-    proofChecks = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    -- TODO parallelism probably overkill
+    proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
+    -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
+    -- proofChecks = proofChecks'
+
+    proofChecks' = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings `atPairingId` pairingId
             proofScript = input.proofs `atPairingId` pairingId
             lookupOrigVarName quadrant mangledName =
