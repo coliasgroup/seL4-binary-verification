@@ -24,3 +24,4 @@
 - add test that just does stages without any checking reference
 
 - pure json format for inline scripts, proofs(?), and stack bounds(?)
+- rename SMTProofChecks, because that is all that is used in system (should have shorter name)
