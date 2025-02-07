@@ -249,6 +249,9 @@ executables:
   par-scratch:
     source-dirs: components/scratch/par-scratch
     main: Main.hs
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
@@ -256,6 +259,7 @@ executables:
       - sel4-bv:system
       - sel4-bv:test-utils
       # external
+      - deepseq
       - mtl
       - free
       - monad-logger
@@ -273,6 +277,9 @@ tests:
   core-test:
     source-dirs: components/tests/core-test
     main: Main.hs
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
@@ -295,6 +302,9 @@ tests:
   smtlib2-test:
     source-dirs: components/tests/smtlib2-test
     main: Main.hs
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
@@ -319,6 +329,9 @@ tests:
   concrete-syntax-test:
     source-dirs: components/tests/concrete-syntax-test
     main: Main.hs
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
@@ -344,6 +357,9 @@ tests:
   system-test:
     source-dirs: components/tests/system-test
     main: Main.hs
+    default-extensions:
+      - DuplicateRecordFields
+      - NoFieldSelectors
     dependencies:
       - sel4-bv:system
     ghc-options:

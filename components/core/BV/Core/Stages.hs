@@ -52,7 +52,7 @@ data StagesInput
         -- HACK
       , compatSMTProofChecks :: CompatSMTProofChecks
       }
-  deriving (Generic)
+  deriving (Generic, NFData)
 
 data StagesOutput
   = StagesOutput

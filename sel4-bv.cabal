@@ -372,9 +372,12 @@ executable par-scratch
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
+    , deepseq
     , filepath
     , free
     , monad-logger

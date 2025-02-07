@@ -9,13 +9,14 @@ import BV.System.SeL4
 import BV.TargetDir
 import BV.Test.Utils
 
+import Control.DeepSeq (force, ($!!))
 import Control.Monad.Logger (runStderrLoggingT)
 import System.FilePath ((</>))
 
 main :: IO ()
 main = do
     input <- readStagesInput defaultSeL4AsmFunctionFilter referenceTargetDir
-    runStderrLoggingT $ evalStages ctx input
+    runStderrLoggingT $ evalStages ctx $!! input
     return ()
   where
     ctx = EvalStagesContext

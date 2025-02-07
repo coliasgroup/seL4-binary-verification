@@ -18,3 +18,5 @@
 
 - newtype ByPairing a = ByPairing { unwrap :: M.Map PairingId a }
   (or type alias)
+
+- record exts as global default (remove all comp-specific ones)
