@@ -47,7 +47,7 @@ odoc: hpack
 
 .PHONY: fmt
 fmt: hpack
-	stylish-haskell -i $$(find . -name '*.hs')
+	stylish-haskell -i $$(find components -name '*.hs')
 
 .PHONY: hlint
 hlint: hpack
