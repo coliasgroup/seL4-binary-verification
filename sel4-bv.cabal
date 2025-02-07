@@ -42,16 +42,23 @@ library concrete-syntax
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
+    , async
     , attoparsec
     , base
     , bytestring
     , containers
+    , deepseq
     , dlist
+    , exceptions
     , megaparsec
+    , mtl
     , optics
+    , parallel
     , sel4-bv:core
     , sel4-bv:smtlib2
+    , stm
     , text
+    , transformers
   default-language: GHC2021
 
 library core
@@ -105,7 +112,9 @@ library core
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      base
+      async
+    , base
+    , bytestring
     , containers
     , deepseq
     , exceptions
@@ -113,8 +122,11 @@ library core
     , filepath
     , mtl
     , optics
+    , parallel
     , pretty-show
     , sel4-bv:smtlib2
+    , stm
+    , text
     , transformers
   default-language: GHC2021
 
@@ -125,11 +137,11 @@ library smtlib2
       BV.SMTLIB2.Command
       BV.SMTLIB2.Monad
       BV.SMTLIB2.SExpr
+      BV.SMTLIB2.SExpr.Show
+      BV.SMTLIB2.SExpr.Read
       BV.SMTLIB2.SExpr.Build
       BV.SMTLIB2.SExpr.Parse.Attoparsec
       BV.SMTLIB2.SExpr.Parse.Megaparsec
-      BV.SMTLIB2.SExpr.Read
-      BV.SMTLIB2.SExpr.Show
   hs-source-dirs:
       components/smtlib2
   default-extensions:
@@ -143,12 +155,18 @@ library smtlib2
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      attoparsec
+      async
+    , attoparsec
     , base
+    , bytestring
+    , containers
     , deepseq
     , exceptions
     , megaparsec
     , mtl
+    , optics
+    , parallel
+    , stm
     , text
     , transformers
   default-language: GHC2021
@@ -172,15 +190,20 @@ library smtlib2-process
   build-depends:
       async
     , base
+    , bytestring
     , conduit
     , conduit-extra
+    , containers
+    , deepseq
     , exceptions
-    , free
     , mtl
+    , optics
+    , parallel
     , process
     , sel4-bv:smtlib2
     , stm
     , text
+    , transformers
     , unliftio-core
   default-language: GHC2021
 
@@ -230,11 +253,11 @@ library system
     , directory
     , exceptions
     , filepath
-    , free
     , megaparsec
     , monad-logger
     , mtl
     , optics
+    , parallel
     , pretty-show
     , process
     , sel4-bv:concrete-syntax
@@ -268,13 +291,21 @@ library target-dir
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
+    , async
     , base
     , bytestring
+    , containers
+    , deepseq
+    , exceptions
     , filepath
     , mtl
+    , optics
+    , parallel
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , stm
     , text
+    , transformers
   default-language: GHC2021
 
 library test-utils
@@ -293,12 +324,23 @@ library test-utils
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      base
+      async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
     , filepath
+    , mtl
+    , optics
+    , parallel
     , pretty-show
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:target-dir
+    , stm
+    , text
+    , transformers
   default-language: GHC2021
 
 executable check-scratch
@@ -316,14 +358,23 @@ executable check-scratch
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base
+      async
+    , base
+    , bytestring
     , containers
+    , deepseq
+    , exceptions
     , filepath
+    , mtl
     , optics
+    , parallel
     , sel4-bv:core
     , sel4-bv:smtlib2
     , sel4-bv:system
     , sel4-bv:test-utils
+    , stm
+    , text
+    , transformers
   default-language: GHC2021
 
 executable cli
@@ -341,8 +392,19 @@ executable cli
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base
+      async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , mtl
+    , optics
+    , parallel
     , sel4-bv:system
+    , stm
+    , text
+    , transformers
   default-language: GHC2021
 
 executable normalize-smtlib2
@@ -360,8 +422,19 @@ executable normalize-smtlib2
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      base
+      async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , mtl
+    , optics
+    , parallel
     , sel4-bv:smtlib2
+    , stm
+    , text
+    , transformers
   default-language: GHC2021
 
 executable profiling-scratch
@@ -379,12 +452,22 @@ executable profiling-scratch
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base
+      async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , mtl
+    , optics
+    , parallel
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:system
     , sel4-bv:test-utils
+    , stm
     , text
+    , transformers
   default-language: GHC2021
 
 test-suite concrete-syntax-test
@@ -405,19 +488,28 @@ test-suite concrete-syntax-test
   build-depends:
       Glob
     , aeson
+    , async
     , attoparsec
     , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
     , filepath
     , megaparsec
     , mtl
+    , optics
+    , parallel
     , process
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:target-dir
     , sel4-bv:test-utils
+    , stm
     , tasty
     , tasty-hunit
     , text
+    , transformers
   default-language: GHC2021
 
 test-suite core-test
@@ -436,18 +528,27 @@ test-suite core-test
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base
+      async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
     , filepath
-    , free
     , monad-logger
     , mtl
+    , optics
+    , parallel
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:system
     , sel4-bv:target-dir
     , sel4-bv:test-utils
+    , stm
     , tasty
     , tasty-hunit
+    , text
+    , transformers
   default-language: GHC2021
 
 test-suite smtlib2-test
@@ -467,19 +568,27 @@ test-suite smtlib2-test
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Glob
+    , async
     , attoparsec
     , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
     , filepath
     , megaparsec
     , mtl
     , optics
+    , parallel
     , process
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:target-dir
+    , stm
     , tasty
     , tasty-hunit
     , text
+    , transformers
   default-language: GHC2021
 
 test-suite system-test
@@ -498,6 +607,17 @@ test-suite system-test
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base
+      async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , mtl
+    , optics
+    , parallel
     , sel4-bv:system
+    , stm
+    , text
+    , transformers
   default-language: GHC2021

@@ -28,37 +28,46 @@ ghc-options:
 
 dependencies:
   - base
+  - deepseq
+  - parallel
+  - transformers
+  - mtl
+  - exceptions
+  - containers
+  - bytestring
+  - text
+  - stm
+  - async
+  - optics
 
 internal-libraries:
 
   smtlib2:
     visibility: public
     source-dirs: components/smtlib2
-    # exposed-modules: # TODO
+    exposed-modules:
+      - BV.SMTLIB2
+      - BV.SMTLIB2.Command
+      - BV.SMTLIB2.Monad
+      - BV.SMTLIB2.SExpr
+      - BV.SMTLIB2.SExpr.Show
+      - BV.SMTLIB2.SExpr.Read
+      - BV.SMTLIB2.SExpr.Build
+      - BV.SMTLIB2.SExpr.Parse.Attoparsec
+      - BV.SMTLIB2.SExpr.Parse.Megaparsec
     dependencies:
-      # external
-      - deepseq
-      - transformers
-      - mtl
-      - exceptions
-      - text
       - attoparsec
       - megaparsec
 
   smtlib2-process:
     visibility: public
     source-dirs: components/smtlib2-process
-    # exposed-modules: # TODO
+    exposed-modules:
+      - BV.SMTLIB2.Process
     dependencies:
       - sel4-bv:smtlib2
       # external
-      - mtl
-      - free
-      - text
-      - exceptions
       - process
-      - async
-      - stm
       - unliftio-core
       - conduit
       - conduit-extra
@@ -75,12 +84,6 @@ internal-libraries:
     dependencies:
       - sel4-bv:smtlib2
       # external
-      - deepseq
-      - containers
-      - transformers
-      - mtl
-      - exceptions
-      - optics
       - file-embed
       # TODO for debugging
       - filepath
@@ -96,11 +99,7 @@ internal-libraries:
       - sel4-bv:core
       - sel4-bv:smtlib2
       # external
-      - containers
       - dlist
-      - optics
-      - bytestring
-      - text
       - megaparsec
       - attoparsec
       - aeson
@@ -114,9 +113,6 @@ internal-libraries:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       # external
-      - mtl
-      - text
-      - bytestring
       - aeson
       - filepath
 
@@ -131,21 +127,10 @@ internal-libraries:
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       # external
-      - deepseq
-      - containers
-      - transformers
-      - mtl
-      - exceptions
-      - free
-      - optics
-      - async
-      - stm
-      - bytestring
-      - text
       - base16-bytestring
+      - cryptohash-sha256
       - attoparsec
       - megaparsec
-      - cryptohash-sha256
       - process
       - filepath
       - directory
@@ -197,8 +182,6 @@ executables:
       - sel4-bv:concrete-syntax
       - sel4-bv:system
       - sel4-bv:test-utils
-      # external
-      - text
     ghc-options:
       # TODO probably unnecessary here
       - -threaded
@@ -214,9 +197,7 @@ executables:
       - sel4-bv:system
       - sel4-bv:test-utils
       # external
-      - containers
       - filepath
-      - optics
     ghc-options:
       # TODO probably unnecessary here
       - -threaded
@@ -235,8 +216,6 @@ tests:
       - sel4-bv:system
       - sel4-bv:test-utils
       # external
-      - mtl
-      - free
       - monad-logger
       - filepath
       - tasty
@@ -255,9 +234,6 @@ tests:
       - sel4-bv:smtlib2-process
       - sel4-bv:target-dir
       # external
-      - optics
-      - mtl
-      - text
       - attoparsec
       - megaparsec
       - filepath
@@ -280,8 +256,6 @@ tests:
       - sel4-bv:target-dir
       - sel4-bv:test-utils
       # external
-      - mtl
-      - text
       - attoparsec
       - megaparsec
       - aeson
