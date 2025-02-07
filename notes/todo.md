@@ -22,3 +22,5 @@
 - add parallelism to stages
 - use NFData1 with fake (a -> ()) arg to avoid eval'ing meta
 - add test that just does stages without any checking reference
+
+- pure json format for inline scripts, proofs(?), and stack bounds(?)
