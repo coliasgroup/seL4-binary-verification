@@ -5,6 +5,8 @@ module BV.Core.AdornProofScript
     , SMTProofCheckDescription (..)
     , adornProofScriptWithProofScriptNodeLocationsWith
     , adornSMTProofChecksWithDescriptions
+    , prettyProofScriptNodeLocation
+    , prettySMTProofCheckDescription
     ) where
 
 import BV.Core.Types
@@ -32,3 +34,10 @@ adornSMTProofChecksWithDescriptions
     :: SMTProofChecks String -> SMTProofChecks SMTProofCheckDescription
 adornSMTProofChecksWithDescriptions = #unwrap % traversed %~
     adornProofScriptWithProofScriptNodeLocationsWith (map . fmap . SMTProofCheckDescription)
+
+prettySMTProofCheckDescription :: SMTProofCheckDescription -> String
+prettySMTProofCheckDescription desc =
+    desc.meta <> " at:\n" <> prettyProofScriptNodeLocation desc.proofScriptNodeLocation
+
+prettyProofScriptNodeLocation :: ProofScriptNodeLocation -> String
+prettyProofScriptNodeLocation _loc = "TODO\n"

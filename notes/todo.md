@@ -25,3 +25,6 @@
 
 - pure json format for inline scripts, proofs(?), and stack bounds(?)
 - rename SMTProofChecks, because that is all that is used in system (should have shorter name)
+
+- doc fix in Data.Aeson.Decoding.Text:
+  - "Lex (and parse) strict ByteString into Tokens stream." should be Text

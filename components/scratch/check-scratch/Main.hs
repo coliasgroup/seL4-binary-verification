@@ -20,6 +20,7 @@ main = runScratch
     -- testSeL4TargetDirSmall
     -- testSeL4TargetDirSmallTraceOfflineOnly
     -- testSeL4TargetDirFocusedTrace
+    -- testSeL4TargetDirFocused
     testSeL4TargetDirBig
     (tmpDir </> "logs/check-scratch.log2.txt")
     (tmpDir </> "mismatch")

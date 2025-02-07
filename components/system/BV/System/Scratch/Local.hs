@@ -16,7 +16,8 @@ import BV.TargetDir
 
 import Control.Monad (forM_, when)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Logger (LogLevel (LevelDebug, LevelInfo), runLoggingT)
+import Control.Monad.Logger (LogLevel (LevelDebug, LevelInfo), defaultOutput,
+                             runLoggingT)
 import qualified Data.Map as M
 import Optics
 import System.Exit (die)
@@ -29,11 +30,11 @@ runScratch config targetDir logDst mismatchDumpDir = do
         hSetBuffering fileHandle LineBuffering
         let output loc source level str = do
                 when (filterLevelsBelow LevelInfo source level) $ do
-                    hackLogOutput stderr loc source level str
+                    defaultOutput stderr loc source level str
                 when (filterLevelsBelow LevelDebug source level) $ do
                 -- when (filterLevelsBelow levelTrace source level) $ do
-                    hackLogOutput fileHandle loc source level str
-        flip (runLoggingT . runHackLoggingWithContextT) output $
+                    defaultOutput fileHandle loc source level str
+        flip (runLoggingT . runSimpleLoggingWithContextT) output $
             flip runCacheT trivialCacheContext $
                  run
   where
@@ -47,7 +48,7 @@ runScratch config targetDir logDst mismatchDumpDir = do
                 liftIO $ putStrLn "All checks passed"
             else do
                 forM_ (M.toAscList failed) $ \(pairingId, err) -> liftIO $ do
-                    putStrLn $ "Check failure for " <> prettyPairingId pairingId <> ": " <> show err
+                    putStrLn $ "Check failure for " <> prettyPairingId pairingId <> ": " <> prettySMTProofCheckError err
                 liftIO $ die "Some checks failed"
     ctx = EvalStagesContext
         { force = True

@@ -42,6 +42,7 @@ library concrete-syntax
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
+    , aeson-pretty
     , async
     , attoparsec
     , base

@@ -10,10 +10,12 @@ module BV.System.Frontend
     , SMTProofCheckResult
     , SMTProofCheckSource (..)
     , frontend
+    , prettySMTProofCheckError
     ) where
 
 import BV.Core.AdornProofScript
 import BV.Core.Types
+import BV.System.Fingerprinting
 import BV.System.Utils.Logger
 import BV.System.Utils.Logger.BV
 import BV.System.Utils.StopWatch
@@ -24,6 +26,7 @@ import Control.Concurrent.STM (atomically, newTVarIO, readTVar, writeTVar)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.Foldable (for_)
+import Data.List (intersperse)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
@@ -39,8 +42,7 @@ data SMTProofCheckError i
   deriving (Eq, Generic, Ord, Show)
 
 data SMTProofCheckErrorCause
-  = NoSolversAnswered
-  | SomeSolverAnsweredSat
+  = SomeSolverAnsweredSat
   | AllSolversTimedOutOrAnsweredUnknown
   deriving (Eq, Generic, Ord, Show)
 
@@ -48,6 +50,24 @@ data SMTProofCheckSource i
   = SMTProofCheckSourceCheck (SMTProofCheckMetaWithFingerprint i)
   | SMTProofCheckSourceSyntheticGroup [SMTProofCheckMetaWithFingerprint i]
   deriving (Eq, Generic, Ord, Show)
+
+prettySMTProofCheckError :: SMTProofCheckError SMTProofCheckDescription -> String
+prettySMTProofCheckError err =
+    prettyCause <> " for " <> prettySource
+  where
+    prettySource = case err.source of
+        SMTProofCheckSourceCheck check ->
+            "check " <> prettySMTProofCheckFingerprintShort check.fingerprint
+        SMTProofCheckSourceSyntheticGroup checks ->
+            "some check in ["
+            <> mconcat (intersperse ","
+                [ prettySMTProofCheckFingerprintShort check.fingerprint
+                | check <- checks
+                ])
+            <> "]"
+    prettyCause = case err.cause of
+        SomeSolverAnsweredSat -> "some solver answered sat"
+        AllSolversTimedOutOrAnsweredUnknown -> "all solvers timed out or answered unknown"
 
 data Report
   = Report
@@ -75,7 +95,7 @@ frontend f checks = do
                             result <- f group
                             logInfo $ case result of
                                 Right _ -> "success"
-                                Left failure -> "failure: " ++ show failure
+                                Left failure -> "failure: " ++ prettySMTProofCheckError failure
                             n <- liftIO . atomically $ do
                                 n' <- readTVar completedGroups
                                 let n = n' + 1

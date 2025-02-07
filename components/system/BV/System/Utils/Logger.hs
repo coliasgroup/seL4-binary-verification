@@ -5,8 +5,6 @@ module BV.System.Utils.Logger
     , MonadLogger
     , MonadLoggerWithContext (..)
     , filterLevelsBelow
-    , hackLogOutput
-    , hackLogStr
     , levelTrace
     , logDebug
     , logDebugGeneric
@@ -20,7 +18,6 @@ module BV.System.Utils.Logger
     , logWarnGeneric
     , noTrace
     , noTraceAnd
-    , runHackLoggingWithContextT
     , runSimpleLoggingWithContextT
     ) where
 
@@ -146,37 +143,12 @@ runSimpleLoggingWithContextT m = LoggingT $ \logAction ->
         LoggingWithContextEnv
             { context = []
             , logAction = \context loc source level msg ->
-                logAction loc source level (showContext context <> msg)
+                logAction loc source level (msgWithContext context msg)
             }
   where
-    showContext = foldMap (\ctx -> "[" <> toLogStr ctx <> "] ")
-
-runHackLoggingWithContextT :: MonadIO m => LoggingWithContextT m a -> LoggingT m a
-runHackLoggingWithContextT m = LoggingT $ \logAction ->
-    runReaderT
-        m.unwrap
-        LoggingWithContextEnv
-            { context = []
-            , logAction = \context loc _source level msg ->
-                logAction loc (buildContext context) level msg
-            }
-  where
-    buildContext = TL.toStrict . TL.toLazyText . foldMap (\ctx -> "[" <> fromString ctx <> "] ")
-
-hackLogOutput :: Handle -> Loc -> LogSource -> LogLevel -> LogStr -> IO ()
-hackLogOutput h loc ctx level msg = B.hPutStr h . fromLogStr $ hackLogStr loc ctx level msg
-
-hackLogStr :: Loc -> LogSource -> LogLevel -> LogStr -> LogStr
-hackLogStr _loc ctx level msg =
-    "[" <> defaultLogLevelStr level <> "] " <>
-    "(" <> toLogStr (show ctxLength) <> "," <> toLogStr (show msgLength) <> ") " <>
-    ctxLogStr <> msg <> "\n"
-  where
-    ctxLogStr = toLogStr ctx
-    ctxLength = B.length (fromLogStr ctxLogStr)
-    msgLength = B.length (fromLogStr msg)
-
-defaultLogLevelStr :: LogLevel -> LogStr
-defaultLogLevelStr level = case level of
-    LevelOther t -> toLogStr t
-    _ -> toLogStr . drop 5 $ show level
+    msgWithContext context msg =
+        -- LogStr is implemented as a bytestring builder, so a round trip is actually the most efficient here
+        let msgBytes = fromLogStr (toLogStr msg)
+         in foldMap (\ctx -> "[" <> toLogStr ctx <> "] ") context
+            <> "(" <> toLogStr (show (B.length msgBytes)) <> ") "
+            <> toLogStr msgBytes

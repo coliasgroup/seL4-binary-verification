@@ -15,7 +15,8 @@ import BV.ConcreteSyntax.GraphLangLike.Parsing (ParseFile, parseWholeFile)
 import BV.ConcreteSyntax.JSON ()
 import BV.Core.Types
 
-import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
+import Data.Aeson (FromJSON, ToJSON, eitherDecode)
+import Data.Aeson.Encode.Pretty (Config (..), defConfig, encodePretty')
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB
@@ -52,7 +53,12 @@ instance (FromJSON a, ToJSON a) => ReadBVFile BL.ByteString (JSONBVFile a) where
     readBVContents _fp c = JSONBVFile <$> eitherDecode c
 
 instance (FromJSON a, ToJSON a) => WriteBVFile BL.ByteString (JSONBVFile a) where
-    writeBVContents (JSONBVFile a) = encode a
+    writeBVContents (JSONBVFile a) = encodePretty' config a
+      where
+        config = defConfig
+            { confCompare = compare
+            , confTrailingNewline = True
+            }
 
 newtype GraphLangLikeBVFile a
   = GraphLangLikeBVFile a

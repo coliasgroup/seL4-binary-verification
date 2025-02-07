@@ -103,6 +103,7 @@ internal-libraries:
       - megaparsec
       - attoparsec
       - aeson
+      - aeson-pretty
 
   target-dir:
     visibility: public
