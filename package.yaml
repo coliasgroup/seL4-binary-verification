@@ -260,17 +260,21 @@ executables:
       - sel4-bv:test-utils
       # external
       - deepseq
+      - parallel
+      - containers
       - mtl
       - free
       - monad-logger
+      - text
       - filepath
+      - cryptohash-sha256
       - tasty
       - tasty-hunit
     ghc-options:
       # TODO
-      # - -threaded
-      # - -rtsopts
-      # - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
 
 tests:
 

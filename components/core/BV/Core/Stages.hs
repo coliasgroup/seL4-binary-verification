@@ -50,7 +50,7 @@ data StagesInput
       , proofs :: Proofs ()
       , asmFunctionFilter :: Ident -> Bool
         -- HACK
-      , compatSMTProofChecks :: CompatSMTProofChecks
+    --   , compatSMTProofChecks :: CompatSMTProofChecks
       }
   deriving (Generic, NFData)
 
@@ -65,7 +65,9 @@ data StagesOutput
       , pairings :: Pairings
       , problems :: Problems
       , compatProofChecks :: CompatProofChecks
-      , compatSMTProofChecks :: CompatSMTProofChecks
+    --   , compatSMTProofChecks :: CompatSMTProofChecks
+      --
+      , x :: ProofChecks String
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -80,7 +82,8 @@ stages input = StagesOutput
     , pairings
     , problems
     , compatProofChecks
-    , compatSMTProofChecks
+    -- , compatSMTProofChecks
+    , x = proofChecks
     }
 
   where
@@ -116,7 +119,7 @@ stages input = StagesOutput
 
     lookupFunction (WithTag tag funName) = (pairingSide tag finalPrograms).functions ! funName
 
-    problems = Problems . M.fromList $ do
+    problems' = Problems . M.fromList $ do
         pairingId <- normalFunctionPairingIds
         let namedFuns = (\funName prog -> Named funName (prog.functions ! funName)) <$> pairingId <*> finalPrograms
         guard $ isJust namedFuns.c.value.body
@@ -124,6 +127,9 @@ stages input = StagesOutput
         let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
         let problem = buildProblem lookupFunction inlineScript namedFuns
         return (pairingId, problem)
+
+    problems = withStrategy problemsStrategy problems'
+    -- problems = problems'
 
     provenProblems = problems & #unwrap %~ \m -> M.restrictKeys m (M.keysSet input.proofs.unwrap)
 
@@ -143,19 +149,21 @@ stages input = StagesOutput
                     PairingEqDirectionOut -> probSide.output
          in enumerateProofChecks lookupOrigVarName pairing problem proofScript
 
-    proofChecks = force $ withStrategy proofChecksStrategy proofChecks'
+    -- proofChecks = force $ withStrategy proofChecksStrategy proofChecks'
+    proofChecks = proofChecks'
 
     compatProofChecks' = toCompatProofChecks proofChecks
 
-    compatProofChecks = force $ withStrategy compatProofChecksStrategy compatProofChecks'
+    -- compatProofChecks = force $ withStrategy compatProofChecksStrategy compatProofChecks'
+    compatProofChecks = compatProofChecks'
 
-    uncheckedSMTProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
+    -- uncheckedSMTProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
 
     uncheckedSMTProofChecks'nohack = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
 
-    uncheckedSMTProofChecks = uncheckedSMTProofChecks'hack
-    -- uncheckedSMTProofChecks = uncheckedSMTProofChecks'nohack
+    -- uncheckedSMTProofChecks = uncheckedSMTProofChecks'hack
+    uncheckedSMTProofChecks = uncheckedSMTProofChecks'nohack
 
     compatSMTProofChecks = toCompatSMTProofChecks (void uncheckedSMTProofChecks)
 
@@ -174,28 +182,44 @@ stages input = StagesOutput
 
     preparedSMTProofChecks' = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions smtProofChecks)
 
-    preparedSMTProofChecks = withStrategy preparedSMTProofChecksStrategy preparedSMTProofChecks'
+    preparedSMTProofChecks = force $ withStrategy preparedSMTProofChecksStrategy preparedSMTProofChecks'
 
 
 compatProofChecksStrategy :: Strategy CompatProofChecks
-compatProofChecksStrategy = traverseOf (#unwrap % traversed) $ \checks -> parEval $ do
-    traverse evalHyps checks
+compatProofChecksStrategy = r0
+-- compatProofChecksStrategy = traverseOf (#unwrap % traversed) $ \checks -> parEval $ do
+--     -- traverse evalHyps checks
+--     -- traverse evalHyps checks
+--     rdeepseq checks
+-- compatProofChecksStrategy = traverseOf (#unwrap % traversed) $ \checks -> parEval $ do
+--     -- traverse evalHyps checks
+--     -- traverse evalHyps checks
+--     rdeepseq checks
 
-proofChecksStrategy :: Strategy (ProofChecks a)
+proofChecksStrategy :: NFData a => Strategy (ProofChecks a)
+-- proofChecksStrategy = r0
 proofChecksStrategy = traverseOf traverseNodeChecks $ \nodeChecks -> parEval $ do
-    traverse evalHyps nodeChecks
+    rdeepseq nodeChecks
+    -- traverse evalHyps nodeChecks
+    -- traverse rdeepseq nodeChecks
   where
     traverseNodeChecks = #unwrap % traversed % traversed
 
-evalHyps :: Strategy (ProofCheck a)
-evalHyps =
-        traverseOf #hyp rdeepseq
-    >=> traverseOf (#hyps % traversed) rdeepseq
+-- evalHyps :: Strategy (ProofCheck a)
+-- evalHyps =
+--         traverseOf #hyp rdeepseq
+--     >=> traverseOf (#hyps % traversed) rdeepseq
 
 preparedSMTProofChecksStrategy :: Strategy PreparedSMTProofChecks
-preparedSMTProofChecksStrategy preparedSMTProofChecks = do
-    return preparedSMTProofChecks
+preparedSMTProofChecksStrategy = r0
+-- preparedSMTProofChecksStrategy preparedSMTProofChecks = do
+--     return preparedSMTProofChecks
 
+problemsStrategy :: Strategy Problems
+problemsStrategy = traverseOf (#unwrap % traversed) $ \problem -> parEval $ do
+    rdeepseq problem
+    -- traverse evalHyps nodeChecks
+    -- traverse rdeepseq nodeChecks
 
 asmFunNameToCFunName :: Ident -> Ident
 asmFunNameToCFunName = #unwrap %~ ("Kernel_C." ++)

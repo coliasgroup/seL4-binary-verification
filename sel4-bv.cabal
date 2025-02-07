@@ -377,11 +377,14 @@ executable par-scratch
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
+    , containers
+    , cryptohash-sha256
     , deepseq
     , filepath
     , free
     , monad-logger
     , mtl
+    , parallel
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:system
@@ -389,6 +392,7 @@ executable par-scratch
     , sel4-bv:test-utils
     , tasty
     , tasty-hunit
+    , text
   default-language: GHC2021
 
 executable profiling-scratch
