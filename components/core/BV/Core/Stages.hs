@@ -29,7 +29,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 
 import Control.DeepSeq (NFData)
-import Control.Monad (guard)
+import Control.Monad (guard, (>=>))
 import Data.Foldable (toList)
 import Data.Functor (void)
 import Data.Map ((!))
@@ -126,7 +126,7 @@ stages input = StagesOutput
 
     provenProblems = problems & #unwrap %~ \m -> M.restrictKeys m (M.keysSet input.proofs.unwrap)
 
-    proofChecks = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    proofChecks' = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings `atPairingId` pairingId
             proofScript = input.proofs `atPairingId` pairingId
             lookupOrigVarName quadrant mangledName =
@@ -141,6 +141,8 @@ stages input = StagesOutput
                     PairingEqDirectionIn -> probSide.input
                     PairingEqDirectionOut -> probSide.output
          in enumerateProofChecks lookupOrigVarName pairing problem proofScript
+
+    proofChecks = withStrategy proofChecksStrategy proofChecks'
 
     compatProofChecks = toCompatProofChecks proofChecks
 
@@ -169,12 +171,23 @@ stages input = StagesOutput
 
     preparedSMTProofChecks' = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions smtProofChecks)
 
-    preparedSMTProofChecks = withStrategy strategy preparedSMTProofChecks'
+    preparedSMTProofChecks = withStrategy preparedSMTProofChecksStrategy preparedSMTProofChecks'
 
 
-strategy :: Strategy PreparedSMTProofChecks
-strategy = do
-    undefined
+proofChecksStrategy :: Strategy (ProofChecks a)
+proofChecksStrategy = traverseOf traverseNodeChecks $ \nodeChecks -> parEval $ do
+    traverse evalHyps nodeChecks
+  where
+    traverseNodeChecks = #unwrap % traversed % traversed
+
+evalHyps :: Strategy (ProofCheck a)
+evalHyps =
+        traverseOf #hyp rdeepseq
+    >=> traverseOf (#hyps % traversed) rdeepseq
+
+preparedSMTProofChecksStrategy :: Strategy PreparedSMTProofChecks
+preparedSMTProofChecksStrategy preparedSMTProofChecks = do
+    return preparedSMTProofChecks
 
 
 asmFunNameToCFunName :: Ident -> Ident
