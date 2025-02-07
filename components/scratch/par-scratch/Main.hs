@@ -4,14 +4,12 @@ module Main
     ( main
     ) where
 
-import BV.Core.ExecuteSMTProofChecks
-import BV.SMTLIB2.Monad
-import BV.System.Backend.Core
-import BV.System.Backend.Local
-import BV.System.Scratch.Local
-import BV.System.SolversConfig
+import BV.System.EvalStages
+import BV.System.SeL4
+import BV.TargetDir
 import BV.Test.Utils
 
+import Control.Monad.Logger (runStderrLoggingT)
 import System.FilePath ((</>))
 
 main :: IO ()
