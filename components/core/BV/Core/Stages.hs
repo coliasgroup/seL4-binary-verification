@@ -38,6 +38,7 @@ import Data.Maybe (fromJust, isJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Control.Parallel.Strategies
 
 data StagesInput
   = StagesInput
@@ -166,7 +167,14 @@ stages input = StagesOutput
             -- error "SMT proof check groups should be distinct"
             uncheckedSMTProofChecks
 
-    preparedSMTProofChecks = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions smtProofChecks)
+    preparedSMTProofChecks' = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions smtProofChecks)
+
+    preparedSMTProofChecks = withStrategy strategy preparedSMTProofChecks'
+
+
+strategy :: Strategy PreparedSMTProofChecks
+strategy = do
+    undefined
 
 
 asmFunNameToCFunName :: Ident -> Ident

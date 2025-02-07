@@ -34,6 +34,6 @@ testStages = do
         , mismatchDumpDir = Just $ tmpDir </> "mismatch"
         }
     referenceTargetDir =
-        -- testSeL4TargetDirBig
-        testSeL4TargetDirSmall
+        testSeL4TargetDirBig
+        -- testSeL4TargetDirSmall
         -- testSeL4TargetDirFocused

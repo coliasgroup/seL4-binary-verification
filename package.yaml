@@ -83,6 +83,7 @@ internal-libraries:
       - sel4-bv:smtlib2
       # external
       - deepseq
+      - parallel
       - containers
       - transformers
       - mtl
