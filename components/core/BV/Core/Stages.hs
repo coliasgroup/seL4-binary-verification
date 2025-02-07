@@ -39,6 +39,7 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Control.Parallel.Strategies
+import Control.Monad.State (withState)
 
 data StagesInput
   = StagesInput
@@ -144,7 +145,9 @@ stages input = StagesOutput
 
     proofChecks = withStrategy proofChecksStrategy proofChecks'
 
-    compatProofChecks = toCompatProofChecks proofChecks
+    compatProofChecks' = toCompatProofChecks proofChecks
+
+    compatProofChecks = withStrategy compatProofChecksStrategy compatProofChecks'
 
     uncheckedSMTProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
 
@@ -173,6 +176,10 @@ stages input = StagesOutput
 
     preparedSMTProofChecks = withStrategy preparedSMTProofChecksStrategy preparedSMTProofChecks'
 
+
+compatProofChecksStrategy :: Strategy CompatProofChecks
+compatProofChecksStrategy = traverseOf (#unwrap % traversed) $ \checks -> parEval $ do
+    traverse evalHyps checks
 
 proofChecksStrategy :: Strategy (ProofChecks a)
 proofChecksStrategy = traverseOf traverseNodeChecks $ \nodeChecks -> parEval $ do
