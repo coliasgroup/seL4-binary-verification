@@ -38,16 +38,16 @@ evalStages
     -> StagesInput
     -> m PreparedSMTProofChecks
 evalStages ctx input = do
-    -- logWarn $
-    --     "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) output.unhandledInlineAssemblyFunctions)
-    -- logWarn $
-    --     "Unhandled instrcution functions (Asm side): " ++ show (map (.unwrap) output.unhandledInstructionFunctions)
-    -- logInfo "Registering functions"
-    -- register noop targetDirFiles.functions output.functions
-    -- logInfo "Registering pairings"
-    -- register noop targetDirFiles.pairings output.pairings
-    -- logInfo "Registering problems"
-    -- register filterProblems targetDirFiles.problems output.problems
+    logWarn $
+        "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) output.unhandledInlineAssemblyFunctions)
+    logWarn $
+        "Unhandled instrcution functions (Asm side): " ++ show (map (.unwrap) output.unhandledInstructionFunctions)
+    logInfo "Registering functions"
+    register noop targetDirFiles.functions output.functions
+    logInfo "Registering pairings"
+    register noop targetDirFiles.pairings output.pairings
+    logInfo "Registering problems"
+    register filterProblems targetDirFiles.problems output.problems
     logInfo "Registering proof checks"
     register noop targetDirFiles.proofChecks output.compatProofChecks
     logInfo "Registering SMT proof checks"

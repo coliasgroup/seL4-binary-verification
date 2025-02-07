@@ -28,7 +28,7 @@ import BV.Core.Stages.PseudoCompile
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Control.DeepSeq (NFData)
+import Control.DeepSeq (NFData, force)
 import Control.Monad (guard, (>=>))
 import Data.Foldable (toList)
 import Data.Functor (void)
@@ -143,11 +143,11 @@ stages input = StagesOutput
                     PairingEqDirectionOut -> probSide.output
          in enumerateProofChecks lookupOrigVarName pairing problem proofScript
 
-    proofChecks = withStrategy proofChecksStrategy proofChecks'
+    proofChecks = force $ withStrategy proofChecksStrategy proofChecks'
 
     compatProofChecks' = toCompatProofChecks proofChecks
 
-    compatProofChecks = withStrategy compatProofChecksStrategy compatProofChecks'
+    compatProofChecks = force $ withStrategy compatProofChecksStrategy compatProofChecks'
 
     uncheckedSMTProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
 

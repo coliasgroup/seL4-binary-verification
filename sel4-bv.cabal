@@ -424,6 +424,8 @@ test-suite concrete-syntax-test
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Glob
@@ -455,6 +457,8 @@ test-suite core-test
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
@@ -483,6 +487,8 @@ test-suite smtlib2-test
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Glob
@@ -513,6 +519,8 @@ test-suite system-test
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
+      DuplicateRecordFields
+      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base

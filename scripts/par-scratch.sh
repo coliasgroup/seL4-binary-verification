@@ -6,4 +6,5 @@ x=par-scratch
 
 cabal build $x
 path=$(cabal list-bin $x)
-$path "$@"
+# $path  +RTS -N1 -RTS "$@"
+$path  +RTS -N40 -RTS "$@"

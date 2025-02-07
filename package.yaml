@@ -268,9 +268,9 @@ executables:
       - tasty-hunit
     ghc-options:
       # TODO
-      - -threaded
-      - -rtsopts
-      - -with-rtsopts=-N
+      # - -threaded
+      # - -rtsopts
+      # - -with-rtsopts=-N
 
 tests:
 
