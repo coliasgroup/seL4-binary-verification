@@ -32,13 +32,13 @@ library concrete-syntax
       components/concrete-syntax
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-      DuplicateRecordFields
-      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
@@ -96,13 +96,13 @@ library core
       components/core
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-      DuplicateRecordFields
-      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       base
@@ -134,13 +134,13 @@ library smtlib2
       components/smtlib2
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-      DuplicateRecordFields
-      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       attoparsec
@@ -161,13 +161,13 @@ library smtlib2-process
       components/smtlib2-process
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-      DuplicateRecordFields
-      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -210,13 +210,13 @@ library system
       components/system
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-      DuplicateRecordFields
-      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -258,13 +258,13 @@ library target-dir
       components/target-dir
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-      DuplicateRecordFields
-      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
@@ -284,13 +284,13 @@ library test-utils
       components/tests/test-utils
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-      DuplicateRecordFields
-      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       base
@@ -307,13 +307,13 @@ executable check-scratch
       components/scratch/check-scratch
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-      DuplicateRecordFields
-      NoFieldSelectors
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
@@ -332,6 +332,8 @@ executable cli
       components/cli
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -349,6 +351,8 @@ executable normalize-smtlib2
       components/utils/normalize-smtlib2
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -366,6 +370,8 @@ executable profiling-scratch
       components/scratch/profiling-scratch
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -388,6 +394,8 @@ test-suite concrete-syntax-test
       components/tests/concrete-syntax-test
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -419,6 +427,8 @@ test-suite core-test
       components/tests/core-test
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -447,6 +457,8 @@ test-suite smtlib2-test
       components/tests/smtlib2-test
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies
@@ -477,6 +489,8 @@ test-suite system-test
       components/tests/system-test
   default-extensions:
       FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
       DerivingStrategies

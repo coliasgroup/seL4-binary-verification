@@ -13,6 +13,8 @@ language: GHC2021
 default-extensions:
   - FunctionalDependencies
   # records
+  - DuplicateRecordFields
+  - NoFieldSelectors
   - OverloadedLabels
   - OverloadedRecordDot
   # GHC2024
@@ -32,9 +34,6 @@ internal-libraries:
   smtlib2:
     visibility: public
     source-dirs: components/smtlib2
-    default-extensions:
-      - DuplicateRecordFields
-      - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
       # external
@@ -49,9 +48,6 @@ internal-libraries:
   smtlib2-process:
     visibility: public
     source-dirs: components/smtlib2-process
-    default-extensions:
-      - DuplicateRecordFields
-      - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
       - sel4-bv:smtlib2
@@ -70,9 +66,6 @@ internal-libraries:
   core:
     visibility: public
     source-dirs: components/core
-    default-extensions:
-      - DuplicateRecordFields
-      - NoFieldSelectors
     exposed-modules:
       - BV.Core.Types
       - BV.Core.Types.Extras
@@ -97,9 +90,6 @@ internal-libraries:
   concrete-syntax:
     visibility: public
     source-dirs: components/concrete-syntax
-    default-extensions:
-      - DuplicateRecordFields
-      - NoFieldSelectors
     exposed-modules:
       - BV.ConcreteSyntax
     dependencies:
@@ -118,9 +108,6 @@ internal-libraries:
   target-dir:
     visibility: public
     source-dirs: components/target-dir
-    default-extensions:
-      - DuplicateRecordFields
-      - NoFieldSelectors
     exposed-modules:
       - BV.TargetDir
     dependencies:
@@ -136,9 +123,6 @@ internal-libraries:
   system:
     visibility: public
     source-dirs: components/system
-    default-extensions:
-      - DuplicateRecordFields
-      - NoFieldSelectors
     # exposed-modules: # TODO
     dependencies:
       - sel4-bv:smtlib2
@@ -176,9 +160,6 @@ internal-libraries:
 
   test-utils:
     source-dirs: components/tests/test-utils
-    default-extensions:
-      - DuplicateRecordFields
-      - NoFieldSelectors
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
@@ -227,9 +208,6 @@ executables:
   check-scratch:
     source-dirs: components/scratch/check-scratch
     main: Main.hs
-    default-extensions:
-      - DuplicateRecordFields
-      - NoFieldSelectors
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:core
