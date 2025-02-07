@@ -361,6 +361,33 @@ executable normalize-smtlib2
     , sel4-bv:smtlib2
   default-language: GHC2021
 
+executable par-scratch
+  main-is: Main.hs
+  hs-source-dirs:
+      components/scratch/par-scratch
+  default-extensions:
+      FunctionalDependencies
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base
+    , filepath
+    , free
+    , monad-logger
+    , mtl
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , sel4-bv:system
+    , sel4-bv:target-dir
+    , sel4-bv:test-utils
+    , tasty
+    , tasty-hunit
+  default-language: GHC2021
+
 executable profiling-scratch
   main-is: Main.hs
   hs-source-dirs:

@@ -246,6 +246,28 @@ executables:
       - -rtsopts
       - -with-rtsopts=-N
 
+  par-scratch:
+    source-dirs: components/scratch/par-scratch
+    main: Main.hs
+    dependencies:
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:target-dir
+      - sel4-bv:system
+      - sel4-bv:test-utils
+      # external
+      - mtl
+      - free
+      - monad-logger
+      - filepath
+      - tasty
+      - tasty-hunit
+    ghc-options:
+      # TODO
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+
 tests:
 
   core-test:
