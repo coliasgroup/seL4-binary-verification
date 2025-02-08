@@ -21,7 +21,6 @@ import BV.SMTLIB2
 
 import Options.Applicative
 
-import Control.Monad.Logger (LogLevel (..))
 import GHC.Generics (Generic)
 import Text.Printf (printf)
 

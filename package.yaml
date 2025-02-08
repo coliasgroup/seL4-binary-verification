@@ -79,6 +79,7 @@ internal-libraries:
       - BV.Logging
     dependencies:
       - attoparsec
+      - aeson
       - monad-logger
       - unliftio-core
   

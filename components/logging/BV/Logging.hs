@@ -1,10 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.Logging
-    ( LoggingWithContextT
+    ( LogEntry (..)
+    , LogLevel (..)
+    , LogLevelWithTrace (..)
+    , LoggingWithContextT
     , MonadLogger
     , MonadLoggerWithContext (..)
-    , filterLevelsBelow
+    , humanLogFormatter
+    , jsonLogFormatter
+    , levelAtLeastWithTrace
     , levelTrace
     , logDebug
     , logDebugGeneric
@@ -16,76 +21,26 @@ module BV.Logging
     , logTraceGeneric
     , logWarn
     , logWarnGeneric
-    , noTrace
-    , noTraceAnd
+    , runLoggingWithContextT
     , runSimpleLoggingWithContextT
+    , simpleLogOutput
+    , textLogFormatter
+    , withPushLogContext
     ) where
 
-import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
-import Control.Monad.Except (ExceptT, mapExceptT)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO)
-import Control.Monad.Logger (Loc, LogLevel (..), LogSource, LogStr,
-                             LoggingT (LoggingT), MonadLogger (monadLoggerLog),
-                             ToLogStr, fromLogStr, logDebugN, logErrorN,
+import BV.Logging.Adapters
+import BV.Logging.Aeson ()
+import BV.Logging.Formatting
+import BV.Logging.LevelWithTrace
+import BV.Logging.Types
+
+import Control.Monad (when)
+import Control.Monad.Logger (LogLevel (..), ToLogStr, logDebugN, logErrorN,
                              logInfoN, logOtherN, logWarnN, logWithoutLoc,
                              toLogStr)
-import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT, withReaderT)
-import qualified Data.ByteString as B
-import Data.String (fromString)
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Builder as TL
-import GHC.Generics (Generic)
-import Optics (ViewableOptic (gview), (%~))
 import System.IO (Handle)
-
-class MonadLogger m => MonadLoggerWithContext m where
-    withPushLogContext :: String -> m a -> m a
-
-instance MonadLoggerWithContext m => MonadLoggerWithContext (ReaderT r m) where
-    withPushLogContext = mapReaderT . withPushLogContext
-
-instance MonadLoggerWithContext m => MonadLoggerWithContext (ExceptT e m) where
-    withPushLogContext = mapExceptT . withPushLogContext
-
--- TODO newtype to enforce "[^]]*" invariant
-type LogContextEntry = String
-
-type LogContext = [LogContextEntry]
-
-newtype LoggingWithContextT m a
-  = LoggingWithContextT { unwrap :: ReaderT LoggingWithContextEnv m a }
-  deriving
-    ( Applicative
-    , Functor
-    , Monad
-    , MonadCatch
-    , MonadFail
-    , MonadIO
-    , MonadMask
-    , MonadThrow
-    , MonadUnliftIO
-    )
-
-data LoggingWithContextEnv
-  = LoggingWithContextEnv
-      { context :: LogContext
-      , logAction :: LogContext -> Loc -> LogSource -> LogLevel -> LogStr -> IO ()
-      }
-  deriving (Generic)
-
-instance MonadIO m => MonadLogger (LoggingWithContextT m) where
-    monadLoggerLog loc source level msg = LoggingWithContextT $ do
-        context <- gview #context
-        logAction <- gview #logAction
-        liftIO $ logAction context loc source level (toLogStr msg)
-
-instance MonadIO m => MonadLoggerWithContext (LoggingWithContextT m) where
-    withPushLogContext entry m =
-        if ']' `elem` entry
-        then error "log context entry may not contain ']'"
-        else LoggingWithContextT $ withReaderT (#context %~ (++ [entry])) m.unwrap
 
 logTrace :: MonadLogger m => String -> m ()
 logTrace = logOtherN levelTrace . T.pack
@@ -120,45 +75,6 @@ logWarnGeneric = logGeneric LevelWarn
 logErrorGeneric :: (MonadLogger m, ToLogStr a) => a -> m ()
 logErrorGeneric = logGeneric LevelError
 
-levelTrace :: LogLevel
-levelTrace = LevelOther (T.pack "Trace")
-
-noTrace :: LogSource -> LogLevel -> Bool
-noTrace _source level = level /= levelTrace
-
-noTraceAnd :: (LogSource -> LogLevel -> Bool) -> LogSource -> LogLevel -> Bool
-noTraceAnd p source level = noTrace source level && p source level
-
-filterLevelsBelow :: LogLevel -> LogSource -> LogLevel -> Bool
-filterLevelsBelow minLevel _source level
-  | minLevel == levelTrace = True
-  | level == levelTrace = False
-  | otherwise = level >= minLevel
-
---
-
-runSimpleLoggingWithContextT :: MonadIO m => Bool -> LoggingWithContextT m a -> LoggingT m a
-runSimpleLoggingWithContextT includeMsgLengths m = LoggingT $ \logAction ->
-    runReaderT
-        m.unwrap
-        LoggingWithContextEnv
-            { context = []
-            , logAction = \context loc source level msg ->
-                logAction loc source level (msgWithContext context msg)
-            }
-  where
-    msgWithContext context msg =
-        -- LogStr is implemented as a bytestring builder, so a round trip is actually the most efficient here
-        let msgBytes = fromLogStr (toLogStr msg)
-         in foldMap (\ctx -> "[" <> toLogStr ctx <> "] ") context
-            <> (if includeMsgLengths then "(" <> toLogStr (show (B.length msgBytes)) <> ") " else mempty)
-            <> toLogStr msgBytes
-
-data LogEntry
-  = LogEntry
-      { context :: [LogContextEntry]
-      , loc :: Loc
-      , source :: LogSource
-      , level :: LogLevel
-      , msg :: LogStr
-      }
+simpleLogOutput :: (LogEntry -> BL.ByteString) -> LogLevel -> Handle -> LogEntry -> IO ()
+simpleLogOutput f minLevel h entry =
+    when (levelAtLeastWithTrace minLevel entry.level) $ BL.hPutStr h (f entry)

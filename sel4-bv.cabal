@@ -135,6 +135,13 @@ library logging
   visibility: public
   exposed-modules:
       BV.Logging
+  other-modules:
+      BV.Logging.Adapters
+      BV.Logging.Aeson
+      BV.Logging.Formatting
+      BV.Logging.LevelWithTrace
+      BV.Logging.Parsing
+      BV.Logging.Types
   hs-source-dirs:
       components/logging
   default-extensions:
@@ -148,7 +155,8 @@ library logging
       LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      async
+      aeson
+    , async
     , attoparsec
     , base
     , bytestring
