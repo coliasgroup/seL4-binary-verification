@@ -357,7 +357,7 @@ executable check-scratch
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       async
     , base
@@ -379,7 +379,11 @@ executable check-scratch
   default-language: GHC2021
 
 executable cli
-  main-is: Main.hs
+  main-is: BV/CLI/Main.hs
+  other-modules:
+      BV.CLI.Commands.Check
+      BV.CLI.Commands.ExtractSMT
+      BV.CLI.Opts
   hs-source-dirs:
       components/cli
   default-extensions:
@@ -391,21 +395,35 @@ executable cli
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is BV.CLI.Main
   build-depends:
-      async
+      aeson
+    , async
+    , attoparsec
     , base
     , bytestring
+    , conduit
+    , conduit-extra
     , containers
     , deepseq
     , exceptions
+    , filepath
+    , megaparsec
+    , monad-logger
     , mtl
     , optics
+    , optparse-applicative
+    , optparse-generic
     , parallel
+    , pretty-simple
+    , resourcet
+    , sel4-bv:core
     , sel4-bv:system
+    , sel4-bv:target-dir
     , stm
     , text
     , transformers
+    , unliftio-core
   default-language: GHC2021
 
 executable normalize-smtlib2
@@ -421,7 +439,7 @@ executable normalize-smtlib2
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind
+  ghc-options: -Wall -Wno-unused-do-bind -main-is Main
   build-depends:
       async
     , base
@@ -451,7 +469,7 @@ executable profiling-scratch
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       async
     , base
@@ -485,7 +503,7 @@ test-suite concrete-syntax-test
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       Glob
     , aeson
@@ -527,7 +545,7 @@ test-suite core-test
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       async
     , base
@@ -566,7 +584,7 @@ test-suite smtlib2-test
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       Glob
     , async
@@ -606,7 +624,7 @@ test-suite system-test
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       async
     , base

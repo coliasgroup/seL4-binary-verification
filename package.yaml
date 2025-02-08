@@ -160,9 +160,25 @@ executables:
 
   cli:
     source-dirs: components/cli
-    main: Main.hs
+    main: BV.CLI.Main
     dependencies:
+      - sel4-bv:core
+      - sel4-bv:target-dir
       - sel4-bv:system
+      # external
+      - megaparsec
+      - attoparsec
+      - aeson
+      - unliftio-core
+      - monad-logger
+      - filepath
+      - resourcet
+      - conduit
+      - conduit-extra
+      - optparse-applicative
+      - optparse-generic
+      # TODO for debugging
+      - pretty-simple
     ghc-options:
       # TODO probably unnecessary here
       - -threaded
@@ -171,13 +187,13 @@ executables:
 
   normalize-smtlib2:
     source-dirs: components/utils/normalize-smtlib2
-    main: Main.hs
+    main: Main
     dependencies:
       - sel4-bv:smtlib2
 
   profiling-scratch:
     source-dirs: components/scratch/profiling-scratch
-    main: Main.hs
+    main: Main
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
@@ -191,7 +207,7 @@ executables:
 
   check-scratch:
     source-dirs: components/scratch/check-scratch
-    main: Main.hs
+    main: Main
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:core
@@ -209,7 +225,7 @@ tests:
 
   core-test:
     source-dirs: components/tests/core-test
-    main: Main.hs
+    main: Main
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
@@ -229,7 +245,7 @@ tests:
 
   smtlib2-test:
     source-dirs: components/tests/smtlib2-test
-    main: Main.hs
+    main: Main
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
@@ -250,7 +266,7 @@ tests:
 
   concrete-syntax-test:
     source-dirs: components/tests/concrete-syntax-test
-    main: Main.hs
+    main: Main
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
@@ -273,7 +289,7 @@ tests:
 
   system-test:
     source-dirs: components/tests/system-test
-    main: Main.hs
+    main: Main
     dependencies:
       - sel4-bv:system
     ghc-options:

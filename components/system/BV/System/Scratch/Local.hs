@@ -34,7 +34,7 @@ runScratch config targetDir logDst mismatchDumpDir = do
                 when (filterLevelsBelow LevelDebug source level) $ do
                 -- when (filterLevelsBelow levelTrace source level) $ do
                     defaultOutput fileHandle loc source level str
-        flip (runLoggingT . runSimpleLoggingWithContextT) output $
+        flip (runLoggingT . runSimpleLoggingWithContextT True) output $
             flip runCacheT trivialCacheContext $
                  run
   where

@@ -49,6 +49,7 @@ instance MonadLoggerWithContext m => MonadLoggerWithContext (ReaderT r m) where
 instance MonadLoggerWithContext m => MonadLoggerWithContext (ExceptT e m) where
     withPushLogContext = mapExceptT . withPushLogContext
 
+-- TODO newtype to enforce "[^]]*" invariant
 type LogContextEntry = String
 
 type LogContext = [LogContextEntry]
@@ -136,8 +137,8 @@ filterLevelsBelow minLevel _source level
 
 --
 
-runSimpleLoggingWithContextT :: MonadIO m => LoggingWithContextT m a -> LoggingT m a
-runSimpleLoggingWithContextT m = LoggingT $ \logAction ->
+runSimpleLoggingWithContextT :: MonadIO m => Bool -> LoggingWithContextT m a -> LoggingT m a
+runSimpleLoggingWithContextT includeMsgLengths m = LoggingT $ \logAction ->
     runReaderT
         m.unwrap
         LoggingWithContextEnv
@@ -150,5 +151,14 @@ runSimpleLoggingWithContextT m = LoggingT $ \logAction ->
         -- LogStr is implemented as a bytestring builder, so a round trip is actually the most efficient here
         let msgBytes = fromLogStr (toLogStr msg)
          in foldMap (\ctx -> "[" <> toLogStr ctx <> "] ") context
-            <> "(" <> toLogStr (show (B.length msgBytes)) <> ") "
+            <> (if includeMsgLengths then "(" <> toLogStr (show (B.length msgBytes)) <> ") " else mempty)
             <> toLogStr msgBytes
+
+data LogEntry =
+    LogEntry
+        { context :: [LogContextEntry]
+        , loc :: Loc
+        , source :: LogSource
+        , level :: LogLevel
+        , msg :: LogStr
+        }
