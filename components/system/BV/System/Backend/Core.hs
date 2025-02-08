@@ -13,6 +13,7 @@ module BV.System.Backend.Core
 
 import BV.Core.ExecuteSMTProofChecks
 import BV.Core.Types
+import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Process
@@ -21,7 +22,6 @@ import BV.System.Frontend
 import BV.System.SolversConfig
 import BV.System.Throttle
 import BV.System.Utils
-import BV.System.Utils.Logger
 import BV.System.Utils.Logger.BV
 import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async

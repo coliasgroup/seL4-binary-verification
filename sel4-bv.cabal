@@ -131,6 +131,40 @@ library core
     , transformers
   default-language: GHC2021
 
+library logging
+  visibility: public
+  exposed-modules:
+      BV.Logging
+  hs-source-dirs:
+      components/logging
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      async
+    , attoparsec
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , monad-logger
+    , mtl
+    , optics
+    , parallel
+    , stm
+    , text
+    , transformers
+    , unliftio-core
+  default-language: GHC2021
+
 library smtlib2
   visibility: public
   exposed-modules:
@@ -224,7 +258,6 @@ library system
       BV.System.TaskQueue
       BV.System.Throttle
       BV.System.Utils
-      BV.System.Utils.Logger
       BV.System.Utils.Logger.BV
       BV.System.Utils.StopWatch
       BV.System.Utils.UnliftIO.Async
@@ -263,6 +296,7 @@ library system
     , process
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , sel4-bv:logging
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:target-dir
@@ -418,6 +452,7 @@ executable cli
     , pretty-simple
     , resourcet
     , sel4-bv:core
+    , sel4-bv:logging
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system

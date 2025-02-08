@@ -5,7 +5,7 @@ module BV.CLI.Main
 import BV.CLI.Commands.Check
 import BV.CLI.Commands.ExtractSMT
 import BV.CLI.Opts
-import BV.System.Utils.Logger
+import BV.Logging
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)

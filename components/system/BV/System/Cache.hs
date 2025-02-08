@@ -14,8 +14,8 @@ module BV.System.Cache
     , updateCache
     ) where
 
+import BV.Logging (MonadLoggerWithContext)
 import BV.System.Fingerprinting
-import BV.System.Utils.Logger (MonadLoggerWithContext)
 
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)

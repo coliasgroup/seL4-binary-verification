@@ -72,6 +72,16 @@ internal-libraries:
       - conduit
       - conduit-extra
   
+  logging:
+    visibility: public
+    source-dirs: components/logging
+    exposed-modules:
+      - BV.Logging
+    dependencies:
+      - attoparsec
+      - monad-logger
+      - unliftio-core
+  
   core:
     visibility: public
     source-dirs: components/core
@@ -124,6 +134,7 @@ internal-libraries:
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
+      - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
@@ -164,6 +175,7 @@ executables:
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
+      - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:target-dir
       - sel4-bv:system

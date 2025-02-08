@@ -12,11 +12,11 @@ module BV.System.Utils.Logger.BV
     ) where
 
 import BV.Core.Types
+import BV.Logging
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build
 import BV.System.Cache
 import BV.System.Fingerprinting
-import BV.System.Utils.Logger
 import BV.System.WithFingerprints
 
 import Control.Monad.Catch (MonadMask)

@@ -9,11 +9,11 @@ module BV.System.Backend.Local
     ) where
 
 import BV.Core.Stages
+import BV.Logging
 import BV.System.Backend.Core
 import BV.System.Cache
 import BV.System.Frontend
 import BV.System.Throttle
-import BV.System.Utils.Logger
 import BV.System.Utils.UnliftIO.Throttle
 import BV.System.WithFingerprints
 

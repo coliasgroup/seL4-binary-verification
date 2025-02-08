@@ -5,12 +5,12 @@ module BV.System.Scratch.Local
     ) where
 
 import BV.Core.Types
+import BV.Logging
 import BV.System.Backend.Local
 import BV.System.Cache
 import BV.System.EvalStages
 import BV.System.Frontend
 import BV.System.SeL4
-import BV.System.Utils.Logger
 import BV.System.WithFingerprints
 import BV.TargetDir
 

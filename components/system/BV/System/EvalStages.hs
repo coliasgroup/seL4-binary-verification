@@ -10,7 +10,7 @@ module BV.System.EvalStages
 import BV.ConcreteSyntax
 import BV.Core.Stages
 import BV.Core.Types
-import BV.System.Utils.Logger
+import BV.Logging
 import BV.TargetDir
 
 import Control.DeepSeq (NFData, deepseq, force)

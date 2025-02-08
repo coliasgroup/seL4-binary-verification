@@ -16,8 +16,8 @@ module BV.CLI.Opts
     ) where
 
 import BV.Core.Types
+import BV.Logging
 import BV.SMTLIB2
-import BV.System.Utils.Logger
 
 import Options.Applicative
 

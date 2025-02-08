@@ -3,7 +3,7 @@ module BV.CLI.Commands.ExtractSMT
     ) where
 
 import BV.CLI.Opts
-import BV.System.Utils.Logger
+import BV.Logging
 
 import Control.Monad.IO.Class (MonadIO)
 

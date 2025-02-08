@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.System.Utils.Logger
+module BV.Logging
     ( LoggingWithContextT
     , MonadLogger
     , MonadLoggerWithContext (..)
