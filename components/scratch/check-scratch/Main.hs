@@ -52,7 +52,7 @@ solversConfig = SolversConfig
             -- [ f ["mathsat", "-input=smt2"]
             -- [ f ["sonolar", "--input-format=smtlib2"]
             ]
-        , timeout = solverTimeoutFromSeconds  6000
+        , timeout = solverTimeoutFromSeconds 6000
         }
     }
   where

@@ -8,7 +8,7 @@ import BV.CLI.Opts
 import BV.System.Utils.Logger
 
 import Control.Monad (when)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import GHC.Conc (getNumProcessors, setNumCapabilities)
 import Text.Pretty.Simple (pPrint)
 import Text.Printf (printf)
@@ -22,8 +22,15 @@ main = do
 
 run :: Opts -> IO ()
 run opts = withLoggingOpts opts.globalOpts.loggingOpts $ do
+    setNumCapabilitiesAccordingToOpt opts.globalOpts.numCores
+    case opts.commandOpts of
+        CommandOptsCheck checkOpts -> runCheck checkOpts
+        CommandOptsExtractSMT extractSMTOpts -> runExtractSMT extractSMTOpts
+
+setNumCapabilitiesAccordingToOpt :: (MonadIO m, MonadLoggerWithContext m) => Maybe Int -> m ()
+setNumCapabilitiesAccordingToOpt opt = do
     numProcs <- liftIO getNumProcessors
-    liftIO . setNumCapabilities =<< case opts.globalOpts.numCores of
+    liftIO . setNumCapabilities =<< case opt of
         Just n -> do
             when (n > numProcs) $ do
                 logWarn $ printf
@@ -32,9 +39,6 @@ run opts = withLoggingOpts opts.globalOpts.loggingOpts $ do
             return n
         Nothing -> do
             return $ numProcs - 1
-    case opts.commandOpts of
-        CommandOptsCheck checkOpts -> runCheck opts.globalOpts checkOpts
-        CommandOptsExtractSMT extractSMTOpts -> runExtractSMT opts.globalOpts extractSMTOpts
 
 withLoggingOpts :: LoggingOpts -> LoggingWithContextT IO a -> IO a
 withLoggingOpts opts m = do

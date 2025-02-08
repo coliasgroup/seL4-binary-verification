@@ -162,6 +162,8 @@ executables:
     source-dirs: components/cli
     main: BV.CLI.Main
     dependencies:
+      - sel4-bv:smtlib2
+      - sel4-bv:smtlib2-process
       - sel4-bv:core
       - sel4-bv:target-dir
       - sel4-bv:system

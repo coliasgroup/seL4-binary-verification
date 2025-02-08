@@ -154,11 +154,11 @@ runSimpleLoggingWithContextT includeMsgLengths m = LoggingT $ \logAction ->
             <> (if includeMsgLengths then "(" <> toLogStr (show (B.length msgBytes)) <> ") " else mempty)
             <> toLogStr msgBytes
 
-data LogEntry =
-    LogEntry
-        { context :: [LogContextEntry]
-        , loc :: Loc
-        , source :: LogSource
-        , level :: LogLevel
-        , msg :: LogStr
-        }
+data LogEntry
+  = LogEntry
+      { context :: [LogContextEntry]
+      , loc :: Loc
+      , source :: LogSource
+      , level :: LogLevel
+      , msg :: LogStr
+      }

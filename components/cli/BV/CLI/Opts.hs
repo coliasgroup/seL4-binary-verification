@@ -16,6 +16,7 @@ module BV.CLI.Opts
     ) where
 
 import BV.Core.Types
+import BV.SMTLIB2
 import BV.System.Utils.Logger
 
 import Options.Applicative
@@ -76,7 +77,9 @@ data CommandOpts
 data CheckOpts
   = CheckOpts
       { maxNumConcurrentSolvers :: Maybe Int
-      , solversConfig :: FilePath
+      , solvers :: FilePath
+      , onlineSolverTimeout :: SolverTimeout
+      , offlineSolverTimeout :: SolverTimeout
       , inputTargetDir :: FilePath
       , dumpTargetDir :: Maybe FilePath
       , mismatchDir :: Maybe FilePath
@@ -226,12 +229,24 @@ commandOptsParser =
 
 checkOptsParser :: Parser CheckOpts
 checkOptsParser = do
-    solversConfig <- option' str
+    solvers <- option' str
         [ long "solvers"
         , short 's'
         , metavar "FILE"
         , help "Solvers config file"
         , action "file"
+        ]
+    onlineSolverTimeout <- option' (solverTimeoutFromSeconds <$> auto)
+        [ long "online-solver-timeout"
+        , metavar "SECONDS"
+        , value defaultOnlineSolverTimeout
+        , help "Timeout for online solvers"
+        ]
+    offlineSolverTimeout <- option' (solverTimeoutFromSeconds <$> auto)
+        [ long "offline-solver-timeout"
+        , metavar "SECONDS"
+        , value defaultOfflineSolverTimeout
+        , help "Timeout for offline solvers"
         ]
     inputTargetDir <- option' str
         [ long "target-dir"
@@ -270,7 +285,9 @@ checkOptsParser = do
         ]
     return $ CheckOpts
         { maxNumConcurrentSolvers
-        , solversConfig
+        , solvers
+        , onlineSolverTimeout
+        , offlineSolverTimeout
         , inputTargetDir
         , dumpTargetDir
         , mismatchDir
@@ -278,6 +295,12 @@ checkOptsParser = do
         , includeGroups
         , includeChecks
         }
+
+defaultOnlineSolverTimeout :: SolverTimeout
+defaultOnlineSolverTimeout = solverTimeoutFromSeconds 30
+
+defaultOfflineSolverTimeout :: SolverTimeout
+defaultOfflineSolverTimeout = solverTimeoutFromSeconds 6000
 
 extractSMTOptsParser :: Parser ExtractSMTOpts
 extractSMTOptsParser = do

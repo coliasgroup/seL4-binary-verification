@@ -7,6 +7,6 @@ import BV.System.Utils.Logger
 
 import Control.Monad.IO.Class (MonadIO)
 
-runCheck :: (MonadIO m, MonadLoggerWithContext m) => GlobalOpts -> CheckOpts -> m ()
-runCheck globalOpts checkOpts = do
+runCheck :: (MonadIO m, MonadLoggerWithContext m) => CheckOpts -> m ()
+runCheck checkOpts = do
     return ()

@@ -7,6 +7,6 @@ import BV.System.Utils.Logger
 
 import Control.Monad.IO.Class (MonadIO)
 
-runExtractSMT :: (MonadIO m, MonadLoggerWithContext m) => GlobalOpts -> ExtractSMTOpts -> m ()
-runExtractSMT globalOpts extractSMTOpts = do
+runExtractSMT :: (MonadIO m, MonadLoggerWithContext m) => ExtractSMTOpts -> m ()
+runExtractSMT extractSMTOpts = do
     return ()
