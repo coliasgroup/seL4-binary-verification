@@ -23,7 +23,7 @@ import GHC.Generics (Generic)
 
 data LocalBackendConfig
   = LocalBackendConfig
-      { numCores :: Integer
+      { numJobs :: Integer
       , backendCoreConfig :: BackendCoreConfig
       }
   deriving (Eq, Generic, Ord, Show)
@@ -32,5 +32,5 @@ localBackend
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
     => LocalBackendConfig -> FlattenedSMTProofChecksWithFingerprints SMTProofCheckDescription -> m Report
 localBackend config checks = do
-    withThrottlingUnliftIO (Units config.numCores) $ \throttle -> do
+    withThrottlingUnliftIO (Units config.numJobs) $ \throttle -> do
         frontend (backendCore config.backendCoreConfig throttle) checks

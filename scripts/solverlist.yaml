@@ -1,0 +1,20 @@
+online:
+  command: ["yices-smt2", "--incremental"]
+  memory_mode: word8
+offline:
+  # yices:
+  #   command: ["yices-smt2"]
+  #   memory_modes:
+  #     - word8
+  #     - word32
+  #   scopes:
+  #     - all
+  #     - hyp
+  # bitwuzla:
+  #   command: ["bitwuzla"]
+  #   memory_modes:
+  #     - word8
+  #     - word32
+  #   scopes:
+  #     - all
+  #     - hyp

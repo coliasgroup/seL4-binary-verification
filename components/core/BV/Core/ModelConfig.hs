@@ -5,6 +5,7 @@ module BV.Core.ModelConfig
     , SolverMemoryMode (..)
     , configureSExpr
     , modelConfigPreamble
+    , prettySolverMemoryMode
     ) where
 
 import BV.Core.Types
@@ -23,6 +24,11 @@ data SolverMemoryMode
   = SolverMemoryModeWord8
   | SolverMemoryModeWord32
   deriving (Eq, Generic, Ord, Show)
+
+prettySolverMemoryMode :: SolverMemoryMode -> String
+prettySolverMemoryMode = \case
+    SolverMemoryModeWord8 -> "word8"
+    SolverMemoryModeWord32 -> "word32"
 
 configureSExpr :: ModelConfig -> SExprWithPlaceholders -> SExpr
 configureSExpr config ex = do

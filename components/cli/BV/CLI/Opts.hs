@@ -12,6 +12,8 @@ module BV.CLI.Opts
     , LogOpts (..)
     , LoggingOpts (..)
     , Opts (..)
+    , logEntryFormatterFor
+    , logEntryParserFor
     , parseOpts
     ) where
 
@@ -21,6 +23,8 @@ import BV.SMTLIB2
 
 import Options.Applicative
 
+import qualified Data.Attoparsec.ByteString as A (Parser)
+import Data.ByteString.Builder (Builder)
 import GHC.Generics (Generic)
 import Text.Printf (printf)
 
@@ -63,10 +67,22 @@ data LogOpts
   deriving (Generic, Show)
 
 data LogFormat
-  = LogFormatText
+  = LogFormatJSON
+  | LogFormatText
   | LogFormatHuman
-  | LogFormatJSON
   deriving (Generic, Show)
+
+logEntryFormatterFor :: LogFormat -> LogEntry -> Builder
+logEntryFormatterFor = \case
+    LogFormatJSON -> formatLogEntryJSON
+    LogFormatText -> formatLogEntryText
+    LogFormatHuman -> formatLogEntryHuman
+
+logEntryParserFor :: LogFormat -> A.Parser LogEntry
+logEntryParserFor = \case
+    LogFormatJSON -> parseLogEntryJSON
+    LogFormatText -> parseLogEntryText
+    LogFormatHuman -> parseLogEntryHumanBestEffort
 
 data CommandOpts
   = CommandOptsCheck CheckOpts
@@ -85,6 +101,7 @@ data CheckOpts
       , includeFunctions :: [Ident]
       , includeGroups :: [FingerprintPattern]
       , includeChecks :: [FingerprintPattern]
+      , reportFile :: Maybe FilePath
       }
   deriving (Generic, Show)
 
@@ -94,6 +111,7 @@ data ExtractSMTOpts
   = ExtractSMTOpts
       { match :: String
       , direction :: ExtractSMTDirection
+      , format :: LogFormat
       }
   deriving (Generic, Show)
 
@@ -169,7 +187,7 @@ logOptsParser logName prefix = do
         , completeWith logLevelValues
         ]
     format <- option' logFormatReader
-        [ long "file-log-format"
+        [ long (prefix ++ "log-format")
         , metavar "FORMAT"
         , value defaultLogFormat
         , help "Log format for file log"
@@ -200,16 +218,16 @@ defaultLogLevel = LevelInfo
 
 logFormatReader :: ReadM LogFormat
 logFormatReader = maybeReader $ \case
+    "json" -> Just LogFormatJSON
     "text" -> Just LogFormatText
     "human" -> Just LogFormatHuman
-    "json" -> Just LogFormatJSON
     _ -> Nothing
 
 logFormatValues :: [String]
 logFormatValues =
-    [ "text"
+    [ "json"
+    , "text"
     , "human"
-    , "json"
     ]
 
 defaultLogFormat :: LogFormat
@@ -247,6 +265,12 @@ checkOptsParser = do
         , value defaultOfflineSolverTimeout
         , help "Timeout for offline solvers"
         ]
+    maxNumConcurrentSolvers <- optional $ option' auto
+        [ long "jobs"
+        , short 'j'
+        , metavar "NUM_JOBS"
+        , help "Maximun number of concurrent solvers"
+        ]
     inputTargetDir <- option' str
         [ long "target-dir"
         , short 'd'
@@ -266,11 +290,11 @@ checkOptsParser = do
         [ long "include-check"
         , metavar "FINGERPRINT"
         ]
-    maxNumConcurrentSolvers <- optional $ option' auto
-        [ long "jobs"
-        , short 'j'
-        , metavar "NUM_JOBS"
-        , help "Maximun number of concurrent solvers"
+    reportFile <- optional $ option' str
+        [ long "report-file"
+        , metavar "FILE"
+        , help "Output file for report"
+        , action "file"
         ]
     dumpTargetDir <- optional $ option' str
         [ long "dump-target-dir"
@@ -293,6 +317,7 @@ checkOptsParser = do
         , includeFunctions
         , includeGroups
         , includeChecks
+        , reportFile
         }
 
 defaultOnlineSolverTimeout :: SolverTimeout
@@ -310,7 +335,14 @@ extractSMTOptsParser = do
             flag' Recv (long "recv" <> short 'r')
         <|> flag' Send (long "send" <> short 's')
         <|> pure Send
-    return $ ExtractSMTOpts { match, direction }
+    format <- option' logFormatReader
+        [ long "format"
+        , metavar "FORMAT"
+        , value defaultLogFormat
+        , help "Log format for input log"
+        , completeWith logFormatValues
+        ]
+    return $ ExtractSMTOpts { match, direction, format }
 
 --
 

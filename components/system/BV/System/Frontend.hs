@@ -7,8 +7,10 @@ module BV.System.Frontend
     ( Report (..)
     , SMTProofCheckError (..)
     , SMTProofCheckErrorCause (..)
+    , SMTProofCheckErrorCauseSolverId (..)
     , SMTProofCheckResult
     , SMTProofCheckSource (..)
+    , displayReport
     , frontend
     , prettySMTProofCheckError
     ) where
@@ -17,6 +19,7 @@ import BV.Core.AdornProofScript
 import BV.Core.Types
 import BV.Logging
 import BV.System.Fingerprinting
+import BV.System.SolversConfig
 import BV.System.Utils.Logger.BV
 import BV.System.Utils.StopWatch
 import BV.System.Utils.UnliftIO.Async
@@ -42,14 +45,26 @@ data SMTProofCheckError i
   deriving (Eq, Generic, Ord, Show)
 
 data SMTProofCheckErrorCause
-  = SomeSolverAnsweredSat
+  = SomeSolverAnsweredSat SMTProofCheckErrorCauseSolverId
   | AllSolversTimedOutOrAnsweredUnknown
+  deriving (Eq, Generic, Ord, Show)
+
+data SMTProofCheckErrorCauseSolverId
+  = OnlineSolver
+  | OfflineSolver OfflineSolverName SolverMemoryMode
+  | Cache
   deriving (Eq, Generic, Ord, Show)
 
 data SMTProofCheckSource i
   = SMTProofCheckSourceCheck (SMTProofCheckMetaWithFingerprint i)
   | SMTProofCheckSourceSyntheticGroup [SMTProofCheckMetaWithFingerprint i]
   deriving (Eq, Generic, Ord, Show)
+
+prettySolverId :: SMTProofCheckErrorCauseSolverId -> String
+prettySolverId = \case
+    OnlineSolver -> "online solver"
+    OfflineSolver name memMode -> printf "offline solver (%s, %s)" name (prettySolverMemoryMode memMode)
+    Cache -> "cache"
 
 prettySMTProofCheckError :: SMTProofCheckError SMTProofCheckDescription -> String
 prettySMTProofCheckError err =
@@ -66,7 +81,7 @@ prettySMTProofCheckError err =
                 ])
             <> "]"
     prettyCause = case err.cause of
-        SomeSolverAnsweredSat -> "some solver answered sat"
+        SomeSolverAnsweredSat solverId -> prettySolverId solverId ++ " answered sat"
         AllSolversTimedOutOrAnsweredUnknown -> "all solvers timed out or answered unknown"
 
 data Report
@@ -105,3 +120,16 @@ frontend f checks = do
                             return result))
     logInfo $ printf "report complete after %.2fs" (fromRational (elapsedToSeconds elapsed) :: Double)
     return report
+
+--
+
+displayReport :: Report -> String
+displayReport report =
+    if M.null failed
+    then "All checks passed\n"
+    else
+        let failures = flip foldMap (M.toAscList failed) $ \(pairingId, err) ->
+                "Check failure for " <> prettyPairingId pairingId <> ": " <> prettySMTProofCheckError err <> "\n"
+         in failures <> "Some checks failed\n"
+  where
+    failed = M.mapMaybe (preview _Left) report.unwrap

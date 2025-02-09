@@ -1,6 +1,7 @@
 module BV.System.SolversConfig
     ( OfflineSolverConfig (..)
     , OfflineSolverGroupConfig (..)
+    , OfflineSolverName
     , OfflineSolversConfig (..)
     , OnlineSolverConfig (..)
     , SolverMemoryMode (..)
@@ -10,6 +11,8 @@ module BV.System.SolversConfig
     , allSolverScopes
     , numOfflineSolverConfigsForScope
     , offlineSolverConfigsForScope
+    , prettySolverMemoryMode
+    , prettySolverScope
     ) where
 
 import BV.Core.ExecuteSMTProofChecks
@@ -22,7 +25,7 @@ import GHC.Generics (Generic)
 
 data SolversConfig
   = SolversConfig
-      { online :: OnlineSolverConfig
+      { online :: Maybe OnlineSolverConfig
       , offline :: OfflineSolversConfig
       }
   deriving (Eq, Generic, Ord, Show)
@@ -42,9 +45,11 @@ data OfflineSolversConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
+type OfflineSolverName = String
+
 data OfflineSolverGroupConfig
   = OfflineSolverGroupConfig
-      { commandName :: String
+      { commandName :: OfflineSolverName
       , command :: [String]
       , scopes :: [SolverScope]
       , modelConfigs :: [ModelConfig]
@@ -80,3 +85,8 @@ offlineSolverConfigsForScope scope groups = flip concatMap groups $
 
 numOfflineSolverConfigsForScope :: SolverScope ->  [OfflineSolverGroupConfig] -> Integer
 numOfflineSolverConfigsForScope scope = genericLength . offlineSolverConfigsForScope scope
+
+prettySolverScope :: SolverScope -> String
+prettySolverScope = \case
+    SolverScopeAll -> "all"
+    SolverScopeHyp -> "hyp"

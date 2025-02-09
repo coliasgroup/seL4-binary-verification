@@ -30,3 +30,5 @@
   - "Lex (and parse) strict ByteString into Tokens stream." should be Text
 
 - use function guards and MultiWayIf, including with e.g. "Just (exponent, mantissa) <- decomposeNumber str"
+
+- pretty printing for sexprs

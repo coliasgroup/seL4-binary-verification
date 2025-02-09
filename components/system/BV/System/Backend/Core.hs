@@ -56,10 +56,9 @@ backendCore
     => BackendCoreConfig -> Throttle -> SMTProofCheckGroupWithFingerprints i -> m (SMTProofCheckResult i ())
 backendCore config throttle group = runExceptT $ do
     uncached <- withPushLogContext "cache" $ keepUncached group
-    slow <-
-        if offlineOnly
-        then return uncached
-        else backendCoreOnline config.solversConfig.online throttle uncached
+    slow <- case config.solversConfig.online of
+        Just onlineConfig -> backendCoreOnline onlineConfig throttle uncached
+        Nothing -> return uncached
     backendCoreOffline config.solversConfig.offline throttle slow
 
 backendCoreOnline
@@ -90,7 +89,9 @@ backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online
                     OnlineSolverAbortReasonAnsweredSat -> do
                         logDebug "answered sat"
                         updateCache AcceptableSatResultSat check
-                        throwError $ SMTProofCheckError SomeSolverAnsweredSat (SMTProofCheckSourceCheck (fmap snd meta))
+                        throwError $ SMTProofCheckError
+                            (SomeSolverAnsweredSat OnlineSolver)
+                            (SMTProofCheckSourceCheck (fmap snd meta))
                     OnlineSolverAbortReasonAnsweredUnknown reason -> do
                         logDebug $ "answered unknown: " ++ showSExpr reason
     let remaining = fmap snd
@@ -142,7 +143,9 @@ backendCoreOfflineAll config group = (units, concM)
                 case checkSatOutcome of
                     Just Sat -> do
                         for_ (ungroupSMTProofCheckGroup group.inner) (updateCache AcceptableSatResultSat)
-                        throwConclusion . Left $ SMTProofCheckError SomeSolverAnsweredSat allLocs
+                        throwConclusion . Left $ SMTProofCheckError
+                            (SomeSolverAnsweredSat (OfflineSolver solver.commandName solver.config.memoryMode))
+                            allLocs
                     Just Unsat -> do
                         -- TODO what should we tell to the cache?
                         throwConclusion $ Right ()
@@ -160,7 +163,7 @@ backendCoreOfflineHyp config group = (units, concM)
         hypsConclusion <- lift . runConclusionT $ do
             for_ (ungroupSMTProofCheckGroup group.inner) $ \check -> do
                 withPushLogContextCheck check $ do
-                    hypConclusion <- lift . runConclusionT $ runSolver'''' config check
+                    hypConclusion <- lift . runConclusionT $ runSolver''' config check
                     case hypConclusion of
                         Nothing -> throwConclusion Nothing
                         Just (Right ()) -> return ()
@@ -175,7 +178,7 @@ backendCoreSingleCheck
     => OfflineSolversConfig -> Throttle ->  SMTProofCheckWithFingerprint i -> m (SMTProofCheckResult i ())
 backendCoreSingleCheck config throttle check =
     withThrottleUnliftIO throttle defaultPriority units $ do
-        maybeConc <- runConclusionT $ runSolver'''' config check
+        maybeConc <- runConclusionT $ runSolver''' config check
         return $ case maybeConc of
             Nothing -> Left $ SMTProofCheckError AllSolversTimedOutOrAnsweredUnknown (SMTProofCheckSourceCheck check.imp.meta)
             Just conc -> conc
@@ -194,7 +197,9 @@ keepUncached group = forOf (#inner % #imps) group $ \imps ->
             case cached of
                 Nothing -> return True
                 Just AcceptableSatResultUnsat -> return False
-                Just AcceptableSatResultSat -> throwError $ SMTProofCheckError SomeSolverAnsweredSat (SMTProofCheckSourceCheck imp.meta))
+                Just AcceptableSatResultSat -> throwError $ SMTProofCheckError
+                    (SomeSolverAnsweredSat Cache)
+                    (SMTProofCheckSourceCheck imp.meta))
 
 withPushLogContextOfflineSolver :: MonadLoggerWithContext m => OfflineSolverConfig -> m a -> m a
 withPushLogContextOfflineSolver solver = withPushLogContext ("solver " ++ solver.commandName ++ " " ++ memMode)
@@ -227,32 +232,26 @@ runSolver'' cmd soverM = do
 
 runSolver'''
     :: (MonadCache m, MonadUnliftIO m, MonadMask m, MonadLoggerWithContext m, MonadCache m)
-    => SMTProofCheckWithFingerprint i -> [String] -> SolverT m (Maybe SatResult) -> ConclusionT (SMTProofCheckResult i ()) m ()
-runSolver''' check cmd soverM = do
-    checkSatOutcome <- lift $ runSolver'' cmd soverM
-    case checkSatOutcome of
-        Just Sat -> do
-            updateCache AcceptableSatResultSat check
-            throwConclusion . Left $ SMTProofCheckError SomeSolverAnsweredSat (SMTProofCheckSourceCheck check.imp.meta)
-        Just Unsat -> do
-            updateCache AcceptableSatResultUnsat check
-            throwConclusion $ Right ()
-        _ -> do
-            return ()
-
-runSolver''''
-    :: (MonadCache m, MonadUnliftIO m, MonadMask m, MonadLoggerWithContext m, MonadCache m)
     => OfflineSolversConfig -> SMTProofCheckWithFingerprint i -> ConclusionT (SMTProofCheckResult i ()) m ()
-runSolver'''' config check =
+runSolver''' config check =
     runConcurrentlyUnliftIOC . for_ (offlineSolverConfigsForScope SolverScopeHyp config.groups) $ \solver ->
         makeConcurrentlyUnliftIOC . withPushLogContextOfflineSolver solver $ do
-            runSolver'''
-                check
-                solver.command
-                (executeSMTProofCheckOffline
+            checkSatOutcome <- lift . runSolver'' solver.command $ do
+                executeSMTProofCheckOffline
                     (Just config.timeout)
                     solver.config
-                    check)
+                    check
+            case checkSatOutcome of
+                Just Sat -> do
+                    updateCache AcceptableSatResultSat check
+                    throwConclusion . Left $ SMTProofCheckError
+                        (SomeSolverAnsweredSat (OfflineSolver solver.commandName solver.config.memoryMode))
+                        (SMTProofCheckSourceCheck check.imp.meta)
+                Just Unsat -> do
+                    updateCache AcceptableSatResultUnsat check
+                    throwConclusion $ Right ()
+                _ -> do
+                    return ()
 
 makeElapsedSuffix :: Elapsed -> String
 makeElapsedSuffix elapsed = printf " (%.2fs)" (fromRational (elapsedToSeconds elapsed) :: Double)

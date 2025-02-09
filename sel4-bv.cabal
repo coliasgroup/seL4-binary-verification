@@ -261,7 +261,6 @@ library system
       BV.System.Fingerprinting
       BV.System.Frontend
       BV.System.Notes
-      BV.System.Scratch.Local
       BV.System.SeL4
       BV.System.SolversConfig
       BV.System.TaskQueue
@@ -387,46 +386,13 @@ library test-utils
     , transformers
   default-language: GHC2021
 
-executable check-scratch
-  main-is: Main.hs
-  hs-source-dirs:
-      components/scratch/check-scratch
-  default-extensions:
-      FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
-      OverloadedLabels
-      OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
-  build-depends:
-      async
-    , base
-    , bytestring
-    , containers
-    , deepseq
-    , exceptions
-    , filepath
-    , mtl
-    , optics
-    , parallel
-    , sel4-bv:core
-    , sel4-bv:smtlib2
-    , sel4-bv:system
-    , sel4-bv:test-utils
-    , stm
-    , text
-    , transformers
-  default-language: GHC2021
-
 executable cli
   main-is: BV/CLI/Main.hs
   other-modules:
       BV.CLI.Commands.Check
       BV.CLI.Commands.ExtractSMT
       BV.CLI.Opts
+      BV.CLI.SolverList
   hs-source-dirs:
       components/cli
   default-extensions:

@@ -8,6 +8,7 @@ module BV.Core.ExecuteSMTProofChecks
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
+    , prettySolverMemoryMode
     ) where
 
 import BV.Core.ModelConfig

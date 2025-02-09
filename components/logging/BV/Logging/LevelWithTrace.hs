@@ -11,7 +11,6 @@ import Data.Function (on)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 
-
 levelTrace :: LogLevel
 levelTrace = LevelOther (T.pack "Trace")
 

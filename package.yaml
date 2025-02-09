@@ -225,18 +225,6 @@ executables:
       - sel4-bv:test-utils
     ghc-options: *exe-ghc-options
 
-  check-scratch:
-    source-dirs: components/scratch/check-scratch
-    main: Main
-    dependencies:
-      - sel4-bv:smtlib2
-      - sel4-bv:core
-      - sel4-bv:system
-      - sel4-bv:test-utils
-      # external
-      - filepath
-    ghc-options: *exe-ghc-options
-
 tests:
 
   smtlib2-test:

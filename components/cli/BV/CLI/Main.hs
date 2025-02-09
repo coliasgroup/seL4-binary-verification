@@ -9,7 +9,11 @@ import BV.Logging
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Resource (allocate, runResourceT)
+import Data.ByteString.Builder (hPutBuilder)
 import GHC.Conc (getNumProcessors, setNumCapabilities)
+import System.IO (Handle, IOMode (WriteMode), hClose, openFile, stderr)
 import Text.Pretty.Simple (pPrint)
 import Text.Printf (printf)
 
@@ -41,16 +45,24 @@ setNumCapabilitiesAccordingToOpt opt = do
             return $ numProcs - 1
 
 withLoggingOpts :: LoggingOpts -> LoggingWithContextT IO a -> IO a
-withLoggingOpts opts m = do
-    undefined
-    -- withFile logDst WriteMode $ \fileHandle -> do
-    --     hSetBuffering fileHandle LineBuffering
-    --     let output loc source level str = do
-    --             when (filterLevelsBelow LevelInfo source level) $ do
-    --                 defaultOutput stderr loc source level str
-    --             when (filterLevelsBelow LevelDebug source level) $ do
-    --             -- when (filterLevelsBelow levelTrace source level) $ do
-    --                 defaultOutput fileHandle loc source level str
-    --     flip (runLoggingT . runSimpleLoggingWithContextT) output $
-    --         flip runCacheT trivialCacheContext $
-    --              run
+withLoggingOpts opts m = runResourceT $ do
+    output <- do
+        fileOutput <- case opts.fileLogOpts of
+            Nothing -> do
+                return $ \_entry -> do
+                    return ()
+            Just fileLogOpts -> do
+                (_key, h) <- allocate (openFile fileLogOpts.dst WriteMode) hClose
+                return $ makeLogEntryPutter fileLogOpts.logOpts h
+        let stderrOutput = makeLogEntryPutter opts.stderrLogOpts stderr
+        return $ \entry -> do
+            fileOutput entry
+            stderrOutput entry
+    lift $ runLoggingWithContextT m output
+
+makeLogEntryPutter :: LogOpts -> Handle -> LogEntry -> IO ()
+makeLogEntryPutter opts h entry = do
+    when (levelAtLeastWithTrace opts.level entry.level) $ do
+        hPutBuilder h (formatter entry)
+  where
+    formatter = logEntryFormatterFor opts.format
