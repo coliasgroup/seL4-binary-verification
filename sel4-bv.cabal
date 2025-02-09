@@ -158,6 +158,7 @@ library logging
       aeson
     , async
     , attoparsec
+    , attoparsec-aeson
     , base
     , bytestring
     , containers
@@ -469,6 +470,7 @@ executable cli
     , text
     , transformers
     , unliftio-core
+    , yaml
   default-language: GHC2021
 
 executable normalize-smtlib2
@@ -484,7 +486,7 @@ executable normalize-smtlib2
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -main-is Main
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       async
     , base
@@ -608,6 +610,43 @@ test-suite core-test
     , sel4-bv:system
     , sel4-bv:target-dir
     , sel4-bv:test-utils
+    , stm
+    , tasty
+    , tasty-hunit
+    , text
+    , transformers
+  default-language: GHC2021
+
+test-suite logging-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs:
+      components/tests/logging-test
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
+  build-depends:
+      aeson
+    , async
+    , attoparsec
+    , attoparsec-aeson
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , monad-logger
+    , mtl
+    , optics
+    , parallel
+    , sel4-bv:logging
     , stm
     , tasty
     , tasty-hunit

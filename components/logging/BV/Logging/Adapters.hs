@@ -10,4 +10,4 @@ import Control.Monad.Logger (LoggingT (LoggingT))
 
 runSimpleLoggingWithContextT :: MonadIO m => LoggingWithContextT m a -> LoggingT m a
 runSimpleLoggingWithContextT m = LoggingT $ \logAction ->
-    runLoggingWithContextT m (adaptWith False logAction)
+    runLoggingWithContextT m (adaptLogEntryFormatterWith False logAction)

@@ -27,8 +27,8 @@ runScratch config targetDir logDst mismatchDumpDir = do
     withFile logDst WriteMode $ \fileHandle -> do
         hSetBuffering fileHandle LineBuffering
         let output entry = do
-                simpleLogOutput textLogFormatter LevelInfo stderr entry
-                simpleLogOutput textLogFormatter LevelDebug fileHandle entry
+                simpleLogOutput formatLogEntryText LevelInfo stderr entry
+                simpleLogOutput formatLogEntryText LevelDebug fileHandle entry
         flip runLoggingWithContextT output $
             flip runCacheT trivialCacheContext $
                  run

@@ -26,6 +26,16 @@ ghc-options:
   - -Wall
   - -Wno-unused-do-bind
 
+_exe-ghc-options: &exe-ghc-options
+  - -threaded
+  - -rtsopts
+  - -with-rtsopts=-N
+
+_test-ghc-options: &test-ghc-options
+  - -threaded
+  - -rtsopts
+  - -with-rtsopts=-N
+
 dependencies:
   - base
   - deepseq
@@ -71,7 +81,7 @@ internal-libraries:
       - unliftio-core
       - conduit
       - conduit-extra
-  
+
   logging:
     visibility: public
     source-dirs: components/logging
@@ -80,6 +90,7 @@ internal-libraries:
     dependencies:
       - attoparsec
       - aeson
+      - attoparsec-aeson
       - monad-logger
       - unliftio-core
   
@@ -184,6 +195,7 @@ executables:
       - megaparsec
       - attoparsec
       - aeson
+      - yaml
       - unliftio-core
       - monad-logger
       - filepath
@@ -194,17 +206,14 @@ executables:
       - optparse-generic
       # TODO for debugging
       - pretty-simple
-    ghc-options:
-      # TODO probably unnecessary here
-      - -threaded
-      - -rtsopts
-      - -with-rtsopts=-N
+    ghc-options: *exe-ghc-options
 
   normalize-smtlib2:
     source-dirs: components/utils/normalize-smtlib2
     main: Main
     dependencies:
       - sel4-bv:smtlib2
+    ghc-options: *exe-ghc-options
 
   profiling-scratch:
     source-dirs: components/scratch/profiling-scratch
@@ -214,11 +223,7 @@ executables:
       - sel4-bv:concrete-syntax
       - sel4-bv:system
       - sel4-bv:test-utils
-    ghc-options:
-      # TODO probably unnecessary here
-      - -threaded
-      - -rtsopts
-      - -with-rtsopts=-N
+    ghc-options: *exe-ghc-options
 
   check-scratch:
     source-dirs: components/scratch/check-scratch
@@ -230,33 +235,9 @@ executables:
       - sel4-bv:test-utils
       # external
       - filepath
-    ghc-options:
-      # TODO probably unnecessary here
-      - -threaded
-      - -rtsopts
-      - -with-rtsopts=-N
+    ghc-options: *exe-ghc-options
 
 tests:
-
-  core-test:
-    source-dirs: components/tests/core-test
-    main: Main
-    dependencies:
-      - sel4-bv:core
-      - sel4-bv:concrete-syntax
-      - sel4-bv:target-dir
-      - sel4-bv:system
-      - sel4-bv:test-utils
-      # external
-      - monad-logger
-      - filepath
-      - tasty
-      - tasty-hunit
-    ghc-options:
-      # TODO
-      - -threaded
-      - -rtsopts
-      - -with-rtsopts=-N
 
   smtlib2-test:
     source-dirs: components/tests/smtlib2-test
@@ -273,11 +254,37 @@ tests:
       - Glob
       - tasty
       - tasty-hunit
-    ghc-options:
-      # TODO
-      - -threaded
-      - -rtsopts
-      - -with-rtsopts=-N
+    ghc-options: *test-ghc-options
+
+  logging-test:
+    source-dirs: components/tests/logging-test
+    main: Main
+    dependencies:
+      - sel4-bv:logging
+      # external
+      - attoparsec
+      - attoparsec-aeson
+      - aeson
+      - monad-logger
+      - tasty
+      - tasty-hunit
+    ghc-options: *test-ghc-options
+
+  core-test:
+    source-dirs: components/tests/core-test
+    main: Main
+    dependencies:
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:target-dir
+      - sel4-bv:system
+      - sel4-bv:test-utils
+      # external
+      - monad-logger
+      - filepath
+      - tasty
+      - tasty-hunit
+    ghc-options: *test-ghc-options
 
   concrete-syntax-test:
     source-dirs: components/tests/concrete-syntax-test
@@ -296,19 +303,11 @@ tests:
       - Glob
       - tasty
       - tasty-hunit
-    ghc-options:
-      # TODO
-      - -threaded
-      - -rtsopts
-      - -with-rtsopts=-N
+    ghc-options: *test-ghc-options
 
   system-test:
     source-dirs: components/tests/system-test
     main: Main
     dependencies:
       - sel4-bv:system
-    ghc-options:
-      # TODO
-      - -threaded
-      - -rtsopts
-      - -with-rtsopts=-N
+    ghc-options: *test-ghc-options

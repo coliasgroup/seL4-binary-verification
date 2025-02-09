@@ -10,17 +10,14 @@ import BV.Logging.Types
 
 import Control.Monad.Logger (Loc (..), LogLevel (..), fromLogStr, toLogStr)
 import Data.Aeson (FromJSON (..), ToJSON (..), Value, object, withObject,
-                   withText, (.:), (.=))
+                   withText, (.!=), (.:), (.:?), (.=))
 import Data.Aeson.Types (Parser)
-
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
 
 instance ToJSON LogEntry where
-    toJSON v = object
+    toJSON v = object $
         [ "context" .= v.context
-        , "loc" .= encodeLoc v.loc
-        , "source" .= v.source
         , "level" .= case v.level of
             LevelError -> "Error"
             LevelWarn -> "Warn"
@@ -28,7 +25,13 @@ instance ToJSON LogEntry where
             LevelDebug -> "Debug"
             LevelOther other -> other
         , "msg" .= decodeUtf8 (fromLogStr v.msg)
+        ] ++ unless' (isDefaultLoc v.loc)
+        [ "loc" .= encodeLoc v.loc
+        ] ++ unless' (isDefaultLogSource v.source)
+        [ "source" .= v.source
         ]
+      where
+        unless' p xs = if p then [] else xs
 
 encodeLoc :: Loc -> Value
 encodeLoc v = object
@@ -42,8 +45,8 @@ encodeLoc v = object
 instance FromJSON LogEntry where
     parseJSON = withObject "LogEntry" $ \v -> LogEntry
         <$> v .: "context"
-        <*> ((v .: "loc") >>= decodeLoc)
-        <*> v .: "source"
+        <*> ((v .:? "loc") >>= traverse decodeLoc) .!= defaultLoc
+        <*> v .:? "source" .!= defaultLogSource
         <*> ((v .: "level") >>= decodeLogLevel)
         <*> (toLogStr <$> ((v .: "msg") :: Parser Text))
 

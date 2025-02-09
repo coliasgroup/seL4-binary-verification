@@ -7,6 +7,11 @@ module BV.Logging.Types
     , LoggingWithContextT (..)
     , MonadLogger
     , MonadLoggerWithContext (..)
+    , defaultLoc
+    , defaultLogSource
+    , isDefaultLoc
+    , isDefaultLogSource
+    , makeLogContextEntry
     , runLoggingWithContextT
     , withPushLogContext
     ) where
@@ -16,10 +21,9 @@ import Control.Monad.Except (ExceptT, mapExceptT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Logger (Loc, LogLevel (..), LogSource, LogStr,
-                             MonadLogger (monadLoggerLog), toLogStr)
+                             MonadLogger (monadLoggerLog), defaultLoc, toLogStr)
 import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT, withReaderT)
 import Data.Aeson.Types
-import Data.Function (on)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Optics (ViewableOptic (gview), (%~), (.~))
@@ -27,18 +31,18 @@ import Text.Printf (printf)
 
 class MonadLogger m => MonadLoggerWithContext m where
     withPushLogContexts :: [String] -> m a -> m a
-    withFreshLogContext :: m a -> m a
+    withCleanLogContext :: m a -> m a
 
 withPushLogContext :: MonadLoggerWithContext m => String -> m a -> m a
 withPushLogContext entry = withPushLogContexts [entry]
 
 instance MonadLoggerWithContext m => MonadLoggerWithContext (ReaderT r m) where
     withPushLogContexts = mapReaderT . withPushLogContexts
-    withFreshLogContext = mapReaderT withFreshLogContext
+    withCleanLogContext = mapReaderT withCleanLogContext
 
 instance MonadLoggerWithContext m => MonadLoggerWithContext (ExceptT e m) where
     withPushLogContexts = mapExceptT . withPushLogContexts
-    withFreshLogContext = mapExceptT withFreshLogContext
+    withCleanLogContext = mapExceptT withCleanLogContext
 
 --
 
@@ -103,7 +107,7 @@ instance MonadIO m => MonadLogger (LoggingWithContextT m) where
 instance MonadIO m => MonadLoggerWithContext (LoggingWithContextT m) where
     withPushLogContexts entries m = LoggingWithContextT $
         withReaderT (#context %~ (++ map makeLogContextEntry entries)) m.unwrap
-    withFreshLogContext m = LoggingWithContextT $
+    withCleanLogContext m = LoggingWithContextT $
         withReaderT (#context .~ []) m.unwrap
 
 runLoggingWithContextT :: MonadIO m => LoggingWithContextT m a -> LogAction -> m a
@@ -114,3 +118,14 @@ runLoggingWithContextT m logAction =
             { context = []
             , logAction
             }
+
+--
+
+isDefaultLoc :: Loc -> Bool
+isDefaultLoc = (==) defaultLoc
+
+isDefaultLogSource :: LogSource -> Bool
+isDefaultLogSource = T.null
+
+defaultLogSource :: LogSource
+defaultLogSource = T.empty

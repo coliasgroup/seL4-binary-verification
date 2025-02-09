@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module BV.Logging
     ( LogEntry (..)
     , LogLevel (..)
@@ -7,8 +5,9 @@ module BV.Logging
     , LoggingWithContextT
     , MonadLogger
     , MonadLoggerWithContext (..)
-    , humanLogFormatter
-    , jsonLogFormatter
+    , formatLogEntryHuman
+    , formatLogEntryJSON
+    , formatLogEntryText
     , levelAtLeastWithTrace
     , levelTrace
     , logDebug
@@ -21,10 +20,12 @@ module BV.Logging
     , logTraceGeneric
     , logWarn
     , logWarnGeneric
+    , parseLogEntryHumanBestEffort
+    , parseLogEntryJSON
+    , parseLogEntryText
     , runLoggingWithContextT
     , runSimpleLoggingWithContextT
     , simpleLogOutput
-    , textLogFormatter
     , withPushLogContext
     ) where
 
@@ -32,13 +33,14 @@ import BV.Logging.Adapters
 import BV.Logging.Aeson ()
 import BV.Logging.Formatting
 import BV.Logging.LevelWithTrace
+import BV.Logging.Parsing
 import BV.Logging.Types
 
 import Control.Monad (when)
 import Control.Monad.Logger (LogLevel (..), ToLogStr, logDebugN, logErrorN,
                              logInfoN, logOtherN, logWarnN, logWithoutLoc,
                              toLogStr)
-import qualified Data.ByteString.Lazy as BL
+import Data.ByteString.Builder (Builder, hPutBuilder)
 import qualified Data.Text as T
 import System.IO (Handle)
 
@@ -75,6 +77,6 @@ logWarnGeneric = logGeneric LevelWarn
 logErrorGeneric :: (MonadLogger m, ToLogStr a) => a -> m ()
 logErrorGeneric = logGeneric LevelError
 
-simpleLogOutput :: (LogEntry -> BL.ByteString) -> LogLevel -> Handle -> LogEntry -> IO ()
+simpleLogOutput :: (LogEntry -> Builder) -> LogLevel -> Handle -> LogEntry -> IO ()
 simpleLogOutput f minLevel h entry =
-    when (levelAtLeastWithTrace minLevel entry.level) $ BL.hPutStr h (f entry)
+    when (levelAtLeastWithTrace minLevel entry.level) $ hPutBuilder h (f entry)
