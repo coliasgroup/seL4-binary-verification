@@ -1,5 +1,7 @@
 module BV.Logging
-    ( LogEntry (..)
+    ( LogContext
+    , LogContextEntry (..)
+    , LogEntry (..)
     , LogLevel (..)
     , LogLevelWithTrace (..)
     , LoggingWithContextT

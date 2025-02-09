@@ -7,7 +7,9 @@ import BV.CLI.Commands.ExtractSMT
 import BV.CLI.Opts
 import BV.Logging
 
-import Control.Monad (when)
+import Control.Concurrent (newChan, readChan, writeChan)
+import Control.Concurrent.Async (withAsync)
+import Control.Monad (forever, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Resource (allocate, runResourceT)
@@ -46,6 +48,7 @@ setNumCapabilitiesAccordingToOpt opt = do
 
 withLoggingOpts :: LoggingOpts -> LoggingWithContextT IO a -> IO a
 withLoggingOpts opts m = runResourceT $ do
+    logEntryChan <- liftIO newChan
     output <- do
         fileOutput <- case opts.fileLogOpts of
             Nothing -> do
@@ -58,7 +61,8 @@ withLoggingOpts opts m = runResourceT $ do
         return $ \entry -> do
             fileOutput entry
             stderrOutput entry
-    lift $ runLoggingWithContextT m output
+    lift $ withAsync (forever (readChan logEntryChan >>= output)) $ \_ -> do
+        runLoggingWithContextT m (writeChan logEntryChan)
 
 makeLogEntryPutter :: LogOpts -> Handle -> LogEntry -> IO ()
 makeLogEntryPutter opts h entry = do

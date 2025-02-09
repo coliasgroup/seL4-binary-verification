@@ -186,6 +186,8 @@ library smtlib2
       BV.SMTLIB2.SExpr.Build
       BV.SMTLIB2.SExpr.Parse.Attoparsec
       BV.SMTLIB2.SExpr.Parse.Megaparsec
+  other-modules:
+      BV.SMTLIB2.SExpr.Build.Pretty
   hs-source-dirs:
       components/smtlib2
   default-extensions:

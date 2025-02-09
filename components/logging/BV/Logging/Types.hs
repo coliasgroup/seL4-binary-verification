@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.Logging.Types
-    ( LogContextEntry (..)
+    ( LogContext
+    , LogContextEntry (..)
     , LogEntry (..)
     , LoggingWithContextEnv (..)
     , LoggingWithContextT (..)
