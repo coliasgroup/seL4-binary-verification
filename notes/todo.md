@@ -32,3 +32,5 @@
 - use function guards and MultiWayIf, including with e.g. "Just (exponent, mantissa) <- decomposeNumber str"
 
 - pretty printing for sexprs
+
+- use exceptions instead of die with throwString from safe-exceptions

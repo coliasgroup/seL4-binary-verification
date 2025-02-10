@@ -55,6 +55,7 @@ library concrete-syntax
     , mtl
     , optics
     , parallel
+    , safe-exceptions
     , sel4-bv:core
     , sel4-bv:smtlib2
     , stm
@@ -125,6 +126,7 @@ library core
     , optics
     , parallel
     , pretty-show
+    , safe-exceptions
     , sel4-bv:smtlib2
     , stm
     , text
@@ -168,6 +170,7 @@ library logging
     , mtl
     , optics
     , parallel
+    , safe-exceptions
     , stm
     , text
     , transformers
@@ -212,6 +215,7 @@ library smtlib2
     , mtl
     , optics
     , parallel
+    , safe-exceptions
     , stm
     , text
     , transformers
@@ -246,6 +250,7 @@ library smtlib2-process
     , optics
     , parallel
     , process
+    , safe-exceptions
     , sel4-bv:smtlib2
     , stm
     , text
@@ -304,6 +309,7 @@ library system
     , parallel
     , pretty-show
     , process
+    , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
@@ -346,6 +352,7 @@ library target-dir
     , mtl
     , optics
     , parallel
+    , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , stm
@@ -380,6 +387,7 @@ library test-utils
     , optics
     , parallel
     , pretty-show
+    , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:target-dir
@@ -428,6 +436,7 @@ executable cli
     , parallel
     , pretty-simple
     , resourcet
+    , safe-exceptions
     , sel4-bv:core
     , sel4-bv:logging
     , sel4-bv:smtlib2
@@ -465,6 +474,7 @@ executable normalize-smtlib2
     , mtl
     , optics
     , parallel
+    , safe-exceptions
     , sel4-bv:smtlib2
     , stm
     , text
@@ -495,6 +505,7 @@ executable profiling-scratch
     , mtl
     , optics
     , parallel
+    , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:system
@@ -535,6 +546,7 @@ test-suite concrete-syntax-test
     , optics
     , parallel
     , process
+    , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:target-dir
@@ -573,6 +585,7 @@ test-suite core-test
     , mtl
     , optics
     , parallel
+    , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:system
@@ -614,6 +627,7 @@ test-suite logging-test
     , mtl
     , optics
     , parallel
+    , safe-exceptions
     , sel4-bv:logging
     , stm
     , tasty
@@ -652,6 +666,7 @@ test-suite smtlib2-test
     , optics
     , parallel
     , process
+    , safe-exceptions
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:target-dir
@@ -687,6 +702,7 @@ test-suite system-test
     , mtl
     , optics
     , parallel
+    , safe-exceptions
     , sel4-bv:system
     , stm
     , text

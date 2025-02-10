@@ -43,6 +43,7 @@ dependencies:
   - transformers
   - mtl
   - exceptions
+  - safe-exceptions
   - containers
   - bytestring
   - text

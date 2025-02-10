@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant flip" #-}
 
 module BV.CLI.Commands.ExtractSMT
     ( runExtractSMT
@@ -11,12 +13,15 @@ import Data.Attoparsec.Text
 import Optics
 
 import Control.Applicative (optional)
+import Control.Monad (when)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Logger (fromLogStr)
+import Control.Monad.State (get, put)
 import Data.Conduit (Flush (Chunk, Flush), runConduit, (.|))
 import Data.Conduit.Attoparsec (conduitParser)
 import qualified Data.Conduit.Combinators as C
+import Data.Conduit.Lift (evalStateLC)
 import qualified Data.Conduit.List as CL
 import Data.List (isInfixOf, isPrefixOf, isSuffixOf)
 import Data.Maybe (isJust)
@@ -24,8 +29,6 @@ import qualified Data.Text as T
 import Options.Applicative (many)
 import System.Exit (die)
 import System.IO (stdout)
-
--- TODO ensure that all contexts of a given run are the same
 
 runExtractSMT :: (MonadThrow m, MonadIO m, MonadLoggerWithContext m) => ExtractSMTOpts -> m ()
 runExtractSMT opts = do
@@ -38,7 +41,20 @@ runExtractSMT opts = do
     runConduit $
         C.stdin
         .| conduitParser (logEntryParserFor opts.format)
-        .| CL.mapMaybe (\(_, entry) -> if matches preparedPattern entry.context then Just entry.msg else Nothing)
+        .| evalStateLC Nothing (CL.mapMaybeM (\(_, entry) -> do
+                if matches preparedPattern entry.context
+                then do
+                    let cur = entry.context
+                    prev <- get
+                    case prev of
+                        Just prevContext -> when (prevContext /= cur) $ do
+                            liftIO $ die "TODO"
+                        Nothing -> do
+                            return ()
+                    put (Just cur)
+                    return (Just entry.msg)
+                else do
+                    return Nothing))
         .| CL.concatMap (\msg -> [Chunk (fromLogStr msg), Chunk "\n", Flush])
         .| C.sinkHandleFlush stdout
   where
