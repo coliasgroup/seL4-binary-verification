@@ -20,7 +20,7 @@ import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Logger (fromLogStr)
 import Control.Monad.State (get, put)
-import Data.Conduit (Flush (Chunk, Flush), runConduit, (.|))
+import Data.Conduit (runConduit, (.|))
 import Data.Conduit.Attoparsec (conduitParser)
 import qualified Data.Conduit.Combinators as C
 import Data.Conduit.Lift (evalStateLC)

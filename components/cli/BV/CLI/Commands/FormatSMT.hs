@@ -16,36 +16,24 @@ import BV.Logging
 import BV.SMTLIB2.SExpr.Build.Pretty
 import BV.SMTLIB2.SExpr.Parse.Attoparsec
 
-import Control.Applicative (Alternative ((<|>)), optional)
-import Control.Monad (when)
+import Control.Applicative (Alternative ((<|>)))
 import Control.Monad.Catch (MonadThrow)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Logger (fromLogStr)
-import Control.Monad.State (get, put)
+import Control.Monad.IO.Class (MonadIO)
 import qualified Data.ByteString as B
-import Data.ByteString.Builder (toLazyByteString)
 import Data.ByteString.Lazy (toChunks)
 import Data.Conduit (ConduitT, Flush (Chunk, Flush), runConduit, (.|))
 import Data.Conduit.Attoparsec (conduitParser)
 import qualified Data.Conduit.Combinators as C
-import Data.Conduit.Lift (evalStateLC)
 import qualified Data.Conduit.List as CL
 import qualified Data.Conduit.Text as CT (decodeUtf8)
-import Data.List (isInfixOf, isPrefixOf, isSuffixOf)
-import Data.Maybe (isJust)
 import Data.String (fromString)
-import qualified Data.Text as T
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
-import Optics
-import Options.Applicative (many)
-import Options.Applicative.Help.Pretty (indent)
 import System.Console.ANSI (Color (..), ColorIntensity (Vivid),
                             ConsoleLayer (Foreground), SGR (Reset, SetColor),
                             setSGRCode)
-import System.Exit (die)
 import System.IO (stdout)
 
 runFormatSMT :: (MonadThrow m, MonadIO m, MonadLoggerWithContext m) => FormatSMTOpts -> m ()
