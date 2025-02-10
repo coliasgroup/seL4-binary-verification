@@ -4,6 +4,7 @@ module BV.CLI.Main
 
 import BV.CLI.Commands.Check
 import BV.CLI.Commands.ExtractSMT
+import BV.CLI.Commands.FormatSMT
 import BV.CLI.Opts
 import BV.Logging
 
@@ -30,8 +31,9 @@ run :: Opts -> IO ()
 run opts = withLoggingOpts opts.globalOpts.loggingOpts $ do
     setNumCapabilitiesAccordingToOpt opts.globalOpts.numCores
     case opts.commandOpts of
-        CommandOptsCheck checkOpts -> runCheck checkOpts
-        CommandOptsExtractSMT extractSMTOpts -> runExtractSMT extractSMTOpts
+        CommandOptsCheck opts' -> runCheck opts'
+        CommandOptsExtractSMT opts' -> runExtractSMT opts'
+        CommandOptsFormatSMT opts' -> runFormatSMT opts'
 
 setNumCapabilitiesAccordingToOpt :: (MonadIO m, MonadLoggerWithContext m) => Maybe Int -> m ()
 setNumCapabilitiesAccordingToOpt opt = do

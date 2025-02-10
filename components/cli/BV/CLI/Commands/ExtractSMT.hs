@@ -6,7 +6,9 @@ module BV.CLI.Commands.ExtractSMT
     ( runExtractSMT
     ) where
 
+import BV.CLI.Commands.FormatSMT
 import BV.CLI.Opts
+import BV.ConcreteSyntax
 import BV.Logging
 
 import Data.Attoparsec.Text
@@ -23,6 +25,7 @@ import Data.Conduit.Attoparsec (conduitParser)
 import qualified Data.Conduit.Combinators as C
 import Data.Conduit.Lift (evalStateLC)
 import qualified Data.Conduit.List as CL
+import qualified Data.Conduit.Text as CT (decodeUtf8)
 import Data.List (isInfixOf, isPrefixOf, isSuffixOf)
 import Data.Maybe (isJust)
 import qualified Data.Text as T
@@ -55,7 +58,11 @@ runExtractSMT opts = do
                     return (Just entry.msg)
                 else do
                     return Nothing))
-        .| CL.concatMap (\msg -> [Chunk (fromLogStr msg), Chunk "\n", Flush])
+        .| CL.map fromLogStr
+        .| CT.decodeUtf8
+        .| conduitParser parseSExprWithPlaceholdersFaster
+        .| CL.map snd
+        .| formatSMTC opts.lineWrappingOpts
         .| C.sinkHandleFlush stdout
   where
     directionCtxEntry = case opts.direction of
@@ -95,5 +102,5 @@ parsePattern = do
     rightAnchor <- isJust <$> optional "]"
     return $
         [ (True, seg, True) | seg <- segments ]
-            & singular traversed % _1 .~ leftAnchor
-            & singular (backwards traversed) % _3 .~ rightAnchor
+            & _head % _1 .~ leftAnchor
+            & _last % _3 .~ rightAnchor

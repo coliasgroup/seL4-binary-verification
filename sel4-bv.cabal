@@ -61,6 +61,7 @@ library concrete-syntax
     , stm
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 library core
@@ -131,6 +132,7 @@ library core
     , stm
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 library logging
@@ -175,6 +177,7 @@ library logging
     , text
     , transformers
     , unliftio-core
+    , vector
   default-language: GHC2021
 
 library smtlib2
@@ -187,10 +190,9 @@ library smtlib2
       BV.SMTLIB2.SExpr.Show
       BV.SMTLIB2.SExpr.Read
       BV.SMTLIB2.SExpr.Build
+      BV.SMTLIB2.SExpr.Build.Pretty
       BV.SMTLIB2.SExpr.Parse.Attoparsec
       BV.SMTLIB2.SExpr.Parse.Megaparsec
-  other-modules:
-      BV.SMTLIB2.SExpr.Build.Pretty
   hs-source-dirs:
       components/smtlib2
   default-extensions:
@@ -219,6 +221,7 @@ library smtlib2
     , stm
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 library smtlib2-process
@@ -256,6 +259,7 @@ library smtlib2-process
     , text
     , transformers
     , unliftio-core
+    , vector
   default-language: GHC2021
 
 library system
@@ -322,6 +326,7 @@ library system
     , text
     , transformers
     , unliftio-core
+    , vector
   default-language: GHC2021
 
 library target-dir
@@ -358,6 +363,7 @@ library target-dir
     , stm
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 library test-utils
@@ -394,6 +400,7 @@ library test-utils
     , stm
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 executable cli
@@ -401,6 +408,7 @@ executable cli
   other-modules:
       BV.CLI.Commands.Check
       BV.CLI.Commands.ExtractSMT
+      BV.CLI.Commands.FormatSMT
       BV.CLI.Opts
       BV.CLI.SolverList
   hs-source-dirs:
@@ -417,6 +425,7 @@ executable cli
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is BV.CLI.Main
   build-depends:
       aeson
+    , ansi-terminal
     , async
     , attoparsec
     , base
@@ -437,6 +446,7 @@ executable cli
     , pretty-simple
     , resourcet
     , safe-exceptions
+    , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
     , sel4-bv:smtlib2
@@ -447,38 +457,8 @@ executable cli
     , text
     , transformers
     , unliftio-core
+    , vector
     , yaml
-  default-language: GHC2021
-
-executable normalize-smtlib2
-  main-is: Main.hs
-  hs-source-dirs:
-      components/utils/normalize-smtlib2
-  default-extensions:
-      FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
-      OverloadedLabels
-      OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
-  build-depends:
-      async
-    , base
-    , bytestring
-    , containers
-    , deepseq
-    , exceptions
-    , mtl
-    , optics
-    , parallel
-    , safe-exceptions
-    , sel4-bv:smtlib2
-    , stm
-    , text
-    , transformers
   default-language: GHC2021
 
 executable profiling-scratch
@@ -513,6 +493,7 @@ executable profiling-scratch
     , stm
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 test-suite concrete-syntax-test
@@ -556,6 +537,7 @@ test-suite concrete-syntax-test
     , tasty-hunit
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 test-suite core-test
@@ -596,6 +578,7 @@ test-suite core-test
     , tasty-hunit
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 test-suite logging-test
@@ -634,6 +617,7 @@ test-suite logging-test
     , tasty-hunit
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 test-suite smtlib2-test
@@ -675,6 +659,7 @@ test-suite smtlib2-test
     , tasty-hunit
     , text
     , transformers
+    , vector
   default-language: GHC2021
 
 test-suite system-test
@@ -707,4 +692,5 @@ test-suite system-test
     , stm
     , text
     , transformers
+    , vector
   default-language: GHC2021

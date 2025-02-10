@@ -10,18 +10,15 @@ module BV.SMTLIB2.SExpr.Build
 
 import BV.SMTLIB2.SExpr
 
+import Data.List (intersperse)
 import Data.Text.Lazy.Builder (Builder, fromString, singleton)
 import Data.Text.Lazy.Builder.Int (decimal)
 
 buildGenericSExpr :: (a -> Builder) -> GenericSExpr a -> Builder
 buildGenericSExpr f = \case
     Atom a -> f a
-    List [] -> "()"
-    List (x:xs) ->
-           singleton '('
-        <> buildGenericSExpr f x
-        <> foldMap ((singleton ' ' <>) . buildGenericSExpr f) xs
-        <> singleton ')'
+    List xs ->
+        "(" <> mconcat (intersperse " " (map (buildGenericSExpr f) xs)) <> ")"
 
 buildSExpr :: SExpr -> Builder
 buildSExpr = buildGenericSExpr buildAtom
@@ -37,9 +34,9 @@ buildUncheckedAtom = \case
     NumeralAtom n -> decimal n
     HexadecimalAtom s -> "#x" <> fromString s
     BinaryAtom s -> "#b" <> fromString s
-    StringAtom s -> singleton '\"' <> foldMap escapeChar s <> singleton '\"'
+    StringAtom s -> "\"" <> foldMap escapeChar s <> "\""
     SymbolAtom s -> fromString s
-    KeywordAtom s -> singleton ':' <> fromString s
+    KeywordAtom s -> ":" <> fromString s
   where
     escapeChar = \case
         '"' -> "\"\""

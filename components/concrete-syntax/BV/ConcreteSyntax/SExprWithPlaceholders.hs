@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.ConcreteSyntax.SExprWithPlaceholders
-    ( buildSExprWithPlaceholders
+    ( buildAtomOrPlaceholder
+    , buildSExprWithPlaceholders
     , parseSExprWithPlaceholders
     ) where
 
@@ -25,7 +26,10 @@ parseSExprPlaceholder = between "{" "}" $
     try (SExprPlaceholderMemSort <$ "MemSort") <|> try (SExprPlaceholderMemDomSort <$ "MemDomSort")
 
 buildSExprWithPlaceholders :: SExprWithPlaceholders -> Builder
-buildSExprWithPlaceholders = buildGenericSExpr $ \case
+buildSExprWithPlaceholders = buildGenericSExpr buildAtomOrPlaceholder
+
+buildAtomOrPlaceholder :: AtomOrPlaceholder -> Builder
+buildAtomOrPlaceholder = \case
     AtomOrPlaceholderAtom atom -> buildAtom atom
     AtomOrPlaceholderPlaceholder placeholder -> buildSExprPlaceholder placeholder
 

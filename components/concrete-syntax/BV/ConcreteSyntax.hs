@@ -2,6 +2,7 @@ module BV.ConcreteSyntax
     ( IsContents (..)
     , ReadBVFile (..)
     , WriteBVFile (..)
+    , buildAtomOrPlaceholder
     , buildSExprWithPlaceholders
     , parseSExprWithPlaceholders
     , parseSExprWithPlaceholdersFaster
@@ -24,6 +25,7 @@ import BV.ConcreteSyntax.GraphLangLike.Building
 import BV.ConcreteSyntax.GraphLangLike.Instances ()
 import BV.ConcreteSyntax.GraphLangLike.Parsing
 import BV.ConcreteSyntax.ObjDump ()
-import BV.ConcreteSyntax.SExprWithPlaceholders (buildSExprWithPlaceholders,
+import BV.ConcreteSyntax.SExprWithPlaceholders (buildAtomOrPlaceholder,
+                                                buildSExprWithPlaceholders,
                                                 parseSExprWithPlaceholders)
 import BV.ConcreteSyntax.SExprWithPlaceholdersFaster (parseSExprWithPlaceholdersFaster)

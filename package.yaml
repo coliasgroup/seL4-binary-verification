@@ -45,6 +45,7 @@ dependencies:
   - exceptions
   - safe-exceptions
   - containers
+  - vector
   - bytestring
   - text
   - stm
@@ -64,6 +65,7 @@ internal-libraries:
       - BV.SMTLIB2.SExpr.Show
       - BV.SMTLIB2.SExpr.Read
       - BV.SMTLIB2.SExpr.Build
+      - BV.SMTLIB2.SExpr.Build.Pretty
       - BV.SMTLIB2.SExpr.Parse.Attoparsec
       - BV.SMTLIB2.SExpr.Parse.Megaparsec
     dependencies:
@@ -190,6 +192,7 @@ executables:
       - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
+      - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       - sel4-bv:system
       # external
@@ -205,15 +208,9 @@ executables:
       - conduit-extra
       - optparse-applicative
       - optparse-generic
+      - ansi-terminal
       # TODO for debugging
       - pretty-simple
-    ghc-options: *exe-ghc-options
-
-  normalize-smtlib2:
-    source-dirs: components/utils/normalize-smtlib2
-    main: Main
-    dependencies:
-      - sel4-bv:smtlib2
     ghc-options: *exe-ghc-options
 
   profiling-scratch:

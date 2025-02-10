@@ -7,7 +7,9 @@ module BV.CLI.Opts
     , ExtractSMTOpts (..)
     , FileLogOpts (..)
     , FingerprintPattern
+    , FormatSMTOpts (..)
     , GlobalOpts (..)
+    , LineWrappingOpts (..)
     , LogFormat (..)
     , LogOpts (..)
     , LoggingOpts (..)
@@ -20,6 +22,7 @@ module BV.CLI.Opts
 import BV.Core.Types
 import BV.Logging
 import BV.SMTLIB2
+import BV.SMTLIB2.SExpr.Build.Pretty
 
 import Options.Applicative
 
@@ -87,6 +90,7 @@ logEntryParserFor = \case
 data CommandOpts
   = CommandOptsCheck CheckOpts
   | CommandOptsExtractSMT ExtractSMTOpts
+  | CommandOptsFormatSMT FormatSMTOpts
   deriving (Generic, Show)
 
 data CheckOpts
@@ -112,12 +116,28 @@ data ExtractSMTOpts
       { match :: String
       , direction :: ExtractSMTDirection
       , format :: LogFormat
+      , lineWrappingOpts :: Maybe LineWrappingOpts
       }
   deriving (Generic, Show)
 
 data ExtractSMTDirection
   = Send
   | Recv
+  deriving (Generic, Show)
+
+data FormatSMTOpts
+  = FormatSMTOpts
+      { lineWrappingOpts :: Maybe LineWrappingOpts
+      }
+  deriving (Generic, Show)
+
+data LineWrappingOpts
+  = LineWrappingOpts
+      { preferredMaxLineWidth :: Integer
+      , indentWidth :: Integer
+      , minBreak :: Maybe Integer
+      , color :: Bool
+      }
   deriving (Generic, Show)
 
 --
@@ -167,14 +187,14 @@ loggingOptsParser :: Parser LoggingOpts
 loggingOptsParser = do
     stderrLogOpts <- logOptsParser "stderr" ""
     fileLogOpts <- optional $ do
-            dst <- option' str
-                [ long "file-log"
-                , metavar "FILE"
-                , help "Destination file for file log"
-                , action "file"
-                ]
-            logOpts <- logOptsParser "file" "file-"
-            return $ FileLogOpts { dst, logOpts }
+        dst <- option' str
+            [ long "file-log"
+            , metavar "FILE"
+            , help "Destination file for file log"
+            , action "file"
+            ]
+        logOpts <- logOptsParser "file" "file-"
+        return $ FileLogOpts { dst, logOpts }
     return $ LoggingOpts { stderrLogOpts, fileLogOpts }
 
 logOptsParser :: String -> String -> Parser LogOpts
@@ -242,6 +262,10 @@ commandOptsParser =
         , command "extract-smt"
             (info (CommandOptsExtractSMT <$> extractSMTOptsParser)
                 (commonInfo <> progDesc "Extract SMT from a 'check' log"))
+        , command "format-smt"
+            (info (CommandOptsFormatSMT <$> formatSMTOptsParser)
+                (commonInfo <> progDesc "Format SMT s-expressions"))
+
         ])
 
 checkOptsParser :: Parser CheckOpts
@@ -342,7 +366,39 @@ extractSMTOptsParser = do
         , help "Log format for input log"
         , completeWith logFormatValues
         ]
-    return $ ExtractSMTOpts { match, direction, format }
+    lineWrappingOpts <- optional lineWrappingOptsParser
+    return $ ExtractSMTOpts { match, direction, format, lineWrappingOpts }
+
+formatSMTOptsParser :: Parser FormatSMTOpts
+formatSMTOptsParser = do
+    lineWrappingOpts <- optional lineWrappingOptsParser
+    return $ FormatSMTOpts { lineWrappingOpts }
+
+lineWrappingOptsParser :: Parser LineWrappingOpts
+lineWrappingOptsParser = do
+    flag' () (long "wrap" <> help "Wrap long lines")
+    preferredMaxLineWidth <- option' auto
+        [ long "line-width"
+        , short 'n'
+        , metavar "N"
+        , value defaultPrettySExprConfig.preferredMaxLineWidth
+        , help "Preferred maximum line width"
+        ]
+    indentWidth <- option' auto
+        [ long "indent-width"
+        , short 'i'
+        , metavar "N"
+        , value defaultPrettySExprConfig.indentWidth
+        , help "Indent width"
+        ]
+    minBreak <- option' auto
+        [ long "min-break"
+        , metavar "N"
+        , value defaultPrettySExprConfig.minBreak
+        , help "Indent width"
+        ]
+    color <- switch (long "color" <> help "Add color")
+    return $ LineWrappingOpts { preferredMaxLineWidth, indentWidth, minBreak, color }
 
 --
 
