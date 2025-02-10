@@ -12,6 +12,7 @@ module BV.System.Frontend
     , SMTProofCheckSource (..)
     , displayReport
     , frontend
+    , frontendJustTheseChecks
     , prettySMTProofCheckError
     ) where
 
@@ -84,11 +85,7 @@ prettySMTProofCheckError err =
         SomeSolverAnsweredSat solverId -> prettySolverId solverId ++ " answered sat"
         AllSolversTimedOutOrAnsweredUnknown -> "all solvers timed out or answered unknown"
 
-data Report
-  = Report
-      { unwrap :: M.Map PairingId (SMTProofCheckResult SMTProofCheckDescription ())
-      }
-  deriving (Eq, Generic, Ord, Show)
+--
 
 frontend
     :: ( MonadUnliftIO m
@@ -99,7 +96,7 @@ frontend
     -> m Report
 frontend f checks = do
     let allGroups = checks ^.. #unwrap % folded % folded
-    let numGroups = length allGroups
+    let numChecks = length allGroups
     completedGroups <- liftIO $ newTVarIO (0 :: Integer)
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
@@ -116,20 +113,57 @@ frontend f checks = do
                                 let n = n' + 1
                                 writeTVar completedGroups n
                                 return n
-                            logInfo $ printf "%d/%d groups checked" n numGroups
+                            logInfo $ printf "%d/%d groups checked" n numChecks
                             return result))
     logInfo $ printf "report complete after %.2fs" (fromRational (elapsedToSeconds elapsed) :: Double)
     return report
 
---
+data Report
+  = Report
+      { unwrap :: M.Map PairingId (SMTProofCheckResult SMTProofCheckDescription ())
+      }
+  deriving (Eq, Generic, Ord, Show)
 
-displayReport :: Report -> String
+displayReport :: Report -> (Bool, String)
 displayReport report =
     if M.null failed
-    then "All checks passed\n"
+    then (False, "All checks passed\n")
     else
         let failures = flip foldMap (M.toAscList failed) $ \(pairingId, err) ->
                 "Check failure for " <> prettyPairingId pairingId <> ": " <> prettySMTProofCheckError err <> "\n"
-         in failures <> "Some checks failed\n"
+         in (True, failures <> "Some checks failed\n")
   where
     failed = M.mapMaybe (preview _Left) report.unwrap
+
+--
+
+frontendJustTheseChecks
+    :: ( MonadUnliftIO m
+       , MonadLoggerWithContext m
+       )
+    => (SMTProofCheckWithFingerprint SMTProofCheckDescription -> m (SMTProofCheckResult SMTProofCheckDescription ()))
+    -> M.Map PairingId [SMTProofCheckWithFingerprint SMTProofCheckDescription]
+    -> m Report
+frontendJustTheseChecks f checks = do
+    let allChecks = checks ^.. folded % folded
+    let numChecks = length allChecks
+    completedChecks <- liftIO $ newTVarIO (0 :: Integer)
+    (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
+        Report <$> ifor checks (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
+            withPushLogContextPairing pairingId $ do
+                runConcurrentlyUnliftIOE $ do
+                    for_ checksForPairing (\check -> makeConcurrentlyUnliftIOE $ do
+                        withPushLogContextCheck check $ do
+                            result <- f check
+                            logInfo $ case result of
+                                Right _ -> "success"
+                                Left failure -> "failure: " ++ prettySMTProofCheckError failure
+                            n <- liftIO . atomically $ do
+                                n' <- readTVar completedChecks
+                                let n = n' + 1
+                                writeTVar completedChecks n
+                                return n
+                            logInfo $ printf "%d/%d checks checked" n numChecks
+                            return result))
+    logInfo $ printf "report complete after %.2fs" (fromRational (elapsedToSeconds elapsed) :: Double)
+    return report

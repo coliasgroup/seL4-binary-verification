@@ -4,7 +4,11 @@
 module BV.System.Fingerprinting
     ( HasEmbeddedFingerprint (..)
     , SMTProofCheckFingerprint (..)
+    , SMTProofCheckFingerprintPattern (..)
     , SMTProofCheckGroupFingerprint (..)
+    , SMTProofCheckGroupFingerprintPattern (..)
+    , matchSMTProofCheckFingerprint
+    , matchSMTProofCheckGroupFingerprint
     , prettySMTProofCheckFingerprint
     , prettySMTProofCheckFingerprintShort
     , prettySMTProofCheckGroupFingerprint
@@ -19,6 +23,7 @@ import BV.Core.Types
 import Control.DeepSeq (NFData)
 import Crypto.Hash.SHA256 (hashlazy)
 import Data.ByteString (ByteString)
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as C
 import Data.Text.Lazy.Builder (toLazyText)
@@ -84,3 +89,23 @@ instance HasEmbeddedFingerprint SMTProofCheckFingerprint SMTProofCheckFingerprin
 
 instance HasEmbeddedFingerprint SMTProofCheckGroupFingerprint SMTProofCheckGroupFingerprint where
     embeddedFingerprint = id
+
+--
+
+newtype SMTProofCheckFingerprintPattern
+  = SMTProofCheckFingerprintPattern { unwrap :: ByteString }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
+
+matchSMTProofCheckFingerprint :: SMTProofCheckFingerprintPattern -> SMTProofCheckFingerprint -> Bool
+matchSMTProofCheckFingerprint pat fingerprint =
+    pat.unwrap `B.isPrefixOf` fingerprint.unwrap
+
+newtype SMTProofCheckGroupFingerprintPattern
+  = SMTProofCheckGroupFingerprintPattern { unwrap :: ByteString }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
+
+matchSMTProofCheckGroupFingerprint :: SMTProofCheckGroupFingerprintPattern -> SMTProofCheckGroupFingerprint -> Bool
+matchSMTProofCheckGroupFingerprint pat fingerprint =
+    pat.unwrap `B.isPrefixOf` fingerprint.unwrap

@@ -6,8 +6,8 @@ here=$(dirname $0)
 
 solvers=$here/solverlist.yaml
 
-# sd=big
-sd=small
+sd=big
+# sd=small
 
 d=tmp/test-target-dirs/$sd
 

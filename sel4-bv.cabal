@@ -429,6 +429,7 @@ executable cli
     , async
     , attoparsec
     , base
+    , base16-bytestring
     , bytestring
     , conduit
     , conduit-extra

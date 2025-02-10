@@ -209,6 +209,7 @@ executables:
       - optparse-applicative
       - optparse-generic
       - ansi-terminal
+      - base16-bytestring
       # TODO for debugging
       - pretty-simple
     ghc-options: *exe-ghc-options

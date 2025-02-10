@@ -6,7 +6,6 @@ module BV.CLI.Opts
     , ExtractSMTDirection (..)
     , ExtractSMTOpts (..)
     , FileLogOpts (..)
-    , FingerprintPattern
     , FormatSMTOpts (..)
     , GlobalOpts (..)
     , LineWrappingOpts (..)
@@ -23,11 +22,14 @@ import BV.Core.Types
 import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.SExpr.Build.Pretty
+import BV.System.Fingerprinting
 
 import Options.Applicative
 
 import qualified Data.Attoparsec.ByteString as A (Parser)
+import qualified Data.ByteString.Base16 as B16
 import Data.ByteString.Builder (Builder)
+import qualified Data.ByteString.Char8 as C
 import GHC.Generics (Generic)
 import Text.Printf (printf)
 
@@ -103,13 +105,11 @@ data CheckOpts
       , dumpTargetDir :: Maybe FilePath
       , mismatchDir :: Maybe FilePath
       , includeFunctions :: [Ident]
-      , includeGroups :: [FingerprintPattern]
-      , includeChecks :: [FingerprintPattern]
+      , includeGroups :: [SMTProofCheckGroupFingerprintPattern]
+      , includeChecks :: [SMTProofCheckFingerprintPattern]
       , reportFile :: Maybe FilePath
       }
   deriving (Generic, Show)
-
-type FingerprintPattern = String
 
 data ExtractSMTOpts
   = ExtractSMTOpts
@@ -306,11 +306,11 @@ checkOptsParser = do
         [ long "include-function"
         , metavar "SYMBOL"
         ]
-    includeGroups <- many $ option' str
+    includeGroups <- many $ SMTProofCheckGroupFingerprintPattern <$> option' (eitherReader (B16.decode . C.pack))
         [ long "include-group"
         , metavar "FINGERPRINT"
         ]
-    includeChecks <- many $ option' str
+    includeChecks <- many $ SMTProofCheckFingerprintPattern <$> option' (eitherReader (B16.decode . C.pack))
         [ long "include-check"
         , metavar "FINGERPRINT"
         ]
