@@ -115,6 +115,7 @@ stages input = StagesOutput
 
     lookupFunction (WithTag tag funName) = (pairingSide tag finalPrograms).functions ! funName
 
+    -- TODO by doing this we lose laziness, and it's probably overkill anyways (reduces eval from ~8s -> ~4s)
     -- TODO parallelism probably overkill
     problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
     -- problems = problems'
@@ -130,7 +131,7 @@ stages input = StagesOutput
 
     provenProblems = problems & #unwrap %~ \m -> M.restrictKeys m (M.keysSet input.proofs.unwrap)
 
-    -- TODO parallelism probably overkill
+    -- TODO (see above)
     proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
     -- proofChecks = proofChecks'
