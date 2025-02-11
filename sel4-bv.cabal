@@ -311,6 +311,8 @@ library system
     , mtl
     , optics
     , parallel
+    , persistent
+    , persistent-sqlite
     , pretty-show
     , process
     , safe-exceptions
@@ -444,6 +446,8 @@ executable cli
     , optparse-applicative
     , optparse-generic
     , parallel
+    , persistent
+    , persistent-sqlite
     , pretty-simple
     , resourcet
     , safe-exceptions

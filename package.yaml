@@ -163,6 +163,8 @@ internal-libraries:
       - directory
       - monad-logger
       - unliftio-core
+      - persistent
+      - persistent-sqlite
       # TODO prune
       - pretty-show
       # - pretty-simple
@@ -210,6 +212,8 @@ executables:
       - optparse-generic
       - ansi-terminal
       - base16-bytestring
+      - persistent
+      - persistent-sqlite
       # TODO for debugging
       - pretty-simple
     ghc-options: *exe-ghc-options
