@@ -34,3 +34,6 @@
 - pretty printing for sexprs
 
 - use exceptions instead of die with throwString from safe-exceptions
+
+- fail explicitly in situations where online solver is irrelevant and no offlines solvers are configured
+  (or, in the case of justTheseChecks, no hyp offline solvers are configured)
