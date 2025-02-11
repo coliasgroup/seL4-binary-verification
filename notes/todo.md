@@ -37,3 +37,12 @@
 
 - fail explicitly in situations where online solver is irrelevant and no offlines solvers are configured
   (or, in the case of justTheseChecks, no hyp offline solvers are configured)
+
+- remove SeL4.hs. in general, provide expressivity required by target.py in CLI:
+    --asm-symbol-prefix, --c-symbol-prefix
+      (check to make these are distinct)
+    --ignore-function
+    (--include- and --ignore-function are for "true" name, with prefix on either side stripped)
+    --include-function-with-deps
+    --include-all-functions
+      (use with --include-function to make sure that root functions are present)
