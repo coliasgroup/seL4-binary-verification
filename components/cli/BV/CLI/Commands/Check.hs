@@ -18,7 +18,6 @@ import BV.System.SolversConfig
 import BV.System.WithFingerprints
 import BV.TargetDir
 
-import BV.Core.AdornProofScript
 import Control.Concurrent (getNumCapabilities)
 import Control.Monad (unless, when)
 import Control.Monad.Catch (MonadMask)

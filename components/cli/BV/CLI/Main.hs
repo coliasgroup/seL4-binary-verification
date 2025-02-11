@@ -8,15 +8,14 @@ import BV.CLI.Commands.FormatSMT
 import BV.CLI.Opts
 import BV.Logging
 
-import Control.Concurrent (newChan, readChan, writeChan)
-import Control.Concurrent.Async (withAsync)
-import Control.Monad (forever, when)
+import Control.Concurrent (newMVar, withMVar)
+import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Resource (allocate, runResourceT)
 import Data.ByteString.Builder (hPutBuilder)
 import GHC.Conc (getNumProcessors, setNumCapabilities)
-import System.IO (Handle, IOMode (WriteMode), hClose, openFile, stderr)
+import System.IO (BufferMode (LineBuffering), Handle, IOMode (WriteMode),
+                  hClose, hSetBuffering, openFile, stderr)
 import Text.Pretty.Simple (pPrint)
 import Text.Printf (printf)
 
@@ -50,7 +49,7 @@ setNumCapabilitiesAccordingToOpt opt = do
 
 withLoggingOpts :: LoggingOpts -> LoggingWithContextT IO a -> IO a
 withLoggingOpts opts m = runResourceT $ do
-    logEntryChan <- liftIO newChan
+    liftIO $ hSetBuffering stderr LineBuffering
     output <- do
         fileOutput <- case opts.fileLogOpts of
             Nothing -> do
@@ -58,13 +57,16 @@ withLoggingOpts opts m = runResourceT $ do
                     return ()
             Just fileLogOpts -> do
                 (_key, h) <- allocate (openFile fileLogOpts.dst WriteMode) hClose
+                liftIO $ hSetBuffering h LineBuffering
                 return $ makeLogEntryPutter fileLogOpts.logOpts h
         let stderrOutput = makeLogEntryPutter opts.stderrLogOpts stderr
         return $ \entry -> do
             fileOutput entry
             stderrOutput entry
-    lift $ withAsync (forever (readChan logEntryChan >>= output)) $ \_ -> do
-        runLoggingWithContextT m (writeChan logEntryChan)
+    liftIO $ do
+        outputMutex <- newMVar ()
+        let guardedOutput entry = withMVar outputMutex $ \() -> output entry
+        runLoggingWithContextT m guardedOutput
 
 makeLogEntryPutter :: LogOpts -> Handle -> LogEntry -> IO ()
 makeLogEntryPutter opts h entry = do
