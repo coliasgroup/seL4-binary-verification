@@ -18,6 +18,7 @@ default-extensions:
   - OverloadedLabels
   - OverloadedRecordDot
   # GHC2024
+  - DataKinds
   - DerivingStrategies
   - GeneralizedNewtypeDeriving
   - LambdaCase

@@ -36,6 +36,7 @@ library concrete-syntax
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -110,6 +111,7 @@ library core
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -154,6 +156,7 @@ library logging
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -201,6 +204,7 @@ library smtlib2
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -236,6 +240,7 @@ library smtlib2-process
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -268,10 +273,10 @@ library system
       BV.System.Backend.Core
       BV.System.Backend.Local
       BV.System.Cache
+      BV.System.Cache.Persistent
       BV.System.EvalStages
       BV.System.Fingerprinting
       BV.System.Frontend
-      BV.System.Notes
       BV.System.SeL4
       BV.System.SolversConfig
       BV.System.TaskQueue
@@ -290,6 +295,7 @@ library system
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -343,6 +349,7 @@ library target-dir
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -379,6 +386,7 @@ library test-utils
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -421,6 +429,7 @@ executable cli
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -476,6 +485,7 @@ executable profiling-scratch
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -512,6 +522,7 @@ test-suite concrete-syntax-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -556,6 +567,7 @@ test-suite core-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -597,6 +609,7 @@ test-suite logging-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -636,6 +649,7 @@ test-suite smtlib2-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -678,6 +692,7 @@ test-suite system-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
+      DataKinds
       DerivingStrategies
       GeneralizedNewtypeDeriving
       LambdaCase
