@@ -269,7 +269,6 @@ library system
       BV.System.Backend.Local
       BV.System.Cache
       BV.System.EvalStages
-      BV.System.Fingerprinting
       BV.System.Frontend
       BV.System.SeL4
       BV.System.SolversConfig
@@ -278,11 +277,63 @@ library system
       BV.System.Utils
       BV.System.Utils.Logger.BV
       BV.System.Utils.Stopwatch
-      BV.System.Utils.UnliftIO.Async
       BV.System.Utils.UnliftIO.Throttle
-      BV.System.WithFingerprints
   hs-source-dirs:
       components/system
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      async
+    , attoparsec
+    , base
+    , base16-bytestring
+    , bytestring
+    , containers
+    , cryptohash-sha256
+    , deepseq
+    , directory
+    , exceptions
+    , filepath
+    , megaparsec
+    , monad-logger
+    , mtl
+    , optics
+    , parallel
+    , process
+    , safe-exceptions
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , sel4-bv:logging
+    , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-process
+    , sel4-bv:system-core
+    , sel4-bv:target-dir
+    , stm
+    , text
+    , transformers
+    , unliftio-core
+    , vector
+  default-language: GHC2021
+
+library system-core
+  visibility: public
+  exposed-modules:
+      BV.System.Core.RunSolvers
+      BV.System.Core.RunSolvers.ConclusionT
+      BV.System.Core.RunSolvers.Config
+      BV.System.Fingerprinting
+      BV.System.Utils.UnliftIO.Async
+      BV.System.WithFingerprints
+  hs-source-dirs:
+      components/system-core
   default-extensions:
       FunctionalDependencies
       DuplicateRecordFields
@@ -451,6 +502,7 @@ executable cli
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system
+    , sel4-bv:system-core
     , sel4-bv:target-dir
     , stm
     , text
@@ -488,6 +540,7 @@ executable profiling-scratch
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:system
+    , sel4-bv:system-core
     , sel4-bv:test-utils
     , stm
     , text
@@ -570,6 +623,7 @@ test-suite core-test
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:system
+    , sel4-bv:system-core
     , sel4-bv:target-dir
     , sel4-bv:test-utils
     , stm
@@ -688,6 +742,7 @@ test-suite system-test
     , parallel
     , safe-exceptions
     , sel4-bv:system
+    , sel4-bv:system-core
     , stm
     , text
     , transformers

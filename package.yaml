@@ -142,6 +142,28 @@ internal-libraries:
       - aeson
       - filepath
 
+  system-core:
+    visibility: public
+    source-dirs: components/system-core
+    # exposed-modules: # TODO
+    dependencies:
+      - sel4-bv:smtlib2
+      - sel4-bv:smtlib2-process
+      - sel4-bv:logging
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:target-dir
+      # external
+      - base16-bytestring
+      - cryptohash-sha256
+      - attoparsec
+      - megaparsec
+      - process
+      - filepath
+      - directory
+      - monad-logger
+      - unliftio-core
+
   system:
     visibility: public
     source-dirs: components/system
@@ -153,6 +175,7 @@ internal-libraries:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
+      - sel4-bv:system-core
       # external
       - base16-bytestring
       - cryptohash-sha256
@@ -189,6 +212,7 @@ executables:
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       - sel4-bv:system
+      - sel4-bv:system-core
       # external
       - megaparsec
       - attoparsec
@@ -217,6 +241,7 @@ executables:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:system
+      - sel4-bv:system-core
       - sel4-bv:test-utils
     ghc-options: *exe-ghc-options
 
@@ -261,6 +286,7 @@ tests:
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       - sel4-bv:system
+      - sel4-bv:system-core
       - sel4-bv:test-utils
       # external
       - monad-logger
@@ -293,6 +319,7 @@ tests:
     main: Main
     dependencies:
       - sel4-bv:system
+      - sel4-bv:system-core
     ghc-options: *test-ghc-options
 
 # NOTES
