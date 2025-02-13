@@ -22,7 +22,7 @@ import BV.Logging
 import BV.System.Fingerprinting
 import BV.System.SolversConfig
 import BV.System.Utils.Logger.BV
-import BV.System.Utils.StopWatch
+import BV.System.Utils.Stopwatch
 import BV.System.Utils.UnliftIO.Async
 import BV.System.WithFingerprints
 

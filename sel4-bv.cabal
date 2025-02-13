@@ -277,7 +277,7 @@ library system
       BV.System.Throttle
       BV.System.Utils
       BV.System.Utils.Logger.BV
-      BV.System.Utils.StopWatch
+      BV.System.Utils.Stopwatch
       BV.System.Utils.UnliftIO.Async
       BV.System.Utils.UnliftIO.Throttle
       BV.System.WithFingerprints

@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 
-module BV.System.Utils.StopWatch
+module BV.System.Utils.Stopwatch
     ( Elapsed
-    , StopWatch
+    , Stopwatch
     , elapsedToSeconds
     , getElapsed
-    , newStopWatch
+    , newStopwatch
     , time
     ) where
 
@@ -14,18 +14,18 @@ import Data.Ratio ((%))
 import GHC.Clock (getMonotonicTimeNSec)
 import GHC.Word (Word64)
 
-newtype StopWatch
-  = StopWatch { startNSec :: Word64 }
+newtype Stopwatch
+  = Stopwatch { startNSec :: Word64 }
   deriving (Eq, Ord, Show)
 
 newtype Elapsed
   = Elapsed { nsecs :: Word64 }
   deriving (Eq, Ord, Show)
 
-newStopWatch :: MonadIO m => m StopWatch
-newStopWatch = StopWatch <$> liftIO getMonotonicTimeNSec
+newStopwatch :: MonadIO m => m Stopwatch
+newStopwatch = Stopwatch <$> liftIO getMonotonicTimeNSec
 
-getElapsed :: MonadIO m => StopWatch -> m Elapsed
+getElapsed :: MonadIO m => Stopwatch -> m Elapsed
 getElapsed sw = do
     now <- liftIO getMonotonicTimeNSec
     return . Elapsed $ now - sw.startNSec
@@ -35,7 +35,7 @@ elapsedToSeconds elapsed = toInteger elapsed.nsecs % (10^9)
 
 time :: MonadIO m => m a -> m (a, Elapsed)
 time m = do
-    stopWatch <- newStopWatch
+    stopwatch <- newStopwatch
     a <- m
-    elapsed <- getElapsed stopWatch
+    elapsed <- getElapsed stopwatch
     return (a, elapsed)

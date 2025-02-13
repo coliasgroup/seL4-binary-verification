@@ -23,7 +23,7 @@ import BV.System.SolversConfig
 import BV.System.Throttle
 import BV.System.Utils
 import BV.System.Utils.Logger.BV
-import BV.System.Utils.StopWatch
+import BV.System.Utils.Stopwatch
 import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
 import BV.System.WithFingerprints
