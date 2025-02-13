@@ -104,8 +104,8 @@ internal-libraries:
       - BV.Core.Types
       - BV.Core.Types.Extras
       - BV.Core.Stages
-      - BV.Core.AdornProofScript
       - BV.Core.ExecuteSMTProofChecks
+      - BV.Core.DecorateProofScript
     dependencies:
       - sel4-bv:smtlib2
       # external

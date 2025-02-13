@@ -13,7 +13,7 @@ module BV.System.WithFingerprints
 import BV.Core.Types
 import BV.System.Fingerprinting
 
-import BV.Core.AdornProofScript
+import BV.Core.DecorateProofScript
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)

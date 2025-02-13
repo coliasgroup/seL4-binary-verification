@@ -17,7 +17,7 @@ module BV.Core.Stages
     , stages
     ) where
 
-import BV.Core.AdornProofScript
+import BV.Core.DecorateProofScript
 import BV.Core.Stages.BuildProblem
 import BV.Core.Stages.CompileProofChecks
 import BV.Core.Stages.EnumerateProofChecks
@@ -177,7 +177,7 @@ stages input = StagesOutput
             -- error "SMT proof check groups should be distinct"
             uncheckedSMTProofChecks
 
-    preparedSMTProofChecks = flattenSMTProofChecks (adornSMTProofChecksWithDescriptions smtProofChecks)
+    preparedSMTProofChecks = flattenSMTProofChecks (decorateSMTProofChecksWithDescriptions smtProofChecks)
 
 
 asmFunNameToCFunName :: Ident -> Ident

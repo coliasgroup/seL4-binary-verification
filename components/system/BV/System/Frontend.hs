@@ -16,7 +16,7 @@ module BV.System.Frontend
     , prettySMTProofCheckError
     ) where
 
-import BV.Core.AdornProofScript
+import BV.Core.DecorateProofScript
 import BV.Core.Types
 import BV.Logging
 import BV.System.Fingerprinting

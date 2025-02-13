@@ -70,8 +70,8 @@ library core
       BV.Core.Types
       BV.Core.Types.Extras
       BV.Core.Stages
-      BV.Core.AdornProofScript
       BV.Core.ExecuteSMTProofChecks
+      BV.Core.DecorateProofScript
   other-modules:
       BV.Core
       BV.Core.Arch
@@ -271,7 +271,6 @@ library system
       BV.System.EvalStages
       BV.System.Fingerprinting
       BV.System.Frontend
-      BV.System.Notes
       BV.System.SeL4
       BV.System.SolversConfig
       BV.System.TaskQueue

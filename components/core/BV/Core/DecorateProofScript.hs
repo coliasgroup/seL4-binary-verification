@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.AdornProofScript
+module BV.Core.DecorateProofScript
     ( ProofScriptNodeLocation (..)
     , SMTProofCheckDescription (..)
-    , adornProofScriptWithProofScriptNodeLocationsWith
-    , adornSMTProofChecksWithDescriptions
+    , decorateProofScriptWithProofScriptNodeLocationsWith
+    , decorateSMTProofChecksWithDescriptions
     , prettyProofScriptNodeLocation
     , prettySMTProofCheckDescription
     ) where
@@ -19,9 +19,9 @@ data ProofScriptNodeLocation
   = ProofScriptNodeLocation
   deriving (Eq, Generic, NFData, Ord, Show)
 
-adornProofScriptWithProofScriptNodeLocationsWith
+decorateProofScriptWithProofScriptNodeLocationsWith
     :: (ProofScriptNodeLocation -> a -> b) -> ProofScript a -> ProofScript b
-adornProofScriptWithProofScriptNodeLocationsWith f = #root % traversed %~ f ProofScriptNodeLocation
+decorateProofScriptWithProofScriptNodeLocationsWith f = #root % traversed %~ f ProofScriptNodeLocation
 
 data SMTProofCheckDescription
   = SMTProofCheckDescription
@@ -30,10 +30,10 @@ data SMTProofCheckDescription
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-adornSMTProofChecksWithDescriptions
+decorateSMTProofChecksWithDescriptions
     :: SMTProofChecks String -> SMTProofChecks SMTProofCheckDescription
-adornSMTProofChecksWithDescriptions = #unwrap % traversed %~
-    adornProofScriptWithProofScriptNodeLocationsWith (map . fmap . SMTProofCheckDescription)
+decorateSMTProofChecksWithDescriptions = #unwrap % traversed %~
+    decorateProofScriptWithProofScriptNodeLocationsWith (map . fmap . SMTProofCheckDescription)
 
 prettySMTProofCheckDescription :: SMTProofCheckDescription -> String
 prettySMTProofCheckDescription desc =
