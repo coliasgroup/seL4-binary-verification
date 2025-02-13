@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.System.WithFingerprints
+module BV.System.Core.WithFingerprints
     ( FlattenedSMTProofChecksWithFingerprints (..)
     , PreparedSMTProofChecksWithFingerprints
     , SMTProofCheckGroupWithCheckFingerprints
@@ -12,7 +12,7 @@ module BV.System.WithFingerprints
 
 import BV.Core.DecorateProofScript
 import BV.Core.Types
-import BV.System.Fingerprinting
+import BV.System.Core.Fingerprinting
 
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M

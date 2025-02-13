@@ -323,12 +323,13 @@ library system
 library system-core
   visibility: public
   exposed-modules:
+      BV.System.Core.Fingerprinting
       BV.System.Core.RunSolvers
       BV.System.Core.RunSolvers.ConclusionT
       BV.System.Core.RunSolvers.Config
       BV.System.Core.RunSolvers.Online
-      BV.System.Fingerprinting
-      BV.System.WithFingerprints
+      BV.System.Core.Utils.Logging
+      BV.System.Core.WithFingerprints
   hs-source-dirs:
       components/system-core
   default-extensions:

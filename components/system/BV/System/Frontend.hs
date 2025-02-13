@@ -19,12 +19,12 @@ module BV.System.Frontend
 import BV.Core.DecorateProofScript
 import BV.Core.Types
 import BV.Logging
-import BV.System.Fingerprinting
+import BV.System.Core.Fingerprinting
+import BV.System.Core.Utils.Logging
+import BV.System.Core.WithFingerprints
 import BV.System.SolversConfig
-import BV.System.Utils.Logger.BV
 import BV.System.Utils.Stopwatch
 import BV.System.Utils.UnliftIO.Async
-import BV.System.WithFingerprints
 
 import Control.Concurrent.STM (atomically, newTVarIO, readTVar, writeTVar)
 import Control.Monad.IO.Class (liftIO)

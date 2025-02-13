@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.System.Fingerprinting
+module BV.System.Core.Fingerprinting
     ( HasComputedFingerprint (..)
     , SMTProofCheckFingerprint (..)
     , SMTProofCheckFingerprintPattern (..)

@@ -10,12 +10,12 @@ import BV.Logging
 import BV.System.Backend.Core
 import BV.System.Backend.Local
 import BV.System.Cache
+import BV.System.Core.Fingerprinting
+import BV.System.Core.WithFingerprints
 import BV.System.EvalStages
-import BV.System.Fingerprinting
 import BV.System.Frontend
 import BV.System.SeL4
 import BV.System.SolversConfig
-import BV.System.WithFingerprints
 import BV.TargetDir
 
 import Control.Concurrent (getNumCapabilities)

@@ -22,7 +22,7 @@ import BV.Core.Types
 import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.SExpr.Build.Pretty
-import BV.System.Fingerprinting
+import BV.System.Core.Fingerprinting
 
 import Options.Applicative
 

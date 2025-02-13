@@ -18,15 +18,15 @@ import BV.SMTLIB2
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Process
 import BV.System.Cache
+import BV.System.Core.Utils.Logging
+import BV.System.Core.WithFingerprints
 import BV.System.Frontend
 import BV.System.SolversConfig
 import BV.System.Utils
-import BV.System.Utils.Logger.BV
 import BV.System.Utils.Stopwatch
 import BV.System.Utils.Throttle
 import BV.System.Utils.UnliftIO.Async
 import BV.System.Utils.UnliftIO.Throttle
-import BV.System.WithFingerprints
 
 import Control.Monad (filterM, when)
 import Control.Monad.Catch (MonadMask)

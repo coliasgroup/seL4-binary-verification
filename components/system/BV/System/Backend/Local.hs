@@ -14,11 +14,11 @@ import BV.Core.Types
 import BV.Logging
 import BV.System.Backend.Core
 import BV.System.Cache
+import BV.System.Core.WithFingerprints
 import BV.System.Frontend
 import BV.System.SolversConfig
 import BV.System.Utils.Throttle
 import BV.System.Utils.UnliftIO.Throttle
-import BV.System.WithFingerprints
 
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Unlift (MonadUnliftIO)

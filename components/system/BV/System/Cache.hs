@@ -15,7 +15,7 @@ module BV.System.Cache
     ) where
 
 import BV.Logging (MonadLoggerWithContext)
-import BV.System.Fingerprinting
+import BV.System.Core.Fingerprinting
 
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)
