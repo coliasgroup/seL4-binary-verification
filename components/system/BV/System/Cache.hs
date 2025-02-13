@@ -34,11 +34,11 @@ class Monad m => MonadCache m where
     queryCacheUsingFingerprint :: SMTProofCheckFingerprint -> m (Maybe AcceptableSatResult)
     updateCacheUsingFingerprint :: AcceptableSatResult -> SMTProofCheckFingerprint -> m ()
 
-queryCache :: (MonadCache m, HasEmbeddedFingerprint SMTProofCheckFingerprint a) => a -> m (Maybe AcceptableSatResult)
-queryCache = queryCacheUsingFingerprint . embeddedFingerprint
+queryCache :: (MonadCache m, HasComputedFingerprint SMTProofCheckFingerprint a) => a -> m (Maybe AcceptableSatResult)
+queryCache = queryCacheUsingFingerprint . computedFingerprint
 
-updateCache :: (MonadCache m, HasEmbeddedFingerprint SMTProofCheckFingerprint a) => AcceptableSatResult -> a -> m ()
-updateCache r = updateCacheUsingFingerprint r . embeddedFingerprint
+updateCache :: (MonadCache m, HasComputedFingerprint SMTProofCheckFingerprint a) => AcceptableSatResult -> a -> m ()
+updateCache r = updateCacheUsingFingerprint r . computedFingerprint
 
 instance MonadCache m => MonadCache (ExceptT e m) where
     queryCacheUsingFingerprint check = lift $ queryCache check

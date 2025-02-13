@@ -47,18 +47,18 @@ adornWithFingerprints (FlattenedSMTProofChecks byPairing) =
     FlattenedSMTProofChecksWithFingerprints $
         byPairing &
             traversed % traversed %~ \group ->
-                SMTProofCheckGroupWithFingerprint (smtProofCheckGroupFingerprint group) $
+                SMTProofCheckGroupWithFingerprint (fingerprintSMTProofCheckGroup group) $
                     group &
                         #imps % traversed %~ \imp -> imp &
                             #meta %~ \meta ->
                                 let check = SMTProofCheck group.setup imp
-                                    fingerprint = smtProofCheckFingerprint check
+                                    fingerprint = fingerprintSMTProofCheck check
                                 in SMTProofCheckMetaWithFingerprint fingerprint meta
 
 type PreparedSMTProofChecksWithFingerprints = FlattenedSMTProofChecksWithFingerprints SMTProofCheckDescription
 
-instance HasEmbeddedFingerprint SMTProofCheckFingerprint (SMTProofCheckWithFingerprint a) where
-    embeddedFingerprint check = check.imp.meta.fingerprint
+instance HasComputedFingerprint SMTProofCheckFingerprint (SMTProofCheckWithFingerprint a) where
+    computedFingerprint check = check.imp.meta.fingerprint
 
-instance HasEmbeddedFingerprint SMTProofCheckGroupFingerprint (SMTProofCheckGroupWithFingerprints a) where
-    embeddedFingerprint group = group.fingerprint
+instance HasComputedFingerprint SMTProofCheckGroupFingerprint (SMTProofCheckGroupWithFingerprints a) where
+    computedFingerprint group = group.fingerprint

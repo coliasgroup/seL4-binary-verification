@@ -2,19 +2,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.System.Fingerprinting
-    ( HasEmbeddedFingerprint (..)
+    ( HasComputedFingerprint (..)
     , SMTProofCheckFingerprint (..)
     , SMTProofCheckFingerprintPattern (..)
     , SMTProofCheckGroupFingerprint (..)
     , SMTProofCheckGroupFingerprintPattern (..)
+    , fingerprintSMTProofCheck
+    , fingerprintSMTProofCheckGroup
     , matchSMTProofCheckFingerprint
     , matchSMTProofCheckGroupFingerprint
     , prettySMTProofCheckFingerprint
     , prettySMTProofCheckFingerprintShort
     , prettySMTProofCheckGroupFingerprint
     , prettySMTProofCheckGroupFingerprintShort
-    , smtProofCheckFingerprint
-    , smtProofCheckGroupFingerprint
     ) where
 
 import BV.ConcreteSyntax
@@ -36,8 +36,8 @@ newtype SMTProofCheckFingerprint
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-smtProofCheckFingerprint :: SMTProofCheck a -> SMTProofCheckFingerprint
-smtProofCheckFingerprint check =
+fingerprintSMTProofCheck :: SMTProofCheck a -> SMTProofCheckFingerprint
+fingerprintSMTProofCheck check =
     SMTProofCheckFingerprint . hashlazy . encodeUtf8 . toLazyText . buildSExprWithPlaceholders $
         [ "SMTProofCheck"
         , ["setup", fromList check.setup]
@@ -49,8 +49,8 @@ newtype SMTProofCheckGroupFingerprint
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-smtProofCheckGroupFingerprint :: SMTProofCheckGroup a -> SMTProofCheckGroupFingerprint
-smtProofCheckGroupFingerprint group =
+fingerprintSMTProofCheckGroup :: SMTProofCheckGroup a -> SMTProofCheckGroupFingerprint
+fingerprintSMTProofCheckGroup group =
     SMTProofCheckGroupFingerprint . hashlazy . encodeUtf8 . toLazyText . buildSExprWithPlaceholders $
         [ "SMTProofCheckGroup"
         , ["setup", fromList group.setup]
@@ -75,20 +75,16 @@ prettySMTProofCheckFingerprintShort = take shortFingerprintLength . prettySMTPro
 prettySMTProofCheckGroupFingerprintShort :: SMTProofCheckGroupFingerprint -> String
 prettySMTProofCheckGroupFingerprintShort = take shortFingerprintLength . prettySMTProofCheckGroupFingerprint
 
--- instance PrintfArg SMTProofCheckFingerprint where
---   formatArg = formatString . prettySMTProofCheckFingerprint
+--
 
--- instance PrintfArg SMTProofCheckGroupFingerprint where
---   formatArg = formatString . prettySMTProofCheckGroupFingerprint
+class HasComputedFingerprint b a | a -> b where
+    computedFingerprint :: a -> b
 
-class HasEmbeddedFingerprint b a | a -> b where
-    embeddedFingerprint :: a -> b
+instance HasComputedFingerprint SMTProofCheckFingerprint SMTProofCheckFingerprint where
+    computedFingerprint = id
 
-instance HasEmbeddedFingerprint SMTProofCheckFingerprint SMTProofCheckFingerprint where
-    embeddedFingerprint = id
-
-instance HasEmbeddedFingerprint SMTProofCheckGroupFingerprint SMTProofCheckGroupFingerprint where
-    embeddedFingerprint = id
+instance HasComputedFingerprint SMTProofCheckGroupFingerprint SMTProofCheckGroupFingerprint where
+    computedFingerprint = id
 
 --
 
