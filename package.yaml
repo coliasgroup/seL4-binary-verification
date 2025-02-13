@@ -163,14 +163,6 @@ internal-libraries:
       - directory
       - monad-logger
       - unliftio-core
-      - persistent
-      - persistent-sqlite
-      # TODO prune
-      - pretty-show
-      # - pretty-simple
-      # TODO hack
-      - tasty
-      - tasty-hunit
 
   test-utils:
     source-dirs: components/tests/test-utils
@@ -302,3 +294,8 @@ tests:
     dependencies:
       - sel4-bv:system
     ghc-options: *test-ghc-options
+
+# NOTES
+
+# - pretty-show
+# - pretty-simple

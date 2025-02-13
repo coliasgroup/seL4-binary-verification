@@ -310,9 +310,6 @@ library system
     , mtl
     , optics
     , parallel
-    , persistent
-    , persistent-sqlite
-    , pretty-show
     , process
     , safe-exceptions
     , sel4-bv:concrete-syntax
@@ -322,8 +319,6 @@ library system
     , sel4-bv:smtlib2-process
     , sel4-bv:target-dir
     , stm
-    , tasty
-    , tasty-hunit
     , text
     , transformers
     , unliftio-core
