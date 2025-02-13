@@ -7,13 +7,13 @@ module BV.System.WithFingerprints
     , SMTProofCheckGroupWithFingerprints (..)
     , SMTProofCheckMetaWithFingerprint (..)
     , SMTProofCheckWithFingerprint
-    , adornWithFingerprints
+    , decorateWithFingerprints
     ) where
 
+import BV.Core.DecorateProofScript
 import BV.Core.Types
 import BV.System.Fingerprinting
 
-import BV.Core.DecorateProofScript
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
@@ -42,8 +42,8 @@ newtype FlattenedSMTProofChecksWithFingerprints a
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
-adornWithFingerprints :: FlattenedSMTProofChecks a -> FlattenedSMTProofChecksWithFingerprints a
-adornWithFingerprints (FlattenedSMTProofChecks byPairing) =
+decorateWithFingerprints :: FlattenedSMTProofChecks a -> FlattenedSMTProofChecksWithFingerprints a
+decorateWithFingerprints (FlattenedSMTProofChecks byPairing) =
     FlattenedSMTProofChecksWithFingerprints $
         byPairing &
             traversed % traversed %~ \group ->

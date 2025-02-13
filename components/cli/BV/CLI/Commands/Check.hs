@@ -79,7 +79,7 @@ runCheck opts = do
             include ->
                 #unwrap % traversed %~
                     filter (\group -> any (\p -> matchSMTProofCheckGroupFingerprint p group.fingerprint) include)
-    checks <- filterGroups . filterPairings . adornWithFingerprints <$>
+    checks <- filterGroups . filterPairings . decorateWithFingerprints <$>
         evalStages evalStagesCtx input
     -- TODO
     let cacheCtx = trivialCacheContext
