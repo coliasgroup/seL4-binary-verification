@@ -1,4 +1,4 @@
-module BV.System.TaskQueue
+module BV.System.Utils.TaskQueue
     ( SupportsTask (..)
     , Task
     , TaskQueueControl

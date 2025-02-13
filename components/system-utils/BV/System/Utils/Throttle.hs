@@ -1,4 +1,4 @@
-module BV.System.Throttle
+module BV.System.Utils.Throttle
     ( Priority (..)
     , Throttle
     , Units (..)

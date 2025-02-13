@@ -3,7 +3,7 @@ module BV.System.Utils.UnliftIO.Throttle
     , withThrottlingUnliftIO
     ) where
 
-import BV.System.Throttle
+import BV.System.Utils.Throttle
 
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 

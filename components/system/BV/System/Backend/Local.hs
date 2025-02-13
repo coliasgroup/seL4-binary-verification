@@ -16,7 +16,7 @@ import BV.System.Backend.Core
 import BV.System.Cache
 import BV.System.Frontend
 import BV.System.SolversConfig
-import BV.System.Throttle
+import BV.System.Utils.Throttle
 import BV.System.Utils.UnliftIO.Throttle
 import BV.System.WithFingerprints
 

@@ -272,12 +272,8 @@ library system
       BV.System.Frontend
       BV.System.SeL4
       BV.System.SolversConfig
-      BV.System.TaskQueue
-      BV.System.Throttle
       BV.System.Utils
       BV.System.Utils.Logger.BV
-      BV.System.Utils.Stopwatch
-      BV.System.Utils.UnliftIO.Throttle
   hs-source-dirs:
       components/system
   default-extensions:
@@ -315,6 +311,7 @@ library system
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system-core
+    , sel4-bv:system-utils
     , sel4-bv:target-dir
     , stm
     , text
@@ -329,8 +326,8 @@ library system-core
       BV.System.Core.RunSolvers
       BV.System.Core.RunSolvers.ConclusionT
       BV.System.Core.RunSolvers.Config
+      BV.System.Core.RunSolvers.Online
       BV.System.Fingerprinting
-      BV.System.Utils.UnliftIO.Async
       BV.System.WithFingerprints
   hs-source-dirs:
       components/system-core
@@ -368,7 +365,47 @@ library system-core
     , sel4-bv:logging
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
+    , sel4-bv:system-utils
     , sel4-bv:target-dir
+    , stm
+    , text
+    , transformers
+    , unliftio-core
+    , vector
+  default-language: GHC2021
+
+library system-utils
+  visibility: public
+  exposed-modules:
+      BV.System.Utils.Stopwatch
+      BV.System.Utils.TaskQueue
+      BV.System.Utils.Throttle
+      BV.System.Utils.UnliftIO.Async
+      BV.System.Utils.UnliftIO.Throttle
+  hs-source-dirs:
+      components/system-utils
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , monad-logger
+    , mtl
+    , optics
+    , parallel
+    , safe-exceptions
     , stm
     , text
     , transformers
