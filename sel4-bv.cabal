@@ -267,7 +267,6 @@ library system
   exposed-modules:
       BV.System.Backend.Core
       BV.System.Backend.Local
-      BV.System.Cache
       BV.System.EvalStages
       BV.System.Frontend
       BV.System.SeL4
@@ -323,9 +322,11 @@ library system
 library system-core
   visibility: public
   exposed-modules:
+      BV.System.Cache
       BV.System.Core.Fingerprinting
       BV.System.Core.Report
       BV.System.Core.SolverBackend
+      BV.System.Core.SolverFrontend
       BV.System.Core.Utils.Logging
       BV.System.Core.WithFingerprints
   hs-source-dirs:

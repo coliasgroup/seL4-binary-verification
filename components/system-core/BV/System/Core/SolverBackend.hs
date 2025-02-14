@@ -1,19 +1,22 @@
 {-# LANGUAGE PatternSynonyms #-}
 
 module BV.System.Core.SolverBackend
-    ( OfflineSolverCommandName
+    ( OfflineSolverBackend
+    , OfflineSolverBackendForSingleCheck
+    , OfflineSolverCommandName
     , OfflineSolverConfig (..)
     , OfflineSolverGroupConfig (..)
     , OfflineSolversConfig (..)
     , OfflineSolversFailureIndex (..)
     , OfflineSolversFailureInfo (..)
+    , OnlineSolverBackend
     , OnlineSolverConfig (..)
     , SolverScope (..)
     , numParallelSolvers
     , numParallelSolversForSingleCheck
     , prettySolverScope
-    , runOfflineSoversBackend
-    , runOfflineSoversBackendForSingleCheck
+    , runOfflineSolverBackend
+    , runOfflineSolverBackendForSingleCheck
     , runOnlineSolverBackend
     ) where
 
@@ -155,13 +158,13 @@ data OfflineSolversFailureIndex
 
 --
 
-type OfflineSolversBackend m a = SMTProofCheckSubgroupWithFingerprints a -> m (Either (OfflineSolversFailureInfo OfflineSolversFailureIndex) ())
+type OfflineSolverBackend m a = SMTProofCheckSubgroupWithFingerprints a -> m (Either (OfflineSolversFailureInfo OfflineSolversFailureIndex) ())
 
 -- TODO use stm to record successfully checked hyps
-runOfflineSoversBackend
-    :: forall m a. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OfflineSolversConfig -> OfflineSolversBackend m a
-runOfflineSoversBackend config subgroup = do
+runOfflineSolverBackend
+    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
+    => OfflineSolversConfig -> OfflineSolverBackend m a
+runOfflineSolverBackend config subgroup = do
     withPushLogContext "offline" . withPushLogContextCheckSubgroup subgroup $
         mapConclusion <$> concurrentlyUnliftIOE_ allStrategy hypStrategy
   where
@@ -198,12 +201,12 @@ runOfflineSoversBackend config subgroup = do
                                 (SomeOfflineSolverAnsweredSat solver.commandName solver.modelConfig (OfflineSolversFailureIndexHyp i))
                                 result
 
-type OfflineSolversBackendForSingleCheck m a = SMTProofCheckWithFingerprint a -> m (Either (OfflineSolversFailureInfo ()) ())
+type OfflineSolverBackendForSingleCheck m a = SMTProofCheckWithFingerprint a -> m (Either (OfflineSolversFailureInfo ()) ())
 
-runOfflineSoversBackendForSingleCheck
+runOfflineSolverBackendForSingleCheck
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OfflineSolversConfig -> OfflineSolversBackendForSingleCheck m a
-runOfflineSoversBackendForSingleCheck config check = do
+    => OfflineSolversConfig -> OfflineSolverBackendForSingleCheck m a
+runOfflineSolverBackendForSingleCheck config check = do
     withPushLogContext "offline" . withPushLogContextCheck check $
         fmap mapConclusion . forConcurrentlyUnliftIOE_ (offlineSolverConfigsForSingleCheck config.groups) $ \solver -> do
             withPushLogContextOfflineSolver solver $ do
