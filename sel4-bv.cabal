@@ -326,7 +326,6 @@ library system-core
       BV.System.Core.Fingerprinting
       BV.System.Core.Report
       BV.System.Core.SolverBackend
-      BV.System.Core.SolverBackend.ParallelSolvers
       BV.System.Core.Utils.Logging
       BV.System.Core.WithFingerprints
   hs-source-dirs:
@@ -377,6 +376,7 @@ library system-core
 library system-utils
   visibility: public
   exposed-modules:
+      BV.System.Utils.Async
       BV.System.Utils.Stopwatch
       BV.System.Utils.TaskQueue
       BV.System.Utils.Throttle

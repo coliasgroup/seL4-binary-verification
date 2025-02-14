@@ -3,8 +3,8 @@
 
 module BV.Core.ExecuteSMTProofChecks
     ( ModelConfig (..)
-    , OnlineSolverAbortInfo (..)
-    , OnlineSolverAbortReason (..)
+    , OnlineSolverFailureInfo (..)
+    , OnlineSolverFailureReason (..)
     , SolverMemoryMode (..)
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
@@ -51,17 +51,17 @@ executeSMTProofCheckGroupOffline timeout config group =
             }
         }
 
-data OnlineSolverAbortInfo
-  = OnlineSolverAbortInfo
+data OnlineSolverFailureInfo
+  = OnlineSolverFailureInfo
       { index :: Integer
-      , reason :: OnlineSolverAbortReason
+      , reason :: OnlineSolverFailureReason
       }
   deriving (Eq, Generic, Ord, Show)
 
-data OnlineSolverAbortReason
-  = OnlineSolverAbortReasonTimeout
-  | OnlineSolverAbortReasonAnsweredSat
-  | OnlineSolverAbortReasonAnsweredUnknown SExpr
+data OnlineSolverFailureReason
+  = OnlineSolverTimedOut
+  | OnlineSolverAnsweredSat
+  | OnlineSolverAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 
 -- TODO
@@ -72,7 +72,7 @@ executeSMTProofCheckGroupOnline
     => Maybe SolverTimeout
     -> ModelConfig
     -> SMTProofCheckGroup a
-    -> m (Either OnlineSolverAbortInfo ())
+    -> m (Either OnlineSolverFailureInfo ())
 executeSMTProofCheckGroupOnline timeout config group = do
     commonSetup config group.setup
     runExceptT $ do
@@ -82,11 +82,11 @@ executeSMTProofCheckGroupOnline timeout config group = do
             mapM_ sendAssert hyps
             checkSatWithTimeout timeout >>=
                 let
-                    throwErrorWithIndex = throwError . OnlineSolverAbortInfo i
+                    throwErrorWithIndex = throwError . OnlineSolverFailureInfo i
                  in \case
-                    Nothing -> throwErrorWithIndex OnlineSolverAbortReasonTimeout
-                    Just Sat -> throwErrorWithIndex OnlineSolverAbortReasonAnsweredSat
-                    Just (Unknown reason) -> throwErrorWithIndex (OnlineSolverAbortReasonAnsweredUnknown reason)
+                    Nothing -> throwErrorWithIndex OnlineSolverTimedOut
+                    Just Sat -> throwErrorWithIndex OnlineSolverAnsweredSat
+                    Just (Unknown reason) -> throwErrorWithIndex (OnlineSolverAnsweredUnknown reason)
                     Just Unsat -> return ()
             sendSimpleCommandExpectingSuccess $ Pop 1
             sendAssert $ notS (andNS hyps)

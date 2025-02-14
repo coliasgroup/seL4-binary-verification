@@ -1,10 +1,14 @@
 {-# LANGUAGE DerivingVia #-}
+
 module BV.System.Utils.UnliftIO.Async
     ( ConcurrentlyUnliftIO
     , ConcurrentlyUnliftIOE
     , concurrentlyUnliftIO
     , concurrentlyUnliftIOE
+    , concurrentlyUnliftIOE_
     , concurrentlyUnliftIO_
+    , forConcurrentlyUnliftIOE
+    , forConcurrentlyUnliftIOE_
     , makeConcurrentlyUnliftIO
     , makeConcurrentlyUnliftIOE
     , raceUnliftIO
@@ -12,6 +16,8 @@ module BV.System.Utils.UnliftIO.Async
     , runConcurrentlyUnliftIO
     , runConcurrentlyUnliftIOE
     ) where
+
+import BV.System.Utils.Async
 
 import Control.Applicative (Alternative)
 import Control.Concurrent.Async (Concurrently (Concurrently),
@@ -77,3 +83,12 @@ concurrentlyUnliftIO_ left right = withRunInIO $ \run -> concurrently_ (run left
 
 concurrentlyUnliftIOE :: MonadUnliftIO m => m (Either e a) -> m (Either e b) -> m (Either e (a, b))
 concurrentlyUnliftIOE left right = withRunInIO $ \run -> concurrentlyE (run left) (run right)
+
+forConcurrentlyUnliftIOE :: (MonadUnliftIO m, Traversable t) => t a -> (a -> m (Either e b)) -> m (Either e (t b))
+forConcurrentlyUnliftIOE t f = withRunInIO $ \run -> forConcurrentlyE t (run . f)
+
+forConcurrentlyUnliftIOE_ :: (MonadUnliftIO m, Traversable t) => t a -> (a -> m (Either e b)) -> m (Either e ())
+forConcurrentlyUnliftIOE_ t f = withRunInIO $ \run -> forConcurrentlyE_ t (run . f)
+
+concurrentlyUnliftIOE_ :: MonadUnliftIO m => m (Either e a) -> m (Either e b) -> m (Either e ())
+concurrentlyUnliftIOE_ a b = withRunInIO $ \run -> concurrentlyE_ (run a) (run b)

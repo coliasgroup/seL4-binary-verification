@@ -86,15 +86,15 @@ backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online
             let check = checkAt abort.index
             withPushLogContextCheck check $ do
                 case abort.reason of
-                    OnlineSolverAbortReasonTimeout -> do
+                    OnlineSolverTimedOut -> do
                         logDebug "timeout"
-                    OnlineSolverAbortReasonAnsweredSat -> do
+                    OnlineSolverAnsweredSat -> do
                         logDebug "answered sat"
                         updateCache AcceptableSatResultSat check
                         throwError $ SMTProofCheckError
                             (SomeSolverAnsweredSat OnlineSolver)
                             (SMTProofCheckSourceCheck check.imp.meta)
-                    OnlineSolverAbortReasonAnsweredUnknown reason -> do
+                    OnlineSolverAnsweredUnknown reason -> do
                         logDebug $ "answered unknown: " ++ showSExpr reason
     let remaining = group & #inner % #imps %~ genericDrop numCompleted
     return remaining
