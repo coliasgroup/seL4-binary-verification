@@ -20,6 +20,7 @@ import BV.Core.DecorateProofScript
 import BV.Core.Types
 import BV.Logging
 import BV.System.Core.Fingerprinting
+import BV.System.Core.Report
 import BV.System.Core.Utils.Logging
 import BV.System.Core.WithFingerprints
 import BV.System.SolversConfig
@@ -35,57 +36,6 @@ import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
-
-type SMTProofCheckResult i a = Either (SMTProofCheckError i) a
-
-data SMTProofCheckError i
-  = SMTProofCheckError
-      { cause :: SMTProofCheckErrorCause
-      , source :: SMTProofCheckSource i
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-data SMTProofCheckErrorCause
-  = SomeSolverAnsweredSat SMTProofCheckErrorCauseSolverId
-  | AllSolversTimedOutOrAnsweredUnknown
-  deriving (Eq, Generic, Ord, Show)
-
-data SMTProofCheckErrorCauseSolverId
-  = OnlineSolver
-  | OfflineSolver OfflineSolverName SolverMemoryMode
-  | Cache
-  deriving (Eq, Generic, Ord, Show)
-
-data SMTProofCheckSource i
-  = SMTProofCheckSourceCheck (SMTProofCheckMetaWithFingerprint i)
-  | SMTProofCheckSourceSyntheticGroup [SMTProofCheckMetaWithFingerprint i]
-  deriving (Eq, Generic, Ord, Show)
-
-prettySolverId :: SMTProofCheckErrorCauseSolverId -> String
-prettySolverId = \case
-    OnlineSolver -> "online solver"
-    OfflineSolver name memMode -> printf "offline solver (%s, %s)" name (prettySolverMemoryMode memMode)
-    Cache -> "cache"
-
-prettySMTProofCheckError :: SMTProofCheckError SMTProofCheckDescription -> String
-prettySMTProofCheckError err =
-    prettyCause <> " for " <> prettySource
-  where
-    prettySource = case err.source of
-        SMTProofCheckSourceCheck check ->
-            "check " <> prettySMTProofCheckFingerprintShort check.fingerprint
-        SMTProofCheckSourceSyntheticGroup checks ->
-            "some check in ["
-            <> mconcat (intersperse ","
-                [ prettySMTProofCheckFingerprintShort check.fingerprint
-                | check <- checks
-                ])
-            <> "]"
-    prettyCause = case err.cause of
-        SomeSolverAnsweredSat solverId -> prettySolverId solverId ++ " answered sat"
-        AllSolversTimedOutOrAnsweredUnknown -> "all solvers timed out or answered unknown"
-
---
 
 frontend
     :: ( MonadUnliftIO m
@@ -117,25 +67,6 @@ frontend f checks = do
                             return result))
     logInfo $ printf "report complete after %.2fs" (fromRational (elapsedToSeconds elapsed) :: Double)
     return report
-
-data Report
-  = Report
-      { unwrap :: M.Map PairingId (SMTProofCheckResult SMTProofCheckDescription ())
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-displayReport :: Report -> (Bool, String)
-displayReport report =
-    if M.null failed
-    then (False, "All checks passed\n")
-    else
-        let failures = flip foldMap (M.toAscList failed) $ \(pairingId, err) ->
-                "Check failure for " <> prettyPairingId pairingId <> ": " <> prettySMTProofCheckError err <> "\n"
-         in (True, failures <> "Some checks failed\n")
-  where
-    failed = M.mapMaybe (preview _Left) report.unwrap
-
---
 
 frontendJustTheseChecks
     :: ( MonadUnliftIO m

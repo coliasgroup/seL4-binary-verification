@@ -6,8 +6,12 @@ module BV.System.Core.WithFingerprints
     , SMTProofCheckGroupWithCheckFingerprints
     , SMTProofCheckGroupWithFingerprints (..)
     , SMTProofCheckMetaWithFingerprint (..)
+    , SMTProofCheckSubgroupId (..)
+    , SMTProofCheckSubgroupWithFingerprints (..)
     , SMTProofCheckWithFingerprint
     , decorateWithFingerprints
+    , prettySMTProofCheckSubgroupIdShort
+    , subgroupIdOf
     ) where
 
 import BV.Core.DecorateProofScript
@@ -15,6 +19,7 @@ import BV.Core.Types
 import BV.System.Core.Fingerprinting
 
 import Control.DeepSeq (NFData)
+import Data.List (intercalate)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
@@ -56,6 +61,44 @@ decorateWithFingerprints (FlattenedSMTProofChecks byPairing) =
                                 in SMTProofCheckMetaWithFingerprint fingerprint meta
 
 type PreparedSMTProofChecksWithFingerprints = FlattenedSMTProofChecksWithFingerprints SMTProofCheckDescription
+
+--
+
+data SMTProofCheckSubgroupWithFingerprints a
+  = SMTProofCheckSubgroupWithFingerprints
+      { groupFingerprint :: SMTProofCheckGroupFingerprint
+      , inner :: SMTProofCheckGroupWithCheckFingerprints (SubgroupElementMeta a)
+      }
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
+
+data SubgroupElementMeta a
+  = SubgroupElementMeta
+      { indexInGroup :: Integer
+      , inner :: a
+      }
+  deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
+
+data SMTProofCheckSubgroupId
+  = SMTProofCheckSubgroupId
+      { groupFingerprint :: SMTProofCheckGroupFingerprint
+      , checkIndices :: [Integer]
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+subgroupIdOf :: SMTProofCheckSubgroupWithFingerprints a -> SMTProofCheckSubgroupId
+subgroupIdOf subgroup = SMTProofCheckSubgroupId subgroup.groupFingerprint
+    [ imp.meta.inner.indexInGroup
+    | imp <- subgroup.inner.imps
+    ]
+
+prettySMTProofCheckSubgroupIdShort :: SMTProofCheckSubgroupId -> String
+prettySMTProofCheckSubgroupIdShort subgroupId =
+    prettySMTProofCheckGroupFingerprintShort subgroupId.groupFingerprint
+    ++ "("
+    ++ intercalate "," (map show subgroupId.checkIndices)
+    ++ ")"
+
+--
 
 instance HasComputedFingerprint SMTProofCheckFingerprint (SMTProofCheckWithFingerprint a) where
     computedFingerprint check = check.imp.meta.fingerprint

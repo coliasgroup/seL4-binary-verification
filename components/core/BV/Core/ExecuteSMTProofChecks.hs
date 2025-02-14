@@ -3,6 +3,7 @@
 
 module BV.Core.ExecuteSMTProofChecks
     ( ModelConfig (..)
+    , OnlineSolverAbortInfo (..)
     , OnlineSolverAbortReason (..)
     , SolverMemoryMode (..)
     , executeSMTProofCheckGroupOffline
@@ -20,7 +21,6 @@ import BV.SMTLIB2.Command
 import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (runExceptT, throwError)
-import Control.Monad.Writer (runWriterT, tell)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
@@ -51,14 +51,19 @@ executeSMTProofCheckGroupOffline timeout config group =
             }
         }
 
+data OnlineSolverAbortInfo
+  = OnlineSolverAbortInfo
+      { index :: Integer
+      , reason :: OnlineSolverAbortReason
+      }
+  deriving (Eq, Generic, Ord, Show)
+
 data OnlineSolverAbortReason
   = OnlineSolverAbortReasonTimeout
   | OnlineSolverAbortReasonAnsweredSat
   | OnlineSolverAbortReasonAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 
--- TODO
--- - Add hook for successful unsat results? (e.g. for a cache update or logging action)
 -- TODO
 -- - This hyp numbering doesn't match graph-refine.
 --   In graph-refine, it is global, whereas here it resets for each call to this function
@@ -67,28 +72,24 @@ executeSMTProofCheckGroupOnline
     => Maybe SolverTimeout
     -> ModelConfig
     -> SMTProofCheckGroup a
-    -> m (Either (a, OnlineSolverAbortReason) (), [a])
+    -> m (Either OnlineSolverAbortInfo ())
 executeSMTProofCheckGroupOnline timeout config group = do
     commonSetup config group.setup
-    (abortInfo, completed) <-
-        runWriterT .
-        runExceptT .
-            forM_ group.imps $ \imp -> do
-                let meta = imp.meta
-                let goal = notS imp.term
-                let hyps = splitHyp goal
-                sendSimpleCommandExpectingSuccess $ Push 1
-                mapM_ sendAssert hyps
-                result <- checkSatWithTimeout timeout >>=
-                    maybe (throwError (meta, OnlineSolverAbortReasonTimeout)) return
-                case result of
-                    Sat -> throwError (meta, OnlineSolverAbortReasonAnsweredSat)
-                    Unknown reason -> throwError (meta, OnlineSolverAbortReasonAnsweredUnknown reason)
-                    Unsat -> return ()
-                tell [meta]
-                sendSimpleCommandExpectingSuccess $ Pop 1
-                sendAssert $ notS (andNS hyps)
-    return (abortInfo, completed)
+    runExceptT $ do
+        forM_ (zip [0..] group.imps) $ \(i, imp) -> do
+            let hyps = splitHyp (notS imp.term)
+            sendSimpleCommandExpectingSuccess $ Push 1
+            mapM_ sendAssert hyps
+            checkSatWithTimeout timeout >>=
+                let
+                    throwErrorWithIndex = throwError . OnlineSolverAbortInfo i
+                 in \case
+                    Nothing -> throwErrorWithIndex OnlineSolverAbortReasonTimeout
+                    Just Sat -> throwErrorWithIndex OnlineSolverAbortReasonAnsweredSat
+                    Just (Unknown reason) -> throwErrorWithIndex (OnlineSolverAbortReasonAnsweredUnknown reason)
+                    Just Unsat -> return ()
+            sendSimpleCommandExpectingSuccess $ Pop 1
+            sendAssert $ notS (andNS hyps)
   where
     sendAssert = sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config
 

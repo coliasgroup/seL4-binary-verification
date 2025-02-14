@@ -22,7 +22,6 @@ import BV.System.Core.Utils.Logging
 import BV.System.Core.WithFingerprints
 import BV.System.Frontend
 import BV.System.SolversConfig
-import BV.System.Utils
 import BV.System.Utils.Stopwatch
 import BV.System.Utils.Throttle
 import BV.System.Utils.UnliftIO.Async
@@ -35,6 +34,7 @@ import Control.Monad.Except (ExceptT (ExceptT), MonadError, liftEither,
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Trans (lift)
 import Data.Foldable (for_)
+import Data.List (genericDrop, genericIndex, genericLength)
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 import Optics
@@ -65,25 +65,27 @@ backendCoreOnline
     :: forall m i. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
     => OnlineSolverConfig -> Throttle -> SMTProofCheckGroupWithFingerprints i -> ExceptT (SMTProofCheckError i) m (SMTProofCheckGroupWithFingerprints i)
 backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online") $ do
-    ((exit, completed :: [SMTProofCheckMetaWithFingerprint (Int, i)]), _elapsed) <-
+    (exit, _elapsed) <-
         lift $ withThrottleUnliftIO throttle defaultPriority (Units 1) $ runSolver'
             config.command
             (executeSMTProofCheckGroupOnline
                 (Just config.timeout)
                 config.modelConfig
-                groupWithLabels.inner)
-    for_ (map (.inner) completed) $ \(i, _) -> do
+                group.inner)
+    let numCompleted = case exit of
+            Right _ -> genericLength group.inner.imps
+            Left abort -> abort.index
+    for_ [0..(numCompleted - 1)] $ \i -> do
         let check = checkAt i
         withPushLogContextCheck check $ do
             logDebug "answered unsat"
         updateCache AcceptableSatResultUnsat check
     case exit of
         Right () -> return ()
-        Left (meta, abort) -> do
-            let (i, _loc) = meta.inner
-            let check = checkAt i
+        Left abort -> do
+            let check = checkAt abort.index
             withPushLogContextCheck check $ do
-                case abort of
+                case abort.reason of
                     OnlineSolverAbortReasonTimeout -> do
                         logDebug "timeout"
                     OnlineSolverAbortReasonAnsweredSat -> do
@@ -91,15 +93,13 @@ backendCoreOnline config throttle group = mapExceptT (withPushLogContext "online
                         updateCache AcceptableSatResultSat check
                         throwError $ SMTProofCheckError
                             (SomeSolverAnsweredSat OnlineSolver)
-                            (SMTProofCheckSourceCheck (fmap snd meta))
+                            (SMTProofCheckSourceCheck check.imp.meta)
                     OnlineSolverAbortReasonAnsweredUnknown reason -> do
                         logDebug $ "answered unknown: " ++ showSExpr reason
-    let remaining = fmap snd
-            (groupWithLabels & #inner % #imps %~ filter ((\(i, _) -> i `notElem` map (fst . (.inner)) completed) . (.inner) . (.meta)))
+    let remaining = group & #inner % #imps %~ genericDrop numCompleted
     return remaining
   where
-    groupWithLabels = zipTraversableWithOf (#inner % #imps % traversed % #meta % #inner) (,) [0 :: Int ..] group
-    checkAt i = (#inner %~ snd) <$> ungroupSMTProofCheckGroup groupWithLabels.inner !! i
+    checkAt i = ungroupSMTProofCheckGroup group.inner `genericIndex` i
 
 -- TODO return units when they become available with more granularity
 backendCoreOffline

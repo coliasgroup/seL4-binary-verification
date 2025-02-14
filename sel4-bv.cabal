@@ -324,10 +324,9 @@ library system-core
   visibility: public
   exposed-modules:
       BV.System.Core.Fingerprinting
-      BV.System.Core.RunSolvers
-      BV.System.Core.RunSolvers.ConclusionT
-      BV.System.Core.RunSolvers.Config
-      BV.System.Core.RunSolvers.Online
+      BV.System.Core.Report
+      BV.System.Core.SolverBackend
+      BV.System.Core.SolverBackend.ParallelSolvers
       BV.System.Core.Utils.Logging
       BV.System.Core.WithFingerprints
   hs-source-dirs:

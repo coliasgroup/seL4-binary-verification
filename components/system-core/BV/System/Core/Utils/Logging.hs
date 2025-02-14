@@ -7,6 +7,8 @@ module BV.System.Core.Utils.Logging
     , withPushLogContextCheckFingerprint
     , withPushLogContextCheckGroup
     , withPushLogContextCheckGroupFingerprint
+    , withPushLogContextCheckSubgroup
+    , withPushLogContextCheckSubgroupId
     , withPushLogContextPairing
     ) where
 
@@ -32,6 +34,13 @@ withPushLogContextCheckGroup group = withPushLogContextCheckGroupFingerprint gro
 withPushLogContextCheckGroupFingerprint :: MonadLoggerWithContext m => SMTProofCheckGroupFingerprint -> m a -> m a
 withPushLogContextCheckGroupFingerprint fingerprint = withPushLogContext $
     "group " ++ prettySMTProofCheckGroupFingerprintShort fingerprint
+
+withPushLogContextCheckSubgroup :: MonadLoggerWithContext m => SMTProofCheckSubgroupWithFingerprints i -> m a -> m a
+withPushLogContextCheckSubgroup = withPushLogContextCheckSubgroupId . subgroupIdOf
+
+withPushLogContextCheckSubgroupId :: MonadLoggerWithContext m => SMTProofCheckSubgroupId -> m a -> m a
+withPushLogContextCheckSubgroupId subgroupId = withPushLogContext $
+    "subgroup " ++ prettySMTProofCheckSubgroupIdShort subgroupId
 
 withPushLogContextCheck :: MonadLoggerWithContext m => SMTProofCheckWithFingerprint i -> m a -> m a
 withPushLogContextCheck check = withPushLogContextCheckFingerprint check.imp.meta.fingerprint
