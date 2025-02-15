@@ -1,5 +1,6 @@
 module BV.System.Core.SolverBackBackend
     ( OfflineSolverCheckBackBackend
+    , OfflineSolverCheckSubgroupBackBackend
     , OfflineSolverCommandName
     , OfflineSolverConfig (..)
     , OnlineSolverBackBackend
@@ -62,7 +63,7 @@ type OfflineSolverCheckBackBackend a m
     -> SMTProofCheckWithFingerprint a
     -> m (Maybe SatResult)
 
-type OfflineSolverCheckGroupBackBackend a m
+type OfflineSolverCheckSubgroupBackBackend a m
     = OfflineSolverConfig
     -> SMTProofCheckSubgroupWithFingerprints a
     -> m (Maybe SatResult)
@@ -120,7 +121,7 @@ runOfflineSolverCheckBackBackend config check = do
 
 runOfflineSolverCheckSubgroupBackBackend
     :: forall m a. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OfflineSolverCheckGroupBackBackend a m
+    => OfflineSolverCheckSubgroupBackBackend a m
 runOfflineSolverCheckSubgroupBackBackend config subgroup = do
     withPushLogContext "offline" .
         withPushLogContextCheckSubgroup subgroup .

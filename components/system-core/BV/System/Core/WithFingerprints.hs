@@ -9,6 +9,7 @@ module BV.System.Core.WithFingerprints
     , SMTProofCheckSubgroupId (..)
     , SMTProofCheckSubgroupWithFingerprints (..)
     , SMTProofCheckWithFingerprint
+    , SubgroupElementMeta (..)
     , decorateWithFingerprints
     , prettySMTProofCheckSubgroupIdShort
     , subgroupIdOf
