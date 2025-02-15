@@ -13,7 +13,7 @@ import BV.Core.Stages
 import BV.Core.Types
 import BV.Logging
 import BV.System.Backend.Core
-import BV.System.Cache
+import BV.System.Core.Cache
 import BV.System.Core.WithFingerprints
 import BV.System.Frontend
 import BV.System.SolversConfig

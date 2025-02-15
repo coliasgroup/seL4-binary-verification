@@ -17,7 +17,7 @@ import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Process
-import BV.System.Cache
+import BV.System.Core.Cache
 import BV.System.Core.Utils.Logging
 import BV.System.Core.WithFingerprints
 import BV.System.Frontend

@@ -10,7 +10,7 @@ import BV.Core.Types
 import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.Command
-import BV.System.Cache
+import BV.System.Core.Cache
 import BV.System.Core.Fingerprinting
 import BV.System.Core.Report
 import BV.System.Core.SolverBackend

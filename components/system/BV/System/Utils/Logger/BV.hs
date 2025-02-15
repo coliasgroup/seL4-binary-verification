@@ -8,7 +8,7 @@ import BV.Core.Types
 import BV.Logging
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build
-import BV.System.Cache
+import BV.System.Core.Cache
 import BV.System.Core.Fingerprinting
 import BV.System.Core.Utils.Logging
 import BV.System.Core.WithFingerprints

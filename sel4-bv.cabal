@@ -322,7 +322,7 @@ library system
 library system-core
   visibility: public
   exposed-modules:
-      BV.System.Cache
+      BV.System.Core.Cache
       BV.System.Core.Fingerprinting
       BV.System.Core.Report
       BV.System.Core.SolverBackBackend

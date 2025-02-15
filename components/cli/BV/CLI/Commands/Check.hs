@@ -9,7 +9,7 @@ import BV.Core.Types
 import BV.Logging
 import BV.System.Backend.Core
 import BV.System.Backend.Local
-import BV.System.Cache
+import BV.System.Core.Cache
 import BV.System.Core.Fingerprinting
 import BV.System.Core.WithFingerprints
 import BV.System.EvalStages
