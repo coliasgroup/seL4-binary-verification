@@ -33,7 +33,6 @@ import BV.System.Utils.UnliftIO.Async
 
 import Control.Applicative (empty)
 import Control.Concurrent.STM (atomically, newTVarIO, readTVarIO, writeTVar)
-import Control.Concurrent.STM.TVar ()
 import Control.Monad (unless, when)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (liftEither, runExceptT)

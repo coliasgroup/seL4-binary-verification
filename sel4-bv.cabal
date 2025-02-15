@@ -325,6 +325,7 @@ library system-core
       BV.System.Cache
       BV.System.Core.Fingerprinting
       BV.System.Core.Report
+      BV.System.Core.SolverBackBackend
       BV.System.Core.SolverBackend
       BV.System.Core.SolverFrontend
       BV.System.Core.Utils.Logging
