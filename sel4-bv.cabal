@@ -272,7 +272,6 @@ library system
       BV.System.SeL4
       BV.System.SolversConfig
       BV.System.Utils
-      BV.System.Utils.Logger.BV
   hs-source-dirs:
       components/system
   default-extensions:
