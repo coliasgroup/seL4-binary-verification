@@ -1,16 +1,13 @@
 module BV.System.Core.Solvers.Backend
-    ( OfflineSolverCheckBackBackend
-    , OfflineSolverCheckSubgroupBackBackend
+    ( OfflineSolverBackend
     , OfflineSolverCommandName
     , OfflineSolverConfig (..)
-    , OnlineSolverBackBackend
+    , OfflineSolverSingleBackend
+    , OnlineSolverBackend
     , OnlineSolverConfig (..)
-    , SolverBackBackend (..)
+    , SolverBackend (..)
     , SolverCommand (..)
-    , localSolverBackBackend
-    , runOfflineSolverCheckBackBackend
-    , runOfflineSolverCheckSubgroupBackBackend
-    , runOnlineSolverBackBackend
+    , localSolverBackend
     ) where
 
 import BV.Core
@@ -28,27 +25,28 @@ import GHC.Generics (Generic)
 import System.Process (CreateProcess, proc)
 import Text.Printf (printf)
 
-localSolverBackBackend :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => SolverBackBackend m
-localSolverBackBackend = SolverBackBackend
-    { online = runOnlineSolverBackBackend
-    , offline = runOfflineSolverCheckSubgroupBackBackend
-    , offlineSingle = runOfflineSolverCheckBackBackend
-    }
-
-data SolverBackBackend m
-  = SolverBackBackend
-      { online :: OnlineSolverBackBackend () m
-      , offline :: OfflineSolverCheckSubgroupBackBackend () m
-      , offlineSingle :: OfflineSolverCheckBackBackend (SubgroupElementMeta ()) m
+data SolverBackend m
+  = SolverBackend
+      { online :: OnlineSolverBackend () m
+      , offline :: OfflineSolverBackend () m
+      , offlineSingle :: OfflineSolverSingleBackend (SubgroupElementMeta ()) m
       }
   deriving (Generic)
 
-data SolverCommand
-  = SolverCommand
-      { path :: String
-      , args :: [String]
-      }
-  deriving (Eq, Generic, Ord, Show)
+type OnlineSolverBackend a m
+    = OnlineSolverConfig
+    -> SMTProofCheckSubgroupWithFingerprints a
+    -> m (Either OnlineSolverFailureInfo ())
+
+type OfflineSolverBackend a m
+    = OfflineSolverConfig
+    -> SMTProofCheckSubgroupWithFingerprints a
+    -> m (Maybe SatResult)
+
+type OfflineSolverSingleBackend a m
+    = OfflineSolverConfig
+    -> SMTProofCheckWithFingerprint a
+    -> m (Maybe SatResult)
 
 data OnlineSolverConfig
   = OnlineSolverConfig
@@ -57,13 +55,6 @@ data OnlineSolverConfig
       , timeout :: SolverTimeout
       }
   deriving (Eq, Generic, Ord, Show)
-
-type OnlineSolverBackBackend a m
-    = OnlineSolverConfig
-    -> SMTProofCheckSubgroupWithFingerprints a
-    -> m (Either OnlineSolverFailureInfo ())
-
-type OfflineSolverCommandName = String
 
 data OfflineSolverConfig
   = OfflineSolverConfig
@@ -74,22 +65,26 @@ data OfflineSolverConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
-type OfflineSolverCheckBackBackend a m
-    = OfflineSolverConfig
-    -> SMTProofCheckWithFingerprint a
-    -> m (Maybe SatResult)
+data SolverCommand
+  = SolverCommand
+      { path :: String
+      , args :: [String]
+      }
+  deriving (Eq, Generic, Ord, Show)
 
-type OfflineSolverCheckSubgroupBackBackend a m
-    = OfflineSolverConfig
-    -> SMTProofCheckSubgroupWithFingerprints a
-    -> m (Maybe SatResult)
+type OfflineSolverCommandName = String
 
---
+localSolverBackend :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => SolverBackend m
+localSolverBackend = SolverBackend
+    { online = localOnlineSolverBackend
+    , offline = localOfflineSolverBackend
+    , offlineSingle = localOfflineSolverSingleBackend
+    }
 
-runOnlineSolverBackBackend
+localOnlineSolverBackend
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OnlineSolverBackBackend a m
-runOnlineSolverBackBackend config subgroup = do
+    => OnlineSolverBackend a m
+localOnlineSolverBackend config subgroup = do
     withPushLogContext "online" . withPushLogContextCheckSubgroup subgroup $ do
         logDebug "running solver"
         result <- runSolverWithLogging
@@ -118,27 +113,10 @@ logOnlineSolverResult subgroup result = do
                     OnlineSolverAnsweredUnknown reason -> do
                         logDebug $ "answered unknown: " ++ showSExpr reason
 
-runOfflineSolverCheckBackBackend
+localOfflineSolverBackend
     :: forall m a. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OfflineSolverCheckBackBackend a m
-runOfflineSolverCheckBackBackend config check = do
-    withPushLogContext "offline" .
-        withPushLogContextCheck check .
-            withPushLogContextOfflineSolver config $ do
-                logDebug "running solver"
-                (result, elapsed) <- time $ runSolverWithLogging
-                    (solverProc config.command)
-                    (executeSMTProofCheckOffline
-                        (Just config.timeout)
-                        config.modelConfig
-                        check)
-                logOfflineSolverSatResult result elapsed
-                return result
-
-runOfflineSolverCheckSubgroupBackBackend
-    :: forall m a. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OfflineSolverCheckSubgroupBackBackend a m
-runOfflineSolverCheckSubgroupBackBackend config subgroup = do
+    => OfflineSolverBackend a m
+localOfflineSolverBackend config subgroup = do
     withPushLogContext "offline" .
         withPushLogContextCheckSubgroup subgroup .
             withPushLogContextOfflineSolver config $ do
@@ -149,21 +127,32 @@ runOfflineSolverCheckSubgroupBackBackend config subgroup = do
                         (Just config.timeout)
                         config.modelConfig
                         subgroup.inner)
-                logOfflineSolverSatResult result elapsed
+                logOfflineSolverResult result elapsed
                 return result
 
-solverProc :: SolverCommand -> CreateProcess
-solverProc cmd = proc cmd.path cmd.args
+localOfflineSolverSingleBackend
+    :: forall m a. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
+    => OfflineSolverSingleBackend a m
+localOfflineSolverSingleBackend config check = do
+    withPushLogContext "offline" .
+        withPushLogContextCheck check .
+            withPushLogContextOfflineSolver config $ do
+                logDebug "running solver"
+                (result, elapsed) <- time $ runSolverWithLogging
+                    (solverProc config.command)
+                    (executeSMTProofCheckOffline
+                        (Just config.timeout)
+                        config.modelConfig
+                        check)
+                logOfflineSolverResult result elapsed
+                return result
 
 withPushLogContextOfflineSolver :: MonadLoggerWithContext m => OfflineSolverConfig -> m a -> m a
-withPushLogContextOfflineSolver solver = withPushLogContext ("solver " ++ solver.commandName ++ " " ++ memMode)
-  where
-    memMode = case solver.modelConfig.memoryMode of
-        SolverMemoryModeWord8 -> "word8"
-        SolverMemoryModeWord32 -> "word32"
+withPushLogContextOfflineSolver solver =
+    withPushLogContext ("solver " ++ solver.commandName ++ " " ++ prettyModelConfig solver.modelConfig)
 
-logOfflineSolverSatResult :: MonadLoggerWithContext m => Maybe SatResult -> Elapsed -> m ()
-logOfflineSolverSatResult result elapsed = do
+logOfflineSolverResult :: MonadLoggerWithContext m => Maybe SatResult -> Elapsed -> m ()
+logOfflineSolverResult result elapsed = do
     case result of
         Nothing -> do
             logDebug "timeout"
@@ -178,3 +167,6 @@ logOfflineSolverSatResult result elapsed = do
 
 makeElapsedSuffix :: Elapsed -> String
 makeElapsedSuffix elapsed = printf " (%.2fs)" (fromRational (elapsedToSeconds elapsed) :: Double)
+
+solverProc :: SolverCommand -> CreateProcess
+solverProc cmd = proc cmd.path cmd.args

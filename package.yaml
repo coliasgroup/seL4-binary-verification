@@ -150,25 +150,21 @@ internal-libraries:
   system-core:
     visibility: public
     source-dirs: components/system-core
-    # exposed-modules: # TODO
+    exposed-modules:
+      - BV.System.Core
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:concrete-syntax
-      - sel4-bv:target-dir
       - sel4-bv:system-utils
       # external
+      - unliftio-core
+      - monad-logger
+      - process
       - base16-bytestring
       - cryptohash-sha256
-      - attoparsec
-      - megaparsec
-      - process
-      - filepath
-      - directory
-      - monad-logger
-      - unliftio-core
 
   system:
     visibility: public

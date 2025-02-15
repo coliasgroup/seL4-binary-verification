@@ -1,25 +1,18 @@
 {-# LANGUAGE PatternSynonyms #-}
 
 module BV.System.Core.Solvers.Parallel
-    ( OfflineSolverBackend
-    , OfflineSolverBackendForSingleCheck
-    , OfflineSolverCommandName
-    , OfflineSolverConfig (..)
-    , OfflineSolverGroupConfig (..)
+    ( OfflineSolverGroupConfig (..)
     , OfflineSolversConfig (..)
     , OfflineSolversFailureCause (..)
     , OfflineSolversFailureCauseLocation (..)
     , OfflineSolversFailureInfo (..)
     , OfflineSolversFailureInfoForSingleCheck (..)
-    , OnlineSolverBackend
-    , OnlineSolverConfig (..)
     , SolverScope (..)
     , numParallelSolvers
     , numParallelSolversForSingleCheck
     , prettySolverScope
-    , runOfflineSolverBackend
-    , runOfflineSolverBackendForSingleCheck
-    , runOnlineSolverBackend
+    , runParellelOfflineSolvers
+    , runParellelOfflineSolversSingle
     ) where
 
 import BV.Core
@@ -43,21 +36,6 @@ import Data.Bifunctor (first)
 import Data.Foldable (for_)
 import Data.List (genericLength)
 import GHC.Generics (Generic)
-
---
-
-type OnlineSolverBackend a m
-    = OnlineSolverBackBackend a m
-    -> SMTProofCheckSubgroupWithFingerprints a
-    -> m (Either OnlineSolverFailureInfo ())
-
-runOnlineSolverBackend
-    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OnlineSolverConfig -> OnlineSolverBackend a m
-runOnlineSolverBackend config backend subgroup = do
-    backend config subgroup
-
---
 
 data OfflineSolversConfig
   = OfflineSolversConfig
@@ -120,12 +98,6 @@ numParallelSolversForSingleCheck config = genericLength (offlineSolverConfigsFor
 
 --
 
-type OfflineSolverBackend a m
-    = OfflineSolverCheckSubgroupBackBackend a m
-    -> OfflineSolverCheckBackBackend (SubgroupElementMeta a) m
-    -> SMTProofCheckSubgroupWithFingerprints a
-    -> m (Either OfflineSolversFailureInfo ())
-
 data OfflineSolversFailureInfo
   = OfflineSolversFailureInfo
       { numSuccessfulHyps :: Integer
@@ -167,10 +139,14 @@ data OfflineSolversFailureCauseLocation
 --       }
 --   deriving (Eq, Generic, Ord, Show)
 
-runOfflineSolverBackend
+runParellelOfflineSolvers
     :: forall m a. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OfflineSolversConfig -> OfflineSolverBackend a m
-runOfflineSolverBackend config checkSubgroupBackend checkBackend subgroup = do
+    => OfflineSolversConfig
+    -> OfflineSolverBackend a m
+    -> OfflineSolverSingleBackend (SubgroupElementMeta a) m
+    -> SMTProofCheckSubgroupWithFingerprints a
+    -> m (Either OfflineSolversFailureInfo ())
+runParellelOfflineSolvers config checkSubgroupBackend checkBackend subgroup = do
     withPushLogContext "offline" . withPushLogContextCheckSubgroup subgroup $ do
         numSuccessfulHypsVar <- liftIO $ newTVarIO 0
         let allStrategy :: m (ConclusionResult (Either OfflineSolversFailureCause ()))
@@ -216,20 +192,18 @@ flattenConclusion = \case
 
 --
 
-type OfflineSolverBackendForSingleCheck a m
-    = OfflineSolverCheckBackBackend a m
-    -> SMTProofCheckWithFingerprint a
-    -> m (Either OfflineSolversFailureInfoForSingleCheck ())
-
 data OfflineSolversFailureInfoForSingleCheck
   = OfflineSolversFailureInfoForSingleCheckSomeAnsweredSat OfflineSolverCommandName ModelConfig
   | OfflineSolversFailureInfoForSingleCheckAllTimedOutOrAnsweredUnknown
   deriving (Eq, Generic, Ord, Show)
 
-runOfflineSolverBackendForSingleCheck
+runParellelOfflineSolversSingle
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OfflineSolversConfig -> OfflineSolverBackendForSingleCheck a m
-runOfflineSolverBackendForSingleCheck config backend check = do
+    => OfflineSolversConfig
+    -> OfflineSolverSingleBackend a m
+    -> SMTProofCheckWithFingerprint a
+    -> m (Either OfflineSolversFailureInfoForSingleCheck ())
+runParellelOfflineSolversSingle config backend check = do
     withPushLogContext "offline" . withPushLogContextCheck check $ do
         conclusionResult <- forConcurrentlyUnliftIOE_ (offlineSolverConfigsForSingleCheck config) $ \solver -> do
             withPushLogContextOfflineSolver solver $ do
@@ -262,8 +236,5 @@ satResultToConclusionResult onSat = \case
 --
 
 withPushLogContextOfflineSolver :: MonadLoggerWithContext m => OfflineSolverConfig -> m a -> m a
-withPushLogContextOfflineSolver solver = withPushLogContext ("solver " ++ solver.commandName ++ " " ++ memMode)
-  where
-    memMode = case solver.modelConfig.memoryMode of
-        SolverMemoryModeWord8 -> "word8"
-        SolverMemoryModeWord32 -> "word32"
+withPushLogContextOfflineSolver solver =
+    withPushLogContext ("solver " ++ solver.commandName ++ " " ++ prettyModelConfig solver.modelConfig)

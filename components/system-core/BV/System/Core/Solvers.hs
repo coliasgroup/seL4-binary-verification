@@ -3,38 +3,47 @@
 {-# HLINT ignore "Redundant flip" #-}
 
 module BV.System.Core.Solvers
-    ( SolverBackBackend (..)
+    ( OfflineSolverBackend
+    , OfflineSolverCommandName
+    , OfflineSolverConfig (..)
+    , OfflineSolverSingleBackend
+    , OfflineSolversConfig (..)
+    , OfflineSolversFailureCause (..)
+    , OfflineSolversFailureCauseLocation (..)
+    , OfflineSolversFailureInfo (..)
+    , OfflineSolversFailureInfoForSingleCheck (..)
+    , OnlineSolverBackend
+    , OnlineSolverConfig (..)
+    , SolverBackend (..)
+    , SolverCommand (..)
+    , SolverScope (..)
+    , SolversConfig (..)
+    , prettySolverScope
+    , runSolvers
     ) where
 
 import BV.Core
 import BV.Logging
-import BV.SMTLIB2
-import BV.SMTLIB2.Command
 import BV.System.Core.Cache
 import BV.System.Core.Report
 import BV.System.Core.Solvers.Backend
 import BV.System.Core.Solvers.Parallel
 import BV.System.Core.Utils.Logging
 import BV.System.Core.WithFingerprints
-import BV.System.Utils.UnliftIO.Async
 
-import Control.Applicative (empty)
-import Control.Concurrent.STM (atomically, newTVarIO, readTVarIO, writeTVar)
-import Control.Monad (filterM, unless, when)
+import Control.Monad (filterM)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (MonadError (throwError), liftEither, runExceptT)
-import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Trans (lift)
 import Data.Bifunctor (first)
-import Data.Foldable (for_)
 import Data.Functor (void)
 import Data.List (genericDrop, genericIndex, genericLength)
 import GHC.Generics (Generic)
 import Optics
 
-data MiddleConfig
-  = MiddleConfig
+data SolversConfig
+  = SolversConfig
       { onlineSolverConfig :: Maybe OnlineSolverConfig
       , offlineSolversConfig :: OfflineSolversConfig
       }
@@ -43,12 +52,12 @@ data MiddleConfig
 -- TODO cache successes, even in subgroup failure case
 runSolvers
     :: forall m i. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => (forall a. Integer -> m a -> m a) -> MiddleConfig -> SolverBackBackend m -> SMTProofCheckSubgroupWithFingerprints i -> m (SMTProofCheckResult i ())
-runSolvers throttle config backend subgroup = runExceptT $ do
+    => (forall a. Integer -> m a -> m a) -> SolverBackend m -> SolversConfig -> SMTProofCheckSubgroupWithFingerprints i -> m (SMTProofCheckResult i ())
+runSolvers throttle backend config subgroup = runExceptT $ do
     uncached <- withPushLogContext "cache" $ keepUncached subgroup
     slow <- case config.onlineSolverConfig of
         Just onlineConfig -> do
-            result <- lift $ throttle 1 $ runOnlineSolverBackend onlineConfig backend.online (void uncached)
+            result <- lift $ throttle 1 $ backend.online onlineConfig (void uncached)
             n <- case result of
                 Right () -> return (genericLength uncached.inner.imps)
                 Left failureInfo -> case failureInfo.reason of
@@ -62,7 +71,7 @@ runSolvers throttle config backend subgroup = runExceptT $ do
         [] -> do
             return ()
         [check] -> do
-            result <- lift $ throttle (numParallelSolversForSingleCheck config.offlineSolversConfig) $ runOfflineSolverBackendForSingleCheck
+            result <- lift $ throttle (numParallelSolversForSingleCheck config.offlineSolversConfig) $ runParellelOfflineSolversSingle
                 config.offlineSolversConfig
                 backend.offlineSingle
                 (check & #imp % #meta % #inner % #inner .~ ())
@@ -77,7 +86,7 @@ runSolvers throttle config backend subgroup = runExceptT $ do
                         OfflineSolversFailureInfoForSingleCheckAllTimedOutOrAnsweredUnknown ->
                             AllSolversTimedOutOrAnsweredUnknown
         _ -> do
-            result <- lift $ throttle (numParallelSolvers config.offlineSolversConfig) $ runOfflineSolverBackend
+            result <- lift $ throttle (numParallelSolvers config.offlineSolversConfig) $ runParellelOfflineSolvers
                 config.offlineSolversConfig
                 backend.offline
                 backend.offlineSingle

@@ -121,3 +121,13 @@ ungroupSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck
     { setup = group.setup
     , imp
     }
+
+--
+
+data CheckFilter
+  = CheckFilter
+      { pairings :: PairingId -> Bool
+      , groups :: SMTProofCheckGroupFingerprint -> Bool
+      , checks :: SMTProofCheckFingerprint -> Bool
+      }
+  deriving (Generic)
