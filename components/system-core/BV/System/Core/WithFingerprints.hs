@@ -13,6 +13,7 @@ module BV.System.Core.WithFingerprints
     , decorateWithFingerprints
     , prettySMTProofCheckSubgroupIdShort
     , subgroupIdOf
+    , ungroupSMTProofCheckSubgroupWithFingerprints
     ) where
 
 import BV.Core.DecorateProofScript
@@ -98,6 +99,15 @@ prettySMTProofCheckSubgroupIdShort subgroupId =
     ++ "("
     ++ intercalate "," (map show subgroupId.checkIndices)
     ++ ")"
+
+--
+
+ungroupSMTProofCheckSubgroupWithFingerprints :: SMTProofCheckSubgroupWithFingerprints a -> [SMTProofCheckWithFingerprint (SubgroupElementMeta a)]
+ungroupSMTProofCheckSubgroupWithFingerprints subgroup =
+    subgroup.inner.imps <&> \imp -> SMTProofCheck
+        { setup = subgroup.inner.setup
+        , imp
+        }
 
 --
 

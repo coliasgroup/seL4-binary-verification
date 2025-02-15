@@ -5,7 +5,9 @@ module BV.System.Core.SolverBackBackend
     , OfflineSolverConfig (..)
     , OnlineSolverBackBackend
     , OnlineSolverConfig (..)
+    , SolverBackBackend (..)
     , SolverCommand (..)
+    , localSolverBackBackend
     , runOfflineSolverCheckBackBackend
     , runOfflineSolverCheckSubgroupBackBackend
     , runOnlineSolverBackBackend
@@ -26,6 +28,21 @@ import Data.List (genericIndex)
 import GHC.Generics (Generic)
 import System.Process (CreateProcess, proc)
 import Text.Printf (printf)
+
+localSolverBackBackend :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => SolverBackBackend m
+localSolverBackBackend = SolverBackBackend
+    { online = runOnlineSolverBackBackend
+    , offline = runOfflineSolverCheckSubgroupBackBackend
+    , offlineSingle = runOfflineSolverCheckBackBackend
+    }
+
+data SolverBackBackend m
+  = SolverBackBackend
+      { online :: OnlineSolverBackBackend () m
+      , offline :: OfflineSolverCheckSubgroupBackBackend () m
+      , offlineSingle :: OfflineSolverCheckBackBackend (SubgroupElementMeta ()) m
+      }
+  deriving (Generic)
 
 data SolverCommand
   = SolverCommand

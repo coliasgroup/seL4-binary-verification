@@ -328,6 +328,7 @@ library system-core
       BV.System.Core.SolverBackBackend
       BV.System.Core.SolverBackend
       BV.System.Core.SolverFrontend
+      BV.System.Core.SolverMiddle
       BV.System.Core.Utils.Logging
       BV.System.Core.WithFingerprints
   hs-source-dirs:

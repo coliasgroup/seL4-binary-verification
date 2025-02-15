@@ -121,7 +121,7 @@ backendCoreOffline config throttle group =
         then backendCoreOfflineHyp config group
         else (0, return ())
     (unitsHyp, concHyp) = backendCoreOfflineAll config group
-    allLocs = SMTProofCheckSourceSyntheticGroup (map (.meta) group.inner.imps)
+    allLocs = SMTProofCheckSourceCheckSubgroup (map (.meta) group.inner.imps)
 
 -- TODO return units when they become available with more granularity
 backendCoreOfflineAll
@@ -130,7 +130,7 @@ backendCoreOfflineAll
 backendCoreOfflineAll config group = (units, concM)
   where
     units = Units (numOfflineSolverConfigsForScope SolverScopeAll config.groups)
-    allLocs = SMTProofCheckSourceSyntheticGroup (map (.meta) group.inner.imps)
+    allLocs = SMTProofCheckSourceCheckSubgroup (map (.meta) group.inner.imps)
     concM = withPushLogContext "all" . runConcurrentlyUnliftIOC $ do
         for_ (offlineSolverConfigsForScope SolverScopeAll config.groups) $ \solver ->
             makeConcurrentlyUnliftIOC . withPushLogContextOfflineSolver solver $ do
@@ -144,7 +144,7 @@ backendCoreOfflineAll config group = (units, concM)
                     Just Sat -> do
                         for_ (ungroupSMTProofCheckGroup group.inner) (updateCache AcceptableSatResultSat)
                         throwConclusion . Left $ SMTProofCheckError
-                            (SomeSolverAnsweredSat (OfflineSolver solver.commandName solver.config.memoryMode))
+                            (SomeSolverAnsweredSat (OfflineSolver solver.commandName solver.config))
                             allLocs
                     Just Unsat -> do
                         -- TODO what should we tell to the cache?
@@ -245,7 +245,7 @@ runSolver''' config check =
                 Just Sat -> do
                     updateCache AcceptableSatResultSat check
                     throwConclusion . Left $ SMTProofCheckError
-                        (SomeSolverAnsweredSat (OfflineSolver solver.commandName solver.config.memoryMode))
+                        (SomeSolverAnsweredSat (OfflineSolver solver.commandName solver.config))
                         (SMTProofCheckSourceCheck check.imp.meta)
                 Just Unsat -> do
                     updateCache AcceptableSatResultUnsat check

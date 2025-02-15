@@ -37,19 +37,19 @@ data SMTProofCheckErrorCause
 
 data SMTProofCheckErrorCauseSolverId
   = OnlineSolver
-  | OfflineSolver String SolverMemoryMode
+  | OfflineSolver String ModelConfig
   | Cache
   deriving (Eq, Generic, Ord, Show)
 
 data SMTProofCheckSource i
   = SMTProofCheckSourceCheck (SMTProofCheckMetaWithFingerprint i)
-  | SMTProofCheckSourceSyntheticGroup [SMTProofCheckMetaWithFingerprint i]
+  | SMTProofCheckSourceCheckSubgroup [SMTProofCheckMetaWithFingerprint i]
   deriving (Eq, Generic, Ord, Show)
 
 prettySolverId :: SMTProofCheckErrorCauseSolverId -> String
 prettySolverId = \case
     OnlineSolver -> "online solver"
-    OfflineSolver name memMode -> printf "offline solver (%s, %s)" name (prettySolverMemoryMode memMode)
+    OfflineSolver name modelConfig -> printf "offline solver (%s, %s)" name (prettyModelConfig modelConfig)
     Cache -> "cache"
 
 prettySMTProofCheckError :: SMTProofCheckError SMTProofCheckDescription -> String
@@ -59,7 +59,7 @@ prettySMTProofCheckError err =
     prettySource = case err.source of
         SMTProofCheckSourceCheck check ->
             "check " <> prettySMTProofCheckFingerprintShort check.fingerprint
-        SMTProofCheckSourceSyntheticGroup checks ->
+        SMTProofCheckSourceCheckSubgroup checks ->
             "some check in ["
             <> mconcat (intersperse ","
                 [ prettySMTProofCheckFingerprintShort check.fingerprint

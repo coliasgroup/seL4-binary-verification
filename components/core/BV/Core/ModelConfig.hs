@@ -5,6 +5,7 @@ module BV.Core.ModelConfig
     , SolverMemoryMode (..)
     , configureSExpr
     , modelConfigPreamble
+    , prettyModelConfig
     , prettySolverMemoryMode
     ) where
 
@@ -19,6 +20,9 @@ data ModelConfig
       { memoryMode :: SolverMemoryMode
       }
   deriving (Eq, Generic, Ord, Show)
+
+prettyModelConfig :: ModelConfig -> String
+prettyModelConfig modelConfig = prettySolverMemoryMode modelConfig.memoryMode
 
 data SolverMemoryMode
   = SolverMemoryModeWord8

@@ -10,6 +10,7 @@ module BV.System.Core.SolverBackend
     , OfflineSolversFailureCause (..)
     , OfflineSolversFailureCauseLocation (..)
     , OfflineSolversFailureInfo (..)
+    , OfflineSolversFailureInfoForSingleCheck (..)
     , OnlineSolverBackend
     , OnlineSolverConfig (..)
     , SolverScope (..)
@@ -64,7 +65,7 @@ data OfflineSolversConfig
       { groups :: [OfflineSolverGroupConfig]
       , timeout :: SolverTimeout
       }
-  deriving (Eq, Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data OfflineSolverGroupConfig
   = OfflineSolverGroupConfig
@@ -73,7 +74,7 @@ data OfflineSolverGroupConfig
       , scopes :: [SolverScope]
       , modelConfigs :: [ModelConfig]
       }
-  deriving (Eq, Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data SolverScope
   = SolverScopeHyp
@@ -145,6 +146,28 @@ data OfflineSolversFailureCauseLocation
       }
   deriving (Eq, Generic, Ord, Show)
 
+-- TODO
+
+-- data OfflineSolversFailureInfo
+--   = OfflineSolversFailureInfo
+--       { numSuccessfulHyps :: Integer
+--       , cause :: OfflineSolversFailureCause
+--       , location :: OfflineSolversFailureMostSpecificLocation
+--       }
+--   deriving (Eq, Generic, Ord, Show)
+
+-- data OfflineSolversFailureCause
+--   = SomeOfflineSolverAnsweredSat OfflineSolverCommandName ModelConfig
+--   | AllOfflineSolversTimedOutOrAnsweredUnknown
+--   deriving (Eq, Generic, Ord, Show)
+
+-- data OfflineSolversFailureMostSpecificLocation
+--   = OfflineSolversFailureIndexAll
+--   | OfflineSolversFailureIndexHyp
+--       { index :: Integer
+--       }
+--   deriving (Eq, Generic, Ord, Show)
+
 runOfflineSolverBackend
     :: forall m a. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
     => OfflineSolversConfig -> OfflineSolverBackend a m
@@ -167,7 +190,7 @@ runOfflineSolverBackend config checkSubgroupBackend checkBackend subgroup = do
             hypStrategy = do
                 withPushLogContext "hyp" $ do
                     result <- runExceptT $ do
-                        for_ (zip [0..] (ungroupSMTProofCheckGroup subgroup.inner)) $ \(i, check) -> do
+                        for_ (zip [0..] (ungroupSMTProofCheckSubgroupWithFingerprints subgroup)) $ \(i, check) -> do
                             conclusionResult <- lift . forConcurrentlyUnliftIOE_ (offlineSolverConfigsForScope SolverScopeHyp config) $ \solver -> do
                                 withPushLogContextOfflineSolver solver $ do
                                     satResult <- checkBackend solver check
