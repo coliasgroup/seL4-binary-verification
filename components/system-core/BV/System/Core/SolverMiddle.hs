@@ -86,7 +86,9 @@ runSolvers throttle config backend subgroup = runExceptT $ do
             liftEither $ flip first result $ \failureInfo ->
                 let f cause = SMTProofCheckError
                         { cause
-                        , source = SMTProofCheckSourceCheckSubgroup (map ((#inner %~ view #inner) . (.meta)) slow.inner.imps)
+                        , source = SMTProofCheckSourceCheckSubgroup
+                            slow.groupFingerprint
+                            (map ((#inner %~ view #inner) . (.meta)) slow.inner.imps)
                         }
                  in f $ case failureInfo.cause of
                         SomeOfflineSolverAnsweredSat loc solverCmdName modelConfig ->

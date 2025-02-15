@@ -37,13 +37,16 @@ data SMTProofCheckErrorCause
 
 data SMTProofCheckErrorCauseSolverId
   = OnlineSolver
-  | OfflineSolver String ModelConfig
+  | OfflineSolver
+      { offlineSolverCommandName :: String
+      , modelConfig :: ModelConfig
+      }
   | Cache
   deriving (Eq, Generic, Ord, Show)
 
 data SMTProofCheckSource i
   = SMTProofCheckSourceCheck (SMTProofCheckMetaWithFingerprint i)
-  | SMTProofCheckSourceCheckSubgroup [SMTProofCheckMetaWithFingerprint i]
+  | SMTProofCheckSourceCheckSubgroup SMTProofCheckGroupFingerprint [SMTProofCheckMetaWithFingerprint i]
   deriving (Eq, Generic, Ord, Show)
 
 prettySolverId :: SMTProofCheckErrorCauseSolverId -> String
@@ -59,13 +62,13 @@ prettySMTProofCheckError err =
     prettySource = case err.source of
         SMTProofCheckSourceCheck check ->
             "check " <> prettySMTProofCheckFingerprintShort check.fingerprint
-        SMTProofCheckSourceCheckSubgroup checks ->
+        SMTProofCheckSourceCheckSubgroup group checks ->
             "some check in ["
             <> mconcat (intersperse ","
                 [ prettySMTProofCheckFingerprintShort check.fingerprint
                 | check <- checks
                 ])
-            <> "]"
+            <> "] (group " <> prettySMTProofCheckGroupFingerprintShort group <> ")"
     prettyCause = case err.cause of
         SomeSolverAnsweredSat solverId -> prettySolverId solverId ++ " answered sat"
         AllSolversTimedOutOrAnsweredUnknown -> "all solvers timed out or answered unknown"
