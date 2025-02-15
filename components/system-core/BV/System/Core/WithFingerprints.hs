@@ -17,9 +17,7 @@ module BV.System.Core.WithFingerprints
     , ungroupSMTProofCheckSubgroupWithFingerprints
     ) where
 
-import BV.Core.DecorateProofScript
-import BV.Core.Stages
-import BV.Core.Types
+import BV.Core
 import BV.System.Core.Fingerprinting
 
 import Control.DeepSeq (NFData)

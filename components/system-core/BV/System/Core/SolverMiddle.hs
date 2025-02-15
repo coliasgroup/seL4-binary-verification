@@ -6,8 +6,7 @@ module BV.System.Core.SolverMiddle
     ( SolverBackBackend (..)
     ) where
 
-import BV.Core.ExecuteSMTProofChecks
-import BV.Core.Types
+import BV.Core
 import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.Command

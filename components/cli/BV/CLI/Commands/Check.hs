@@ -4,8 +4,7 @@ module BV.CLI.Commands.Check
 
 import BV.CLI.Opts
 import BV.CLI.SolverList
-import BV.Core.ExecuteSMTProofChecks
-import BV.Core.Types
+import BV.Core
 import BV.Logging
 import BV.System.Backend.Core
 import BV.System.Backend.Local

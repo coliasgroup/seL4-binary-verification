@@ -11,7 +11,6 @@ import BV.ConcreteSyntax.GraphLangLike.Building
 import BV.ConcreteSyntax.GraphLangLike.Parsing
 import BV.ConcreteSyntax.SExprWithPlaceholders
 import BV.Core.Types
-import BV.Core.Types.Extras
 
 import Data.Bits (shiftL, (.|.))
 import Data.Char (chr, isDigit, ord)
@@ -647,10 +646,10 @@ instance BuildInLine Tag where
 
 instance ParseInLine PairingEqSideQuadrant where
     parseInLine = wordWithOr "invalid pairing eq side quadrant" $ \case
-        "ASM_IN" -> Just asmInQ
-        "ASM_OUT" -> Just asmOutQ
-        "C_IN" -> Just cInQ
-        "C_OUT" -> Just cOutQ
+        "ASM_IN" -> Just $ PairingEqSideQuadrant Asm PairingEqDirectionIn
+        "ASM_OUT" -> Just $ PairingEqSideQuadrant Asm PairingEqDirectionOut
+        "C_IN" -> Just $ PairingEqSideQuadrant C PairingEqDirectionIn
+        "C_OUT" -> Just $ PairingEqSideQuadrant C PairingEqDirectionOut
         _ -> Nothing
 
 instance BuildInLine PairingEqSideQuadrant where

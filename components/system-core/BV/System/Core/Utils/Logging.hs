@@ -13,7 +13,7 @@ module BV.System.Core.Utils.Logging
     , withPushLogContextPairing
     ) where
 
-import BV.Core.Types
+import BV.Core
 import BV.Logging
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build

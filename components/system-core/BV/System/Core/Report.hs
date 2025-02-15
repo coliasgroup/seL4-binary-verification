@@ -9,9 +9,7 @@ module BV.System.Core.Report
     , prettySMTProofCheckFailure
     ) where
 
-import BV.Core.DecorateProofScript
-import BV.Core.ExecuteSMTProofChecks
-import BV.Core.Types
+import BV.Core
 import BV.System.Core.Fingerprinting
 import BV.System.Core.WithFingerprints
 

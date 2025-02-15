@@ -2,7 +2,7 @@ module Main
     ( main
     ) where
 
-import BV.Core.Stages
+import BV.Core
 import BV.System.EvalStages
 import BV.System.SeL4
 import BV.TargetDir

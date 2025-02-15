@@ -67,18 +67,17 @@ library concrete-syntax
 library core
   visibility: public
   exposed-modules:
-      BV.Core.Types
-      BV.Core.Types.Extras
-      BV.Core.Stages
-      BV.Core.ExecuteSMTProofChecks
-      BV.Core.DecorateProofScript
-  other-modules:
       BV.Core
+      BV.Core.Types
+  other-modules:
       BV.Core.Arch
       BV.Core.Debug.Utils
+      BV.Core.DecorateProofScript
+      BV.Core.ExecuteSMTProofChecks
       BV.Core.Graph
       BV.Core.Logic
       BV.Core.ModelConfig
+      BV.Core.Stages
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks
@@ -88,6 +87,7 @@ library core
       BV.Core.Stages.PseudoCompile
       BV.Core.Stages.Utils
       BV.Core.Types.Compat
+      BV.Core.Types.Extras
       BV.Core.Types.Extras.Expr
       BV.Core.Types.Extras.Pairing
       BV.Core.Types.Extras.ProofCheck

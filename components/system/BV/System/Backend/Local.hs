@@ -9,8 +9,7 @@ module BV.System.Backend.Local
     , localBackendJustTheseChecks
     ) where
 
-import BV.Core.Stages
-import BV.Core.Types
+import BV.Core
 import BV.Logging
 import BV.System.Backend.Core
 import BV.System.Core.Cache

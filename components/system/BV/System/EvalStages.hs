@@ -8,7 +8,7 @@ module BV.System.EvalStages
     ) where
 
 import BV.ConcreteSyntax
-import BV.Core.Stages
+import BV.Core
 import BV.Core.Types
 import BV.Logging
 import BV.TargetDir

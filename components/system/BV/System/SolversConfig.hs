@@ -15,7 +15,7 @@ module BV.System.SolversConfig
     , prettySolverScope
     ) where
 
-import BV.Core.ExecuteSMTProofChecks
+import BV.Core
 import BV.SMTLIB2.Monad
 
 import Control.Applicative (empty)

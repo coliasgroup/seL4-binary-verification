@@ -2,7 +2,7 @@ module BV.System.SeL4
     ( defaultSeL4AsmFunctionFilter
     ) where
 
-import BV.Core.Types
+import BV.Core
 
 defaultSeL4AsmFunctionFilter :: Ident -> Bool
 defaultSeL4AsmFunctionFilter = (`notElem` ignore)

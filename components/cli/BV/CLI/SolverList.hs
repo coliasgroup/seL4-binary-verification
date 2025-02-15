@@ -7,7 +7,7 @@ module BV.CLI.SolverList
     , SolverListOnlineSolver (..)
     ) where
 
-import BV.Core.ExecuteSMTProofChecks
+import BV.Core
 import BV.System.SolversConfig
 
 import Data.Aeson
