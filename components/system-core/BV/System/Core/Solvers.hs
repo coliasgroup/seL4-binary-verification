@@ -2,7 +2,7 @@
 
 {-# HLINT ignore "Redundant flip" #-}
 
-module BV.System.Core.SolverMiddle
+module BV.System.Core.Solvers
     ( SolverBackBackend (..)
     ) where
 
@@ -12,8 +12,8 @@ import BV.SMTLIB2
 import BV.SMTLIB2.Command
 import BV.System.Core.Cache
 import BV.System.Core.Report
-import BV.System.Core.SolverBackBackend
-import BV.System.Core.SolverBackend
+import BV.System.Core.Solvers.Backend
+import BV.System.Core.Solvers.Parallel
 import BV.System.Core.Utils.Logging
 import BV.System.Core.WithFingerprints
 import BV.System.Utils.UnliftIO.Async

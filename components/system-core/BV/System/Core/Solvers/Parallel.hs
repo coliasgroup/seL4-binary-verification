@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 
-module BV.System.Core.SolverBackend
+module BV.System.Core.Solvers.Parallel
     ( OfflineSolverBackend
     , OfflineSolverBackendForSingleCheck
     , OfflineSolverCommandName
@@ -26,7 +26,7 @@ import BV.Core
 import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.Command
-import BV.System.Core.SolverBackBackend
+import BV.System.Core.Solvers.Backend
 import BV.System.Core.Utils.Logging
 import BV.System.Core.WithFingerprints
 import BV.System.Utils.UnliftIO.Async

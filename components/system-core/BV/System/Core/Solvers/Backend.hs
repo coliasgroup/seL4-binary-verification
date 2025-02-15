@@ -1,4 +1,4 @@
-module BV.System.Core.SolverBackBackend
+module BV.System.Core.Solvers.Backend
     ( OfflineSolverCheckBackBackend
     , OfflineSolverCheckSubgroupBackBackend
     , OfflineSolverCommandName
