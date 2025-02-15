@@ -7,7 +7,8 @@ module BV.System.Core.SolverBackend
     , OfflineSolverConfig (..)
     , OfflineSolverGroupConfig (..)
     , OfflineSolversConfig (..)
-    , OfflineSolversFailureIndex (..)
+    , OfflineSolversFailureCause (..)
+    , OfflineSolversFailureCauseLocation (..)
     , OfflineSolversFailureInfo (..)
     , OnlineSolverBackend
     , OnlineSolverConfig (..)
@@ -31,10 +32,15 @@ import BV.System.Utils.Stopwatch
 import BV.System.Utils.UnliftIO.Async
 
 import Control.Applicative (empty)
+import Control.Concurrent.STM (atomically, newTVarIO, readTVarIO, writeTVar)
+import Control.Concurrent.STM.TVar ()
 import Control.Monad (unless, when)
 import Control.Monad.Catch (MonadMask)
-import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
+import Control.Monad.Except (liftEither, runExceptT)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Control.Monad.Trans (lift)
+import Data.Bifunctor (first)
 import Data.Foldable (for_)
 import Data.List (genericIndex, genericLength)
 import GHC.Generics (Generic)
@@ -51,11 +57,11 @@ data OnlineSolverConfig
       }
   deriving (Eq, Generic, Show)
 
-type OnlineSolverBackend m a = SMTProofCheckSubgroupWithFingerprints a -> m (Either OnlineSolverFailureInfo ())
+type OnlineSolverBackend a m = SMTProofCheckSubgroupWithFingerprints a -> m (Either OnlineSolverFailureInfo ())
 
 runOnlineSolverBackend
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OnlineSolverConfig -> OnlineSolverBackend m a
+    => OnlineSolverConfig -> OnlineSolverBackend a m
 runOnlineSolverBackend config subgroup = do
     withPushLogContext "online" . withPushLogContextCheckSubgroup subgroup $ do
         logDebug "running solver"
@@ -146,104 +152,138 @@ numParallelSolversForSingleCheck groups = genericLength (offlineSolverConfigsFor
 
 --
 
-data OfflineSolversFailureInfo i
-  = SomeOfflineSolverAnsweredSat OfflineSolverCommandName ModelConfig i
+type OfflineSolverBackend a m = SMTProofCheckSubgroupWithFingerprints a -> m (Either OfflineSolversFailureInfo ())
+
+data OfflineSolversFailureInfo
+  = OfflineSolversFailureInfo
+      { numSuccessfulHyps :: Integer
+      , cause :: OfflineSolversFailureCause
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+data OfflineSolversFailureCause
+  = SomeOfflineSolverAnsweredSat OfflineSolversFailureCauseLocation OfflineSolverCommandName ModelConfig
   | AllOfflineSolversTimedOutOrAnsweredUnknown
   deriving (Eq, Generic, Ord, Show)
 
-data OfflineSolversFailureIndex
+data OfflineSolversFailureCauseLocation
   = OfflineSolversFailureIndexAll
-  | OfflineSolversFailureIndexHyp Integer
+  | OfflineSolversFailureIndexHyp
+      { index :: Integer
+      }
   deriving (Eq, Generic, Ord, Show)
+
+runOfflineSolverBackend
+    :: forall m a. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
+    => OfflineSolversConfig -> OfflineSolverBackend a m
+runOfflineSolverBackend config subgroup = do
+    withPushLogContext "offline" . withPushLogContextCheckSubgroup subgroup $ do
+        numSuccessfulHypsVar <- liftIO $ newTVarIO 0
+        let allStrategy :: m (ConclusionResult (Either OfflineSolversFailureCause ()))
+            allStrategy = do
+                withPushLogContext "all" $ do
+                    forConcurrentlyUnliftIOE_ (offlineSolverConfigsForScope SolverScopeAll config.groups) $ \solver -> do
+                        withPushLogContextOfflineSolver solver $ do
+                            logDebug "running solver"
+                            (satResult, elapsed) <- time $ runSolverWithLogging
+                                solver.command
+                                (executeSMTProofCheckGroupOffline
+                                    (Just config.timeout)
+                                    solver.modelConfig
+                                    subgroup.inner)
+                            logOfflineSolverSatResult satResult elapsed
+                            return $ satResultToConclusionResult
+                                (SomeOfflineSolverAnsweredSat
+                                    OfflineSolversFailureIndexAll
+                                    solver.commandName
+                                    solver.modelConfig)
+                                satResult
+        let hypStrategy :: m (ConclusionResult (Either OfflineSolversFailureCause ()))
+            hypStrategy = do
+                withPushLogContext "hyp" $ do
+                    result <- runExceptT $ do
+                        for_ (zip [0..] (ungroupSMTProofCheckGroup subgroup.inner)) $ \(i, check) -> do
+                            conclusionResult <- lift . forConcurrentlyUnliftIOE_ (offlineSolverConfigsForScope SolverScopeHyp config.groups) $ \solver -> do
+                                withPushLogContextOfflineSolver solver $ do
+                                    logDebug "running solver"
+                                    (result, elapsed) <- time $ runSolverWithLogging
+                                        solver.command
+                                        (executeSMTProofCheckOffline
+                                            (Just config.timeout)
+                                            solver.modelConfig
+                                            check)
+                                    logOfflineSolverSatResult result elapsed
+                                    return $ satResultToConclusionResult
+                                        (SomeOfflineSolverAnsweredSat
+                                            (OfflineSolversFailureIndexHyp { index = i })
+                                            solver.commandName
+                                            solver.modelConfig)
+                                        result
+                            liftEither $ flattenConclusion conclusionResult
+                            liftIO . atomically $ writeTVar numSuccessfulHypsVar i
+                    return $ case result of
+                        Right () -> Conclusive (Right ())
+                        Left AllOfflineSolversTimedOutOrAnsweredUnknown -> Inconclusive
+                        Left otherFailure -> Conclusive (Left otherFailure)
+        conclusionResult <- concurrentlyUnliftIOE_ allStrategy hypStrategy
+        numSuccessfulHyps <- liftIO $ readTVarIO numSuccessfulHypsVar
+        return . first (OfflineSolversFailureInfo numSuccessfulHyps) $ flattenConclusion conclusionResult
+
+flattenConclusion :: ConclusionResult (Either OfflineSolversFailureCause ()) -> Either OfflineSolversFailureCause ()
+flattenConclusion = \case
+    Conclusive conclusion -> conclusion
+    Inconclusive -> Left AllOfflineSolversTimedOutOrAnsweredUnknown
 
 --
 
-type OfflineSolverBackend m a = SMTProofCheckSubgroupWithFingerprints a -> m (Either (OfflineSolversFailureInfo OfflineSolversFailureIndex) ())
+type OfflineSolverBackendForSingleCheck a m = SMTProofCheckWithFingerprint a -> m (Either OfflineSolversFailureInfoForSingleCheck ())
 
--- TODO use stm to record successfully checked hyps
-runOfflineSolverBackend
-    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OfflineSolversConfig -> OfflineSolverBackend m a
-runOfflineSolverBackend config subgroup = do
-    withPushLogContext "offline" . withPushLogContextCheckSubgroup subgroup $
-        mapConclusion <$> concurrentlyUnliftIOE_ allStrategy hypStrategy
-  where
-    allStrategy = do
-        withPushLogContext "all" $ do
-            forConcurrentlyUnliftIOE_ (offlineSolverConfigsForScope SolverScopeAll config.groups) $ \solver -> do
-                withPushLogContextOfflineSolver solver $ do
-                    logDebug "running solver"
-                    (result, elapsed) <- time $ runSolverWithLogging
-                        solver.command
-                        (executeSMTProofCheckGroupOffline
-                            (Just config.timeout)
-                            solver.modelConfig
-                            subgroup.inner)
-                    logOfflineSolverResult result elapsed
-                    return $ mapSatResult
-                        (SomeOfflineSolverAnsweredSat solver.commandName solver.modelConfig OfflineSolversFailureIndexAll)
-                        result
-    hypStrategy = do
-        withPushLogContext "hyp" $ do
-            runExceptT $ do
-                for_ (zip [0..] (ungroupSMTProofCheckGroup subgroup.inner)) $ \(i, check) ->
-                    ExceptT . forConcurrentlyUnliftIOE_ (offlineSolverConfigsForScope SolverScopeHyp config.groups) $ \solver -> do
-                        withPushLogContextOfflineSolver solver $ do
-                            logDebug "running solver"
-                            (result, elapsed) <- time $ runSolverWithLogging
-                                solver.command
-                                (executeSMTProofCheckOffline
-                                    (Just config.timeout)
-                                    solver.modelConfig
-                                    check)
-                            logOfflineSolverResult result elapsed
-                            return $ mapSatResult
-                                (SomeOfflineSolverAnsweredSat solver.commandName solver.modelConfig (OfflineSolversFailureIndexHyp i))
-                                result
-
-type OfflineSolverBackendForSingleCheck m a = SMTProofCheckWithFingerprint a -> m (Either (OfflineSolversFailureInfo ()) ())
+data OfflineSolversFailureInfoForSingleCheck
+  = OfflineSolversFailureInfoForSingleCheckSomeAnsweredSat OfflineSolverCommandName ModelConfig
+  | OfflineSolversFailureInfoForSingleCheckAllTimedOutOrAnsweredUnknown
+  deriving (Eq, Generic, Ord, Show)
 
 runOfflineSolverBackendForSingleCheck
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OfflineSolversConfig -> OfflineSolverBackendForSingleCheck m a
+    => OfflineSolversConfig -> OfflineSolverBackendForSingleCheck a m
 runOfflineSolverBackendForSingleCheck config check = do
-    withPushLogContext "offline" . withPushLogContextCheck check $
-        fmap mapConclusion . forConcurrentlyUnliftIOE_ (offlineSolverConfigsForSingleCheck config.groups) $ \solver -> do
+    withPushLogContext "offline" . withPushLogContextCheck check $ do
+        conclusionResult <- forConcurrentlyUnliftIOE_ (offlineSolverConfigsForSingleCheck config.groups) $ \solver -> do
             withPushLogContextOfflineSolver solver $ do
                 logDebug "running solver"
-                (result, elapsed) <- time $ runSolverWithLogging
+                (satResult, elapsed) <- time $ runSolverWithLogging
                     solver.command
                     (executeSMTProofCheckOffline
                         (Just config.timeout)
                         solver.modelConfig
                         check)
-                logOfflineSolverResult result elapsed
-                return $ mapSatResult
-                    (SomeOfflineSolverAnsweredSat solver.commandName solver.modelConfig ())
-                    result
+                logOfflineSolverSatResult satResult elapsed
+                return $ satResultToConclusionResult
+                    (OfflineSolversFailureInfoForSingleCheckSomeAnsweredSat
+                        solver.commandName
+                        solver.modelConfig)
+                    satResult
+        return $ case conclusionResult of
+            Conclusive conclusion -> conclusion
+            Inconclusive -> Left OfflineSolversFailureInfoForSingleCheckAllTimedOutOrAnsweredUnknown
 
-type Conclusion a = Either a ()
+type ConclusionResult a = Either a ()
 
-pattern Conclusive :: a -> Either a ()
+pattern Conclusive :: a -> ConclusionResult a
 pattern Conclusive a = Left a
 
-pattern Inconclusive :: Either a ()
+pattern Inconclusive :: ConclusionResult a
 pattern Inconclusive = Right ()
 
 {-# COMPLETE Conclusive, Inconclusive #-}
 
-mapConclusion :: Conclusion (Either (OfflineSolversFailureInfo i) ()) -> Either (OfflineSolversFailureInfo i) ()
-mapConclusion = \case
-    Conclusive conclusion -> conclusion
-    Inconclusive -> Left AllOfflineSolversTimedOutOrAnsweredUnknown
-
-mapSatResult :: OfflineSolversFailureInfo i -> Maybe SatResult -> Conclusion (Either (OfflineSolversFailureInfo i) ())
-mapSatResult onSat = \case
-    Just Sat -> Conclusive $
-        Left onSat
-    Just Unsat -> Conclusive $
-        Right ()
+satResultToConclusionResult :: c -> Maybe SatResult -> ConclusionResult (Either c ())
+satResultToConclusionResult onSat = \case
+    Just Sat -> Conclusive (Left onSat)
+    Just Unsat -> Conclusive (Right ())
     _ -> Inconclusive
+
+--
 
 withPushLogContextOfflineSolver :: MonadLoggerWithContext m => OfflineSolverConfig -> m a -> m a
 withPushLogContextOfflineSolver solver = withPushLogContext ("solver " ++ solver.commandName ++ " " ++ memMode)
@@ -252,8 +292,8 @@ withPushLogContextOfflineSolver solver = withPushLogContext ("solver " ++ solver
         SolverMemoryModeWord8 -> "word8"
         SolverMemoryModeWord32 -> "word32"
 
-logOfflineSolverResult :: MonadLoggerWithContext m => Maybe SatResult -> Elapsed -> m ()
-logOfflineSolverResult result elapsed = do
+logOfflineSolverSatResult :: MonadLoggerWithContext m => Maybe SatResult -> Elapsed -> m ()
+logOfflineSolverSatResult result elapsed = do
     case result of
         Nothing -> do
             logDebug "timeout"
