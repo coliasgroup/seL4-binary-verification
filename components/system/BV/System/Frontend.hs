@@ -5,15 +5,15 @@
 
 module BV.System.Frontend
     ( Report (..)
-    , SMTProofCheckError (..)
-    , SMTProofCheckErrorCause (..)
-    , SMTProofCheckErrorCauseSolverId (..)
+    , SMTProofCheckFailure (..)
+    , SMTProofCheckFailureCause (..)
+    , SMTProofCheckFailureCauseSolverId (..)
+    , SMTProofCheckFailureSource (..)
     , SMTProofCheckResult
-    , SMTProofCheckSource (..)
     , displayReport
     , frontend
     , frontendJustTheseChecks
-    , prettySMTProofCheckError
+    , prettySMTProofCheckFailure
     ) where
 
 import BV.Core.DecorateProofScript
@@ -57,7 +57,7 @@ frontend f checks = do
                             result <- f group
                             logInfo $ case result of
                                 Right _ -> "success"
-                                Left failure -> "failure: " ++ prettySMTProofCheckError failure
+                                Left failure -> "failure: " ++ prettySMTProofCheckFailure failure
                             n <- liftIO . atomically $ do
                                 n' <- readTVar completedGroups
                                 let n = n' + 1
@@ -88,7 +88,7 @@ frontendJustTheseChecks f checks = do
                             result <- f check
                             logInfo $ case result of
                                 Right _ -> "success"
-                                Left failure -> "failure: " ++ prettySMTProofCheckError failure
+                                Left failure -> "failure: " ++ prettySMTProofCheckFailure failure
                             n <- liftIO . atomically $ do
                                 n' <- readTVar completedChecks
                                 let n = n' + 1

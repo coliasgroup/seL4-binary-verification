@@ -1,12 +1,12 @@
 module BV.System.Core.Report
     ( Report (..)
-    , SMTProofCheckError (..)
-    , SMTProofCheckErrorCause (..)
-    , SMTProofCheckErrorCauseSolverId (..)
+    , SMTProofCheckFailure (..)
+    , SMTProofCheckFailureCause (..)
+    , SMTProofCheckFailureCauseSolverId (..)
+    , SMTProofCheckFailureSource (..)
     , SMTProofCheckResult
-    , SMTProofCheckSource (..)
     , displayReport
-    , prettySMTProofCheckError
+    , prettySMTProofCheckFailure
     ) where
 
 import BV.Core.DecorateProofScript
@@ -21,21 +21,21 @@ import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
 
-type SMTProofCheckResult i a = Either (SMTProofCheckError i) a
+type SMTProofCheckResult i a = Either (SMTProofCheckFailure i) a
 
-data SMTProofCheckError i
-  = SMTProofCheckError
-      { cause :: SMTProofCheckErrorCause
-      , source :: SMTProofCheckSource i
+data SMTProofCheckFailure i
+  = SMTProofCheckFailure
+      { cause :: SMTProofCheckFailureCause
+      , source :: SMTProofCheckFailureSource i
       }
   deriving (Eq, Generic, Ord, Show)
 
-data SMTProofCheckErrorCause
-  = SomeSolverAnsweredSat SMTProofCheckErrorCauseSolverId
+data SMTProofCheckFailureCause
+  = SomeSolverAnsweredSat SMTProofCheckFailureCauseSolverId
   | AllSolversTimedOutOrAnsweredUnknown
   deriving (Eq, Generic, Ord, Show)
 
-data SMTProofCheckErrorCauseSolverId
+data SMTProofCheckFailureCauseSolverId
   = OnlineSolver
   | OfflineSolver
       { offlineSolverCommandName :: String
@@ -44,25 +44,25 @@ data SMTProofCheckErrorCauseSolverId
   | Cache
   deriving (Eq, Generic, Ord, Show)
 
-data SMTProofCheckSource i
-  = SMTProofCheckSourceCheck (SMTProofCheckMetaWithFingerprint i)
-  | SMTProofCheckSourceCheckSubgroup SMTProofCheckGroupFingerprint [SMTProofCheckMetaWithFingerprint i]
+data SMTProofCheckFailureSource i
+  = SMTProofCheckFailureSourceCheck (SMTProofCheckMetaWithFingerprint i)
+  | SMTProofCheckFailureSourceCheckSubgroup SMTProofCheckGroupFingerprint [SMTProofCheckMetaWithFingerprint i]
   deriving (Eq, Generic, Ord, Show)
 
-prettySolverId :: SMTProofCheckErrorCauseSolverId -> String
+prettySolverId :: SMTProofCheckFailureCauseSolverId -> String
 prettySolverId = \case
     OnlineSolver -> "online solver"
     OfflineSolver name modelConfig -> printf "offline solver (%s, %s)" name (prettyModelConfig modelConfig)
     Cache -> "cache"
 
-prettySMTProofCheckError :: SMTProofCheckError SMTProofCheckDescription -> String
-prettySMTProofCheckError err =
+prettySMTProofCheckFailure :: SMTProofCheckFailure SMTProofCheckDescription -> String
+prettySMTProofCheckFailure err =
     prettyCause <> " for " <> prettySource
   where
     prettySource = case err.source of
-        SMTProofCheckSourceCheck check ->
+        SMTProofCheckFailureSourceCheck check ->
             "check " <> prettySMTProofCheckFingerprintShort check.fingerprint
-        SMTProofCheckSourceCheckSubgroup group checks ->
+        SMTProofCheckFailureSourceCheckSubgroup group checks ->
             "some check in ["
             <> mconcat (intersperse ","
                 [ prettySMTProofCheckFingerprintShort check.fingerprint
@@ -85,7 +85,7 @@ displayReport report =
     then (False, "All checks passed\n")
     else
         let failures = flip foldMap (M.toAscList failed) $ \(pairingId, err) ->
-                "Check failure for " <> prettyPairingId pairingId <> ": " <> prettySMTProofCheckError err <> "\n"
+                "Check failure for " <> prettyPairingId pairingId <> ": " <> prettySMTProofCheckFailure err <> "\n"
          in (True, failures <> "Some checks failed\n")
   where
     failed = M.mapMaybe (preview _Left) report.unwrap

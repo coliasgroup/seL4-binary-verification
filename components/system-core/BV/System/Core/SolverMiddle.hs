@@ -53,9 +53,9 @@ runSolvers throttle config backend subgroup = runExceptT $ do
             n <- case result of
                 Right () -> return (genericLength uncached.inner.imps)
                 Left failureInfo -> case failureInfo.reason of
-                    OnlineSolverAnsweredSat -> throwError $ SMTProofCheckError
+                    OnlineSolverAnsweredSat -> throwError $ SMTProofCheckFailure
                         (SomeSolverAnsweredSat OnlineSolver)
-                        (SMTProofCheckSourceCheck (view #inner <$> (uncached.inner.imps `genericIndex` failureInfo.index).meta))
+                        (SMTProofCheckFailureSourceCheck (view #inner <$> (uncached.inner.imps `genericIndex` failureInfo.index).meta))
                     _ -> return failureInfo.index
             return $ uncached & #inner % #imps %~ genericDrop n
         Nothing -> return uncached
@@ -68,9 +68,9 @@ runSolvers throttle config backend subgroup = runExceptT $ do
                 backend.offlineSingle
                 (check & #imp % #meta % #inner % #inner .~ ())
             liftEither $ flip first result $ \failureInfo ->
-                let f cause = SMTProofCheckError
+                let f cause = SMTProofCheckFailure
                         { cause
-                        , source = SMTProofCheckSourceCheck (check.imp.meta & #inner %~ view #inner)
+                        , source = SMTProofCheckFailureSourceCheck (check.imp.meta & #inner %~ view #inner)
                         }
                  in f $ case failureInfo of
                         OfflineSolversFailureInfoForSingleCheckSomeAnsweredSat solverCmdName modelConfig ->
@@ -84,9 +84,9 @@ runSolvers throttle config backend subgroup = runExceptT $ do
                 backend.offlineSingle
                 (void slow)
             liftEither $ flip first result $ \failureInfo ->
-                let f cause = SMTProofCheckError
+                let f cause = SMTProofCheckFailure
                         { cause
-                        , source = SMTProofCheckSourceCheckSubgroup
+                        , source = SMTProofCheckFailureSourceCheckSubgroup
                             slow.groupFingerprint
                             (map ((#inner %~ view #inner) . (.meta)) slow.inner.imps)
                         }
@@ -97,7 +97,7 @@ runSolvers throttle config backend subgroup = runExceptT $ do
                             AllSolversTimedOutOrAnsweredUnknown
 
 keepUncached
-    :: (MonadLoggerWithContext m, MonadCache m, MonadError (SMTProofCheckError i) m)
+    :: (MonadLoggerWithContext m, MonadCache m, MonadError (SMTProofCheckFailure i) m)
     => SMTProofCheckSubgroupWithFingerprints i
     -> m (SMTProofCheckSubgroupWithFingerprints i)
 keepUncached group = forOf (#inner % #imps) group $ \imps ->
@@ -108,6 +108,6 @@ keepUncached group = forOf (#inner % #imps) group $ \imps ->
             case cached of
                 Nothing -> return True
                 Just AcceptableSatResultUnsat -> return False
-                Just AcceptableSatResultSat -> throwError $ SMTProofCheckError
+                Just AcceptableSatResultSat -> throwError $ SMTProofCheckFailure
                     (SomeSolverAnsweredSat Cache)
-                    (SMTProofCheckSourceCheck (view #inner <$> imp.meta)))
+                    (SMTProofCheckFailureSourceCheck (view #inner <$> imp.meta)))
