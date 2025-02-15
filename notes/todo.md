@@ -46,3 +46,5 @@
     --include-function-with-deps
     --include-all-functions
       (use with --include-function to make sure that root functions are present)
+
+- provide module in core with minimal exports, for system-core (concrete-syntax will need more)

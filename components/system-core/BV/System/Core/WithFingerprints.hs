@@ -13,10 +13,12 @@ module BV.System.Core.WithFingerprints
     , decorateWithFingerprints
     , prettySMTProofCheckSubgroupIdShort
     , subgroupIdOf
+    , ungroupSMTProofCheckGroup
     , ungroupSMTProofCheckSubgroupWithFingerprints
     ) where
 
 import BV.Core.DecorateProofScript
+import BV.Core.Stages
 import BV.Core.Types
 import BV.System.Core.Fingerprinting
 
@@ -49,8 +51,8 @@ newtype FlattenedSMTProofChecksWithFingerprints a
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
-decorateWithFingerprints :: FlattenedSMTProofChecks a -> FlattenedSMTProofChecksWithFingerprints a
-decorateWithFingerprints (FlattenedSMTProofChecks byPairing) =
+decorateWithFingerprints :: PreparedSMTProofChecks -> PreparedSMTProofChecksWithFingerprints
+decorateWithFingerprints (PreparedSMTProofChecks byPairing) =
     FlattenedSMTProofChecksWithFingerprints $
         byPairing &
             traversed % traversed %~ \group ->
@@ -116,3 +118,12 @@ instance HasComputedFingerprint SMTProofCheckFingerprint (SMTProofCheckWithFinge
 
 instance HasComputedFingerprint SMTProofCheckGroupFingerprint (SMTProofCheckGroupWithFingerprints a) where
     computedFingerprint group = group.fingerprint
+
+--
+
+-- TODO remove
+ungroupSMTProofCheckGroup :: SMTProofCheckGroup a -> [SMTProofCheck a]
+ungroupSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck
+    { setup = group.setup
+    , imp
+    }

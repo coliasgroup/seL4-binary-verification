@@ -10,7 +10,7 @@ module BV.Core.Stages
     , module BV.Core.Stages.FormulatePairing
     , module BV.Core.Stages.InlineAssembly
     , module BV.Core.Stages.PseudoCompile
-    , PreparedSMTProofChecks
+    , PreparedSMTProofChecks (..)
     , SMTProofCheckDescription
     , StagesInput (..)
     , StagesOutput (..)
@@ -31,7 +31,7 @@ import BV.Core.Types.Extras
 import Control.DeepSeq (NFData, liftRnf)
 import Control.Monad (guard)
 import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
-import Data.Foldable (toList)
+import Data.Foldable (fold, toList)
 import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
@@ -68,7 +68,10 @@ data StagesOutput
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-type PreparedSMTProofChecks = FlattenedSMTProofChecks SMTProofCheckDescription
+newtype PreparedSMTProofChecks
+  = PreparedSMTProofChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup SMTProofCheckDescription] }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
 
 stages :: StagesInput -> StagesOutput
 stages input = StagesOutput
@@ -177,7 +180,8 @@ stages input = StagesOutput
             -- error "SMT proof check groups should be distinct"
             uncheckedSMTProofChecks
 
-    preparedSMTProofChecks = flattenSMTProofChecks (decorateSMTProofChecksWithDescriptions smtProofChecks)
+    preparedSMTProofChecks = PreparedSMTProofChecks $
+        M.map fold (decorateSMTProofChecksWithDescriptions smtProofChecks).unwrap
 
 
 asmFunNameToCFunName :: Ident -> Ident

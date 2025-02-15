@@ -2,19 +2,16 @@
 
 module BV.Core.Types.SMTProofChecks
     ( AtomOrPlaceholder
-    , FlattenedSMTProofChecks (..)
     , SExprPlaceholder (..)
     , SExprWithPlaceholders
     , SMTProofCheck (..)
     , SMTProofCheckGroup (..)
     , SMTProofCheckImp (..)
     , SMTProofChecks (..)
-    , flattenSMTProofChecks
     , readSExprWithPlaceholders
     , readSExprsWithPlaceholders
     , tryReadSExprWithPlaceholders
     , tryReadSExprsWithPlaceholders
-    , ungroupSMTProofCheckGroup
     ) where
 
 import BV.Core.Types.Pairing
@@ -22,10 +19,8 @@ import BV.Core.Types.ProofScript
 import BV.Core.Types.SExprWithPlaceholders
 
 import Control.DeepSeq (NFData)
-import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
-import Optics
 
 newtype SMTProofChecks a
   = SMTProofChecks { unwrap :: M.Map PairingId (ProofScript [SMTProofCheckGroup a]) }
@@ -52,17 +47,3 @@ data SMTProofCheckImp a
       , term :: SExprWithPlaceholders
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
-
-ungroupSMTProofCheckGroup :: SMTProofCheckGroup a -> [SMTProofCheck a]
-ungroupSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck
-    { setup = group.setup
-    , imp
-    }
-
-newtype FlattenedSMTProofChecks a
-  = FlattenedSMTProofChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup a] }
-  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
-  deriving newtype (NFData)
-
-flattenSMTProofChecks :: SMTProofChecks a -> FlattenedSMTProofChecks a
-flattenSMTProofChecks checks = FlattenedSMTProofChecks $ M.map fold checks.unwrap
