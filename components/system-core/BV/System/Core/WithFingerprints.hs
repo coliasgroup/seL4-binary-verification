@@ -115,14 +115,6 @@ ungroupSMTProofCheckSubgroupWithFingerprints subgroup =
 
 --
 
-instance HasComputedFingerprint SMTProofCheckFingerprint (SMTProofCheckWithFingerprint a) where
-    computedFingerprint check = check.imp.meta.fingerprint
-
-instance HasComputedFingerprint SMTProofCheckGroupFingerprint (SMTProofCheckGroupWithFingerprints a) where
-    computedFingerprint group = group.fingerprint
-
---
-
 -- TODO remove
 ungroupSMTProofCheckGroup :: SMTProofCheckGroup a -> [SMTProofCheck a]
 ungroupSMTProofCheckGroup group = group.imps <&> \imp -> SMTProofCheck

@@ -103,7 +103,7 @@ keepUncached group = forOf (#inner % #imps) group $ \imps ->
     flip filterM imps (\imp -> do
         let fingerprint = imp.meta.fingerprint
         withPushLogContextCheckFingerprint fingerprint $ do
-            cached <- queryCacheUsingFingerprint fingerprint
+            cached <- queryCache fingerprint
             case cached of
                 Nothing -> return True
                 Just AcceptableSatResultUnsat -> return False

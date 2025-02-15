@@ -74,13 +74,13 @@ runSolverWithLogging =
 augmentCacheContextWithLogging :: MonadLoggerWithContext m => CacheContext m -> CacheContext m
 augmentCacheContextWithLogging ctx =
     CacheContext
-        { queryCacheUsingFingerprint = \check -> withPushLogContext "query" . withPushLogContextCheckFingerprint check $ do
+        { queryCache = \check -> withPushLogContext "query" . withPushLogContextCheckFingerprint check $ do
             logTrace "querying"
-            resp <- ctx.queryCacheUsingFingerprint check
+            resp <- ctx.queryCache check
             logTrace $ "got: " ++ show resp
             return resp
-        , updateCacheUsingFingerprint = \result check -> withPushLogContext "update" . withPushLogContextCheckFingerprint check $ do
+        , updateCache = \result check -> withPushLogContext "update" . withPushLogContextCheckFingerprint check $ do
             logTrace $ "sending: " ++ show result
-            ctx.updateCacheUsingFingerprint result check
+            ctx.updateCache result check
             logTrace "done"
         }

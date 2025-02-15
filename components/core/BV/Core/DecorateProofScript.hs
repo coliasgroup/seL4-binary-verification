@@ -15,10 +15,12 @@ import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
 import Optics
 
+-- TODO implement
 data ProofScriptNodeLocation
   = ProofScriptNodeLocation
   deriving (Eq, Generic, NFData, Ord, Show)
 
+-- TODO implement
 decorateProofScriptWithProofScriptNodeLocationsWith
     :: (ProofScriptNodeLocation -> a -> b) -> ProofScript a -> ProofScript b
 decorateProofScriptWithProofScriptNodeLocationsWith f = #root % traversed %~ f ProofScriptNodeLocation
