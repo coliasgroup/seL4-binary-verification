@@ -11,7 +11,6 @@ module BV.System.Core.Report
 
 import BV.Core
 import BV.System.Core.Fingerprinting
-import BV.System.Core.WithFingerprints
 
 import Data.List (intersperse)
 import qualified Data.Map as M
@@ -43,8 +42,8 @@ data SMTProofCheckFailureCauseSolverId
   deriving (Eq, Generic, Ord, Show)
 
 data SMTProofCheckFailureSource i
-  = SMTProofCheckFailureSourceCheck (SMTProofCheckMetaWithFingerprint i)
-  | SMTProofCheckFailureSourceCheckSubgroup SMTProofCheckGroupFingerprint [SMTProofCheckMetaWithFingerprint i]
+  = SMTProofCheckFailureSourceCheck (SMTProofCheckFingerprint, i)
+  | SMTProofCheckFailureSourceCheckSubgroup SMTProofCheckGroupFingerprint [(SMTProofCheckFingerprint, i)]
   deriving (Eq, Generic, Ord, Show)
 
 prettySolverId :: SMTProofCheckFailureCauseSolverId -> String
@@ -58,15 +57,15 @@ prettySMTProofCheckFailure err =
     prettyCause <> " for " <> prettySource
   where
     prettySource = case err.source of
-        SMTProofCheckFailureSourceCheck check ->
-            "check " <> prettySMTProofCheckFingerprintShort check.fingerprint
+        SMTProofCheckFailureSourceCheck (check, _i) ->
+            "check " <> prettySMTProofCheckFingerprintShort check
         SMTProofCheckFailureSourceCheckSubgroup group checks ->
-            "some check in ["
+            "a subgroup of " <> prettySMTProofCheckGroupFingerprintShort group <> " (checks "
             <> mconcat (intersperse ","
-                [ prettySMTProofCheckFingerprintShort check.fingerprint
-                | check <- checks
+                [ prettySMTProofCheckFingerprintShort check
+                | (check, _i) <- checks
                 ])
-            <> "] (group " <> prettySMTProofCheckGroupFingerprintShort group <> ")"
+            <> ")"
     prettyCause = case err.cause of
         SomeSolverAnsweredSat solverId -> prettySolverId solverId ++ " answered sat"
         AllSolversTimedOutOrAnsweredUnknown -> "all solvers timed out or answered unknown"

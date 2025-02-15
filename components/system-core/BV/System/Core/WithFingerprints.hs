@@ -12,6 +12,7 @@ module BV.System.Core.WithFingerprints
     , SubgroupElementMeta (..)
     , decorateWithFingerprints
     , prettySMTProofCheckSubgroupIdShort
+    , splitSMTProofCheckMetaWithFingerprint
     , subgroupIdOf
     , ungroupSMTProofCheckGroup
     , ungroupSMTProofCheckSubgroupWithFingerprints
@@ -32,6 +33,9 @@ data SMTProofCheckMetaWithFingerprint a
       , inner :: a
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
+
+splitSMTProofCheckMetaWithFingerprint :: SMTProofCheckMetaWithFingerprint a -> (SMTProofCheckFingerprint, a)
+splitSMTProofCheckMetaWithFingerprint meta = (meta.fingerprint, meta.inner)
 
 type SMTProofCheckWithFingerprint a = SMTProofCheck (SMTProofCheckMetaWithFingerprint a)
 

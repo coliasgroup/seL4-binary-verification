@@ -54,7 +54,7 @@ runSolvers throttle config backend subgroup = runExceptT $ do
                 Left failureInfo -> case failureInfo.reason of
                     OnlineSolverAnsweredSat -> throwError $ SMTProofCheckFailure
                         (SomeSolverAnsweredSat OnlineSolver)
-                        (SMTProofCheckFailureSourceCheck (view #inner <$> (uncached.inner.imps `genericIndex` failureInfo.index).meta))
+                        (SMTProofCheckFailureSourceCheck (view #inner <$> splitSMTProofCheckMetaWithFingerprint (uncached.inner.imps `genericIndex` failureInfo.index).meta))
                     _ -> return failureInfo.index
             return $ uncached & #inner % #imps %~ genericDrop n
         Nothing -> return uncached
@@ -69,7 +69,7 @@ runSolvers throttle config backend subgroup = runExceptT $ do
             liftEither $ flip first result $ \failureInfo ->
                 let f cause = SMTProofCheckFailure
                         { cause
-                        , source = SMTProofCheckFailureSourceCheck (check.imp.meta & #inner %~ view #inner)
+                        , source = SMTProofCheckFailureSourceCheck (splitSMTProofCheckMetaWithFingerprint (check.imp.meta & #inner %~ view #inner))
                         }
                  in f $ case failureInfo of
                         OfflineSolversFailureInfoForSingleCheckSomeAnsweredSat solverCmdName modelConfig ->
@@ -87,7 +87,7 @@ runSolvers throttle config backend subgroup = runExceptT $ do
                         { cause
                         , source = SMTProofCheckFailureSourceCheckSubgroup
                             slow.groupFingerprint
-                            (map ((#inner %~ view #inner) . (.meta)) slow.inner.imps)
+                            (map (splitSMTProofCheckMetaWithFingerprint . (#inner %~ view #inner) . (.meta)) slow.inner.imps)
                         }
                  in f $ case failureInfo.cause of
                         SomeOfflineSolverAnsweredSat loc solverCmdName modelConfig ->
@@ -109,4 +109,4 @@ keepUncached group = forOf (#inner % #imps) group $ \imps ->
                 Just AcceptableSatResultUnsat -> return False
                 Just AcceptableSatResultSat -> throwError $ SMTProofCheckFailure
                     (SomeSolverAnsweredSat Cache)
-                    (SMTProofCheckFailureSourceCheck (view #inner <$> imp.meta)))
+                    (SMTProofCheckFailureSourceCheck (splitSMTProofCheckMetaWithFingerprint (view #inner <$> imp.meta))))
