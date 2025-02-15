@@ -30,17 +30,17 @@ import GHC.Generics (Generic)
 import System.Process (CreateProcess)
 import Text.Printf (printf)
 
-data SolverBackend m a
+data SolverBackend a m
   = SolverBackend
-      { online :: OnlineSolverBackend m a
-      , offline :: OfflineSolverBackend m a
-      , offlineForSingleCheck :: OfflineSolverBackendForSingleCheck m a
+      { online :: OnlineSolverBackend a m
+      , offline :: OfflineSolverBackend a m
+      , offlineForSingleCheck :: OfflineSolverBackendForSingleCheck a m
       }
   deriving (Generic)
 
 solversFrontend
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => SolverBackend m i -> SMTProofCheckSubgroupWithFingerprints i -> m (SMTProofCheckResult i ())
+    => SolverBackend i m -> SMTProofCheckSubgroupWithFingerprints i -> m (SMTProofCheckResult i ())
 solversFrontend backend subgroup = undefined
 
 data CheckFilter
@@ -57,7 +57,7 @@ frontend
        , MonadCache m
        , MonadMask m
        )
-    => SolverBackend m SMTProofCheckDescription
+    => SolverBackend SMTProofCheckDescription m
     -> CheckFilter
     -> PreparedSMTProofChecksWithFingerprints
     -> m Report
