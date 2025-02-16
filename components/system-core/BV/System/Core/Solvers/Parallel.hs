@@ -142,7 +142,7 @@ runParellelOfflineSolvers
     -> CheckSubgroup
     -> m (Either OfflineSolversFailureInfo ())
 runParellelOfflineSolvers config checkSubgroupBackend checkBackend subgroup = do
-    withPushLogContext "offline" . withPushLogContextCheckSubgroup subgroup $ do
+    withPushLogContext "offline" . withPushLogContextCheckGroup subgroup.group $ do
         numSuccessfulChecksVar <- liftIO $ newTVarIO 0
         let allStrategy :: m (ConclusionResult (Either OfflineSolverSatAnswer ()) ())
             allStrategy = do

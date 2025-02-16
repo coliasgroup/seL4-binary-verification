@@ -85,7 +85,7 @@ localOnlineSolverBackend
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
     => OnlineSolverBackend m
 localOnlineSolverBackend config subgroup = do
-    withPushLogContext "online" . withPushLogContextCheckSubgroup subgroup $ do
+    withPushLogContext "online" . withPushLogContextCheckGroup subgroup.group $ do
         logDebug "running solver"
         result <- runSolverWithLogging
             (solverProc config.command)
@@ -118,7 +118,7 @@ localOfflineSolverBackend
     => OfflineSolverBackend m
 localOfflineSolverBackend config subgroup = do
     withPushLogContext "offline" .
-        withPushLogContextCheckSubgroup subgroup .
+        withPushLogContextCheckGroup subgroup.group .
             withPushLogContextOfflineSolver config $ do
                 logDebug "running solver"
                 (result, elapsed) <- time $ runSolverWithLogging

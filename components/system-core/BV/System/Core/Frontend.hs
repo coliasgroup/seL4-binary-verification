@@ -36,7 +36,7 @@ frontend throttle backend config checks = do
             withPushLogContextPairing pairingId $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\subgroup -> makeConcurrentlyUnliftIOE $ do
-                        withPushLogContextCheckSubgroup subgroup $ do
+                        withPushLogContextCheckGroup subgroup.group $ do
                             result <- runSolvers throttle backend config subgroup
                             logInfo $ case result of
                                 Right _ -> "success"
