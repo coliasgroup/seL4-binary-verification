@@ -19,7 +19,7 @@ main = defaultMain tests
 tests :: TestTree
 tests = testGroup "Tests"
     [ testCase "trivial" $ return ()
-    -- , testCase "stages" testStages
+    , testCase "stages" testStages
     , testCase "stages-with-reference" testStagesWithChecking
     ]
 
