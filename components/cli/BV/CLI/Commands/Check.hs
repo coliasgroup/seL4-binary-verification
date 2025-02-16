@@ -75,11 +75,16 @@ getMaxNumConcurrentSolvers opts = do
 
 getCheckFilter :: CheckOpts -> CheckFilter
 getCheckFilter opts = CheckFilter
-    { pairings = case opts.includeFunctions of
-        [] -> const True
-        include ->
-            let includeSet = S.fromList include
-            in \pairingId -> pairingId.asm `S.member` includeSet
+    { pairings =
+        let isIncluded = case opts.includeFunctions of
+                [] -> const True
+                include ->
+                    let includeSet = S.fromList include
+                    in \pairingId -> pairingId.asm `S.member` includeSet
+            isIgnored =
+                let ignoreSet = S.fromList opts.ignoreFunctions
+                 in \pairingId -> pairingId.asm `S.member` ignoreSet
+         in \pairingId -> isIncluded pairingId && not (isIgnored pairingId)
     , groups = case opts.includeGroups of
         [] -> const True
         include -> \groupFingerprint -> or

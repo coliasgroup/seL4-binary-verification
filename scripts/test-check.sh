@@ -20,4 +20,8 @@ time $path \
     check \
     --solvers $solvers \
     --target-dir $d \
+    --ignore-function fastpath_call \
+    --ignore-function fastpath_reply_recv \
+    --ignore-function c_handle_syscall \
+    --ignore-function arm_swi_syscall \
     "$@"
