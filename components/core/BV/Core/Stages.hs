@@ -185,8 +185,8 @@ stages input = StagesOutput
         then uncheckedSMTProofChecks
         else
             -- TODO
-            -- error "SMT proof check groups should be distinct"
-            uncheckedSMTProofChecks
+            error "SMT proof check groups should be distinct"
+            -- uncheckedSMTProofChecks
 
     finalChecks =
         let f = decorateProofScriptWithProofScriptNodePathsWith $ \path groups ->
