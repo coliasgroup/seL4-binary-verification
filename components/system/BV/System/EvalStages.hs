@@ -42,7 +42,7 @@ evalStages ctx input = do
     logWarn $
         "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) output.unhandledInlineAssemblyFunctions)
     logWarn $
-        "Unhandled instrcution functions (Asm side): " ++ show (map (.unwrap) output.unhandledInstructionFunctions)
+        "Unhandled instrcution functions (ASM side): " ++ show (map (.unwrap) output.unhandledInstructionFunctions)
     logInfo "Registering functions"
     register filterFunctions targetDirFiles.functions output.intermediate.functions
     logInfo "Registering pairings"
