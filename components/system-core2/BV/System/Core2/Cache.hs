@@ -23,6 +23,8 @@ import Control.Monad.Logger (LoggingT, MonadLogger, MonadLoggerIO)
 import Control.Monad.Reader (MonadTrans (lift), ReaderT (runReaderT), asks)
 import GHC.Generics (Generic)
 
+-- TODO cache sat for subgroup with all scope?
+
 data AcceptableSatResult
   = AcceptableSatResultSat
   | AcceptableSatResultUnsat

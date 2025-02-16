@@ -56,8 +56,8 @@ data OnlineSolverFailureInfo
   deriving (Eq, Generic, Ord, Show)
 
 data OnlineSolverFailureReason
-  = OnlineSolverTimedOut
-  | OnlineSolverAnsweredSat
+  = OnlineSolverAnsweredSat
+  | OnlineSolverTimedOut
   | OnlineSolverAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 

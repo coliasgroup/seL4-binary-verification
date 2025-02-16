@@ -11,8 +11,10 @@ module BV.System.Core2.Types
     , elaborateChecks
     , filterChecks
     , prettyCheckSubgroupIdShort
+    , splitSubgroupAt
+    , takeEmptySubgroup
     , takeSubgroupByFingerprint
-    , takeSubgroupByIndex
+    , takeSubgroupByIndexInGroup
     , takeSubgroupId
     , toCoreCheck
     , toCoreCheckGroup
@@ -22,7 +24,7 @@ import BV.Core
 import BV.System.Core2.Fingerprinting
 
 import Control.DeepSeq (NFData)
-import Data.List (intercalate)
+import Data.List (genericSplitAt, intercalate)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
@@ -113,11 +115,19 @@ filterChecks checkFilter =
                 . filter (\subgroup -> checkFilter.groups subgroup.group.fingerprint)))
             . M.filterWithKey (\k _v -> checkFilter.pairings k))
 
-takeSubgroupByIndex :: (CheckIndexInGroup -> Bool) -> CheckSubgroup -> CheckSubgroup
-takeSubgroupByIndex p = #checks %~ filter (\(i, _check) -> p i)
+takeEmptySubgroup :: CheckSubgroup -> CheckSubgroup
+takeEmptySubgroup = #checks .~ []
+
+takeSubgroupByIndexInGroup :: (CheckIndexInGroup -> Bool) -> CheckSubgroup -> CheckSubgroup
+takeSubgroupByIndexInGroup p = #checks %~ filter (\(i, _check) -> p i)
 
 takeSubgroupByFingerprint :: (CheckFingerprint -> Bool) -> CheckSubgroup -> CheckSubgroup
 takeSubgroupByFingerprint p = #checks %~ filter (\(_i, check) -> p check.fingerprint)
+
+splitSubgroupAt :: Integer -> CheckSubgroup -> (CheckSubgroup, CheckSubgroup)
+splitSubgroupAt i subgroup = (subgroup & #checks .~ l, subgroup & #checks .~ r)
+  where
+    (l, r) = genericSplitAt i subgroup.checks
 
 takeSubgroupId :: CheckSubgroup -> CheckSubgroupId
 takeSubgroupId subgroup =

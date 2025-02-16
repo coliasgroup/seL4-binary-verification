@@ -2,12 +2,14 @@
 
 module BV.System.Core2.Solvers.Parallel
     ( OfflineSolverGroupConfig (..)
+    , OfflineSolverSatAnswer (..)
     , OfflineSolversConfig (..)
     , OfflineSolversFailureCause (..)
     , OfflineSolversFailureCauseLocation (..)
     , OfflineSolversFailureInfo (..)
     , OfflineSolversFailureInfoForSingleCheck (..)
     , SolverScope (..)
+    , getHypAtIndex
     , numParallelSolvers
     , numParallelSolversForSingleCheck
     , prettySolverScope
@@ -34,7 +36,7 @@ import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Trans (lift)
 import Data.Bifunctor (first)
 import Data.Foldable (for_)
-import Data.List (genericLength)
+import Data.List (genericIndex, genericLength)
 import GHC.Generics (Generic)
 
 data OfflineSolversConfig
@@ -128,6 +130,9 @@ data OfflineSolversFailureCauseLocation
 newtype OfflineSolversFailureHypIndex
   = OfflineSolversFailureHypIndex { unwrap :: Integer }
   deriving (Eq, Generic, Ord, Show)
+
+getHypAtIndex :: OfflineSolversFailureHypIndex -> CheckSubgroup -> Check
+getHypAtIndex i subgroup = snd $ subgroup.checks `genericIndex` i.unwrap
 
 runParellelOfflineSolvers
     :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
