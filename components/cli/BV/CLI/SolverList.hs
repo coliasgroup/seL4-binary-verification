@@ -8,11 +8,12 @@ module BV.CLI.SolverList
     ) where
 
 import BV.Core
-import BV.System.SolversConfig
+import BV.System.Core
 
 import Data.Aeson
 
 import Data.Aeson.Types (Parser)
+import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import GHC.Generics (Generic)
@@ -20,7 +21,7 @@ import GHC.Generics (Generic)
 data SolverList
   = SolverList
       { online :: Maybe SolverListOnlineSolver
-      , offline :: M.Map OfflineSolverName SolverListOfflineSolverGroup
+      , offline :: M.Map OfflineSolverCommandName SolverListOfflineSolverGroup
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -33,8 +34,8 @@ instance FromJSON SolverList where
 
 data SolverListOnlineSolver
   = SolverListOnlineSolver
-      { command :: [String]
-      , memoryMode :: SolverMemoryMode
+      { command :: NonEmpty String
+      , memoryMode :: MemoryMode
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -51,8 +52,8 @@ instance FromJSON SolverListOnlineSolver where
 
 data SolverListOfflineSolverGroup
   = SolverListOfflineSolverGroup
-      { command :: [String]
-      , memoryModes :: [SolverMemoryMode]
+      { command :: NonEmpty String
+      , memoryModes :: [MemoryMode]
       , scopes :: [SolverScope]
       }
   deriving (Eq, Generic, Ord, Show)
@@ -72,19 +73,19 @@ instance FromJSON SolverListOfflineSolverGroup where
 
 --
 
-decodeMemoryMode :: Value -> Parser SolverMemoryMode
-decodeMemoryMode = withText "SolverMemoryMode" $ \case
-    "word8" -> pure SolverMemoryModeWord8
-    "word32" -> pure SolverMemoryModeWord32
+decodeMemoryMode :: Value -> Parser MemoryMode
+decodeMemoryMode = withText "MemoryMode" $ \case
+    "word8" -> pure MemoryModeWord8
+    "word32" -> pure MemoryModeWord32
     _ -> fail "unrecognized memory mode"
 
-encodeMemoryMode :: SolverMemoryMode -> Value
-encodeMemoryMode = String . T.pack . prettySolverMemoryMode
+encodeMemoryMode :: MemoryMode -> Value
+encodeMemoryMode = String . T.pack . prettyMemoryMode
 
-defaultMemoryMode :: SolverMemoryMode
-defaultMemoryMode = SolverMemoryModeWord32
+defaultMemoryMode :: MemoryMode
+defaultMemoryMode = MemoryModeWord32
 
-defaultMemoryModes :: [SolverMemoryMode]
+defaultMemoryModes :: [MemoryMode]
 defaultMemoryModes = [defaultMemoryMode]
 
 decodeSolverScope :: Value -> Parser SolverScope
@@ -97,4 +98,4 @@ encodeSolverScope :: SolverScope -> Value
 encodeSolverScope = String . T.pack . prettySolverScope
 
 defaultSolverScopes :: [SolverScope]
-defaultSolverScopes = allSolverScopes
+defaultSolverScopes = [minBound..maxBound]

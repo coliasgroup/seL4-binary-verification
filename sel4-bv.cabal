@@ -265,13 +265,9 @@ library smtlib2-process
 library system
   visibility: public
   exposed-modules:
-      BV.System.Backend.Core
-      BV.System.Backend.Local
       BV.System.EvalStages
-      BV.System.Frontend
+      BV.System.Local
       BV.System.SeL4
-      BV.System.SolversConfig
-      BV.System.Utils
   hs-source-dirs:
       components/system
   default-extensions:
@@ -322,6 +318,7 @@ library system-core
   visibility: public
   exposed-modules:
       BV.System.Core
+  other-modules:
       BV.System.Core.Cache
       BV.System.Core.Fingerprinting
       BV.System.Core.Frontend

@@ -22,7 +22,7 @@ import BV.Core.Types
 import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.SExpr.Build.Pretty
-import BV.System.Core.Fingerprinting
+import BV.System.Core
 
 import Options.Applicative
 
@@ -105,8 +105,8 @@ data CheckOpts
       , dumpTargetDir :: Maybe FilePath
       , mismatchDir :: Maybe FilePath
       , includeFunctions :: [Ident]
-      , includeGroups :: [SMTProofCheckGroupFingerprintPattern]
-      , includeChecks :: [SMTProofCheckFingerprintPattern]
+      , includeGroups :: [CheckGroupFingerprintPattern]
+      , includeChecks :: [CheckFingerprintPattern]
       , reportFile :: Maybe FilePath
       }
   deriving (Generic, Show)
@@ -306,11 +306,11 @@ checkOptsParser = do
         [ long "include-function"
         , metavar "SYMBOL"
         ]
-    includeGroups <- many $ SMTProofCheckGroupFingerprintPattern <$> option' (eitherReader (B16.decode . C.pack))
+    includeGroups <- many $ CheckGroupFingerprintPattern <$> option' (eitherReader (B16.decode . C.pack))
         [ long "include-group"
         , metavar "FINGERPRINT"
         ]
-    includeChecks <- many $ SMTProofCheckFingerprintPattern <$> option' (eitherReader (B16.decode . C.pack))
+    includeChecks <- many $ CheckFingerprintPattern <$> option' (eitherReader (B16.decode . C.pack))
         [ long "include-check"
         , metavar "FINGERPRINT"
         ]

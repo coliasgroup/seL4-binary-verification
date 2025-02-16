@@ -11,6 +11,7 @@ import BV.ConcreteSyntax
 import BV.Core
 import BV.Core.Types
 import BV.Logging
+import BV.System.Core
 import BV.TargetDir
 
 import Control.DeepSeq (NFData, deepseq, force)
@@ -36,24 +37,24 @@ evalStages
     :: forall m. (MonadIO m, MonadFail m, MonadLogger m)
     => EvalStagesContext
     -> StagesInput
-    -> m PreparedSMTProofChecks
+    -> m Checks
 evalStages ctx input = do
     logWarn $
         "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) output.unhandledInlineAssemblyFunctions)
     logWarn $
         "Unhandled instrcution functions (Asm side): " ++ show (map (.unwrap) output.unhandledInstructionFunctions)
     logInfo "Registering functions"
-    register noop targetDirFiles.functions output.functions
+    register noop targetDirFiles.functions output.intermediate.functions
     logInfo "Registering pairings"
-    register noop targetDirFiles.pairings output.pairings
+    register noop targetDirFiles.pairings output.intermediate.pairings
     logInfo "Registering problems"
-    register filterProblems targetDirFiles.problems output.problems
+    register filterProblems targetDirFiles.problems output.intermediate.problems
     logInfo "Registering proof checks"
-    register noop targetDirFiles.proofChecks output.compatProofChecks
+    register noop targetDirFiles.proofChecks output.intermediate.compatProofChecks
     logInfo "Registering SMT proof checks"
-    register noop targetDirFiles.smtProofChecks output.compatSMTProofChecks
+    register noop targetDirFiles.smtProofChecks output.intermediate.compatSMTProofChecks
     logInfo "Registered all intermediate artifacts"
-    return output.smtProofChecks
+    return $ elaborateChecks output.checks
   where
     output = stages input
     register :: forall a c. (Eq a, NFData a, ReadBVFile c a, WriteBVFile c a) => (a -> a -> a) -> TargetDirFile a -> a -> m ()

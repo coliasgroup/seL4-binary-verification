@@ -6,6 +6,7 @@ module BV.System.Core.Solvers
     ( OfflineSolverBackend
     , OfflineSolverCommandName
     , OfflineSolverConfig (..)
+    , OfflineSolverGroupConfig (..)
     , OfflineSolverSingleBackend
     , OfflineSolversConfig (..)
     , OfflineSolversFailureCause (..)
@@ -18,6 +19,7 @@ module BV.System.Core.Solvers
     , SolverCommand (..)
     , SolverScope (..)
     , SolversConfig (..)
+    , localSolverBackend
     , prettySolverScope
     , runSolvers
     ) where
@@ -43,8 +45,8 @@ import Optics
 
 data SolversConfig
   = SolversConfig
-      { onlineSolverConfig :: Maybe OnlineSolverConfig
-      , offlineSolversConfig :: OfflineSolversConfig
+      { online :: Maybe OnlineSolverConfig
+      , offline :: OfflineSolversConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -87,7 +89,7 @@ filterSubgroupsUsingOnlineSolver
     -> CheckSubgroup
     -> ExceptT CheckFailure m CheckSubgroup
 filterSubgroupsUsingOnlineSolver throttle backend config subgroup =
-    case config.onlineSolverConfig of
+    case config.online of
         Just onlineConfig -> do
             result <- lift . throttle 1 $ backend.online onlineConfig subgroup
             let (unsat, rest) = case result of
@@ -126,9 +128,9 @@ checkUsingOfflineSolvers throttle backend config subgroup =
         [] -> do
             return ()
         [(_i, check)] -> do
-            result <- lift . throttle (numParallelSolversForSingleCheck config.offlineSolversConfig) $
+            result <- lift . throttle (numParallelSolversForSingleCheck config.offline) $
                 runParellelOfflineSolversForSingleCheck
-                    config.offlineSolversConfig
+                    config.offline
                     backend.offlineSingle
                     check
             case result of
@@ -146,9 +148,9 @@ checkUsingOfflineSolvers throttle backend config subgroup =
                         , source = CheckFailureSourceCheck check
                         }
         _ -> do
-            result <- lift . throttle (numParallelSolvers config.offlineSolversConfig) $
+            result <- lift . throttle (numParallelSolvers config.offline) $
                 runParellelOfflineSolvers
-                    config.offlineSolversConfig
+                    config.offline
                     backend.offline
                     backend.offlineSingle
                     subgroup
