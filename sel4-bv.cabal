@@ -374,6 +374,7 @@ library system-core2
   exposed-modules:
       BV.System.Core2.Cache
       BV.System.Core2.Fingerprinting
+      BV.System.Core2.Frontend
       BV.System.Core2.Report
       BV.System.Core2.Solvers
       BV.System.Core2.Solvers.Backend
