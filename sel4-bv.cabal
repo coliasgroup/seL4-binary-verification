@@ -321,6 +321,7 @@ library system
 library system-core
   visibility: public
   exposed-modules:
+      BV.System.Core
       BV.System.Core.Cache
       BV.System.Core.Fingerprinting
       BV.System.Core.Frontend
@@ -329,6 +330,7 @@ library system-core
       BV.System.Core.Solvers.Backend
       BV.System.Core.Solvers.Parallel
       BV.System.Core.Types
+      BV.System.Core.Utils
       BV.System.Core.Utils.Logging
   hs-source-dirs:
       components/system-core

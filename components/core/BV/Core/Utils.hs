@@ -4,10 +4,9 @@ module BV.Core.Utils
     , ensureM
     , expecting
     , expectingIx
+    , expecting_
     , is
     , optionals
-    , partially
-    , partially_
     , tryLast
     , unwrapped
     , whileM
@@ -57,20 +56,17 @@ whileM cond body = go
 unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just
 
-expecting :: HasCallStack => Prism s t a b -> Lens s t a b
-expecting optic = partially (castOptic optic)
-
 expectingIx :: HasCallStack => (Ixed m, IxKind m ~ An_AffineTraversal) => Index m -> Lens' m (IxValue m)
-expectingIx i = partially (ix i)
+expectingIx i = expecting (ix i)
 
-partially :: HasCallStack => AffineTraversal s t a b -> Lens s t a b
-partially optic = withAffineTraversal optic $ \match update ->
+expecting :: (Is k An_AffineTraversal, HasCallStack) => Optic k is s t a b -> Lens s t a b
+expecting optic = withAffineTraversal optic $ \match update ->
     lens
         (fromRight (error "!isRight") . match)
         update
 
-partially_ :: HasCallStack => AffineFold s a -> Getter s a
-partially_ optic = to (fromJust . preview optic)
+expecting_ :: (Is k An_AffineFold, HasCallStack) => Optic' k is s a -> Getter s a
+expecting_ optic = to (fromJust . preview optic)
 
 is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
 is k s = isJust (preview k s)

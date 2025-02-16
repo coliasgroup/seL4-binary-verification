@@ -7,13 +7,15 @@ module BV.System.Core.Cache
     , CacheContext (..)
     , CacheT
     , MonadCache (..)
+    , augmentCacheContextWithLogging
     , liftIOCacheContext
     , runCacheT
     , trivialCacheContext
     ) where
 
-import BV.Logging (MonadLoggerWithContext)
+import BV.Logging
 import BV.System.Core.Fingerprinting
+import BV.System.Core.Utils.Logging
 
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)
@@ -93,3 +95,17 @@ trivialCacheContext = CacheContext
     { queryCache = \_check -> return Nothing
     , updateCache = \_result _check -> return ()
     }
+
+augmentCacheContextWithLogging :: MonadLoggerWithContext m => CacheContext m -> CacheContext m
+augmentCacheContextWithLogging ctx =
+    CacheContext
+        { queryCache = \check -> withPushLogContext "query" . withPushLogContextCheckFingerprint check $ do
+            logTrace "querying"
+            resp <- ctx.queryCache check
+            logTrace $ "got: " ++ show resp
+            return resp
+        , updateCache = \result check -> withPushLogContext "update" . withPushLogContextCheckFingerprint check $ do
+            logTrace $ "sending: " ++ show result
+            ctx.updateCache result check
+            logTrace "done"
+        }

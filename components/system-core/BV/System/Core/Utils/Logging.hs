@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.System.Core.Utils.Logging
-    ( augmentCacheContextWithLogging
-    , augmentSolverContextWithLogging
+    ( augmentSolverContextWithLogging
     , runSolverWithLogging
     , withPushLogContextCheck
     , withPushLogContextCheckFingerprint
@@ -17,7 +16,6 @@ import BV.Core
 import BV.Logging
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build
-import BV.System.Core.Cache
 import BV.System.Core.Fingerprinting
 import BV.System.Core.Types
 
@@ -70,17 +68,3 @@ runSolverWithLogging =
     runSolverWith
         augmentSolverContextWithLogging
         (withPushLogContext "stderr" . logInfoGeneric)
-
-augmentCacheContextWithLogging :: MonadLoggerWithContext m => CacheContext m -> CacheContext m
-augmentCacheContextWithLogging ctx =
-    CacheContext
-        { queryCache = \check -> withPushLogContext "query" . withPushLogContextCheckFingerprint check $ do
-            logTrace "querying"
-            resp <- ctx.queryCache check
-            logTrace $ "got: " ++ show resp
-            return resp
-        , updateCache = \result check -> withPushLogContext "update" . withPushLogContextCheckFingerprint check $ do
-            logTrace $ "sending: " ++ show result
-            ctx.updateCache result check
-            logTrace "done"
-        }

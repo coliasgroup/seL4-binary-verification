@@ -136,7 +136,7 @@ nodeAt nodeAddr = nodeWithMetaAt nodeAddr % #node
 
 nodeWithMetaAt :: NodeAddr -> Lens' NodeMapBuilder NodeWithMeta
 nodeWithMetaAt nodeAddr =
-    #nodes % at nodeAddr % partially (castOptic _Just) % partially (castOptic _Just)
+    #nodes % at nodeAddr % unwrapped % unwrapped
 
 reserveNodeAddr :: State NodeMapBuilder NodeAddr
 reserveNodeAddr = do
