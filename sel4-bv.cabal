@@ -318,57 +318,6 @@ library system
     , vector
   default-language: GHC2021
 
-library system-core
-  visibility: public
-  exposed-modules:
-      BV.System.Core
-  other-modules:
-      BV.System.Core.Frontend
-      BV.System.Core.Solvers
-      BV.System.Core.Solvers.Backend
-      BV.System.Core.Solvers.Parallel
-      BV.System.Core.WithFingerprints
-  hs-source-dirs:
-      components/system-core
-  default-extensions:
-      FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
-      OverloadedLabels
-      OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind
-  build-depends:
-      async
-    , base
-    , base16-bytestring
-    , bytestring
-    , containers
-    , cryptohash-sha256
-    , deepseq
-    , exceptions
-    , monad-logger
-    , mtl
-    , optics
-    , parallel
-    , process
-    , safe-exceptions
-    , sel4-bv:concrete-syntax
-    , sel4-bv:core
-    , sel4-bv:logging
-    , sel4-bv:smtlib2
-    , sel4-bv:smtlib2-process
-    , sel4-bv:system-core2
-    , sel4-bv:system-utils
-    , stm
-    , text
-    , transformers
-    , unliftio-core
-    , vector
-  default-language: GHC2021
-
 library system-core2
   visibility: public
   exposed-modules:
