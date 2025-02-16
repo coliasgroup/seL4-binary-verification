@@ -4,6 +4,7 @@ module BV.System.Core2.Types
     ( Check (..)
     , CheckFilter (..)
     , CheckGroup (..)
+    , CheckIndexInGroup (..)
     , CheckSubgroup (..)
     , CheckSubgroupId (..)
     , Checks (..)
@@ -13,6 +14,8 @@ module BV.System.Core2.Types
     , takeSubgroupByFingerprint
     , takeSubgroupByIndex
     , takeSubgroupId
+    , toCoreCheck
+    , toCoreCheckGroup
     ) where
 
 import BV.Core
@@ -43,17 +46,22 @@ data CheckGroup
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+newtype CheckIndexInGroup
+  = CheckIndexInGroup { unwrap :: Integer }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
+
 data CheckSubgroup
   = CheckSubgroup
       { group :: CheckGroup
-      , checks :: [(Int, Check)]
+      , checks :: [(CheckIndexInGroup, Check)]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data CheckSubgroupId
   = CheckSubgroupId
       { groupFingerprint :: CheckGroupFingerprint
-      , checkIndices :: [Int]
+      , checkIndices :: [CheckIndexInGroup]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -86,7 +94,7 @@ elaborateChecks stagesOutputChecks = Checks $ M.mapWithKey (map . f) stagesOutpu
 fullSubgroup :: CheckGroup -> CheckSubgroup
 fullSubgroup group = CheckSubgroup
     { group
-    , checks = zip [0..] group.checks
+    , checks = zip (map CheckIndexInGroup [0..]) group.checks
     }
 
 data CheckFilter
@@ -105,7 +113,7 @@ filterChecks checkFilter =
                 . filter (\subgroup -> checkFilter.groups subgroup.group.fingerprint)))
             . M.filterWithKey (\k _v -> checkFilter.pairings k))
 
-takeSubgroupByIndex :: (Int -> Bool) -> CheckSubgroup -> CheckSubgroup
+takeSubgroupByIndex :: (CheckIndexInGroup -> Bool) -> CheckSubgroup -> CheckSubgroup
 takeSubgroupByIndex p = #checks %~ filter (\(i, _check) -> p i)
 
 takeSubgroupByFingerprint :: (CheckFingerprint -> Bool) -> CheckSubgroup -> CheckSubgroup
@@ -122,5 +130,28 @@ prettyCheckSubgroupIdShort :: CheckSubgroupId -> String
 prettyCheckSubgroupIdShort subgroupId =
     prettyCheckGroupFingerprintShort subgroupId.groupFingerprint
     ++ "("
-    ++ intercalate "," (map show subgroupId.checkIndices)
+    ++ intercalate "," (map (show . (.unwrap)) subgroupId.checkIndices)
     ++ ")"
+
+--
+
+toCoreCheck :: Check -> SMTProofCheck ()
+toCoreCheck check = SMTProofCheck
+    { setup = check.group.setup
+    , imp = SMTProofCheckImp
+        { meta = ()
+        , term = check.imp
+        }
+    }
+
+toCoreCheckGroup :: CheckSubgroup -> SMTProofCheckGroup ()
+toCoreCheckGroup subgroup = SMTProofCheckGroup
+    { setup = subgroup.group.setup
+    , imps =
+        [ SMTProofCheckImp
+            { meta = ()
+            , term = check.imp
+            }
+        | (_i, check) <- subgroup.checks
+        ]
+    }

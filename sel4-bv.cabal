@@ -375,6 +375,8 @@ library system-core2
       BV.System.Core2.Cache
       BV.System.Core2.Fingerprinting
       BV.System.Core2.Report
+      BV.System.Core2.Solvers.Backend
+      BV.System.Core2.Solvers.Parallel
       BV.System.Core2.Types
       BV.System.Core2.Utils.Logging
   hs-source-dirs:
