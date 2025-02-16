@@ -8,6 +8,7 @@ module BV.Core.Types.ProofChecks
     , PcImpHyp (..)
     , PcImpHypSide (..)
     , ProofCheck (..)
+    , ProofCheckDescription
     , ProofChecks (..)
     , Restr (..)
     , Visit (..)
@@ -41,6 +42,8 @@ data ProofCheck a
       , hyp :: Hyp
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
+
+type ProofCheckDescription = String
 
 data Hyp
   = HypPcImp PcImpHyp

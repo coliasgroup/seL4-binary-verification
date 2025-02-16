@@ -27,7 +27,7 @@ import Text.Printf (printf)
 
 type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident
 
-type NodeProofChecks = [ProofCheck String]
+type NodeProofChecks = [ProofCheck ProofCheckDescription]
 
 enumerateProofChecks :: ArgRenames -> Pairing -> Problem -> ProofScript () -> ProofScript NodeProofChecks
 enumerateProofChecks argRenames pairing problem proofScript =
@@ -257,7 +257,7 @@ splitVisitOneVisit detailsWithTag restrs visit = tagV detailsWithTag.tag $
         restr' = Restr detailsWithTag.value.split visit'
      in Visit (Addr detailsWithTag.value.split) (restr' : restrs)
 
-splitHypsAtVisit :: SplitProofNode () -> [Restr] -> VisitCount -> [(Hyp, String)]
+splitHypsAtVisit :: SplitProofNode () -> [Restr] -> VisitCount -> [(Hyp, ProofCheckDescription)]
 splitHypsAtVisit splitNode restrs visit =
     [ (pcImpH (PcImpHypSidePc visits.asm) (PcImpHypSidePc visits.c), "pc imp")
     , (pcImpH (PcImpHypSidePc visits.asm) (PcImpHypSidePc starts.asm), prettyTag Asm ++ " pc imp")
@@ -302,7 +302,7 @@ splitHypsAtVisit splitNode restrs visit =
         SimpleVisitCountViewNumber n -> machineWordE n
         SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
 
-loopEqHypsAtVisit :: Tag -> NodeAddr -> [Lambda] -> [Restr] -> VisitCount -> Bool -> [(Hyp, String)]
+loopEqHypsAtVisit :: Tag -> NodeAddr -> [Lambda] -> [Restr] -> VisitCount -> Bool -> [(Hyp, ProofCheckDescription)]
 loopEqHypsAtVisit tag split eqs restrs visitNum useIfAt =
     [ (pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start), prettyTag tag ++ " pc imp")
     ] ++

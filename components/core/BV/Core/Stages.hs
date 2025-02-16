@@ -10,10 +10,10 @@ module BV.Core.Stages
     , module BV.Core.Stages.FormulatePairing
     , module BV.Core.Stages.InlineAssembly
     , module BV.Core.Stages.PseudoCompile
-    , PreparedSMTProofChecks (..)
-    , SMTProofCheckDescription
+    , IntermediateStagesOutput (..)
     , StagesInput (..)
     , StagesOutput (..)
+    , StagesOutputChecks (..)
     , stages
     ) where
 
@@ -55,12 +55,23 @@ data StagesInput
 
 data StagesOutput
   = StagesOutput
-      { smtProofChecks :: PreparedSMTProofChecks
+      { checks :: StagesOutputChecks
         -- report
       , unhandledInlineAssemblyFunctions :: [Ident]
       , unhandledInstructionFunctions :: [Ident]
         -- intermediate, for checking
-      , functions :: Program
+      , intermediate :: IntermediateStagesOutput
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+newtype StagesOutputChecks
+  = StagesOutputChecks { unwrap :: M.Map PairingId [(ProofScriptNodePath, SMTProofCheckGroup ProofCheckDescription)] }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
+
+data IntermediateStagesOutput
+  = IntermediateStagesOutput
+      { functions :: Program
       , pairings :: Pairings
       , problems :: Problems
       , compatProofChecks :: CompatProofChecks
@@ -68,21 +79,18 @@ data StagesOutput
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-newtype PreparedSMTProofChecks
-  = PreparedSMTProofChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup SMTProofCheckDescription] }
-  deriving (Eq, Generic, Ord, Show)
-  deriving newtype (NFData)
-
 stages :: StagesInput -> StagesOutput
 stages input = StagesOutput
-    { smtProofChecks = preparedSMTProofChecks
+    { checks = finalChecks
     , unhandledInlineAssemblyFunctions = unhandledAsmFunctionNames.c
     , unhandledInstructionFunctions = unhandledAsmFunctionNames.asm
-    , functions = collectedFunctions
-    , pairings
-    , problems
-    , compatProofChecks
-    , compatSMTProofChecks
+    , intermediate = IntermediateStagesOutput
+        { functions = collectedFunctions
+        , pairings
+        , problems
+        , compatProofChecks
+        , compatSMTProofChecks
+        }
     }
 
   where
@@ -180,8 +188,12 @@ stages input = StagesOutput
             -- error "SMT proof check groups should be distinct"
             uncheckedSMTProofChecks
 
-    preparedSMTProofChecks = PreparedSMTProofChecks $
-        M.map fold (decorateSMTProofChecksWithDescriptions smtProofChecks).unwrap
+    finalChecks =
+        let f = decorateProofScriptWithProofScriptNodePathsWith $ \path groups ->
+                map (path,) groups
+            g script = fold script
+         in StagesOutputChecks $
+                M.map (g . f) smtProofChecks.unwrap
 
 
 asmFunNameToCFunName :: Ident -> Ident

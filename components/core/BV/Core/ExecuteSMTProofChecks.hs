@@ -2,15 +2,11 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 
 module BV.Core.ExecuteSMTProofChecks
-    ( ModelConfig (..)
-    , OnlineSolverFailureInfo (..)
+    ( OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
-    , SolverMemoryMode (..)
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
-    , prettyModelConfig
-    , prettySolverMemoryMode
     ) where
 
 import BV.Core.ModelConfig

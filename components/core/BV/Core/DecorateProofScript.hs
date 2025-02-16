@@ -1,12 +1,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.Core.DecorateProofScript
-    ( ProofScriptNodeLocation (..)
-    , SMTProofCheckDescription (..)
-    , decorateProofScriptWithProofScriptNodeLocationsWith
-    , decorateSMTProofChecksWithDescriptions
-    , prettyProofScriptNodeLocation
-    , prettySMTProofCheckDescription
+    ( ProofScriptNodePath (..)
+    , decorateProofScriptWithProofScriptNodePathsWith
+    , prettyProofScriptNodePath
     ) where
 
 import BV.Core.Types
@@ -16,30 +13,15 @@ import GHC.Generics (Generic)
 import Optics
 
 -- TODO implement
-data ProofScriptNodeLocation
-  = ProofScriptNodeLocation
+data ProofScriptNodePath
+  = ProofScriptNodePath
   deriving (Eq, Generic, NFData, Ord, Show)
 
 -- TODO implement
-decorateProofScriptWithProofScriptNodeLocationsWith
-    :: (ProofScriptNodeLocation -> a -> b) -> ProofScript a -> ProofScript b
-decorateProofScriptWithProofScriptNodeLocationsWith f = #root % traversed %~ f ProofScriptNodeLocation
+decorateProofScriptWithProofScriptNodePathsWith
+    :: (ProofScriptNodePath -> a -> b) -> ProofScript a -> ProofScript b
+decorateProofScriptWithProofScriptNodePathsWith f = #root % traversed %~ f ProofScriptNodePath
 
-data SMTProofCheckDescription
-  = SMTProofCheckDescription
-      { proofScriptNodeLocation :: ProofScriptNodeLocation
-      , meta :: String
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-decorateSMTProofChecksWithDescriptions
-    :: SMTProofChecks String -> SMTProofChecks SMTProofCheckDescription
-decorateSMTProofChecksWithDescriptions = #unwrap % traversed %~
-    decorateProofScriptWithProofScriptNodeLocationsWith (map . fmap . SMTProofCheckDescription)
-
-prettySMTProofCheckDescription :: SMTProofCheckDescription -> String
-prettySMTProofCheckDescription desc =
-    desc.meta <> " at:\n" <> prettyProofScriptNodeLocation desc.proofScriptNodeLocation
-
-prettyProofScriptNodeLocation :: ProofScriptNodeLocation -> String
-prettyProofScriptNodeLocation _loc = "TODO\n"
+-- TODO implement
+prettyProofScriptNodePath :: ProofScriptNodePath -> String
+prettyProofScriptNodePath _loc = "TODO\n"

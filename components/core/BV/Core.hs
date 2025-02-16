@@ -1,32 +1,33 @@
 module BV.Core
     ( Ident (..)
+    , IntermediateStagesOutput (..)
+    , MemoryMode (..)
     , ModelConfig (..)
     , OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
     , PairingId
     , PairingOf (..)
-    , PreparedSMTProofChecks (..)
-    , ProofScriptNodeLocation (..)
+    , ProofCheckDescription
+    , ProofScriptNodePath (..)
     , SMTProofCheck (..)
-    , SMTProofCheckDescription (..)
     , SMTProofCheckGroup (..)
     , SMTProofCheckImp (..)
     , SMTProofChecks (..)
-    , SolverMemoryMode (..)
     , StagesInput (..)
     , StagesOutput (..)
+    , StagesOutputChecks (..)
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
+    , prettyMemoryMode
     , prettyModelConfig
     , prettyPairingId
-    , prettyProofScriptNodeLocation
-    , prettySMTProofCheckDescription
-    , prettySolverMemoryMode
+    , prettyProofScriptNodePath
     , stages
     ) where
 
 import BV.Core.DecorateProofScript
 import BV.Core.ExecuteSMTProofChecks
+import BV.Core.ModelConfig
 import BV.Core.Stages
 import BV.Core.Types

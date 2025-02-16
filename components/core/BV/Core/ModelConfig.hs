@@ -1,12 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module BV.Core.ModelConfig
-    ( ModelConfig (..)
-    , SolverMemoryMode (..)
+    ( MemoryMode (..)
+    , ModelConfig (..)
     , configureSExpr
     , modelConfigPreamble
+    , prettyMemoryMode
     , prettyModelConfig
-    , prettySolverMemoryMode
     ) where
 
 import BV.Core.Types
@@ -17,22 +17,22 @@ import GHC.Generics (Generic)
 
 data ModelConfig
   = ModelConfig
-      { memoryMode :: SolverMemoryMode
+      { memoryMode :: MemoryMode
       }
   deriving (Eq, Generic, Ord, Show)
 
 prettyModelConfig :: ModelConfig -> String
-prettyModelConfig modelConfig = prettySolverMemoryMode modelConfig.memoryMode
+prettyModelConfig modelConfig = prettyMemoryMode modelConfig.memoryMode
 
-data SolverMemoryMode
-  = SolverMemoryModeWord8
-  | SolverMemoryModeWord32
+data MemoryMode
+  = MemoryModeWord8
+  | MemoryModeWord32
   deriving (Eq, Generic, Ord, Show)
 
-prettySolverMemoryMode :: SolverMemoryMode -> String
-prettySolverMemoryMode = \case
-    SolverMemoryModeWord8 -> "word8"
-    SolverMemoryModeWord32 -> "word32"
+prettyMemoryMode :: MemoryMode -> String
+prettyMemoryMode = \case
+    MemoryModeWord8 -> "word8"
+    MemoryModeWord32 -> "word32"
 
 configureSExpr :: ModelConfig -> SExprWithPlaceholders -> SExpr
 configureSExpr config ex = do
@@ -48,29 +48,29 @@ configureSExpr config ex = do
 modelConfigPreamble :: ModelConfig -> [SExpr]
 modelConfigPreamble config = map (configureSExpr config) (memoryModeConfig config.memoryMode).preamble
 
-memoryModeConfig :: SolverMemoryMode -> SolverMemoryModeConfig
+memoryModeConfig :: MemoryMode -> MemoryModeConfig
 memoryModeConfig = \case
-    SolverMemoryModeWord8 -> word8Config
-    SolverMemoryModeWord32 -> word32Config
+    MemoryModeWord8 -> word8Config
+    MemoryModeWord32 -> word32Config
 
-data SolverMemoryModeConfig
-  = SolverMemoryModeConfig
+data MemoryModeConfig
+  = MemoryModeConfig
       { preamble :: [SExprWithPlaceholders]
       , memSort :: SExpr
       , memDomSort :: SExpr
       }
   deriving (Eq, Generic, Ord, Show)
 
-word8Config :: SolverMemoryModeConfig
-word8Config = SolverMemoryModeConfig
+word8Config :: MemoryModeConfig
+word8Config = MemoryModeConfig
     { preamble = readSExprsWithPlaceholders
         $(makeRelativeToProject "components/core/data/word8-preamble.smt2" >>= embedStringFile)
     , memSort = readSExpr "(Array (_ BitVec 32) (_ BitVec 8))"
     , memDomSort = readSExpr "(Array (_ BitVec 32) (_ BitVec 1))"
     }
 
-word32Config :: SolverMemoryModeConfig
-word32Config = SolverMemoryModeConfig
+word32Config :: MemoryModeConfig
+word32Config = MemoryModeConfig
     { preamble = readSExprsWithPlaceholders
         $(makeRelativeToProject "components/core/data/word32-preamble.smt2" >>= embedStringFile)
     , memSort = readSExpr "(Array (_ BitVec 30) (_ BitVec 32))"
