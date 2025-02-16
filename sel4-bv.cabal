@@ -376,6 +376,7 @@ library system-core2
   visibility: public
   exposed-modules:
       BV.System.Core2.Fingerprinting
+      BV.System.Core2.Types
   hs-source-dirs:
       components/system-core2
   default-extensions:

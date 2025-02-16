@@ -9,6 +9,7 @@ module BV.Core
     , PairingOf (..)
     , ProofCheckDescription
     , ProofScriptNodePath (..)
+    , SExprWithPlaceholders
     , SMTProofCheck (..)
     , SMTProofCheckGroup (..)
     , SMTProofCheckImp (..)
