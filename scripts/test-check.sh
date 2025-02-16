@@ -24,4 +24,8 @@ time $path \
     --ignore-function fastpath_reply_recv \
     --ignore-function-early c_handle_syscall \
     --ignore-function arm_swi_syscall \
+    --file-log $here/../tmp/logs/test-check.log.txt \
+    --sqlite-cache $here/../tmp/cache.sqlite \
+    --file-log-level debug \
+    -j 16 \
     "$@"

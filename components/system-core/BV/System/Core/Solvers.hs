@@ -31,7 +31,6 @@ import BV.System.Core.Report
 import BV.System.Core.Solvers.Backend
 import BV.System.Core.Solvers.Parallel
 import BV.System.Core.Types
-import BV.System.Core.Utils.Logging
 
 import Control.Monad (filterM, (>=>))
 import Control.Monad.Catch (MonadMask)
@@ -42,6 +41,8 @@ import Data.Foldable (for_)
 import Data.List (genericIndex)
 import GHC.Generics (Generic)
 import Optics
+
+-- TODO logging
 
 data SolversConfig
   = SolversConfig
@@ -66,20 +67,18 @@ runSolvers throttle backend config subgroup = runExceptT $ do
             >=> checkUsingOfflineSolvers throttle backend config
 
 filterSubgroupUsingCache
-    :: (MonadLoggerWithContext m, MonadCache m)
+    :: MonadCache m
     => CheckSubgroup
     -> ExceptT CheckFailure m CheckSubgroup
 filterSubgroupUsingCache = traverseOf #checks . filterM $ \(_i, check) -> do
-    withPushLogContext "cache" $
-        withPushLogContextCheck check $ do
-            cached <- queryCache check.fingerprint
-            case cached of
-                Nothing -> return True
-                Just AcceptableSatResultUnsat -> return False
-                Just AcceptableSatResultSat -> throwError $ CheckFailure
-                    { cause = SomeSolverAnsweredSat Cache
-                    , source = CheckFailureSourceCheck check
-                    }
+        cached <- queryCache check.fingerprint
+        case cached of
+            Nothing -> return True
+            Just AcceptableSatResultUnsat -> return False
+            Just AcceptableSatResultSat -> throwError $ CheckFailure
+                { cause = SomeSolverAnsweredSat Cache
+                , source = CheckFailureSourceCheck check
+                }
 
 filterSubgroupsUsingOnlineSolver
     :: (MonadLoggerWithContext m, MonadCache m)

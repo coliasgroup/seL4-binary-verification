@@ -265,6 +265,8 @@ library smtlib2-process
 library system
   visibility: public
   exposed-modules:
+      BV.System.Cache.Postgres
+      BV.System.Cache.SQLite
       BV.System.EvalStages
       BV.System.Local
   hs-source-dirs:
@@ -281,22 +283,17 @@ library system
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
-    , attoparsec
     , base
-    , base16-bytestring
     , bytestring
     , containers
-    , cryptohash-sha256
     , deepseq
     , directory
     , exceptions
     , filepath
-    , megaparsec
     , monad-logger
     , mtl
     , optics
     , parallel
-    , process
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
@@ -306,6 +303,7 @@ library system
     , sel4-bv:system-core
     , sel4-bv:system-utils
     , sel4-bv:target-dir
+    , sqlite-simple
     , stm
     , text
     , transformers
@@ -523,8 +521,6 @@ executable cli
     , optparse-applicative
     , optparse-generic
     , parallel
-    , persistent
-    , persistent-sqlite
     , pretty-simple
     , resourcet
     , safe-exceptions

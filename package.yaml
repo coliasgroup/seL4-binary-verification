@@ -180,15 +180,11 @@ internal-libraries:
       - sel4-bv:system-core
       - sel4-bv:system-utils
       # external
-      - base16-bytestring
-      - cryptohash-sha256
-      - attoparsec
-      - megaparsec
-      - process
+      - unliftio-core
+      - monad-logger
       - filepath
       - directory
-      - monad-logger
-      - unliftio-core
+      - sqlite-simple
 
   test-utils:
     source-dirs: components/tests/test-utils
@@ -231,8 +227,6 @@ executables:
       - optparse-generic
       - ansi-terminal
       - base16-bytestring
-      - persistent
-      - persistent-sqlite
       # TODO for debugging
       - pretty-simple
     ghc-options: *exe-ghc-options

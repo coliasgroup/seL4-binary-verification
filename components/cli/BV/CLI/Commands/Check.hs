@@ -6,6 +6,8 @@ import BV.CLI.Opts
 import BV.CLI.SolverList
 import BV.Core
 import BV.Logging
+import BV.System.Cache.Postgres
+import BV.System.Cache.SQLite
 import BV.System.Core
 import BV.System.EvalStages
 import BV.System.Local
@@ -19,6 +21,7 @@ import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.Foldable (for_)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Map as M
+import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import qualified Data.Yaml as Y
 import Optics
@@ -32,6 +35,12 @@ runCheck opts = do
     maxNumConcurrentSolvers <- fromIntegral <$> getMaxNumConcurrentSolvers opts
     solverList <- readSolverList opts.solvers
     let solversConfig = getSolversConfig opts solverList
+    let backendConfig = LocalConfig
+            { numJobs = maxNumConcurrentSolvers
+            , solversConfig
+            }
+    withCacheCtx <- getWithCacheCtx opts
+    let earlyAsmFunctionFilter = getEarlyAsmFunctionFilter opts
     let checkFilter = getCheckFilter opts
     let evalStagesCtx = EvalStagesContext
             { force = True
@@ -39,15 +48,9 @@ runCheck opts = do
             , referenceTargetDir = Just (TargetDir opts.inputTargetDir)
             , mismatchDumpDir = opts.mismatchDir
             }
-    let earlyAsmFunctionFilter = getEarlyAsmFunctionFilter opts
     input <- liftIO $ readStagesInput earlyAsmFunctionFilter (TargetDir opts.inputTargetDir)
     checks <- filterChecks checkFilter <$> evalStages evalStagesCtx input
-    let cacheCtx = trivialCacheContext
-    let backendConfig = LocalConfig
-            { numJobs = maxNumConcurrentSolvers
-            , solversConfig
-            }
-    report <- flip runCacheT cacheCtx $ do
+    report <- withCacheCtx $ runCacheT $ do
         runLocal backendConfig checks
     let (success, displayedReport) = displayReport report
     liftIO $ putStr displayedReport
@@ -56,9 +59,6 @@ runCheck opts = do
         Nothing -> return ()
     unless success $ do
         liftIO exitFailure
-
-solverCommandFromNonEmpty :: NonEmpty String -> SolverCommand
-solverCommandFromNonEmpty (path :| args) = SolverCommand { path, args }
 
 getMaxNumConcurrentSolvers :: (MonadIO m, MonadLogger m) => CheckOpts -> m Int
 getMaxNumConcurrentSolvers opts = do
@@ -73,34 +73,20 @@ getMaxNumConcurrentSolvers opts = do
         Nothing -> do
             return numCaps
 
-getEarlyAsmFunctionFilter :: CheckOpts -> Ident -> Bool
-getEarlyAsmFunctionFilter opts = (`S.notMember` S.fromList opts.ignoreFunctionsEarly)
+getWithCacheCtx :: (MonadUnliftIO m, MonadLoggerWithContext m) => CheckOpts -> m ((CacheContext m -> m a) -> m a)
+getWithCacheCtx opts = do
+    augmentCacheContextWithMutualExclusion <- liftIO makeAugmentCacheContextWithMutualExclusion
+    let augment with f = with $ f . augmentCacheContextWithLogging . augmentCacheContextWithMutualExclusion
+    case map augment $ catMaybes
+        [ withSQLiteCacheContext <$> opts.sqliteCache
+        , withPostgresCacheContext <$> opts.postgresCache
+        ] of
+            [] -> return withTrivialCacheContext
+            [with] -> return with
+            _ -> liftIO $ die "at most one cache may be specified"
 
-getCheckFilter :: CheckOpts -> CheckFilter
-getCheckFilter opts = CheckFilter
-    { pairings =
-        let isIncluded = case opts.includeFunctions of
-                [] -> const True
-                include ->
-                    let includeSet = S.fromList include
-                    in \pairingId -> pairingId.asm `S.member` includeSet
-            isIgnored =
-                let ignoreSet = S.fromList opts.ignoreFunctions
-                 in \pairingId -> pairingId.asm `S.member` ignoreSet
-         in \pairingId -> isIncluded pairingId && not (isIgnored pairingId)
-    , groups = case opts.includeGroups of
-        [] -> const True
-        include -> \groupFingerprint -> or
-            [ matchCheckGroupFingerprint pattern groupFingerprint
-            | pattern <- include
-            ]
-    , checks = case opts.includeChecks of
-        [] -> const True
-        include -> \checkFingerprint -> or
-            [ matchCheckFingerprint pattern checkFingerprint
-            | pattern <- include
-            ]
-    }
+solverCommandFromNonEmpty :: NonEmpty String -> SolverCommand
+solverCommandFromNonEmpty (path :| args) = SolverCommand { path, args }
 
 getSolversConfig :: CheckOpts -> SolverList -> SolversConfig
 getSolversConfig opts solverList = SolversConfig
@@ -136,3 +122,32 @@ readSolverList path = do
             return v
         Left ex -> do
             liftIO $ die (Y.prettyPrintParseException ex)
+
+getEarlyAsmFunctionFilter :: CheckOpts -> Ident -> Bool
+getEarlyAsmFunctionFilter opts = (`S.notMember` S.fromList opts.ignoreFunctionsEarly)
+
+getCheckFilter :: CheckOpts -> CheckFilter
+getCheckFilter opts = CheckFilter
+    { pairings =
+        let isIncluded = case opts.includeFunctions of
+                [] -> const True
+                include ->
+                    let includeSet = S.fromList include
+                    in \pairingId -> pairingId.asm `S.member` includeSet
+            isIgnored =
+                let ignoreSet = S.fromList opts.ignoreFunctions
+                 in \pairingId -> pairingId.asm `S.member` ignoreSet
+         in \pairingId -> isIncluded pairingId && not (isIgnored pairingId)
+    , groups = case opts.includeGroups of
+        [] -> const True
+        include -> \groupFingerprint -> or
+            [ matchCheckGroupFingerprint pattern groupFingerprint
+            | pattern <- include
+            ]
+    , checks = case opts.includeChecks of
+        [] -> const True
+        include -> \checkFingerprint -> or
+            [ matchCheckFingerprint pattern checkFingerprint
+            | pattern <- include
+            ]
+    }

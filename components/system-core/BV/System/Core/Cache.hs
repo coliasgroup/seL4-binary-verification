@@ -9,19 +9,23 @@ module BV.System.Core.Cache
     , MonadCache (..)
     , augmentCacheContextWithLogging
     , liftIOCacheContext
+    , makeAugmentCacheContextWithMutualExclusion
     , runCacheT
     , trivialCacheContext
+    , withTrivialCacheContext
     ) where
 
 import BV.Logging
 import BV.System.Core.Fingerprinting
 import BV.System.Core.Utils.Logging
 
+import Control.Concurrent (newQSem, signalQSem, waitQSem)
+import Control.Exception (bracket_)
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO)
-import Control.Monad.Logger (LoggingT, MonadLogger, MonadLoggerIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
+import Control.Monad.Logger (LoggingT, MonadLoggerIO)
 import Control.Monad.Reader (MonadTrans (lift), ReaderT (runReaderT), asks)
 import GHC.Generics (Generic)
 
@@ -30,7 +34,7 @@ import GHC.Generics (Generic)
 data AcceptableSatResult
   = AcceptableSatResultSat
   | AcceptableSatResultUnsat
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Enum, Eq, Generic, Ord, Show)
 
 class Monad m => MonadCache m where
     queryCache :: CheckFingerprint -> m (Maybe AcceptableSatResult)
@@ -96,16 +100,34 @@ trivialCacheContext = CacheContext
     , updateCache = \_result _check -> return ()
     }
 
+withTrivialCacheContext :: Monad m => (CacheContext m -> m a) -> m a
+withTrivialCacheContext f = f trivialCacheContext
+
 augmentCacheContextWithLogging :: MonadLoggerWithContext m => CacheContext m -> CacheContext m
 augmentCacheContextWithLogging ctx =
     CacheContext
-        { queryCache = \check -> withPushLogContext "query" . withPushLogContextCheckFingerprint check $ do
-            logTrace "querying"
-            resp <- ctx.queryCache check
-            logTrace $ "got: " ++ show resp
-            return resp
-        , updateCache = \result check -> withPushLogContext "update" . withPushLogContextCheckFingerprint check $ do
-            logTrace $ "sending: " ++ show result
-            ctx.updateCache result check
-            logTrace "done"
+        { queryCache = \check -> do
+            withPushLogContext "cache" $ do
+                withPushLogContext "query" $ do
+                    withPushLogContextCheckFingerprint check $ do
+                        logTrace "querying"
+                        resp <- ctx.queryCache check
+                        logTrace $ "got: " ++ show resp
+                        return resp
+        , updateCache = \result check -> do
+            withPushLogContext "cache" $ do
+                withPushLogContext "update" $ do
+                    withPushLogContextCheckFingerprint check $ do
+                        logTrace $ "sending: " ++ show result
+                        ctx.updateCache result check
+                        logTrace "done"
+        }
+
+makeAugmentCacheContextWithMutualExclusion :: (MonadUnliftIO m, MonadLoggerWithContext m) => IO (CacheContext m -> CacheContext m)
+makeAugmentCacheContextWithMutualExclusion = do
+    sem <- newQSem 1
+    let withLock m = withRunInIO $ \run -> bracket_ (waitQSem sem) (signalQSem sem) (run m)
+    return $ \ctx -> CacheContext
+        { queryCache = \check -> withLock $ ctx.queryCache check
+        , updateCache = \result check -> withLock $ ctx.updateCache result check
         }

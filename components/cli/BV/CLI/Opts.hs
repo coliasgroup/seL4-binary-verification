@@ -101,6 +101,8 @@ data CheckOpts
       , solvers :: FilePath
       , onlineSolverTimeout :: SolverTimeout
       , offlineSolverTimeout :: SolverTimeout
+      , sqliteCache :: Maybe String
+      , postgresCache :: Maybe String
       , inputTargetDir :: FilePath
       , dumpTargetDir :: Maybe FilePath
       , mismatchDir :: Maybe FilePath
@@ -300,6 +302,16 @@ checkOptsParser = do
         , metavar "NUM_JOBS"
         , help "Maximun number of concurrent solvers"
         ]
+    sqliteCache <- optional $ option' str
+        [ long "sqlite-cache"
+        , metavar "DATABASE"
+        , help "SQLite database to use as a cache"
+        ]
+    postgresCache <- optional $ option' str
+        [ long "postgres-cache"
+        , metavar "DATABASE"
+        , help "PostgreSQL database to use as a cache"
+        ]
     inputTargetDir <- option' str
         [ long "target-dir"
         , short 'd'
@@ -348,6 +360,8 @@ checkOptsParser = do
         , solvers
         , onlineSolverTimeout
         , offlineSolverTimeout
+        , sqliteCache
+        , postgresCache
         , inputTargetDir
         , dumpTargetDir
         , mismatchDir
