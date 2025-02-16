@@ -185,7 +185,7 @@ globalOptsParser = do
 
 loggingOptsParser :: Parser LoggingOpts
 loggingOptsParser = do
-    stderrLogOpts <- logOptsParser "stderr" ""
+    stderrLogOpts <- logOptsParser defaultLogFormatForStderr "stderr" ""
     fileLogOpts <- optional $ do
         dst <- option' str
             [ long "file-log"
@@ -193,12 +193,12 @@ loggingOptsParser = do
             , help "Destination file for file log"
             , action "file"
             ]
-        logOpts <- logOptsParser "file" "file-"
+        logOpts <- logOptsParser defaultLogFormatForFile "file" "file-"
         return $ FileLogOpts { dst, logOpts }
     return $ LoggingOpts { stderrLogOpts, fileLogOpts }
 
-logOptsParser :: String -> String -> Parser LogOpts
-logOptsParser logName prefix = do
+logOptsParser :: LogFormat -> String -> String -> Parser LogOpts
+logOptsParser defaultLogFormat logName prefix = do
     level <- option' logLevelReader
         [ long (prefix ++ "log-level")
         , metavar "LEVEL"
@@ -250,8 +250,11 @@ logFormatValues =
     , "human"
     ]
 
-defaultLogFormat :: LogFormat
-defaultLogFormat = LogFormatText
+defaultLogFormatForStderr :: LogFormat
+defaultLogFormatForStderr = LogFormatHuman
+
+defaultLogFormatForFile :: LogFormat
+defaultLogFormatForFile = LogFormatText
 
 commandOptsParser :: Parser CommandOpts
 commandOptsParser =
@@ -362,7 +365,7 @@ extractSMTOptsParser = do
     format <- option' logFormatReader
         [ long "format"
         , metavar "FORMAT"
-        , value defaultLogFormat
+        , value defaultLogFormatForFile
         , help "Log format for input log"
         , completeWith logFormatValues
         ]

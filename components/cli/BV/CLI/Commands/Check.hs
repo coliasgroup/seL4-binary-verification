@@ -32,46 +32,8 @@ runCheck :: (MonadUnliftIO m, MonadMask m, MonadFail m, MonadLoggerWithContext m
 runCheck opts = do
     maxNumConcurrentSolvers <- fromIntegral <$> getMaxNumConcurrentSolvers opts
     solverList <- readSolverList opts.solvers
-    let solversConfig = SolversConfig
-            { online = solverList.online <&> \online -> OnlineSolverConfig
-                { command = solverCommandFromNonEmpty online.command
-                , modelConfig = ModelConfig
-                    { memoryMode = online.memoryMode
-                    }
-                , timeout = opts.onlineSolverTimeout
-                }
-            , offline = OfflineSolversConfig
-                { groups =
-                    [ OfflineSolverGroupConfig
-                        { commandName
-                        , command = solverCommandFromNonEmpty g.command
-                        , scopes = g.scopes
-                        , modelConfigs = map ModelConfig g.memoryModes
-                        }
-                    | (commandName, g) <- M.toAscList solverList.offline
-                    ]
-                , timeout = opts.offlineSolverTimeout
-                }
-            }
-    let checkFilter = CheckFilter
-            { pairings = case opts.includeFunctions of
-                [] -> const True
-                include ->
-                    let includeSet = S.fromList include
-                    in \pairingId -> pairingId.asm `S.member` includeSet
-            , groups = case opts.includeGroups of
-                [] -> const True
-                include -> \groupFingerprint -> or
-                    [ matchCheckGroupFingerprint pattern groupFingerprint
-                    | pattern <- include
-                    ]
-            , checks = case opts.includeChecks of
-                [] -> const True
-                include -> \checkFingerprint -> or
-                    [ matchCheckFingerprint pattern checkFingerprint
-                    | pattern <- include
-                    ]
-            }
+    let solversConfig = getSolversConfig opts solverList
+    let checkFilter = getCheckFilter opts
     let evalStagesCtx = EvalStagesContext
             { force = True
             , dumpTargetDir = TargetDir <$> opts.dumpTargetDir
@@ -110,6 +72,50 @@ getMaxNumConcurrentSolvers opts = do
             return n
         Nothing -> do
             return numCaps
+
+getCheckFilter :: CheckOpts -> CheckFilter
+getCheckFilter opts = CheckFilter
+    { pairings = case opts.includeFunctions of
+        [] -> const True
+        include ->
+            let includeSet = S.fromList include
+            in \pairingId -> pairingId.asm `S.member` includeSet
+    , groups = case opts.includeGroups of
+        [] -> const True
+        include -> \groupFingerprint -> or
+            [ matchCheckGroupFingerprint pattern groupFingerprint
+            | pattern <- include
+            ]
+    , checks = case opts.includeChecks of
+        [] -> const True
+        include -> \checkFingerprint -> or
+            [ matchCheckFingerprint pattern checkFingerprint
+            | pattern <- include
+            ]
+    }
+
+getSolversConfig :: CheckOpts -> SolverList -> SolversConfig
+getSolversConfig opts solverList = SolversConfig
+    { online = solverList.online <&> \online -> OnlineSolverConfig
+        { command = solverCommandFromNonEmpty online.command
+        , modelConfig = ModelConfig
+            { memoryMode = online.memoryMode
+            }
+        , timeout = opts.onlineSolverTimeout
+        }
+    , offline = OfflineSolversConfig
+        { groups =
+            [ OfflineSolverGroupConfig
+                { commandName
+                , command = solverCommandFromNonEmpty g.command
+                , scopes = g.scopes
+                , modelConfigs = map ModelConfig g.memoryModes
+                }
+            | (commandName, g) <- M.toAscList solverList.offline
+            ]
+        , timeout = opts.offlineSolverTimeout
+        }
+    }
 
 readSolverList :: (MonadIO m, MonadLoggerWithContext m) => FilePath -> m SolverList
 readSolverList path = do
