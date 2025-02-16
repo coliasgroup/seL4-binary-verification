@@ -100,7 +100,7 @@ logOnlineSolverResult :: MonadLoggerWithContext m => CheckSubgroup -> Either Onl
 logOnlineSolverResult subgroup result = do
     case result of
         Right () -> do
-            logDebug "answered sat for all checks"
+            logDebug "answered unsat for all checks"
         Left abort -> do
             logDebug $ printf "answered sat for %d checks" abort.index
             let (_i, check) = subgroup.checks `genericIndex` abort.index
