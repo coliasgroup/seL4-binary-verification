@@ -323,13 +323,10 @@ library system-core
   exposed-modules:
       BV.System.Core
   other-modules:
-      BV.System.Core.Cache
       BV.System.Core.Frontend
-      BV.System.Core.Report
       BV.System.Core.Solvers
       BV.System.Core.Solvers.Backend
       BV.System.Core.Solvers.Parallel
-      BV.System.Core.Utils.Logging
       BV.System.Core.WithFingerprints
   hs-source-dirs:
       components/system-core
@@ -375,8 +372,11 @@ library system-core
 library system-core2
   visibility: public
   exposed-modules:
+      BV.System.Core2.Cache
       BV.System.Core2.Fingerprinting
+      BV.System.Core2.Report
       BV.System.Core2.Types
+      BV.System.Core2.Utils.Logging
   hs-source-dirs:
       components/system-core2
   default-extensions:

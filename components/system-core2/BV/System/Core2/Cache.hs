@@ -2,7 +2,7 @@
 
 {-# HLINT ignore "Avoid lambda" #-}
 
-module BV.System.Core.Cache
+module BV.System.Core2.Cache
     ( AcceptableSatResult (..)
     , CacheContext (..)
     , CacheT
@@ -13,7 +13,7 @@ module BV.System.Core.Cache
     ) where
 
 import BV.Logging (MonadLoggerWithContext)
-import BV.System.Core.Fingerprinting
+import BV.System.Core2.Fingerprinting
 
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)
@@ -29,8 +29,8 @@ data AcceptableSatResult
   deriving (Eq, Generic, Ord, Show)
 
 class Monad m => MonadCache m where
-    queryCache :: SMTProofCheckFingerprint -> m (Maybe AcceptableSatResult)
-    updateCache :: AcceptableSatResult -> SMTProofCheckFingerprint -> m ()
+    queryCache :: CheckFingerprint -> m (Maybe AcceptableSatResult)
+    updateCache :: AcceptableSatResult -> CheckFingerprint -> m ()
 
 instance MonadCache m => MonadCache (ExceptT e m) where
     queryCache check = lift $ queryCache check
@@ -68,8 +68,8 @@ runCacheT = runReaderT . (.unwrap)
 
 data CacheContext m
   = CacheContext
-      { queryCache :: SMTProofCheckFingerprint -> m (Maybe AcceptableSatResult)
-      , updateCache :: AcceptableSatResult -> SMTProofCheckFingerprint -> m ()
+      { queryCache :: CheckFingerprint -> m (Maybe AcceptableSatResult)
+      , updateCache :: AcceptableSatResult -> CheckFingerprint -> m ()
       }
 
 instance Monad m => MonadCache (CacheT m) where

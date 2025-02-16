@@ -9,7 +9,7 @@ module BV.System.Core2.Types
     , Checks (..)
     , elaborateChecks
     , filterChecks
-    , prettySubgroupIdShort
+    , prettyCheckSubgroupIdShort
     , takeSubgroupByFingerprint
     , takeSubgroupByIndex
     , takeSubgroupId
@@ -118,8 +118,8 @@ takeSubgroupId subgroup =
         , checkIndices = map fst subgroup.checks
         }
 
-prettySubgroupIdShort :: CheckSubgroupId -> String
-prettySubgroupIdShort subgroupId =
+prettyCheckSubgroupIdShort :: CheckSubgroupId -> String
+prettyCheckSubgroupIdShort subgroupId =
     prettyCheckGroupFingerprintShort subgroupId.groupFingerprint
     ++ "("
     ++ intercalate "," (map show subgroupId.checkIndices)

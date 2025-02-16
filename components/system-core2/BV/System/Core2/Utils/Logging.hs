@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.System.Core.Utils.Logging
+module BV.System.Core2.Utils.Logging
     ( augmentCacheContextWithLogging
     , augmentSolverContextWithLogging
     , runSolverWithLogging
@@ -17,9 +17,9 @@ import BV.Core
 import BV.Logging
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build
-import BV.System.Core.Cache
-import BV.System.Core.Fingerprinting
-import BV.System.Core.WithFingerprints
+import BV.System.Core2.Cache
+import BV.System.Core2.Fingerprinting
+import BV.System.Core2.Types
 
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
@@ -30,26 +30,26 @@ withPushLogContextPairing :: MonadLoggerWithContext m => PairingId -> m a -> m a
 withPushLogContextPairing pairingId = withPushLogContext $
     "pairing " ++ pairingId.asm.unwrap
 
-withPushLogContextCheckGroup :: MonadLoggerWithContext m => SMTProofCheckGroupWithFingerprints i -> m a -> m a
+withPushLogContextCheckGroup :: MonadLoggerWithContext m => CheckGroup -> m a -> m a
 withPushLogContextCheckGroup group = withPushLogContextCheckGroupFingerprint group.fingerprint
 
-withPushLogContextCheckGroupFingerprint :: MonadLoggerWithContext m => SMTProofCheckGroupFingerprint -> m a -> m a
+withPushLogContextCheckGroupFingerprint :: MonadLoggerWithContext m => CheckGroupFingerprint -> m a -> m a
 withPushLogContextCheckGroupFingerprint fingerprint = withPushLogContext $
-    "group " ++ prettySMTProofCheckGroupFingerprintShort fingerprint
+    "group " ++ prettyCheckGroupFingerprintShort fingerprint
 
-withPushLogContextCheckSubgroup :: MonadLoggerWithContext m => SMTProofCheckSubgroupWithFingerprints i -> m a -> m a
-withPushLogContextCheckSubgroup = withPushLogContextCheckSubgroupId . subgroupIdOf
+withPushLogContextCheckSubgroup :: MonadLoggerWithContext m => CheckSubgroup -> m a -> m a
+withPushLogContextCheckSubgroup = withPushLogContextCheckSubgroupId . takeSubgroupId
 
-withPushLogContextCheckSubgroupId :: MonadLoggerWithContext m => SMTProofCheckSubgroupId -> m a -> m a
+withPushLogContextCheckSubgroupId :: MonadLoggerWithContext m => CheckSubgroupId -> m a -> m a
 withPushLogContextCheckSubgroupId subgroupId = withPushLogContext $
-    "subgroup " ++ prettySMTProofCheckSubgroupIdShort subgroupId
+    "subgroup " ++ prettyCheckSubgroupIdShort subgroupId
 
-withPushLogContextCheck :: MonadLoggerWithContext m => SMTProofCheckWithFingerprint i -> m a -> m a
-withPushLogContextCheck check = withPushLogContextCheckFingerprint check.imp.meta.fingerprint
+withPushLogContextCheck :: MonadLoggerWithContext m => Check -> m a -> m a
+withPushLogContextCheck check = withPushLogContextCheckFingerprint check.fingerprint
 
-withPushLogContextCheckFingerprint :: MonadLoggerWithContext m => SMTProofCheckFingerprint -> m a -> m a
+withPushLogContextCheckFingerprint :: MonadLoggerWithContext m => CheckFingerprint -> m a -> m a
 withPushLogContextCheckFingerprint fingerprint = withPushLogContext $
-    "check " ++ prettySMTProofCheckFingerprintShort fingerprint
+    "check " ++ prettyCheckFingerprintShort fingerprint
 
 augmentSolverContextWithLogging :: MonadLoggerWithContext m => SolverContext m -> SolverContext m
 augmentSolverContextWithLogging ctx =
