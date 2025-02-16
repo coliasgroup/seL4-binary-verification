@@ -324,7 +324,6 @@ library system-core
       BV.System.Core
   other-modules:
       BV.System.Core.Cache
-      BV.System.Core.Fingerprinting
       BV.System.Core.Frontend
       BV.System.Core.Report
       BV.System.Core.Solvers
@@ -375,6 +374,8 @@ library system-core
 
 library system-core2
   visibility: public
+  exposed-modules:
+      BV.System.Core2.Fingerprinting
   hs-source-dirs:
       components/system-core2
   default-extensions:
