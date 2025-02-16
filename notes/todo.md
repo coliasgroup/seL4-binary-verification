@@ -51,4 +51,6 @@
 
 - ensure that all functions in the binary are checked, by specifying entrypoints
 
-- code defensively against sat solver bugs. for example, don't just INSERT OR IGNORE in sqlite. instead, ensure that values match
+- code defensively against sat solver bugs
+  - don't just INSERT OR IGNORE in sqlite. instead, ensure that values match
+  - add feature to require unsat from _multiple_ solvers, not just any solver, and(?) cache solver identities (witnesses) along with results
