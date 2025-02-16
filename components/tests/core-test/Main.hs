@@ -48,5 +48,5 @@ testStagesWithChecking = do
         }
     referenceTargetDir =
         -- testSeL4TargetDirBig
-        testSeL4TargetDirSmall
-        -- testSeL4TargetDirFocused
+        -- testSeL4TargetDirSmall
+        testSeL4TargetDirFocused
