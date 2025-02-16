@@ -2,7 +2,7 @@
 
 {-# HLINT ignore "Redundant flip" #-}
 
-module BV.System.Core2.Solvers
+module BV.System.Core.Solvers
     ( OfflineSolverBackend
     , OfflineSolverCommandName
     , OfflineSolverConfig (..)
@@ -24,12 +24,12 @@ module BV.System.Core2.Solvers
 
 import BV.Core
 import BV.Logging
-import BV.System.Core2.Cache
-import BV.System.Core2.Report
-import BV.System.Core2.Solvers.Backend
-import BV.System.Core2.Solvers.Parallel
-import BV.System.Core2.Types
-import BV.System.Core2.Utils.Logging
+import BV.System.Core.Cache
+import BV.System.Core.Report
+import BV.System.Core.Solvers.Backend
+import BV.System.Core.Solvers.Parallel
+import BV.System.Core.Types
+import BV.System.Core.Utils.Logging
 
 import Control.Monad (filterM, (>=>))
 import Control.Monad.Catch (MonadMask)

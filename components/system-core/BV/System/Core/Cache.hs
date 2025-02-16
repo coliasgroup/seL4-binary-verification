@@ -2,7 +2,7 @@
 
 {-# HLINT ignore "Avoid lambda" #-}
 
-module BV.System.Core2.Cache
+module BV.System.Core.Cache
     ( AcceptableSatResult (..)
     , CacheContext (..)
     , CacheT
@@ -13,7 +13,7 @@ module BV.System.Core2.Cache
     ) where
 
 import BV.Logging (MonadLoggerWithContext)
-import BV.System.Core2.Fingerprinting
+import BV.System.Core.Fingerprinting
 
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT, MonadError)

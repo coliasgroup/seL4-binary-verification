@@ -1,4 +1,4 @@
-module BV.System.Core2.Solvers.Backend
+module BV.System.Core.Solvers.Backend
     ( OfflineSolverBackend
     , OfflineSolverCommandName
     , OfflineSolverConfig (..)
@@ -14,8 +14,8 @@ import BV.Core
 import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.Command
-import BV.System.Core2.Types
-import BV.System.Core2.Utils.Logging
+import BV.System.Core.Types
+import BV.System.Core.Utils.Logging
 import BV.System.Utils.Stopwatch
 
 import Control.Monad.Catch (MonadMask)

@@ -1,4 +1,4 @@
-module BV.System.Core2.Report
+module BV.System.Core.Report
     ( CheckFailure (..)
     , CheckFailureCause (..)
     , CheckFailureCauseSolverId (..)
@@ -10,8 +10,8 @@ module BV.System.Core2.Report
     ) where
 
 import BV.Core
-import BV.System.Core2.Fingerprinting
-import BV.System.Core2.Types
+import BV.System.Core.Fingerprinting
+import BV.System.Core.Types
 
 import Data.List (intersperse)
 import qualified Data.Map as M

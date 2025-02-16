@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 
-module BV.System.Core2.Solvers.Parallel
+module BV.System.Core.Solvers.Parallel
     ( OfflineSolverGroupConfig (..)
     , OfflineSolverSatAnswer (..)
     , OfflineSolversConfig (..)
@@ -21,9 +21,9 @@ import BV.Core
 import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.Command
-import BV.System.Core2.Solvers.Backend
-import BV.System.Core2.Types
-import BV.System.Core2.Utils.Logging
+import BV.System.Core.Solvers.Backend
+import BV.System.Core.Types
+import BV.System.Core.Utils.Logging
 import BV.System.Utils.UnliftIO.Async
 
 import Control.Applicative (empty)

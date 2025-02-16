@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.System.Core2.Types
+module BV.System.Core.Types
     ( Check (..)
     , CheckFilter (..)
     , CheckGroup (..)
@@ -21,7 +21,7 @@ module BV.System.Core2.Types
     ) where
 
 import BV.Core
-import BV.System.Core2.Fingerprinting
+import BV.System.Core.Fingerprinting
 
 import Control.DeepSeq (NFData)
 import Data.List (genericSplitAt, intercalate)

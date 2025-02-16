@@ -1,13 +1,13 @@
-module BV.System.Core2.Frontend
+module BV.System.Core.Frontend
     ( frontend
     ) where
 
 import BV.Logging
-import BV.System.Core2.Cache
-import BV.System.Core2.Report
-import BV.System.Core2.Solvers
-import BV.System.Core2.Types
-import BV.System.Core2.Utils.Logging
+import BV.System.Core.Cache
+import BV.System.Core.Report
+import BV.System.Core.Solvers
+import BV.System.Core.Types
+import BV.System.Core.Utils.Logging
 import BV.System.Utils.Stopwatch
 import BV.System.Utils.UnliftIO.Async
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.System.Core2.Utils.Logging
+module BV.System.Core.Utils.Logging
     ( augmentCacheContextWithLogging
     , augmentSolverContextWithLogging
     , runSolverWithLogging
@@ -17,9 +17,9 @@ import BV.Core
 import BV.Logging
 import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build
-import BV.System.Core2.Cache
-import BV.System.Core2.Fingerprinting
-import BV.System.Core2.Types
+import BV.System.Core.Cache
+import BV.System.Core.Fingerprinting
+import BV.System.Core.Types
 
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
