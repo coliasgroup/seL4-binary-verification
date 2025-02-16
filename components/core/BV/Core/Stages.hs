@@ -170,8 +170,8 @@ stages input = StagesOutput
     uncheckedSMTProofChecks'nohack = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
 
-    uncheckedSMTProofChecks = uncheckedSMTProofChecks'hack
-    -- uncheckedSMTProofChecks = uncheckedSMTProofChecks'nohack
+    -- uncheckedSMTProofChecks = uncheckedSMTProofChecks'hack
+    uncheckedSMTProofChecks = uncheckedSMTProofChecks'nohack
 
     compatSMTProofChecks = toCompatSMTProofChecks (void uncheckedSMTProofChecks)
 
