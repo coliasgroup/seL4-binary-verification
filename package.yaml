@@ -94,8 +94,8 @@ internal-libraries:
       - attoparsec
       - aeson
       - attoparsec-aeson
-      - monad-logger
       - unliftio-core
+      - monad-logger
   
   core:
     visibility: public
@@ -144,8 +144,8 @@ internal-libraries:
     source-dirs: components/system-utils
     # exposed-modules: # TODO
     dependencies:
-      - monad-logger
       - unliftio-core
+      - monad-logger
 
   system-core:
     visibility: public
@@ -237,8 +237,8 @@ executables:
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
-      - sel4-bv:system
       - sel4-bv:system-core
+      - sel4-bv:system
       - sel4-bv:test-utils
     ghc-options: *exe-ghc-options
 
