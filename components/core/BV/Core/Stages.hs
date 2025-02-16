@@ -47,7 +47,7 @@ data StagesInput
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts
       , proofs :: Proofs ()
-      , asmFunctionFilter :: Ident -> Bool
+      , earlyAsmFunctionFilter :: Ident -> Bool
         -- HACK
       , compatSMTProofChecks :: CompatSMTProofChecks
       }
@@ -96,7 +96,7 @@ stages input = StagesOutput
   where
 
     alteredPrograms = fixupProgram <$> PairingOf
-        { asm = input.programs.asm & #functions %~ M.filterWithKey (\k _v -> input.asmFunctionFilter k)
+        { asm = input.programs.asm & #functions %~ M.filterWithKey (\k _v -> input.earlyAsmFunctionFilter k)
         , c = pseudoCompile input.objDumpInfo input.programs.c
         }
 

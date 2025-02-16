@@ -5,6 +5,7 @@ module BV.Core.Utils
     , expecting
     , expectingIx
     , expecting_
+    , findWithCallstack
     , is
     , optionals
     , tryLast
@@ -15,6 +16,7 @@ module BV.Core.Utils
 import Control.Monad (when)
 import Data.Either (fromRight)
 import Data.Function (applyWhen)
+import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
 import Data.Monoid (Last (Last, getLast))
 import GHC.Stack (HasCallStack)
@@ -70,3 +72,9 @@ expecting_ optic = to (fromJust . preview optic)
 
 is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
 is k s = isJust (preview k s)
+
+findWithCallstack :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
+findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present: " ++ show k)
+
+-- (!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
+-- (!) = findWithCallstack

@@ -9,7 +9,6 @@ import BV.Logging
 import BV.System.Core
 import BV.System.EvalStages
 import BV.System.Local
-import BV.System.SeL4
 import BV.TargetDir
 
 import Control.Concurrent (getNumCapabilities)
@@ -40,7 +39,8 @@ runCheck opts = do
             , referenceTargetDir = Just (TargetDir opts.inputTargetDir)
             , mismatchDumpDir = opts.mismatchDir
             }
-    input <- liftIO $ readStagesInput defaultSeL4AsmFunctionFilter (TargetDir opts.inputTargetDir)
+    let earlyAsmFunctionFilter = getEarlyAsmFunctionFilter opts
+    input <- liftIO $ readStagesInput earlyAsmFunctionFilter (TargetDir opts.inputTargetDir)
     checks <- filterChecks checkFilter <$> evalStages evalStagesCtx input
     let cacheCtx = trivialCacheContext
     let backendConfig = LocalConfig
@@ -72,6 +72,9 @@ getMaxNumConcurrentSolvers opts = do
             return n
         Nothing -> do
             return numCaps
+
+getEarlyAsmFunctionFilter :: CheckOpts -> Ident -> Bool
+getEarlyAsmFunctionFilter opts = (`S.notMember` S.fromList opts.ignoreFunctionsEarly)
 
 getCheckFilter :: CheckOpts -> CheckFilter
 getCheckFilter opts = CheckFilter

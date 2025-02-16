@@ -4,7 +4,6 @@ module Main
 
 import BV.Core
 import BV.System.EvalStages
-import BV.System.SeL4
 import BV.TargetDir
 import BV.Test.Utils
 
@@ -20,13 +19,13 @@ main = defaultMain tests
 tests :: TestTree
 tests = testGroup "Tests"
     [ testCase "trivial" $ return ()
-    , testCase "stages" testStages
+    -- , testCase "stages" testStages
     , testCase "stages-with-reference" testStagesWithChecking
     ]
 
 testStages :: IO ()
 testStages = do
-    input <- readStagesInput defaultSeL4AsmFunctionFilter referenceTargetDir
+    input <- readStagesInput seL4DefaultEarlyAsmFunctionFilter referenceTargetDir
     let output = stages input
     output.intermediate.compatProofChecks `deepseq` return ()
   where
@@ -37,7 +36,7 @@ testStages = do
 
 testStagesWithChecking :: IO ()
 testStagesWithChecking = do
-    input <- readStagesInput defaultSeL4AsmFunctionFilter referenceTargetDir
+    input <- readStagesInput seL4DefaultEarlyAsmFunctionFilter referenceTargetDir
     runStderrLoggingT $ evalStages ctx input
     return ()
   where

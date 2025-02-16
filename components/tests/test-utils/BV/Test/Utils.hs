@@ -1,5 +1,6 @@
 module BV.Test.Utils where
 
+import BV.Core
 import BV.TargetDir
 
 import Data.Maybe (fromJust)
@@ -55,3 +56,10 @@ tmpOutDir = tmpDir </> "out"
 
 tmpOutPath :: FilePath -> FilePath
 tmpOutPath = (tmpOutDir </>)
+
+seL4DefaultEarlyAsmFunctionFilter :: Ident -> Bool
+seL4DefaultEarlyAsmFunctionFilter = (`notElem` ignore)
+  where
+    ignore = map Ident
+        [ "c_handle_syscall"
+        ]

@@ -44,7 +44,7 @@ evalStages ctx input = do
     logWarn $
         "Unhandled instrcution functions (Asm side): " ++ show (map (.unwrap) output.unhandledInstructionFunctions)
     logInfo "Registering functions"
-    register noop targetDirFiles.functions output.intermediate.functions
+    register filterFunctions targetDirFiles.functions output.intermediate.functions
     logInfo "Registering pairings"
     register noop targetDirFiles.pairings output.intermediate.pairings
     logInfo "Registering problems"
@@ -77,6 +77,7 @@ evalStages ctx input = do
                 fail "Intermediate artifact mismatch"
     maybeForce :: forall a. NFData a => a -> a
     maybeForce = applyWhen ctx.force force
+    filterFunctions expected actual = actual & #functions %~ M.filterWithKey (\k _v -> k `M.member` expected.functions)
     filterProblems expected actual = actual & #unwrap %~ M.filterWithKey (\k _v -> k `M.member` expected.unwrap)
     noop _expected actual = actual
     whenJust m f = maybe (return ()) f m

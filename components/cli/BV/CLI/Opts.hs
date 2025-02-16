@@ -106,6 +106,7 @@ data CheckOpts
       , mismatchDir :: Maybe FilePath
       , includeFunctions :: [Ident]
       , ignoreFunctions :: [Ident]
+      , ignoreFunctionsEarly :: [Ident]
       , includeGroups :: [CheckGroupFingerprintPattern]
       , includeChecks :: [CheckFingerprintPattern]
       , reportFile :: Maybe FilePath
@@ -314,6 +315,10 @@ checkOptsParser = do
         [ long "ignore-function"
         , metavar "SYMBOL"
         ]
+    ignoreFunctionsEarly <- many $ option' (Ident <$> str)
+        [ long "ignore-function-early"
+        , metavar "SYMBOL"
+        ]
     includeGroups <- many $ CheckGroupFingerprintPattern <$> option' (eitherReader (B16.decode . C.pack))
         [ long "include-group"
         , metavar "FINGERPRINT"
@@ -348,6 +353,7 @@ checkOptsParser = do
         , mismatchDir
         , includeFunctions
         , ignoreFunctions
+        , ignoreFunctionsEarly
         , includeGroups
         , includeChecks
         , reportFile

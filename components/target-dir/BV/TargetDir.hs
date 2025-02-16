@@ -109,7 +109,7 @@ writeTargetDirFile targetDir targetDirFile =
     writeBVFile (targetDirFilePath targetDir (eraseTargetDirFileType targetDirFile))
 
 readStagesInputEither :: (Ident -> Bool) -> TargetDir -> IO (Either ReadTargetDirFileException StagesInput)
-readStagesInputEither asmFunctionFilter targetDir = runExceptT $ do
+readStagesInputEither earlyAsmFunctionFilter targetDir = runExceptT $ do
     cFunctions <- f targetDirFiles.cFunctions
     asmFunctions <- f targetDirFiles.asmFunctions
     objDumpInfo <- f targetDirFiles.symtab
@@ -126,7 +126,7 @@ readStagesInputEither asmFunctionFilter targetDir = runExceptT $ do
         , stackBounds
         , inlineScripts
         , proofs
-        , asmFunctionFilter
+        , earlyAsmFunctionFilter
         -- HACK
         , compatSMTProofChecks
         }
@@ -134,5 +134,5 @@ readStagesInputEither asmFunctionFilter targetDir = runExceptT $ do
     f file = ExceptT $ readTargetDirFileEither targetDir file
 
 readStagesInput :: (Ident -> Bool) -> TargetDir -> IO StagesInput
-readStagesInput asmFunctionFilter targetDir =
-    readStagesInputEither asmFunctionFilter targetDir >>= either throwIO return
+readStagesInput earlyAsmFunctionFilter targetDir =
+    readStagesInputEither earlyAsmFunctionFilter targetDir >>= either throwIO return

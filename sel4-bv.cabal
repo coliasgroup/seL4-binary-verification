@@ -267,7 +267,6 @@ library system
   exposed-modules:
       BV.System.EvalStages
       BV.System.Local
-      BV.System.SeL4
   hs-source-dirs:
       components/system
   default-extensions:
