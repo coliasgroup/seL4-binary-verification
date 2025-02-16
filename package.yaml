@@ -147,9 +147,9 @@ internal-libraries:
       - monad-logger
       - unliftio-core
 
-  system-core2:
+  system-core:
     visibility: public
-    source-dirs: components/system-core2
+    source-dirs: components/system-core
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process

@@ -318,7 +318,7 @@ library system
     , vector
   default-language: GHC2021
 
-library system-core2
+library system-core
   visibility: public
   exposed-modules:
       BV.System.Core2.Cache
@@ -331,7 +331,7 @@ library system-core2
       BV.System.Core2.Types
       BV.System.Core2.Utils.Logging
   hs-source-dirs:
-      components/system-core2
+      components/system-core
   default-extensions:
       FunctionalDependencies
       DuplicateRecordFields
