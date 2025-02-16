@@ -147,6 +147,23 @@ internal-libraries:
       - monad-logger
       - unliftio-core
 
+  system-core2:
+    visibility: public
+    source-dirs: components/system-core2
+    dependencies:
+      - sel4-bv:smtlib2
+      - sel4-bv:smtlib2-process
+      - sel4-bv:logging
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:system-utils
+      # external
+      - unliftio-core
+      - monad-logger
+      - process
+      - base16-bytestring
+      - cryptohash-sha256
+
   system-core:
     visibility: public
     source-dirs: components/system-core
@@ -159,6 +176,7 @@ internal-libraries:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:system-utils
+      - sel4-bv:system-core2
       # external
       - unliftio-core
       - monad-logger

@@ -364,6 +364,49 @@ library system-core
     , sel4-bv:logging
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
+    , sel4-bv:system-core2
+    , sel4-bv:system-utils
+    , stm
+    , text
+    , transformers
+    , unliftio-core
+    , vector
+  default-language: GHC2021
+
+library system-core2
+  visibility: public
+  hs-source-dirs:
+      components/system-core2
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      async
+    , base
+    , base16-bytestring
+    , bytestring
+    , containers
+    , cryptohash-sha256
+    , deepseq
+    , exceptions
+    , monad-logger
+    , mtl
+    , optics
+    , parallel
+    , process
+    , safe-exceptions
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , sel4-bv:logging
+    , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-process
     , sel4-bv:system-utils
     , stm
     , text
