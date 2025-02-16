@@ -36,7 +36,7 @@ withSQLiteCacheContext connString f =
                     _ -> error "!"
             , updateCache = \result fingerprint -> do
                 execute conn
-                    "INSERT INTO checks (fingerprint, result) VALUES (?,?)" (fingerprint, result)
+                    "INSERT OR IGNORE INTO checks (fingerprint, result) VALUES (?,?)" (fingerprint, result)
             }
 
 instance FromField AcceptableSatResult where
