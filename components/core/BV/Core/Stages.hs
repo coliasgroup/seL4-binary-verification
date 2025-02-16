@@ -191,9 +191,8 @@ stages input = StagesOutput
     finalChecks =
         let f = decorateProofScriptWithProofScriptNodePathsWith $ \path groups ->
                 map (path,) groups
-            g script = fold script
          in StagesOutputChecks $
-                M.map (g . f) smtProofChecks.unwrap
+                M.map (fold . f) smtProofChecks.unwrap
 
 
 asmFunNameToCFunName :: Ident -> Ident
