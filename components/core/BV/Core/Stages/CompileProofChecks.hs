@@ -53,6 +53,7 @@ proofCheckGroupsWithKeys =
 newtype CheckGroupKey
   = CheckGroupKey { unwrap :: [((String, [(Integer, ([Integer], [Integer]))]), String)] }
   deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
 
 groupKeyOf :: ProofCheck a -> Set VisitWithTag
 groupKeyOf check = S.fromList (check ^.. checkVisits)

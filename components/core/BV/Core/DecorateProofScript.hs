@@ -64,7 +64,7 @@ getChild (ProofNodeEdge i) = \case
         0 -> node.child
 
 zipProofNodes :: ProofNodeWith (a -> b) -> ProofNodeWith a -> ProofNodeWith b
-zipProofNodes pf pa = ensure (void pf /= void pa) go pf pa
+zipProofNodes pf pa = ensure (void pf == void pa) go pf pa
   where
     go (ProofNodeWith f nf) (ProofNodeWith a na) =
         ProofNodeWith (f a) $ iover traverseChildren (\edge child -> zipProofNodes child (getChild edge na)) nf
@@ -89,7 +89,7 @@ pathInMetaHelper = #root %~ go Nothing
          in here
 
 decorateProofScriptWithProofScriptNodePathsWith
-    :: forall a b. (ProofScriptNodePath -> a -> b) -> ProofScript a -> ProofScript b
+    :: (ProofScriptNodePath -> a -> b) -> ProofScript a -> ProofScript b
 decorateProofScriptWithProofScriptNodePathsWith f script =
     zipProofScripts (f <$> pathInMeta script) script
 
@@ -110,15 +110,15 @@ briefNode = \case
     ProofNodeLeaf ->
         "leaf"
     ProofNodeRestr node ->
-        printf "restr %s (%s)" (show node.point) (prettyTag node.tag)
+        printf "restr %s (%s)" (show node.point.unwrap) (prettyTag node.tag)
     ProofNodeCaseSplit node ->
-        printf "case split %s (%s)" (show node.addr) (prettyTag node.tag)
+        printf "case split %s (%s)" (show node.addr.unwrap) (prettyTag node.tag)
     ProofNodeSplit node ->
         let s = withTags node.details <&> \(WithTag tag details) ->
-                    printf "%s (%s)" (prettyTag tag) (show details.split) :: String
+                    printf "%s (%s)" (prettyTag tag) (show details.split.unwrap) :: String
          in printf "split %s and %s" s.c s.asm
     ProofNodeSingleRevInduct node ->
-        printf "restr %s (%s)" (show node.point) (prettyTag node.tag)
+        printf "restr %s (%s)" (show node.point.unwrap) (prettyTag node.tag)
 
 briefEdge :: ProofNode a -> ProofNodeEdge -> Maybe String
 briefEdge node (ProofNodeEdge i) = case node of
@@ -126,10 +126,10 @@ briefEdge node (ProofNodeEdge i) = case node of
     ProofNodeRestr _ -> case i of
         0 -> Nothing
     ProofNodeCaseSplit _ -> case i of
-        0 -> Just "left"
-        1 -> Just "right"
+        0 -> Just "l"
+        1 -> Just "r"
     ProofNodeSplit _ -> case i of
-        0 -> Just "p1"
-        1 -> Just "p2"
+        0 -> Just "1"
+        1 -> Just "2"
     ProofNodeSingleRevInduct _ -> case i of
         0 -> Nothing

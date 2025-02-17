@@ -28,7 +28,7 @@ import BV.Core.Stages.PseudoCompile
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Control.DeepSeq (NFData, liftRnf)
+import Control.DeepSeq (NFData, deepseq, liftRnf, ($!!))
 import Control.Monad (guard)
 import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
 import Data.Foldable (fold, toList)
@@ -38,7 +38,7 @@ import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
 import qualified Data.Set as S
-import Debug.Trace (traceShow)
+import Debug.Trace (trace, traceShow)
 import GHC.Generics (Generic)
 import Optics
 
@@ -182,13 +182,17 @@ stages input = StagesOutput
 
     compatSMTProofChecks = toCompatSMTProofChecks (void uncheckedSMTProofChecks)
 
-    groupsAreDistinctAsExpected = and
-        [ let checksByNode = toList script
-              groupKeysByNode = M.keysSet . proofCheckGroupsWithKeys <$> checksByNode
-              l = sum (map length groupKeysByNode)
-              r = S.size (fold groupKeysByNode)
-              ok = l == r
-           in applyWhen (not ok) (error (show (pairingId, l, r))) ok
+    groupsAreDistinctAsExpected = and $!!
+        [ let
+            scriptWithGroupKeys = toList . M.keysSet . proofCheckGroupsWithKeys <$> script
+            scriptWithGroupKeysToNodePaths = decorateProofScriptWithProofScriptNodePathsWith (\path groupKeys -> M.fromList (map (, path) groupKeys)) scriptWithGroupKeys
+            groupKeysToNodePaths = M.unionsWith (<>) (map (M.map (:[])) (toList scriptWithGroupKeysToNodePaths))
+            groupKeysToMultipleNodePaths = M.filter (\conflicts -> length conflicts > 1) groupKeysToNodePaths
+            shown = flip foldMap (toList groupKeysToMultipleNodePaths) $ \conflicting ->
+                prettyPairingId pairingId ++ " conflicts:\n"
+                    ++ foldMap ((++ "\n") . ("    " ++) . prettyProofScriptNodePath) conflicting
+           in
+            M.null groupKeysToMultipleNodePaths || trace shown False
         | (pairingId, script) <- M.toList proofChecks.unwrap
         ]
 

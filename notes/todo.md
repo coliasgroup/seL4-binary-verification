@@ -54,3 +54,5 @@
 - code defensively against sat solver bugs
   - don't just INSERT OR IGNORE in sqlite. instead, ensure that values match
   - add feature to require unsat from _multiple_ solvers, not just any solver, and(?) cache solver identities (witnesses) along with results
+
+- printf instances for all pretty* functions
