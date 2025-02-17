@@ -116,7 +116,7 @@ readStagesInputEither earlyAsmFunctionFilter targetDir = runExceptT $ do
     stackBounds <- f targetDirFiles.stackBounds
     inlineScripts <- f targetDirFiles.inlineScripts
     proofs <- f targetDirFiles.proofs
-    compatSMTProofChecks <- f targetDirFiles.smtProofChecks
+    -- compatSMTProofChecks <- f targetDirFiles.smtProofChecks
     return $ StagesInput
         { programs = PairingOf
             { c = cFunctions
@@ -128,7 +128,7 @@ readStagesInputEither earlyAsmFunctionFilter targetDir = runExceptT $ do
         , proofs
         , earlyAsmFunctionFilter
         -- HACK
-        , compatSMTProofChecks
+        -- , compatSMTProofChecks
         }
   where
     f file = ExceptT $ readTargetDirFileEither targetDir file

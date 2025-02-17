@@ -53,7 +53,7 @@ data StagesInput
       , proofs :: Proofs ()
       , earlyAsmFunctionFilter :: IncludeExcludeFilter Ident
         -- HACK
-      , compatSMTProofChecks :: CompatSMTProofChecks
+      -- , compatSMTProofChecks :: CompatSMTProofChecks
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -184,13 +184,13 @@ stages input = StagesOutput
 
     compatProofChecks = toCompatProofChecks proofChecks
 
-    smtProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
+    -- smtProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
 
     smtProofChecks'nohack = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
 
-    smtProofChecks = smtProofChecks'hack
-    -- smtProofChecks = smtProofChecks'nohack
+    -- smtProofChecks = smtProofChecks'hack
+    smtProofChecks = smtProofChecks'nohack
 
     compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)
 
