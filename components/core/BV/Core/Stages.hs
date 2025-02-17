@@ -31,7 +31,7 @@ import BV.Core.Types.Extras
 import Control.DeepSeq (NFData, liftRnf)
 import Control.Monad (guard)
 import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
-import Data.Foldable (fold)
+import Data.Foldable (fold, toList)
 import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.Map ((!))
@@ -41,7 +41,6 @@ import qualified Data.Set as S
 import Debug.Trace (traceShow)
 import GHC.Generics (Generic)
 import Optics
-import Data.Foldable (toList)
 
 data StagesInput
   = StagesInput

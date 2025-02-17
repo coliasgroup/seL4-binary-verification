@@ -23,9 +23,9 @@ import BV.SMTLIB2
 
 import Control.DeepSeq (NFData)
 import Control.Monad.RWS (RWS, modify, runRWS, tell)
+import Data.Foldable (toList)
 import Data.Function (applyWhen)
 import Data.Functor (void)
-import Data.Foldable (toList)
 import Data.List (sort, sortOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
