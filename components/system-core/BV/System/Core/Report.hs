@@ -59,11 +59,11 @@ prettyCheckFailure err =
   where
     prettySource = case err.source of
         CheckFailureSourceCheck check ->
-            "check " <> prettyCheckFingerprintShort check.fingerprint
+            "check " <> prettyCheckFingerprintShort check.fingerprint <> " @{" <> prettyProofCheckMeta check.meta <> "}"
         CheckFailureSourceCheckSubgroup subgroup ->
             "check subgroup " <> prettyCheckSubgroupIdShort (takeSubgroupId subgroup) <> " (checks "
             <> mconcat (intersperse ","
-                [ prettyCheckFingerprintShort check.fingerprint
+                [ prettyCheckFingerprintShort check.fingerprint <> " @{" <> prettyProofCheckMeta check.meta <> "}"
                 | (_i, check) <- subgroup.checks
                 ])
             <> ")"

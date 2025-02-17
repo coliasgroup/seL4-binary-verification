@@ -11,9 +11,11 @@ module BV.Core.Stages
     , module BV.Core.Stages.InlineAssembly
     , module BV.Core.Stages.PseudoCompile
     , IntermediateStagesOutput (..)
+    , ProofCheckMeta (..)
     , StagesInput (..)
     , StagesOutput (..)
     , StagesOutputChecks (..)
+    , prettyProofCheckMeta
     , stages
     ) where
 
@@ -28,17 +30,14 @@ import BV.Core.Stages.PseudoCompile
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Control.DeepSeq (NFData, deepseq, liftRnf, ($!!))
+import Control.DeepSeq (NFData, liftRnf)
 import Control.Monad (guard)
 import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
-import Data.Foldable (fold, toList)
-import Data.Function (applyWhen)
+import Data.Foldable (fold)
 import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
-import qualified Data.Set as S
-import Debug.Trace (trace, traceShow)
 import GHC.Generics (Generic)
 import Optics
 
@@ -67,9 +66,19 @@ data StagesOutput
   deriving (Eq, Generic, NFData, Ord, Show)
 
 newtype StagesOutputChecks
-  = StagesOutputChecks { unwrap :: M.Map PairingId [(ProofScriptNodePath, SMTProofCheckGroup ProofCheckDescription)] }
+  = StagesOutputChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup ProofCheckMeta] }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
+
+data ProofCheckMeta
+  = ProofCheckMeta
+      { path :: ProofScriptNodePath
+      , desc :: ProofCheckDescription
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+prettyProofCheckMeta :: ProofCheckMeta -> String
+prettyProofCheckMeta meta = prettyProofScriptNodePath meta.path ++ " >>> " ++ meta.desc
 
 data IntermediateStagesOutput
   = IntermediateStagesOutput
@@ -165,48 +174,20 @@ stages input = StagesOutput
                     PairingEqDirectionOut -> probSide.output
          in enumerateProofChecks lookupOrigVarName pairing problem proofScript
 
-    -- checkAssumptionAboutProofCheckGroups =
-    --     if False
-    --     then error "!"
-    --     else ()
-
     compatProofChecks = toCompatProofChecks proofChecks
 
-    uncheckedSMTProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
+    smtProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
 
-    uncheckedSMTProofChecks'nohack = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    smtProofChecks'nohack = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
 
-    uncheckedSMTProofChecks = uncheckedSMTProofChecks'hack
-    -- uncheckedSMTProofChecks = uncheckedSMTProofChecks'nohack
+    smtProofChecks = smtProofChecks'hack
+    -- smtProofChecks = smtProofChecks'nohack
 
-    compatSMTProofChecks = toCompatSMTProofChecks (void uncheckedSMTProofChecks)
-
-    groupsAreDistinctAsExpected = and $!!
-        [ let
-            scriptWithGroupKeys = toList . M.keysSet . proofCheckGroupsWithKeys <$> script
-            scriptWithGroupKeysToNodePaths = decorateProofScriptWithProofScriptNodePathsWith (\path groupKeys -> M.fromList (map (, path) groupKeys)) scriptWithGroupKeys
-            groupKeysToNodePaths = M.unionsWith (<>) (map (M.map (:[])) (toList scriptWithGroupKeysToNodePaths))
-            groupKeysToMultipleNodePaths = M.filter (\conflicts -> length conflicts > 1) groupKeysToNodePaths
-            shown = flip foldMap (toList groupKeysToMultipleNodePaths) $ \conflicting ->
-                prettyPairingId pairingId ++ " conflicts:\n"
-                    ++ foldMap ((++ "\n") . ("    " ++) . prettyProofScriptNodePath) conflicting
-           in
-            M.null groupKeysToMultipleNodePaths || trace shown False
-        | (pairingId, script) <- M.toList proofChecks.unwrap
-        ]
-
-    smtProofChecks =
-        if groupsAreDistinctAsExpected
-        then uncheckedSMTProofChecks
-        else
-            -- TODO
-            error "SMT proof check groups should be distinct"
-            -- uncheckedSMTProofChecks
+    compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)
 
     finalChecks =
-        let f = decorateProofScriptWithProofScriptNodePathsWith $ \path groups ->
-                map (path,) groups
+        let f = decorateProofScriptWithProofScriptNodePathsWith $ \path -> map (fmap (ProofCheckMeta path))
          in StagesOutputChecks $
                 M.map (fold . f) smtProofChecks.unwrap
 

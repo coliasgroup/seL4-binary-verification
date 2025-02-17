@@ -8,6 +8,7 @@ module BV.Core
     , PairingId
     , PairingOf (..)
     , ProofCheckDescription
+    , ProofCheckMeta (..)
     , ProofScriptNodePath (..)
     , SExprWithPlaceholders
     , SMTProofCheck (..)
@@ -23,6 +24,7 @@ module BV.Core
     , prettyMemoryMode
     , prettyModelConfig
     , prettyPairingId
+    , prettyProofCheckMeta
     , prettyProofScriptNodePath
     , stages
     ) where

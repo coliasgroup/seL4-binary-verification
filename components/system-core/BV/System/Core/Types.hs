@@ -42,7 +42,7 @@ data Check
   = Check
       { fingerprint :: CheckFingerprint
       , group :: CheckGroup
-      , proofCheckDescription :: ProofCheckDescription
+      , meta :: ProofCheckMeta
       , imp :: SExprWithPlaceholders
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -51,7 +51,6 @@ data CheckGroup
   = CheckGroup
       { fingerprint :: CheckGroupFingerprint
       , pairingId :: PairingId
-      , proofScriptNodePath :: ProofScriptNodePath
       , setup :: [SExprWithPlaceholders]
       , checks :: [Check]
       }
@@ -88,20 +87,19 @@ elaborateChecks stagesOutputChecks = Checks $ M.mapWithKey f stagesOutputChecks.
         [ let group = CheckGroup
                 { fingerprint = fingerprintCheckGroup stagesOutputGroup
                 , pairingId
-                , proofScriptNodePath
                 , setup = stagesOutputGroup.setup
                 , checks =
                     [ Check
                         { fingerprint = fingerprintCheck (SMTProofCheck stagesOutputGroup.setup imp)
                         , group
-                        , proofCheckDescription = imp.meta
+                        , meta = imp.meta
                         , imp = imp.term
                         }
                     | imp <- stagesOutputGroup.imps
                     ]
                 }
            in (group.fingerprint, fullSubgroup group)
-        | (proofScriptNodePath, stagesOutputGroup) <- stagesOutputGroups
+        | stagesOutputGroup <- stagesOutputGroups
         ]
 
 fullSubgroup :: CheckGroup -> CheckSubgroup
