@@ -31,14 +31,17 @@ import BV.Core.Types.Extras
 import Control.DeepSeq (NFData, liftRnf)
 import Control.Monad (guard)
 import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
-import Data.Foldable (fold, toList)
+import Data.Foldable (fold)
+import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
 import qualified Data.Set as S
+import Debug.Trace (traceShow)
 import GHC.Generics (Generic)
 import Optics
+import Data.Foldable (toList)
 
 data StagesInput
   = StagesInput
@@ -163,6 +166,11 @@ stages input = StagesOutput
                     PairingEqDirectionOut -> probSide.output
          in enumerateProofChecks lookupOrigVarName pairing problem proofScript
 
+    -- checkAssumptionAboutProofCheckGroups =
+    --     if False
+    --     then error "!"
+    --     else ()
+
     compatProofChecks = toCompatProofChecks proofChecks
 
     uncheckedSMTProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
@@ -176,8 +184,13 @@ stages input = StagesOutput
     compatSMTProofChecks = toCompatSMTProofChecks (void uncheckedSMTProofChecks)
 
     groupsAreDistinctAsExpected = and
-        [ length groups == S.size (S.fromList (map (.setup) groups))
-        | groups <- toList compatSMTProofChecks.unwrap
+        [ let checksByNode = toList script
+              groupKeysByNode = M.keysSet . proofCheckGroupsWithKeys <$> checksByNode
+              l = sum (map length groupKeysByNode)
+              r = S.size (fold groupKeysByNode)
+              ok = l == r
+           in applyWhen (not ok) (error (show (pairingId, l, r))) ok
+        | (pairingId, script) <- M.toList proofChecks.unwrap
         ]
 
     smtProofChecks =

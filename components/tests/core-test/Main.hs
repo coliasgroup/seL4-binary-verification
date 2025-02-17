@@ -19,15 +19,16 @@ main = defaultMain tests
 tests :: TestTree
 tests = testGroup "Tests"
     [ testCase "trivial" $ return ()
-    -- , testCase "stages" testStages
-    , testCase "stages-with-reference" testStagesWithChecking
+    , testCase "stages" testStages
+    -- , testCase "stages-with-reference" testStagesWithChecking
     ]
 
 testStages :: IO ()
 testStages = do
     input <- readStagesInput seL4DefaultEarlyAsmFunctionFilter referenceTargetDir
     let output = stages input
-    output.intermediate.compatProofChecks `deepseq` return ()
+    -- output.intermediate.compatProofChecks `deepseq` return ()
+    output.checks `deepseq` return ()
   where
     referenceTargetDir =
         testSeL4TargetDirBig

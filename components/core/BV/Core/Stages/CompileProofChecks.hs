@@ -10,7 +10,9 @@
 {-# OPTIONS -Wno-all #-}
 
 module BV.Core.Stages.CompileProofChecks
-    ( compileProofChecks
+    ( CheckGroupKey
+    , compileProofChecks
+    , proofCheckGroupsWithKeys
     ) where
 
 import BV.Core.Stages.Utils
@@ -23,6 +25,7 @@ import Control.DeepSeq (NFData)
 import Control.Monad.RWS (RWS, modify, runRWS, tell)
 import Data.Function (applyWhen)
 import Data.Functor (void)
+import Data.Foldable (toList)
 import Data.List (sort, sortOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
@@ -34,24 +37,33 @@ import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
 
+type ProofCheckGroup a = [ProofCheck a]
+
 compileProofChecks :: Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
 compileProofChecks problem checks =
-    map (compileProofCheckGroup problem) groups
-  where
-    groups = proofCheckGroups checks
+    map (compileProofCheckGroup problem) (proofCheckGroups checks)
 
-proofCheckGroups :: [ProofCheck a] -> [[ProofCheck a]]
-proofCheckGroups checks =
-    map snd . sortOn (key . fst) $ M.toAscList m
-  where
-    m = flip foldMap checks $ \check -> M.singleton (S.fromList (check ^.. checkVisits)) [check]
-    key = compatOrdKey . S.toList
+proofCheckGroups :: [ProofCheck a] -> [ProofCheckGroup a]
+proofCheckGroups = toList . proofCheckGroupsWithKeys
 
-compatOrdKey :: [VisitWithTag] -> [((String, [(Integer, ([Integer], [Integer]))]), String)]
-compatOrdKey visits = sort
+proofCheckGroupsWithKeys :: [ProofCheck a] -> Map CheckGroupKey (ProofCheckGroup a)
+proofCheckGroupsWithKeys =
+    foldMap (\check -> M.singleton (compatOrdKey (groupKeyOf check)) [check])
+
+newtype CheckGroupKey
+  = CheckGroupKey { unwrap :: [((String, [(Integer, ([Integer], [Integer]))]), String)] }
+  deriving (Eq, Generic, Ord, Show)
+
+groupKeyOf :: ProofCheck a -> Set VisitWithTag
+groupKeyOf check = S.fromList (check ^.. checkVisits)
+
+compatOrdKey :: Set VisitWithTag -> CheckGroupKey
+compatOrdKey visits = CheckGroupKey $ sort
     [ ((prettyNodeId visit.nodeId, []), prettyTag tag)
-    | VisitWithTag visit tag <- visits
+    | VisitWithTag visit tag <- S.toList visits
     ]
+
+--
 
 compileProofCheckGroup :: Problem -> [ProofCheck a] -> SMTProofCheckGroup a
 compileProofCheckGroup problem group = SMTProofCheckGroup setup imps
