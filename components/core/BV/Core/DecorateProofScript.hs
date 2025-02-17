@@ -115,7 +115,7 @@ briefNode = \case
         printf "case split %s (%s)" (show node.addr.unwrap) (prettyTag node.tag)
     ProofNodeSplit node ->
         let s = withTags node.details <&> \(WithTag tag details) ->
-                    printf "%s (%s)" (prettyTag tag) (show details.split.unwrap) :: String
+                    printf "%s (%s)" (show details.split.unwrap) (prettyTag tag) :: String
          in printf "split %s and %s" s.c s.asm
     ProofNodeSingleRevInduct node ->
         printf "restr %s (%s)" (show node.point.unwrap) (prettyTag node.tag)
