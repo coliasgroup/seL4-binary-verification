@@ -180,6 +180,47 @@ library logging
     , vector
   default-language: GHC2021
 
+library network-transport-static
+  visibility: public
+  exposed-modules:
+      Network.Transport.Static
+  other-modules:
+      Network.Transport.Static.Peers
+      Network.Transport.Static.Utils
+  hs-source-dirs:
+      components/network-transport-static
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      async
+    , base
+    , binary
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , monad-logger
+    , mtl
+    , network-transport
+    , optics
+    , parallel
+    , process
+    , safe-exceptions
+    , stm
+    , text
+    , transformers
+    , unliftio-core
+    , vector
+  default-language: GHC2021
+
 library smtlib2
   visibility: public
   exposed-modules:

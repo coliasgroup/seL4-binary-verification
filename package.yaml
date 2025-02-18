@@ -97,6 +97,18 @@ internal-libraries:
       - unliftio-core
       - monad-logger
   
+  network-transport-static:
+    visibility: public
+    source-dirs: components/network-transport-static
+    exposed-modules:
+      - Network.Transport.Static
+    dependencies:
+      - binary
+      - unliftio-core
+      - monad-logger
+      - process
+      - network-transport
+
   core:
     visibility: public
     source-dirs: components/core

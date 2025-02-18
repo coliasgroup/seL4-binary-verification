@@ -5,24 +5,24 @@ module Main
     ( main
     ) where
 
-import Work
 import Opts
+import Work
 
+import Control.Concurrent (threadDelay)
 import Control.Distributed.Process
 import qualified Control.Distributed.Process.Backend.SimpleLocalnet as S
+import Control.Distributed.Process.Closure
 import Control.Distributed.Process.Node
 import Control.Exception.Safe
-import Control.Distributed.Process.Closure
+import Control.Monad (forever, when)
 import Network.Socket
-import System.Posix.Process (getProcessID)
 import Network.Transport
 import qualified Network.Transport as NT (Transport)
 import qualified Network.Transport.TCP as NT (TCPAddr (Addressable),
                                               TCPAddrInfo (TCPAddrInfo),
                                               createTransport,
                                               defaultTCPParameters)
-import Control.Monad (forever, when)
-import Control.Concurrent (threadDelay)
+import System.Posix.Process (getProcessID)
 
 remotable ['remote]
 

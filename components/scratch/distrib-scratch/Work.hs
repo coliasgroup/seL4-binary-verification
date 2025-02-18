@@ -7,18 +7,18 @@ module Work
 
 import Control.Distributed.Process
 import qualified Control.Distributed.Process.Backend.SimpleLocalnet as S
+import Control.Distributed.Process.Closure
 import Control.Distributed.Process.Node
 import Control.Exception.Safe
-import Control.Distributed.Process.Closure
+import Control.Monad (forever, when)
 import Network.Socket
-import System.Posix.Process (getProcessID)
 import Network.Transport
 import qualified Network.Transport as NT (Transport)
 import qualified Network.Transport.TCP as NT (TCPAddr (Addressable),
                                               TCPAddrInfo (TCPAddrInfo),
                                               createTransport,
                                               defaultTCPParameters)
-import Control.Monad (forever, when)
+import System.Posix.Process (getProcessID)
 
 -- remote :: Int -> Process ()
 -- remote i = do
