@@ -540,6 +540,40 @@ executable cli
     , yaml
   default-language: GHC2021
 
+executable distrib-scratch
+  main-is: Main.hs
+  hs-source-dirs:
+      components/scratch/distrib-scratch
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
+  build-depends:
+      async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , distributed-process
+    , exceptions
+    , mtl
+    , network-transport-tcp
+    , optics
+    , optparse-applicative
+    , parallel
+    , safe-exceptions
+    , stm
+    , text
+    , transformers
+    , vector
+  default-language: GHC2021
+
 executable profiling-scratch
   main-is: Main.hs
   hs-source-dirs:

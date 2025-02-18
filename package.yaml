@@ -241,6 +241,15 @@ executables:
       - sel4-bv:test-utils
     ghc-options: *exe-ghc-options
 
+  distrib-scratch:
+    source-dirs: components/scratch/distrib-scratch
+    main: Main
+    dependencies:
+      - optparse-applicative
+      - distributed-process
+      - network-transport-tcp
+    ghc-options: *exe-ghc-options
+
 tests:
 
   smtlib2-test:
