@@ -246,8 +246,10 @@ executables:
     main: Main
     dependencies:
       - optparse-applicative
-      - distributed-process
+      - network-transport
       - network-transport-tcp
+      - distributed-process
+      - distributed-process-simplelocalnet
     ghc-options: *exe-ghc-options
 
 tests:

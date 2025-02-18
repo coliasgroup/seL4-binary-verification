@@ -563,8 +563,10 @@ executable distrib-scratch
     , containers
     , deepseq
     , distributed-process
+    , distributed-process-simplelocalnet
     , exceptions
     , mtl
+    , network-transport
     , network-transport-tcp
     , optics
     , optparse-applicative
