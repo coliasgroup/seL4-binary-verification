@@ -1,29 +1,27 @@
 {-# LANGUAGE ApplicativeDo #-}
 
 module Opts
-    ( Opts (..)
+    ( DriverOpts (..)
+    , Opts (..)
     , WorkerOpts (..)
     , parseOpts
-    , DriverOpts (..)
     ) where
 
 import Options.Applicative
 
 import GHC.Generics (Generic)
 
-data Opts = CommandDriver DriverOpts | CommandWorker WorkerOpts
+data Opts
+  = CommandDriver DriverOpts
+  | CommandWorker WorkerOpts
   deriving (Generic, Show)
 
 data DriverOpts
   = DriverOpts
-      {
-      }
   deriving (Generic, Show)
 
 data WorkerOpts
   = WorkerOpts
-      {
-      }
   deriving (Generic, Show)
 
 parseOpts :: IO Opts

@@ -245,6 +245,8 @@ executables:
     source-dirs: components/scratch/distrib-scratch
     main: Main
     dependencies:
+      - unix
+      - network
       - optparse-applicative
       - network-transport
       - network-transport-tcp

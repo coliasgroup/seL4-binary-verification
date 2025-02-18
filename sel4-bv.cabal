@@ -544,6 +544,7 @@ executable distrib-scratch
   main-is: Main.hs
   other-modules:
       Opts
+      Work
   hs-source-dirs:
       components/scratch/distrib-scratch
   default-extensions:
@@ -566,6 +567,7 @@ executable distrib-scratch
     , distributed-process-simplelocalnet
     , exceptions
     , mtl
+    , network
     , network-transport
     , network-transport-tcp
     , optics
@@ -575,6 +577,7 @@ executable distrib-scratch
     , stm
     , text
     , transformers
+    , unix
     , vector
   default-language: GHC2021
 
