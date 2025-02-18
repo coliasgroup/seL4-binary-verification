@@ -224,7 +224,6 @@ executables:
       - conduit
       - conduit-extra
       - optparse-applicative
-      - optparse-generic
       - ansi-terminal
       - base16-bytestring
       # TODO for debugging
