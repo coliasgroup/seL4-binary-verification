@@ -41,6 +41,7 @@ dependencies:
   - deepseq
   - parallel
   - transformers
+  - transformers-base
   - mtl
   - exceptions
   - safe-exceptions
@@ -97,6 +98,20 @@ internal-libraries:
       - unliftio-core
       - monad-logger
   
+  network-transport-static:
+    visibility: public
+    source-dirs: components/network-transport-static
+    exposed-modules:
+      - Network.Transport.Static
+      - Network.Transport.Static.Utils
+    dependencies:
+      - binary
+      - process
+      - network-transport
+      # TODO for debugging
+      - unliftio-core
+      - monad-logger
+
   core:
     visibility: public
     source-dirs: components/core
@@ -179,12 +194,17 @@ internal-libraries:
       - sel4-bv:target-dir
       - sel4-bv:system-core
       - sel4-bv:system-utils
+      - sel4-bv:network-transport-static
       # external
       - unliftio-core
       - monad-logger
       - filepath
       - directory
+      - process
       - sqlite-simple
+      - network-transport
+      - distributed-process
+      - distributed-process-async
 
   test-utils:
     source-dirs: components/tests/test-utils
@@ -245,6 +265,14 @@ executables:
     source-dirs: components/scratch/distrib-scratch
     main: Main
     dependencies:
+      - sel4-bv:logging
+      - sel4-bv:network-transport-static
+      # external
+      - unix
+      - network
+      - process
+      - unliftio-core
+      - monad-logger
       - optparse-applicative
       - network-transport
       - network-transport-tcp

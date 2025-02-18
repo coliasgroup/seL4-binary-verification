@@ -11,6 +11,7 @@ module BV.Core.Utils
     , tryLast
     , unwrapped
     , whileM
+    , (!@)
     ) where
 
 import Control.Monad (when)
@@ -75,6 +76,9 @@ is k s = isJust (preview k s)
 
 findWithCallstack :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
 findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present: " ++ show k)
+
+(!@) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
+(!@) = findWithCallstack
 
 -- (!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
 -- (!) = findWithCallstack

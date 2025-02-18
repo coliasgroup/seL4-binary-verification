@@ -61,6 +61,7 @@ library concrete-syntax
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -132,6 +133,7 @@ library core
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -176,6 +178,49 @@ library logging
     , stm
     , text
     , transformers
+    , transformers-base
+    , unliftio-core
+    , vector
+  default-language: GHC2021
+
+library network-transport-static
+  visibility: public
+  exposed-modules:
+      Network.Transport.Static
+      Network.Transport.Static.Utils
+  other-modules:
+      Network.Transport.Static.Peers
+  hs-source-dirs:
+      components/network-transport-static
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      async
+    , base
+    , binary
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , monad-logger
+    , mtl
+    , network-transport
+    , optics
+    , parallel
+    , process
+    , safe-exceptions
+    , stm
+    , text
+    , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -221,6 +266,7 @@ library smtlib2
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -258,6 +304,7 @@ library smtlib2-process
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -288,16 +335,21 @@ library system
     , containers
     , deepseq
     , directory
+    , distributed-process
+    , distributed-process-async
     , exceptions
     , filepath
     , monad-logger
     , mtl
+    , network-transport
     , optics
     , parallel
+    , process
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
+    , sel4-bv:network-transport-static
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system-core
@@ -307,6 +359,7 @@ library system
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -362,6 +415,7 @@ library system-core
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -402,6 +456,7 @@ library system-utils
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -440,6 +495,7 @@ library target-dir
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -477,6 +533,7 @@ library test-utils
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -535,6 +592,7 @@ executable cli
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
     , yaml
@@ -543,7 +601,8 @@ executable cli
 executable distrib-scratch
   main-is: Main.hs
   other-modules:
-      Opts
+      Static
+      TCP
   hs-source-dirs:
       components/scratch/distrib-scratch
   default-extensions:
@@ -565,16 +624,24 @@ executable distrib-scratch
     , distributed-process
     , distributed-process-simplelocalnet
     , exceptions
+    , monad-logger
     , mtl
+    , network
     , network-transport
     , network-transport-tcp
     , optics
     , optparse-applicative
     , parallel
+    , process
     , safe-exceptions
+    , sel4-bv:logging
+    , sel4-bv:network-transport-static
     , stm
     , text
     , transformers
+    , transformers-base
+    , unix
+    , unliftio-core
     , vector
   default-language: GHC2021
 
@@ -611,6 +678,7 @@ executable profiling-scratch
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -655,6 +723,7 @@ test-suite concrete-syntax-test
     , tasty-hunit
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -697,6 +766,7 @@ test-suite core-test
     , tasty-hunit
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -736,6 +806,7 @@ test-suite logging-test
     , tasty-hunit
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -778,6 +849,7 @@ test-suite smtlib2-test
     , tasty-hunit
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -812,5 +884,6 @@ test-suite system-test
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
