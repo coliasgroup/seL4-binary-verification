@@ -520,7 +520,6 @@ executable cli
     , mtl
     , optics
     , optparse-applicative
-    , optparse-generic
     , parallel
     , pretty-simple
     , resourcet
