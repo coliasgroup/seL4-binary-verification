@@ -12,7 +12,10 @@ module BV.CLI.Opts
     , LogFormat (..)
     , LogOpts (..)
     , LoggingOpts (..)
+    , NotWorkerCommandOpts (..)
+    , NotWorkerGlobalOpts (..)
     , Opts (..)
+    , WorkerOpts (..)
     , logEntryFormatterFor
     , logEntryParserFor
     , parseOpts
@@ -45,6 +48,10 @@ data Opts
 
 data GlobalOpts
   = GlobalOpts
+  deriving (Generic, Show)
+
+data NotWorkerGlobalOpts
+  = NotWorkerGlobalOpts
       { loggingOpts :: LoggingOpts
       , numCores :: Maybe Int
       }
@@ -90,6 +97,11 @@ logEntryParserFor = \case
     LogFormatHuman -> parseLogEntryHumanBestEffort
 
 data CommandOpts
+  = CommandOptsNotWorker NotWorkerGlobalOpts NotWorkerCommandOpts
+  | CommandOptsWorker WorkerOpts
+  deriving (Generic, Show)
+
+data NotWorkerCommandOpts
   = CommandOptsCheck CheckOpts
   | CommandOptsExtractSMT ExtractSMTOpts
   | CommandOptsFormatSMT FormatSMTOpts
@@ -144,6 +156,10 @@ data LineWrappingOpts
       }
   deriving (Generic, Show)
 
+data WorkerOpts
+  = WorkerOpts
+  deriving (Generic, Show)
+
 --
 
 parseOpts :: IO Opts
@@ -175,6 +191,10 @@ optsParser = do
 
 globalOptsParser :: Parser GlobalOpts
 globalOptsParser = do
+    pure GlobalOpts
+
+notWorkerGlobalOptsParser :: Parser NotWorkerGlobalOpts
+notWorkerGlobalOptsParser = do
     loggingOpts <- loggingOptsParser
     numCores <- optional $ option' auto
         [ long "cores"
@@ -182,7 +202,7 @@ globalOptsParser = do
         , metavar "NUM_CORES"
         , help "Number of cores to use"
         ]
-    pure $ GlobalOpts
+    pure $ NotWorkerGlobalOpts
         { loggingOpts
         , numCores
         }
@@ -264,16 +284,23 @@ commandOptsParser :: Parser CommandOpts
 commandOptsParser =
     subparser (mconcat
         [ command "check"
-            (info (CommandOptsCheck <$> checkOptsParser)
+            (info (notWorker CommandOptsCheck checkOptsParser)
                 (commonInfo <> progDesc "Check proof scripts"))
         , command "extract-smt"
-            (info (CommandOptsExtractSMT <$> extractSMTOptsParser)
+            (info (notWorker CommandOptsExtractSMT extractSMTOptsParser)
                 (commonInfo <> progDesc "Extract SMT from a 'check' log"))
         , command "format-smt"
-            (info (CommandOptsFormatSMT <$> formatSMTOptsParser)
+            (info (notWorker CommandOptsFormatSMT formatSMTOptsParser)
                 (commonInfo <> progDesc "Format SMT s-expressions"))
-
+        , command "worker"
+            (info (CommandOptsWorker <$> workerOptsParser)
+                (commonInfo <> progDesc "Spawn worker"))
         ])
+  where
+    notWorker constr p = do
+        opts <- constr <$> p
+        notWorkerGlobalOpts <- notWorkerGlobalOptsParser
+        return $ CommandOptsNotWorker notWorkerGlobalOpts opts
 
 checkOptsParser :: Parser CheckOpts
 checkOptsParser = do
@@ -428,6 +455,10 @@ lineWrappingOptsParser = do
         ]
     color <- switch (long "color" <> help "Add color")
     return $ LineWrappingOpts { preferredMaxLineWidth, indentWidth, minBreak, color }
+
+workerOptsParser :: Parser WorkerOpts
+workerOptsParser = do
+    return WorkerOpts
 
 --
 

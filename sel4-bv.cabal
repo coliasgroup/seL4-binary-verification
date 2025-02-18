@@ -486,6 +486,7 @@ executable cli
       BV.CLI.Commands.Check
       BV.CLI.Commands.ExtractSMT
       BV.CLI.Commands.FormatSMT
+      BV.CLI.Commands.Worker
       BV.CLI.Opts
       BV.CLI.SolverList
   hs-source-dirs:
