@@ -218,8 +218,8 @@ loggingOptsParser = do
             , action "file"
             ]
         logOpts <- logOptsParser defaultLogFormatForFile "file" "file-"
-        return $ FileLogOpts { dst, logOpts }
-    return $ LoggingOpts { stderrLogOpts, fileLogOpts }
+        pure $ FileLogOpts { dst, logOpts }
+    pure $ LoggingOpts { stderrLogOpts, fileLogOpts }
 
 logOptsParser :: LogFormat -> String -> String -> Parser LogOpts
 logOptsParser defaultLogFormat logName prefix = do
@@ -237,7 +237,7 @@ logOptsParser defaultLogFormat logName prefix = do
         , help "Log format for file log"
         , completeWith logFormatValues
         ]
-    return $ LogOpts { level, format }
+    pure $ LogOpts { level, format }
 
 logLevelReader :: ReadM LogLevel
 logLevelReader = maybeReader $ \case
@@ -300,7 +300,7 @@ commandOptsParser =
     notWorker constr p = do
         opts <- constr <$> p
         notWorkerGlobalOpts <- notWorkerGlobalOptsParser
-        return $ CommandOptsNotWorker notWorkerGlobalOpts opts
+        pure $ CommandOptsNotWorker notWorkerGlobalOpts opts
 
 checkOptsParser :: Parser CheckOpts
 checkOptsParser = do
@@ -382,7 +382,7 @@ checkOptsParser = do
         , metavar "DIRECTORY"
         , action "directory"
         ]
-    return $ CheckOpts
+    pure $ CheckOpts
         { maxNumConcurrentSolvers
         , solvers
         , onlineSolverTimeout
@@ -423,12 +423,12 @@ extractSMTOptsParser = do
         , completeWith logFormatValues
         ]
     lineWrappingOpts <- optional lineWrappingOptsParser
-    return $ ExtractSMTOpts { match, direction, format, lineWrappingOpts }
+    pure $ ExtractSMTOpts { match, direction, format, lineWrappingOpts }
 
 formatSMTOptsParser :: Parser FormatSMTOpts
 formatSMTOptsParser = do
     lineWrappingOpts <- optional lineWrappingOptsParser
-    return $ FormatSMTOpts { lineWrappingOpts }
+    pure $ FormatSMTOpts { lineWrappingOpts }
 
 lineWrappingOptsParser :: Parser LineWrappingOpts
 lineWrappingOptsParser = do
@@ -454,11 +454,11 @@ lineWrappingOptsParser = do
         , help "Indent width"
         ]
     color <- switch (long "color" <> help "Add color")
-    return $ LineWrappingOpts { preferredMaxLineWidth, indentWidth, minBreak, color }
+    pure $ LineWrappingOpts { preferredMaxLineWidth, indentWidth, minBreak, color }
 
 workerOptsParser :: Parser WorkerOpts
 workerOptsParser = do
-    return WorkerOpts
+    pure WorkerOpts
 
 --
 
