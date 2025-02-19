@@ -184,9 +184,9 @@ library network-transport-static
   visibility: public
   exposed-modules:
       Network.Transport.Static
+      Network.Transport.Static.Utils
   other-modules:
       Network.Transport.Static.Peers
-      Network.Transport.Static.Utils
   hs-source-dirs:
       components/network-transport-static
   default-extensions:
@@ -607,6 +607,7 @@ executable distrib-scratch
     , distributed-process
     , distributed-process-simplelocalnet
     , exceptions
+    , monad-logger
     , mtl
     , network
     , network-transport
@@ -614,11 +615,15 @@ executable distrib-scratch
     , optics
     , optparse-applicative
     , parallel
+    , process
     , safe-exceptions
+    , sel4-bv:logging
+    , sel4-bv:network-transport-static
     , stm
     , text
     , transformers
     , unix
+    , unliftio-core
     , vector
   default-language: GHC2021
 

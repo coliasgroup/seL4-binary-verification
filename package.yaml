@@ -102,6 +102,7 @@ internal-libraries:
     source-dirs: components/network-transport-static
     exposed-modules:
       - Network.Transport.Static
+      - Network.Transport.Static.Utils
     dependencies:
       - binary
       - unliftio-core
@@ -257,8 +258,14 @@ executables:
     source-dirs: components/scratch/distrib-scratch
     main: Main
     dependencies:
+      - sel4-bv:logging
+      - sel4-bv:network-transport-static
+      # external
       - unix
       - network
+      - process
+      - unliftio-core
+      - monad-logger
       - optparse-applicative
       - network-transport
       - network-transport-tcp

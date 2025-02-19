@@ -1,6 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Redundant $" #-}
+
 module Main
     ( main
     ) where
@@ -8,89 +12,113 @@ module Main
 import Opts
 import Work
 
+import BV.Logging
 import Control.Concurrent (threadDelay)
+import Control.Concurrent.Async (forConcurrently_, withAsync)
 import Control.Distributed.Process
-import qualified Control.Distributed.Process.Backend.SimpleLocalnet as S
 import Control.Distributed.Process.Closure
 import Control.Distributed.Process.Node
 import Control.Exception.Safe
-import Control.Monad (forever, when)
-import Network.Socket
+import Control.Monad (forever, when, unless)
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
+import Control.Monad.Logger (runStderrLoggingT)
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as C
+import qualified Data.Map as M
 import Network.Transport
-import qualified Network.Transport as NT (Transport)
-import qualified Network.Transport.TCP as NT (TCPAddr (Addressable),
-                                              TCPAddrInfo (TCPAddrInfo),
-                                              createTransport,
-                                              defaultTCPParameters)
+import Network.Transport.Static
+import Network.Transport.Static.Utils
+import System.IO (BufferMode (LineBuffering), hSetBuffering)
 import System.Posix.Process (getProcessID)
+import System.Process (CreateProcess (std_err), StdStream (CreatePipe), proc)
+import Control.Distributed.Process.Debug
 
 remotable ['remote]
 
 main :: IO ()
 main = do
     opts <- parseOpts
-    case opts of
+    runStderrLoggingT $ runSimpleLoggingWithContextT $ case opts of
         CommandDriver opts' -> runDriver opts'
         CommandWorker opts' -> runWorker opts'
 
-mkTransport :: HostName -> ServiceName -> IO Transport
-mkTransport host port = do
-    r <- NT.createTransport (NT.Addressable (NT.TCPAddrInfo host port (host,))) NT.defaultTCPParameters
-    case r of
-        Left err -> throwString $ show err
-        Right t -> return t
+driverAddr :: EndPointAddress
+driverAddr = EndPointAddress "driver"
 
 driverNodeId :: NodeId
-driverNodeId = NodeId (EndPointAddress "localhost:9001:0")
+driverNodeId = NodeId driverAddr
+
+workerAddr :: EndPointAddress
+workerAddr = EndPointAddress "worker"
 
 workerNodeId :: NodeId
-workerNodeId = NodeId (EndPointAddress "localhost:9002:0")
+workerNodeId = NodeId workerAddr
 
-workerNodeIdBad :: NodeId
-workerNodeIdBad = NodeId (EndPointAddress "xlocalhost:9002:0")
-
-runDriver :: DriverOpts -> IO ()
+runDriver :: (MonadUnliftIO m, MonadLogger m, MonadThrow m) => DriverOpts -> m ()
 runDriver opts = do
-    upid <- getProcessID
-    putStrLn $ "driver pupidid: " ++ show upid
-    let host = "localhost"
-    let port = "9001"
-    trans <- mkTransport host port
-    node <- newLocalNode trans initRemoteTable
-    let nid = localNodeId node
-    putStrLn $ "driver node id: " ++ show nid
-    when (nid /= driverNodeId) $ do
-        throwString $ "driver unexpected node id: " ++ show nid
-    runProcess node $ do
-        pid <- getSelfPid
-        say $ "driver process id: " ++ show pid
-        -- remotePid <- spawn workerNodeId ($(mkClosure 'remote) ())
-        remotePid <- spawnLink workerNodeId ($(mkClosure 'remote) ())
-        -- remotePid <- spawn workerNodeIdBad ($(mkClosure 'remote) ())
-        -- remotePid <- spawn workerNodeId ($(mkClosure 'remote) (1337 :: Int))
-        say $ "driver spawned remote"
-        say $ "remote process id: " ++ show remotePid
-        forever $ do
-            liftIO $ threadDelay 10000000
-            -- msg :: String <- expect
-            -- liftIO $ putStrLn $ "driver msg: " ++ show msg
+    upid <- liftIO getProcessID
+    logDebug $ "driver upid: " ++ show upid
+    -- let workerCmds = M.singleton workerAddr $ (proc "/proc/self/exe" ["worker"])
+    --         { std_err = CreatePipe
+    --         }
+    let workerCmds = M.empty
+    withRunInIO $ \run -> do
+        withDriverPeers workerCmds $ \peers stderrs -> do
+            let handleStderrs = forConcurrently_ (M.toList stderrs) $ \(addr, h) -> do
+                    hSetBuffering h LineBuffering
+                    let go = do
+                            bs <- B.hGetSome h 4096
+                            unless (B.null bs) $ do
+                                run $ logDebug $ "stderr from " ++ show addr ++ ": " ++ C.unpack bs
+                                go
+                    go
+            withAsync handleStderrs $ \_ -> do
+                -- liftIO $ threadDelay 10000000
+                run $ withStaticTransport driverAddr peers $ \transport -> do
+                    node <- liftIO $ newLocalNode transport initRemoteTable
+                    let nid = localNodeId node
+                    logDebug $ "driver node id: " ++ show nid
+                    when (nid /= driverNodeId) $ do
+                        throwString "driver unexpected node id"
+                    liftIO $ runProcess node $ do
+                        setTraceFlags traceFlags
+                        startTracer $ \ev -> do
+                            liftIO $ run $ logDebug $ show ev 
+                        setTraceFlags traceFlags
+                        pid <- getSelfPid
+                        liftIO $ run $ logDebug $ "driver process id: " ++ show pid
+                        remotePid <- spawnLink workerNodeId ($(mkClosure 'remote) ())
+                        liftIO $ run $ logDebug $ "driver spawned remote"
+                        liftIO $ run $ logDebug $ "remote process id: " ++ show remotePid
+                        forever $ do
+                            liftIO $ threadDelay 10000000
 
-runWorker :: WorkerOpts -> IO ()
+traceFlags = TraceFlags
+  { traceSpawned      = Just TraceAll
+  , traceDied         = Just TraceAll
+  , traceRegistered   = Just TraceAll
+  , traceUnregistered = Just TraceAll
+  , traceSend         = Just TraceAll
+  , traceRecv         = Just TraceAll
+  , traceNodes        = True
+  , traceConnections  = True
+  }
+
+runWorker :: (MonadUnliftIO m, MonadLogger m, MonadThrow m) => WorkerOpts -> m ()
 runWorker opts = do
-    upid <- getProcessID
-    putStrLn $ "worker upid: " ++ show upid
-    let host = "localhost"
-    let port = "9002"
-    trans <- mkTransport host port
-    node <- newLocalNode trans initRemoteTable
-    let nid = localNodeId node
-    putStrLn $ "worker node id: " ++ show nid.nodeAddress.endPointAddressToByteString
-    when (nid /= workerNodeId) $ do
-        throwString $ "worker unexpected node id: " ++ show nid
-    runProcess node $ do
-        pid <- getSelfPid
-        say $ "worker process id: " ++ show pid
-        forever $ do
-            liftIO $ threadDelay 10000000
-            -- msg :: String <- expect
-            -- liftIO $ putStrLn $ "worker msg: " ++ show msg
+    upid <- liftIO getProcessID
+    logDebug $ "worker upid: " ++ show upid
+    let peers = workerPeers driverAddr
+    withStaticTransport workerAddr peers $ \transport -> do
+        withRunInIO $ \run -> do
+            node <- newLocalNode transport initRemoteTable
+            let nid = localNodeId node
+            run $ logDebug $ "worker node id: " ++ show nid
+            when (nid /= workerNodeId) $ do
+                throwString "worker unexpected node id"
+            runProcess node $ do
+                pid <- getSelfPid
+                liftIO $ run $ logDebug $ "worker process id: " ++ show pid
+                forever $ do
+                    liftIO $ threadDelay 10000000
