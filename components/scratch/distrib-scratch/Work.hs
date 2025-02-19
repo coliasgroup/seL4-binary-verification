@@ -22,9 +22,12 @@ import System.Posix.Process (getProcessID)
 
 -- remote :: Int -> Process ()
 -- remote i = do
-remote :: () -> Process ()
-remote () = do
+remote :: String -> Process ()
+remote s = do
+    say $ "remote xxx: " ++ s
+    error $ "GOOOD " ++ s
     upid <- liftIO getProcessID
     -- error "fdshkjlfsd"
     -- liftIO $ putStrLn $ "remote i: " ++ show i
+    say $ "remote xxx: " ++ s
     say $ "remote upid: " ++ show upid

@@ -7,6 +7,9 @@ module Network.Transport.Static.Peers
     , PeerOps (..)
     , Peers (..)
     , SharedConnectionId (..)
+    , TransitSharedConnectionId (..)
+    , receiveSharedConnectionId
+    , sendSharedConnectionId
     , upcastPeerEventSource
     , upcastPeerMessageSink
     , withPeers
@@ -21,7 +24,6 @@ import Control.Exception.Safe
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError),
                              runExceptT, withExceptT)
 import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO))
-import Control.Monad.Logger (MonadLogger)
 import Control.Monad.STM (STM)
 import Control.Monad.Trans (lift)
 import Data.Bifunctor (first)
@@ -39,6 +41,79 @@ newtype Peers e
   = Peers { unwrap :: Map EndPointAddress (PeerOps e) }
   deriving (Generic)
 
+data PeerOps e
+  = PeerOps
+      { recv :: IO (Either e ByteString)
+      , send :: ByteString -> IO (Either e ())
+      , flush :: IO (Either e ())
+      }
+  deriving (Generic)
+
+data PeerException e
+  = PeerExceptionIO e
+  | PeerExceptionMalformedMessage String
+  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
+
+instance (Typeable e, Show e) => Exception (PeerException e) where
+
+withPeers'
+    :: (Typeable e, Show e)
+    => Peers e
+    -> (PeerEventSource' -> PeerMessageSink' -> IO a)
+    -> IO a
+withPeers' peersOps m = withPeers peersOps $ \peerEventSource peerMessageSink ->
+    m (upcastPeerEventSource peerEventSource) (upcastPeerMessageSink peerMessageSink)
+
+-- TODO keep track of connection errors, so that both send and recv will fail if the other has already failed
+
+withPeers
+    :: Peers e
+    -> (PeerEventSource (PeerException e) -> PeerMessageSink (PeerException e) -> IO a)
+    -> IO a
+withPeers peersOps m = withRunInIO $ \run -> do
+    peerEventChan <- newEmptyTMVarIO
+    let peerEventSource = takeTMVar peerEventChan
+    let forwardEvents = do
+            forConcurrently_ (M.toList peersOps.unwrap) $ \(peerAddr, peerOps) -> do
+                let sink = atomically . putTMVar peerEventChan . (peerAddr,)
+                recvMessages peerOps (sink . Right) >>= sink . Left
+    withAsync forwardEvents $ \_ ->
+        run $ m peerEventSource peerMessageSink
+  where
+    peerMessageSink addr = runExceptT . sendMessage (peersOps.unwrap ! addr)
+
+data Message
+  = Open
+      { myConnectionId :: ConnectionId
+      }
+  | Close TransitSharedConnectionId
+  | Send TransitSharedConnectionId [ByteString]
+  deriving (Eq, Generic, Show)
+
+instance Binary Message
+
+data TransitSharedConnectionId
+  = MyConnectionId ConnectionId
+  | YourConnectionId ConnectionId
+  deriving (Eq, Generic, Ord, Show)
+
+instance Binary TransitSharedConnectionId
+
+data SharedConnectionId
+  = OurConnectionId ConnectionId
+  | TheirConnectionId ConnectionId
+  deriving (Eq, Generic, Ord, Show)
+
+sendSharedConnectionId :: SharedConnectionId -> TransitSharedConnectionId
+sendSharedConnectionId = \case
+    OurConnectionId cid -> MyConnectionId cid
+    TheirConnectionId cid -> YourConnectionId cid
+
+receiveSharedConnectionId :: TransitSharedConnectionId -> SharedConnectionId
+receiveSharedConnectionId = \case
+    MyConnectionId cid -> TheirConnectionId cid
+    YourConnectionId cid -> OurConnectionId cid
+
 type PeerEventSource e = STM (EndPointAddress, Either e Message)
 type PeerMessageSink e = EndPointAddress -> Message -> IO (Either e ())
 
@@ -50,30 +125,6 @@ upcastPeerEventSource = fmap (fmap (first toException))
 
 upcastPeerMessageSink :: Exception e => PeerMessageSink e -> PeerMessageSink'
 upcastPeerMessageSink = fmap (fmap (fmap (first toException)))
-
-withPeers'
-    :: (MonadUnliftIO m, MonadLogger m, MonadThrow m, Typeable e, Show e)
-    => Peers e
-    -> (PeerEventSource' -> PeerMessageSink' -> m a)
-    -> m a
-withPeers' peersOps m = withPeers peersOps $ \peerEventSource peerMessageSink ->
-    m (upcastPeerEventSource peerEventSource) (upcastPeerMessageSink peerMessageSink)
-
-withPeers
-    :: (MonadUnliftIO m, MonadLogger m, MonadThrow m)
-    => Peers e
-    -> (PeerEventSource (PeerException e) -> PeerMessageSink (PeerException e) -> m a)
-    -> m a
-withPeers peersOps m = withRunInIO $ \run -> do
-    let peerMessageSink addr = runExceptT . sendMessage (peersOps.unwrap ! addr)
-    peerEventChan <- newEmptyTMVarIO
-    let peerEventSource = takeTMVar peerEventChan
-    let forwardEvents = do
-            forConcurrently_ (M.toList peersOps.unwrap) $ \(addr, ops) -> do
-                let sink = atomically . putTMVar peerEventChan . (addr,)
-                recvMessages ops (sink . Right) >>= sink . Left
-    withAsync forwardEvents $ \_ ->
-        run $ m peerEventSource peerMessageSink
 
 sendMessage :: PeerOps e -> Message -> ExceptT (PeerException e) IO ()
 sendMessage ops msg = withExceptT PeerExceptionIO $ do
@@ -98,32 +149,3 @@ recvGet g recvChunk f = start
                 else go (runGetIncremental g `pushChunk` rest)
         Partial n -> recvChunk >>= (go . n . Just)
         Fail _ _ err -> throwError (PeerExceptionMalformedMessage err)
-
-data PeerException e
-  = PeerExceptionIO e
-  | PeerExceptionMalformedMessage String
-  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
-
-instance (Typeable e, Show e) => Exception (PeerException e) where
-
-data Message
-  = Open SharedConnectionId
-  | Close SharedConnectionId
-  | Send SharedConnectionId ByteString
-  deriving (Eq, Generic, Show)
-
-instance Binary Message
-
-newtype SharedConnectionId
-  = SharedConnectionId { unwrap :: Integer }
-  deriving (Eq, Generic, Show)
-
-instance Binary SharedConnectionId
-
-data PeerOps e
-  = PeerOps
-      { recv :: IO (Either e ByteString)
-      , send :: ByteString -> IO (Either e ())
-      , flush :: IO (Either e ())
-      }
-  deriving (Generic)

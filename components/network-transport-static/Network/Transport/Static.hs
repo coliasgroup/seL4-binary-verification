@@ -1,5 +1,6 @@
-{-# OPTIONS_GHC -Wno-unused-imports #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use join" #-}
 
 module Network.Transport.Static
     ( PeerOps (..)
@@ -11,39 +12,32 @@ import Network.Transport.Static.Peers
 
 import Network.Transport
 
-import Control.Applicative ((<|>))
-import Control.Category ((>>>))
-import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Control.Exception (handle, throw)
 import Control.Exception.Safe
-import Control.Monad (unless, when)
-import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError),
-                             runExcept, runExceptT, withExceptT)
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO), askRunInIO)
-import Control.Monad.Logger (MonadLogger)
-import Control.Monad.State (MonadState (..), StateT (runStateT), lift)
-import Control.Monad.Trans.Except (ExceptT)
+import Control.Monad (join, unless, when)
+import Control.Monad.Base
+import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
+import Control.Monad.Logger (LoggingT (runLoggingT), MonadLogger, MonadLoggerIO,
+                             askLoggerIO, logDebugN)
+import Control.Monad.Reader
+import Control.Monad.State (MonadState, StateT (runStateT), get, gets)
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT))
+import Data.Bifunctor (first)
 import Data.ByteString (ByteString)
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as BSC (pack)
-import qualified Data.ByteString.Lazy as BL
+import Data.Either (fromRight)
 import Data.Foldable
-import Data.Map (Map, (!))
+import Data.Functor (void)
+import Data.Map (Map)
 import qualified Data.Map as M
-import qualified Data.Map as Map
-import Data.Maybe (fromJust)
-import Data.Monoid
+import Data.Maybe (isJust)
 import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Typeable (Typeable)
-import Data.Void (Void, absurd)
+import qualified Data.Text as T
 import GHC.Generics (Generic)
+import GHC.Stack (HasCallStack)
 import Optics
+import Optics.State.Operators ((<<.=))
 import Prelude hiding (foldr)
-import System.IO (Handle, hFlush)
-import System.IO.Error (eofErrorType, mkIOError)
+import System.IO.Unsafe (unsafePerformIO)
 
 data TransportState
   = TransportValid ValidTransportState
@@ -52,11 +46,18 @@ data TransportState
 
 data ValidTransportState
   = ValidTransportState
+      { ctx :: ValidTransportStateContext
+      , endPointState :: Maybe LocalEndPointState
+      }
+  deriving (Generic)
+
+data ValidTransportStateContext
+  = ValidTransportStateContext
       { selfEndPointAddress :: EndPointAddress
       , peerEndpointAddresses :: Set EndPointAddress
       , peerEventSource :: PeerEventSource'
       , peerMessageSink :: PeerMessageSink'
-      , endPointState :: Maybe LocalEndPointState
+      , hackRunLoggingT :: LoggingT IO () -> IO ()
       }
   deriving (Generic)
 
@@ -67,37 +68,29 @@ data LocalEndPointState
       }
   deriving (Generic)
 
+newValidLocalEndPointState :: ValidLocalEndPointState
+newValidLocalEndPointState = ValidLocalEndPointState
+    { connections = M.empty
+    , connectionsRev = M.empty
+    }
+
 data ValidLocalEndPointState
   = ValidLocalEndPointState
-      { peers :: Map EndPointAddress PeerState
-      , nextConnectionId :: ConnectionId
-      , connections :: Map (EndPointAddress, ConnectionId) LocalConnection
+      { connections :: Map ConnectionId LocalConnection
+      , connectionsRev :: Map OuterSharedConnectionId ConnectionId
       }
   deriving (Generic)
 
-newValidLocalEndPointState :: Set EndPointAddress -> ValidLocalEndPointState
-newValidLocalEndPointState peerEndpointAddresses = ValidLocalEndPointState
-    { peers = M.fromList [ (addr, newPeerState) | addr <- toList peerEndpointAddresses ]
-    , nextConnectionId = 0
-    , connections = M.empty
-    }
-
-data PeerState
-  = PeerState
-      { maxSharedConnectionId :: SharedConnectionId
+data OuterSharedConnectionId
+  = OuterSharedConnectionId
+      { endPointAddress :: EndPointAddress
+      , innerId :: SharedConnectionId
       }
-  deriving (Generic)
-
-newPeerState :: PeerState
-newPeerState = PeerState
-    { maxSharedConnectionId = SharedConnectionId 0
-    }
+  deriving (Eq, Generic, Ord, Show)
 
 data LocalConnection
   = LocalConnection
-      { id :: ConnectionId
-      , localAddress :: EndPointAddress
-      , remoteAddress :: EndPointAddress
+      { outerId :: OuterSharedConnectionId
       , state :: LocalConnectionState
       }
   deriving (Generic)
@@ -106,115 +99,158 @@ data LocalConnectionState
   = LocalConnectionValid
   | LocalConnectionClosed
   | LocalConnectionFailed
-  deriving (Generic)
+  deriving (Eq, Generic, Ord, Show)
+
+--
 
 withStaticTransport
-    :: (MonadUnliftIO m, MonadLogger m, MonadThrow m, Typeable e, Show e)
+    :: (MonadLoggerIO m, Typeable e, Show e)
     => EndPointAddress
     -> Peers e
-    -> (Transport -> m a)
+    -> (Transport -> IO a)
     -> m a
-withStaticTransport selfEndPointAddress peersOps m = do
+withStaticTransport selfEndPointAddress peersOps m = askLoggerIO >>= \logger -> liftIO $ do
     withPeers' peersOps $ \peerEventSource peerMessageSink -> do
-        tsv <- liftIO $ newTVarIO $ TransportValid $ ValidTransportState
-            { selfEndPointAddress
-            , peerEndpointAddresses = M.keysSet peersOps.unwrap
-            , peerEventSource
-            , peerMessageSink
+        tsv <- newTVarIO $ TransportValid $ ValidTransportState
+            { ctx = ValidTransportStateContext
+                { selfEndPointAddress
+                , peerEndpointAddresses = M.keysSet peersOps.unwrap
+                , peerEventSource
+                , peerMessageSink
+                , hackRunLoggingT = (`runLoggingT` logger)
+                }
             , endPointState = Nothing
             }
         let transport = Transport
                 { newEndPoint = apiNewEndpoint tsv
                 , closeTransport = apiCloseTransport tsv
                 }
-        m transport <* liftIO transport.closeTransport
+        m transport `finally` liftIO transport.closeTransport
 
 apiCloseTransport :: TVar TransportState -> IO ()
-apiCloseTransport tsv = atomically $ withTransportState tsv $ do
+apiCloseTransport _tsv = do
+    -- TODO
+    unimplemented "apiCloseTransport"
+
+    -- atomically $ withTransportState tsv $ do
     -- TODO close endpoint?
     -- zoomMaybe #_TransportValid $ do
         -- undefined
-    put TransportClosed
+    -- put TransportClosed
 
 apiNewEndpoint :: TVar TransportState -> IO (Either (TransportError NewEndPointErrorCode) EndPoint)
-apiNewEndpoint tsv = atomically $ withTransportState tsv $ do
-    zoomOrThrowString "apiNewEndpoint TransportValid" #_TransportValid $ do
-        peerEndpointAddresses <- use #peerEndpointAddresses
-        address <- use #selfEndPointAddress
-        zoom #endPointState $ do
-            get >>= \case
-                Just _ -> do
-                    throwString "apiNewEndpoint Just"
-                Nothing -> do
-                    put $ Just $ LocalEndPointValid $ newValidLocalEndPointState peerEndpointAddresses
-        return $ Right $ EndPoint
+apiNewEndpoint tsv = atomically $ withValidTransportState tsv $ do
+    address <- gview #selfEndPointAddress
+    old <- simple <<.= Just (LocalEndPointValid newValidLocalEndPointState)
+    when (isJust old) $ do
+        throwString "singleton endpoint has already been created"
+    let endpoint = EndPoint
             { receive = apiReceive tsv
             , address
             , connect = apiConnect tsv
-            , newMulticastGroup = throwString "newMulticastGroup"
-            , resolveMulticastGroup = \_ -> throwString "resolveMulticastGroup"
+            , newMulticastGroup = unimplemented "newMulticastGroup"
+            , resolveMulticastGroup = \_ -> unimplemented "resolveMulticastGroup"
             , closeEndPoint = apiCloseEndPoint tsv
             }
+    return $ Right endpoint
 
 apiCloseEndPoint :: TVar TransportState -> IO ()
-apiCloseEndPoint tsv = atomically $ withTransportState tsv $ do
-    zoomOrThrowString "apiCloseEndPoint endPointState" (#_TransportValid % #endPointState) $ do
-        get >>= \case
-            Nothing -> do
-                return ()
-            Just _ -> do
-                -- TODO close connections with peers?
-                return ()
-        put $ Just $ LocalEndPointClosed { eventHasBeenReceived = False }
+apiCloseEndPoint _tsv = do
+    -- TODO
+    unimplemented "apiCloseEndPoint"
+
+    -- atomically $ withTransportState tsv $ do
+    --     zoomOrThrow "apiCloseEndPoint endPointState" (#_TransportValid % #endPointState) $ do
+    --         get >>= \case
+    --             Nothing -> do
+    --                 return ()
+    --             Just _ -> do
+    --                 -- TODO close connections with peers?
+    --                 return ()
+    --         put $ Just $ LocalEndPointClosed { eventHasBeenReceived = False }
 
 apiReceive :: TVar TransportState -> IO Event
-apiReceive tsv = atomically $ withTransportState tsv $ do
-    zoomOrThrowString "apiReceive TransportValid" #_TransportValid $ do
-        peerEventSource <- use #peerEventSource
-        zoomOrThrowString "apiReceive LocalEndPointState" (#endPointState % _Just) $ do
-            get >>= \case
-                LocalEndPointValid vleps -> do
-                    (peerAddr, peerEvent) <- lift peerEventSource
-                    case peerEvent of
-                        Left ex -> do
-                            undefined
-                        Right msg -> do
-                            case msg of
-                                Open scid -> do
-                                    undefined
-                                Close scid -> do
-                                    undefined
-                                Send scid bs -> do
-                                    undefined
-                LocalEndPointClosed { eventHasBeenReceived } -> do
-                    if eventHasBeenReceived
-                    then return EndPointClosed
-                    else throwString "endpoint closed"
+apiReceive tsv = atomically $ withLocalEndpointState tsv $ do
+    zoomCasesOrThrow
+        [ zoomMaybe #_LocalEndPointValid $ do
+            peerEventSource <- gview #peerEventSource
+            (peerAddr, peerEvent) <- hackLogDebugId "inner event" =<< liftBase peerEventSource
+            hackLogDebugId "outer event" =<< case peerEvent of
+                Left ex -> do
+                    return $ ErrorEvent $ transportErrorFromException (EventConnectionLost peerAddr) ex
+                Right msg -> do
+                    case msg of
+                        Open { myConnectionId = theirConnectionId } -> do
+                            let outerId = OuterSharedConnectionId peerAddr (TheirConnectionId theirConnectionId)
+                            alreadyInUse <- gets $ \vleps -> outerId `M.member` vleps.connectionsRev
+                            when alreadyInUse $ do
+                                throwString "SharedConnectionId already in use"
+                            cid <- nextConnectionId
+                            insertNewConnection cid outerId
+                            return $ ConnectionOpened cid ReliableOrdered peerAddr
+                        Close tscid -> do
+                            let outerId = OuterSharedConnectionId peerAddr (receiveSharedConnectionId tscid)
+                            zoomConnectionStateByOuterId outerId $ \cid -> do
+                                oldSt <- simple <<.= LocalConnectionClosed
+                                when (oldSt /= LocalConnectionValid) $ do
+                                    throwString "connection was not valid"
+                                return $ ConnectionClosed cid
+                        Send tscid bs -> do
+                            let outerId = OuterSharedConnectionId peerAddr (receiveSharedConnectionId tscid)
+                            zoomConnectionStateByOuterId outerId $ \cid -> do
+                                st <- get
+                                when (st /= LocalConnectionValid) $ do
+                                    throwString "connection is not valid"
+                                return $ Received cid bs
+        , zoomMaybe #_LocalEndPointClosed $ do
+            eventHasBeenReceived <- simple <<.= True
+            unless eventHasBeenReceived $ do
+                throwString "endpoint closed"
+            return EndPointClosed
+        ]
 
-apiConnect :: TVar TransportState
-           -> EndPointAddress
-           -> Reliability
-           -> ConnectHints
-           -> IO (Either (TransportError ConnectErrorCode) Connection)
-apiConnect tsv theirAddress _reliability _hints = do
-    let cid = undefined
-    return $ Right $ Connection
-        { send  = apiSend tsv cid
-        , close = apiClose tsv cid
-        }
+apiConnect
+    :: TVar TransportState
+    -> EndPointAddress
+    -> Reliability
+    -> ConnectHints
+    -> IO (Either (TransportError ConnectErrorCode) Connection)
+apiConnect tsv peerAddr _reliability _hints = join $ atomically $ withValidLocalEndpointState tsv $ do
+    cid <- nextConnectionId
+    let outerId = OuterSharedConnectionId peerAddr (OurConnectionId cid)
+    insertNewConnection cid outerId
+    action <- mkSubmitMessageOr ConnectFailed peerAddr $ Open { myConnectionId = cid }
+    return $ runExceptT $ do
+        ExceptT action
+        return $ Connection
+            { send  = apiSend tsv cid
+            , close = apiClose tsv cid
+            }
 
-apiSend :: TVar TransportState
-        -> ConnectionId
-        -> [ByteString]
-        -> IO (Either (TransportError SendErrorCode) ())
-apiSend tsv cid bs = do
-    undefined
+apiSend
+    :: TVar TransportState
+    -> ConnectionId
+    -> [ByteString]
+    -> IO (Either (TransportError SendErrorCode) ())
+apiSend tsv cid bs = join $ atomically $ withValidLocalEndpointState tsv $ do
+    zoomConnectionState cid $ \outerId -> do
+        st <- get
+        when (st /= LocalConnectionValid) $ do
+            throwString "state /= LocalConnectionValid"
+        mkSubmitMessageOr SendFailed outerId.endPointAddress $
+            Send (sendSharedConnectionId outerId.innerId) bs
 
-apiClose :: TVar TransportState
-         -> ConnectionId
-         -> IO ()
-apiClose tsv cid = do
-    undefined
+apiClose
+    :: TVar TransportState
+    -> ConnectionId
+    -> IO ()
+apiClose tsv cid = join $ atomically $ withValidLocalEndpointState tsv $ do
+    zoomConnectionState cid $ \outerId -> do
+        oldSt <- simple <<.= LocalConnectionClosed
+        when (oldSt /= LocalConnectionValid) $ do
+            throwString "old state /= LocalConnectionValid"
+        mkSubmitMessage_ outerId.endPointAddress $
+            Close (sendSharedConnectionId outerId.innerId)
 
 --
 
@@ -225,26 +261,104 @@ withTransportState tsv m = do
     writeTVar tsv ts'
     return a
 
-zoomOr :: (Zoom m n s t, Is k An_AffineTraversal) => n c -> Optic' k is t s -> m c -> n c
-zoomOr fallback o m = zoomMaybe o m >>= maybe fallback return
+withValidTransportState :: TVar TransportState -> ReaderT ValidTransportStateContext (StateT (Maybe LocalEndPointState) STM) a -> STM a
+withValidTransportState tsv m = withTransportState tsv $ do
+    zoomOrThrow "invalid transport state" #_TransportValid $ do
+        ctx <- use #ctx
+        runReaderT (zoom #endPointState m) ctx
 
-zoomOrThrowString :: (Zoom m n s t, MonadThrow n, Is k An_AffineTraversal) => String -> Optic' k is t s -> m c -> n c
-zoomOrThrowString err o m = zoomMaybe o m >>= maybe (throwString err) return
+withLocalEndpointState :: TVar TransportState -> ReaderT ValidTransportStateContext (StateT LocalEndPointState STM) a -> STM a
+withLocalEndpointState tsv =
+    withValidTransportState tsv . zoomOrThrow "non-existent local endpoint state" #_Just
 
--- overValidTransportState :: TVar TransportState -> STM a -> (ValidTransportState -> STM a) -> STM a
--- overValidTransportState tsv fallback action = do
---     ts <- readTVar tsv
---     case ts of
---         TransportValid vts -> action vts
---         _ -> fallback
+withValidLocalEndpointState :: TVar TransportState -> ReaderT ValidTransportStateContext (StateT ValidLocalEndPointState STM) a -> STM a
+withValidLocalEndpointState tsv =
+    withLocalEndpointState tsv . zoomOrThrow "invalid local endpoint state" #_LocalEndPointValid
 
--- withValidTransportState :: (Typeable e, Show e) => TVar TransportState -> e -> (ValidTransportState -> STM a) -> STM a
--- withValidTransportState ts ex = overValidTransportState ts (throwSTM (TransportError ex "transport closed"))
+nextConnectionId :: MonadState ValidLocalEndPointState m => m ConnectionId
+nextConnectionId = do
+    maybe 0 ((+ 1) . fst) . M.lookupMax <$> use #connections
+
+zoomConnectionState
+    :: ConnectionId
+    -> (OuterSharedConnectionId -> ReaderT ValidTransportStateContext (StateT LocalConnectionState STM) a)
+    -> ReaderT ValidTransportStateContext (StateT ValidLocalEndPointState STM) a
+zoomConnectionState cid m = do
+    zoom (#connections % at cid % unwrapped) $ do
+        outerId <- use #outerId
+        zoom #state $ do
+            m outerId
+
+zoomConnectionStateByOuterId
+    :: OuterSharedConnectionId
+    -> (ConnectionId -> ReaderT ValidTransportStateContext (StateT LocalConnectionState STM) a)
+    -> ReaderT ValidTransportStateContext (StateT ValidLocalEndPointState STM) a
+zoomConnectionStateByOuterId outerId m = do
+    cid <- use $ #connectionsRev % at outerId % unwrapped
+    zoomConnectionState cid $ \_ -> do
+        m cid
+
+insertNewConnection :: MonadState ValidLocalEndPointState m => ConnectionId -> OuterSharedConnectionId -> m ()
+insertNewConnection cid outerId = do
+    assign (#connections % at cid) $ Just $ LocalConnection
+        { outerId
+        , state = LocalConnectionValid
+        }
+    assign (#connectionsRev % at outerId) $ Just cid
+
+transportErrorFromException :: (Exception e, Typeable a, Show a) => a -> e -> TransportError a
+transportErrorFromException code ex =
+    -- TransportError code (displayException ex)
+    -- HACK
+    impureThrow (TransportError code (displayException ex))
+
+mkSubmitMessage :: MonadReader ValidTransportStateContext m => EndPointAddress -> Message -> m (IO (Either SomeException ()))
+mkSubmitMessage peerAddr msg = do
+    peerMessageSink <- gview #peerMessageSink
+    return $ peerMessageSink peerAddr msg
+
+mkSubmitMessageOr :: (MonadReader ValidTransportStateContext m, Typeable a, Show a) => a -> EndPointAddress -> Message -> m (IO (Either (TransportError a) ()))
+mkSubmitMessageOr code peerAddr msg = fmap (first (transportErrorFromException code)) <$> mkSubmitMessage peerAddr msg
+
+mkSubmitMessage_ :: MonadReader ValidTransportStateContext m => EndPointAddress -> Message -> m (IO ())
+mkSubmitMessage_ peerAddr msg = void <$> mkSubmitMessage peerAddr msg
+
+hackLog :: MonadReader ValidTransportStateContext m => (forall n. MonadLogger n => n ()) -> m ()
+hackLog action = do
+    hackRunLoggingT <- gview #hackRunLoggingT
+    unsafePerformIO (hackRunLoggingT action) `seq` return ()
+
+hackLogDebug :: (MonadReader ValidTransportStateContext m, Show a) => String -> a -> m ()
+hackLogDebug s a = do
+    hackLog $ logDebugN $ T.pack $ s ++ ": " ++ show a
+
+hackLogDebugId :: (MonadReader ValidTransportStateContext m, Show a) => String -> a -> m a
+hackLogDebugId s a = do
+    hackLogDebug s a
+    return a
 
 --
 
-data Bug
-  = Bug String
-  deriving (Show, Typeable)
+zoomOr :: (Zoom m n s t, Is k An_AffineTraversal) => n c -> Optic' k is t s -> m c -> n c
+zoomOr fallback o m = zoomMaybe o m >>= maybe fallback return
 
-instance Exception Bug where
+zoomOrThrow :: (Zoom m n s t, MonadThrow n, Is k An_AffineTraversal, HasCallStack) => String -> Optic' k is t s -> m c -> n c
+zoomOrThrow err = zoomOr (throwString err)
+
+zoomCasesOr :: Monad m => m a -> [m (Maybe a)] -> m a
+zoomCasesOr fallback cases = runMaybeT (msum (map MaybeT cases)) >>= maybe fallback return
+
+zoomCasesOrThrow :: (Monad m, MonadThrow m, HasCallStack) => [m (Maybe a)] -> m a
+zoomCasesOrThrow = zoomCasesOr (throwString "non-exhaustive zoomC cases")
+
+unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
+unwrapped = expecting _Just
+
+expecting :: (Is k An_AffineTraversal, HasCallStack) => Optic k is s t a b -> Lens s t a b
+expecting optic = withAffineTraversal optic $ \match update ->
+    lens
+        (fromRight (error "!isRight") . match)
+        update
+
+unimplemented :: MonadThrow m => String -> m a
+unimplemented s = throwString $ "unimplemented: " ++ s

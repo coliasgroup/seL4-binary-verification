@@ -61,6 +61,7 @@ library concrete-syntax
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -132,6 +133,7 @@ library core
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -176,6 +178,7 @@ library logging
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -217,6 +220,7 @@ library network-transport-static
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -262,6 +266,7 @@ library smtlib2
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -299,6 +304,7 @@ library smtlib2-process
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -348,6 +354,7 @@ library system
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -403,6 +410,7 @@ library system-core
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -443,6 +451,7 @@ library system-utils
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
   default-language: GHC2021
@@ -481,6 +490,7 @@ library target-dir
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -518,6 +528,7 @@ library test-utils
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -576,6 +587,7 @@ executable cli
     , stm
     , text
     , transformers
+    , transformers-base
     , unliftio-core
     , vector
     , yaml
@@ -622,6 +634,7 @@ executable distrib-scratch
     , stm
     , text
     , transformers
+    , transformers-base
     , unix
     , unliftio-core
     , vector
@@ -660,6 +673,7 @@ executable profiling-scratch
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -704,6 +718,7 @@ test-suite concrete-syntax-test
     , tasty-hunit
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -746,6 +761,7 @@ test-suite core-test
     , tasty-hunit
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -785,6 +801,7 @@ test-suite logging-test
     , tasty-hunit
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -827,6 +844,7 @@ test-suite smtlib2-test
     , tasty-hunit
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021
 
@@ -861,5 +879,6 @@ test-suite system-test
     , stm
     , text
     , transformers
+    , transformers-base
     , vector
   default-language: GHC2021

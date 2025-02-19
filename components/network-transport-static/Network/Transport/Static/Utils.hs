@@ -62,13 +62,17 @@ withDriverPeers workerCmds m =
                 { std_in = CreatePipe
                 , std_out = CreatePipe
                 }
-         in withCreateProcess cmd' $ \(Just hin) (Just hout) stderr _ph ->
+         in withCreateProcess cmd' $ \(Just hIn) (Just hOut) hErr _ph ->
                 let ops = peerOpsFromHandles $ HandlesForPeerOps
-                        { recv = hout
-                        , send = hin
+                        { recv = hOut
+                        , send = hIn
                         }
-                 in go ((addr, ops, stderr):acc) rest
+                 in go ((addr, ops, hErr):acc) rest
     go acc [] =
-        let (peers, stderrs) = flip foldMap acc $ \(addr, ops, stderr) ->
-                (M.singleton addr ops, maybe M.empty (M.singleton addr) stderr)
+        let (peers, stderrs) = mconcat
+                [ ( M.singleton addr ops
+                  , maybe M.empty (M.singleton addr) stderr
+                  )
+                | (addr, ops, stderr) <- acc
+                ]
          in m (Peers peers) stderrs
