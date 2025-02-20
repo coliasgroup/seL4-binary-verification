@@ -325,8 +325,10 @@ mkSubmitMessage_ peerAddr msg = void <$> mkSubmitMessage peerAddr msg
 
 hackLog :: MonadReader ValidTransportStateContext m => (forall n. MonadLogger n => n ()) -> m ()
 hackLog action = do
-    hackRunLoggingT <- gview #hackRunLoggingT
-    unsafePerformIO (hackRunLoggingT action) `seq` return ()
+    -- SKIPPED
+    -- hackRunLoggingT <- gview #hackRunLoggingT
+    -- unsafePerformIO (hackRunLoggingT action) `seq` return ()
+    return ()
 
 hackLogDebug :: (MonadReader ValidTransportStateContext m, Show a) => String -> a -> m ()
 hackLogDebug s a = do

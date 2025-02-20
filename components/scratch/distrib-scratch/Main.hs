@@ -38,6 +38,8 @@ import System.Process (CreateProcess (std_err), StdStream (CreatePipe), proc)
 
 remotable ['remote]
 
+finalRemoteTable = Main.__remoteTable initRemoteTable
+
 main :: IO ()
 main = do
     opts <- parseOpts
@@ -60,7 +62,7 @@ workerNodeId = NodeId workerAddr
 runDriver :: (MonadUnliftIO m, MonadLoggerIO m, MonadThrow m) => DriverOpts -> m ()
 runDriver opts = do
     upid <- liftIO getProcessID
-    logDebug $ "driver upid: " ++ show upid
+    logInfo $ "driver upid: " ++ show upid
     let workerCmds = M.singleton workerAddr $ (proc "/proc/self/exe" ["worker"])
             { std_err = CreatePipe
             }
@@ -80,9 +82,9 @@ runDriver opts = do
             withAsync handleStderrs $ \_ -> do
                 -- liftIO $ threadDelay 10000000
                 run $ withStaticTransport driverAddr peers $ \transport -> do
-                    node <- liftIO $ newLocalNode transport initRemoteTable
+                    node <- liftIO $ newLocalNode transport finalRemoteTable
                     let nid = localNodeId node
-                    run $ logDebug $ "driver node id: " ++ show nid
+                    run $ logInfo $ "driver node id: " ++ show nid
                     when (nid /= driverNodeId) $ do
                         throwString "driver unexpected node id"
                     liftIO $ runProcess node $ do
@@ -91,12 +93,12 @@ runDriver opts = do
                             liftIO $ run $ logDebug $ show ev
                         setTraceFlags traceFlags
                         pid <- getSelfPid
-                        liftIO $ run $ logDebug $ "driver process id: " ++ show pid
-                        -- remotePid <- spawn workerNodeId ($(mkClosure 'remote) ("fooooobararrrr" :: String))
-                        remotePid <- spawnLink workerNodeId ($(mkClosure 'remote) ("fooooobararrrr" :: String))
+                        liftIO $ run $ logInfo $ "driver process id: " ++ show pid
+                        remotePid <- spawn workerNodeId ($(mkClosure 'remote) ("fooooobararrrr" :: String))
+                        -- remotePid <- spawnLink workerNodeId ($(mkClosure 'remote) ("fooooobararrrr" :: String))
                         -- remotePid <- spawnLink workerNodeId ($(mkClosure 'remote) ())
-                        liftIO $ run $ logDebug $ "driver spawned remote"
-                        liftIO $ run $ logDebug $ "remote process id: " ++ show remotePid
+                        liftIO $ run $ logInfo $ "driver spawned remote"
+                        liftIO $ run $ logInfo $ "remote process id: " ++ show remotePid
                         forever $ do
                             liftIO $ threadDelay 10000000
 
@@ -114,13 +116,13 @@ traceFlags = defaultTraceFlags
 runWorker :: (MonadUnliftIO m, MonadLoggerIO m, MonadThrow m) => WorkerOpts -> m ()
 runWorker opts = do
     upid <- liftIO getProcessID
-    logDebug $ "worker upid: " ++ show upid
+    logInfo $ "worker upid: " ++ show upid
     let peers = workerPeers driverAddr
     withRunInIO $ \run -> do
         run $ withStaticTransport workerAddr peers $ \transport -> do
-            node <- newLocalNode transport initRemoteTable
+            node <- newLocalNode transport finalRemoteTable
             let nid = localNodeId node
-            run $ logDebug $ "worker node id: " ++ show nid
+            run $ logInfo $ "worker node id: " ++ show nid
             when (nid /= workerNodeId) $ do
                 throwString "worker unexpected node id"
             runProcess node $ do
@@ -129,6 +131,6 @@ runWorker opts = do
                     liftIO $ run $ logDebug $ show ev
                 setTraceFlags traceFlags
                 pid <- getSelfPid
-                liftIO $ run $ logDebug $ "worker process id: " ++ show pid
+                liftIO $ run $ logInfo $ "worker process id: " ++ show pid
                 forever $ do
                     liftIO $ threadDelay 10000000

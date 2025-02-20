@@ -25,7 +25,7 @@ import System.Posix.Process (getProcessID)
 remote :: String -> Process ()
 remote s = do
     say $ "remote xxx: " ++ s
-    error $ "GOOOD " ++ s
+    -- error $ "GOOOD " ++ s
     upid <- liftIO getProcessID
     -- error "fdshkjlfsd"
     -- liftIO $ putStrLn $ "remote i: " ++ show i
