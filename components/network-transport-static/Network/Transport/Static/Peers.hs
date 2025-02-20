@@ -64,8 +64,6 @@ withPeers'
 withPeers' peersOps m = withPeers peersOps $ \peerEventSource peerMessageSink ->
     m (upcastPeerEventSource peerEventSource) (upcastPeerMessageSink peerMessageSink)
 
--- TODO keep track of connection errors, so that both send and recv will fail if the other has already failed
-
 withPeers
     :: Peers e
     -> (PeerEventSource (PeerException e) -> PeerMessageSink (PeerException e) -> IO a)

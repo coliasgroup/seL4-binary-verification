@@ -39,6 +39,8 @@ import Optics.State.Operators ((<<.=))
 import Prelude hiding (foldr)
 import System.IO.Unsafe (unsafePerformIO)
 
+-- TODO keep track of connection errors, so that both send and recv will fail if the other has already failed
+
 data TransportState
   = TransportValid ValidTransportState
   | TransportClosed

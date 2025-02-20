@@ -106,10 +106,11 @@ internal-libraries:
       - Network.Transport.Static.Utils
     dependencies:
       - binary
-      - unliftio-core
-      - monad-logger
       - process
       - network-transport
+      # TODO for debugging
+      - unliftio-core
+      - monad-logger
 
   core:
     visibility: public
@@ -193,12 +194,17 @@ internal-libraries:
       - sel4-bv:target-dir
       - sel4-bv:system-core
       - sel4-bv:system-utils
+      - sel4-bv:network-transport-static
       # external
       - unliftio-core
       - monad-logger
       - filepath
       - directory
+      - process
       - sqlite-simple
+      - network-transport
+      - distributed-process
+      - distributed-process-async
 
   test-utils:
     source-dirs: components/tests/test-utils
