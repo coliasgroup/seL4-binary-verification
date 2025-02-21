@@ -12,34 +12,39 @@ import Network.Transport.Static.Peers
 
 import Network.Transport
 
-import Control.Concurrent.STM
-import Control.Exception.Safe
+import Control.Applicative (asum)
+import Control.Concurrent.STM (STM, TVar, atomically, newTVarIO, readTVar,
+                               writeTVar)
+import Control.Exception.Safe (Exception, MonadThrow, SomeException,
+                               displayException, finally, impureThrow,
+                               throwString)
 import Control.Monad (join, unless, when)
-import Control.Monad.Base
+import Control.Monad.Base (liftBase)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (LoggingT (runLoggingT), MonadLogger, MonadLoggerIO,
                              askLoggerIO, logDebugN)
-import Control.Monad.Reader
+import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (MonadState, StateT (runStateT), get, gets)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT))
 import Data.Bifunctor (first)
 import Data.ByteString (ByteString)
 import Data.Either (fromRight)
-import Data.Foldable
+import Data.Foldable ()
 import Data.Functor (void)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (isJust)
 import Data.Set (Set)
 import qualified Data.Text as T
+import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
 import Optics.State.Operators ((<<.=))
 import Prelude hiding (foldr)
-import System.IO.Unsafe (unsafePerformIO)
 
--- TODO keep track of connection errors, so that both send and recv will fail if the other has already failed
+-- import System.IO.Unsafe (unsafePerformIO)
 
 data TransportState
   = TransportValid ValidTransportState
@@ -350,7 +355,7 @@ zoomOrThrow :: (Zoom m n s t, MonadThrow n, Is k An_AffineTraversal, HasCallStac
 zoomOrThrow err = zoomOr (throwString err)
 
 zoomCasesOr :: Monad m => m a -> [m (Maybe a)] -> m a
-zoomCasesOr fallback cases = runMaybeT (msum (map MaybeT cases)) >>= maybe fallback return
+zoomCasesOr fallback cases = runMaybeT (asum (map MaybeT cases)) >>= maybe fallback return
 
 zoomCasesOrThrow :: (Monad m, MonadThrow m, HasCallStack) => [m (Maybe a)] -> m a
 zoomCasesOrThrow = zoomCasesOr (throwString "non-exhaustive zoomC cases")
@@ -359,10 +364,7 @@ unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just
 
 expecting :: (Is k An_AffineTraversal, HasCallStack) => Optic k is s t a b -> Lens s t a b
-expecting optic = withAffineTraversal optic $ \match update ->
-    lens
-        (fromRight (error "!isRight") . match)
-        update
+expecting optic = withAffineTraversal optic $ \match -> lens (fromRight (error "!isRight") . match)
 
 unimplemented :: MonadThrow m => String -> m a
 unimplemented s = throwString $ "unimplemented: " ++ s

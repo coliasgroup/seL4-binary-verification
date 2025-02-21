@@ -10,7 +10,7 @@ module Network.Transport.Static.Utils
 import Network.Transport
 import Network.Transport.Static
 
-import Control.Exception.Safe
+import Control.Exception.Safe (IOException, tryIO)
 import Control.Monad (when)
 import qualified Data.ByteString as B
 import Data.Map (Map)
@@ -21,8 +21,6 @@ import System.IO (Handle, hFlush, stdin, stdout)
 import System.IO.Error (eofErrorType, mkIOError)
 import System.Process (CreateProcess (..), StdStream (CreatePipe),
                        withCreateProcess)
-
--- TODO test terminating processes
 
 data HandlesForPeerOps
   = HandlesForPeerOps

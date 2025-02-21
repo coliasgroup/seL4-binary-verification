@@ -18,9 +18,9 @@ module Network.Transport.Static.Peers
 
 import Network.Transport
 
-import Control.Concurrent.Async
+import Control.Concurrent.Async (forConcurrently_, withAsync)
 import Control.Concurrent.STM (atomically, newEmptyTMVarIO, putTMVar, takeTMVar)
-import Control.Exception.Safe
+import Control.Exception.Safe (Exception (toException), SomeException)
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError),
                              runExceptT, withExceptT)
 import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO))
@@ -34,8 +34,11 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import Data.Map (Map, (!))
 import qualified Data.Map as M
+import Data.Typeable (Typeable)
 import Data.Void (absurd)
 import GHC.Generics (Generic)
+
+-- TODO keep track of connection errors, so that both send and recv will fail if the other has already failed
 
 newtype Peers e
   = Peers { unwrap :: Map EndPointAddress (PeerOps e) }
@@ -50,7 +53,7 @@ data PeerOps e
   deriving (Generic)
 
 data PeerException e
-  = PeerExceptionIO e
+  = PeerExceptionOps e
   | PeerExceptionMalformedMessage String
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
 
@@ -125,13 +128,13 @@ upcastPeerMessageSink :: Exception e => PeerMessageSink e -> PeerMessageSink'
 upcastPeerMessageSink = fmap (fmap (fmap (first toException)))
 
 sendMessage :: PeerOps e -> Message -> ExceptT (PeerException e) IO ()
-sendMessage ops msg = withExceptT PeerExceptionIO $ do
+sendMessage ops msg = withExceptT PeerExceptionOps $ do
     mapM_ (ExceptT . ops.send) (BL.toChunks (encode msg))
     ExceptT ops.flush
 
 recvMessages :: PeerOps e -> (Message -> IO ()) -> IO (PeerException e)
 recvMessages ops f = either id absurd <$>
-    runExceptT (recvGet get (withExceptT PeerExceptionIO (ExceptT ops.recv)) (lift . f))
+    runExceptT (recvGet get (withExceptT PeerExceptionOps (ExceptT ops.recv)) (lift . f))
 
 recvGet :: MonadError (PeerException e) m => Get a -> m ByteString -> (a -> m ()) -> m b
 recvGet g recvChunk f = start

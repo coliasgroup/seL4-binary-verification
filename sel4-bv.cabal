@@ -601,8 +601,8 @@ executable cli
 executable distrib-scratch
   main-is: Main.hs
   other-modules:
-      Opts
-      Work
+      Static
+      TCP
   hs-source-dirs:
       components/scratch/distrib-scratch
   default-extensions:
