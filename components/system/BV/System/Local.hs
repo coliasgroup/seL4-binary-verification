@@ -10,26 +10,22 @@ module BV.System.Local
 
 import BV.Logging
 import BV.System.Core
+import BV.System.Utils
 
-import Control.Concurrent.QSemN (newQSemN, signalQSemN, waitQSemN)
-import Control.Exception.Safe (MonadMask, bracket_)
+import Control.Exception.Safe (MonadMask)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO, liftIOOp)
+import Control.Monad.IO.Unlift (MonadUnliftIO)
 import GHC.Generics (Generic)
 
 data LocalConfig
   = LocalConfig
       { numJobs :: Integer
-      , solversConfig :: SolversConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
 runLocal
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => LocalConfig -> Checks -> m Report
-runLocal config checks = do
-    sem <- liftIO $ newQSemN (fromInteger config.numJobs)
-    let throttle n =
-            let n' = fromInteger n
-             in liftIOOp $ bracket_ (waitQSemN sem n') (signalQSemN sem n')
-    frontend throttle localSolverBackend config.solversConfig checks
+    => LocalConfig -> SolversConfig -> Checks -> m Report
+runLocal config solversConfig checks = do
+    gate <- liftIO $ newSemGate config.numJobs
+    frontend (applySemGate gate) localSolverBackend solversConfig checks

@@ -191,14 +191,12 @@ internal-libraries:
       - sel4-bv:target-dir
       - sel4-bv:system-core
       - sel4-bv:system-utils
-      - sel4-bv:network-transport-static
       # external
       - unliftio-core
       - monad-logger
       - binary
       - filepath
       - directory
-      - process
       - sqlite-simple
       - network-transport
       - distributed-process
@@ -229,6 +227,7 @@ executables:
       - sel4-bv:target-dir
       - sel4-bv:system
       - sel4-bv:system-core
+      - sel4-bv:network-transport-static
       # external
       - megaparsec
       - attoparsec
@@ -237,12 +236,15 @@ executables:
       - unliftio-core
       - monad-logger
       - filepath
+      - process
       - resourcet
       - conduit
       - conduit-extra
       - optparse-applicative
       - ansi-terminal
       - base16-bytestring
+      - network-transport
+      - distributed-process
       # TODO for debugging
       - pretty-simple
     ghc-options: *exe-ghc-options

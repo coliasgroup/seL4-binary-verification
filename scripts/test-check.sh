@@ -4,10 +4,11 @@ set -eux -o pipefail
 
 here=$(dirname $0)
 
-solvers=$here/solverlist.yaml
+solvers=$here/solvers.yaml
+workers=$here/workers.yaml
 
-sd=big
-# sd=small
+# sd=big
+sd=small
 
 d=tmp/test-target-dirs/$sd
 
@@ -19,6 +20,7 @@ path=$(cabal list-bin $x)
 time $path \
     check \
     --solvers $solvers \
+    --workers $workers \
     --target-dir $d \
     --ignore-function fastpath_call \
     --ignore-function fastpath_reply_recv \

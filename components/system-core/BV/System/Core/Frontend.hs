@@ -23,7 +23,7 @@ import Text.Printf (printf)
 
 frontend
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => (forall a. Integer -> m a -> m a)
+    => SolverGate m
     -> SolverBackend m
     -> SolversConfig
     -> Checks

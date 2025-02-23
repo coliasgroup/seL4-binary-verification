@@ -7,6 +7,7 @@ module BV.System.Core.Solvers.Backend
     , OnlineSolverConfig (..)
     , SolverBackend (..)
     , SolverCommand (..)
+    , SolverGate
     , localSolverBackend
     ) where
 
@@ -24,6 +25,8 @@ import Data.List (genericIndex)
 import GHC.Generics (Generic)
 import System.Process (CreateProcess, proc)
 import Text.Printf (printf)
+
+type SolverGate m = forall a. Integer -> m a -> m a
 
 data SolverBackend m
   = SolverBackend

@@ -111,6 +111,7 @@ data CheckOpts
   = CheckOpts
       { maxNumConcurrentSolvers :: Maybe Int
       , solvers :: FilePath
+      , workers :: Maybe FilePath
       , onlineSolverTimeout :: SolverTimeout
       , offlineSolverTimeout :: SolverTimeout
       , sqliteCache :: Maybe String
@@ -158,6 +159,8 @@ data LineWrappingOpts
 
 data WorkerOpts
   = WorkerOpts
+      { addr :: String
+      }
   deriving (Generic, Show)
 
 --
@@ -311,6 +314,13 @@ checkOptsParser = do
         , help "Solvers config file"
         , action "file"
         ]
+    workers <- optional $ option' str
+        [ long "workers"
+        , short 'w'
+        , metavar "FILE"
+        , help "Workers config file"
+        , action "file"
+        ]
     onlineSolverTimeout <- option' (solverTimeoutFromSeconds <$> auto)
         [ long "online-solver-timeout"
         , metavar "SECONDS"
@@ -385,6 +395,7 @@ checkOptsParser = do
     pure $ CheckOpts
         { maxNumConcurrentSolvers
         , solvers
+        , workers
         , onlineSolverTimeout
         , offlineSolverTimeout
         , sqliteCache
@@ -458,7 +469,13 @@ lineWrappingOptsParser = do
 
 workerOptsParser :: Parser WorkerOpts
 workerOptsParser = do
-    pure WorkerOpts
+    addr <- strArgument $ mconcat
+        [ metavar "ADDRESS"
+        , help "Worker endpoint address"
+        ]
+    return $ WorkerOpts
+        { addr
+        }
 
 --
 

@@ -13,6 +13,7 @@ module BV.System.Core.Types
     , CheckSubgroupPath (..)
     , Checks (..)
     , elaborateChecks
+    , elaborateChecksFromInput
     , filterChecks
     , findCheck
     , findCheckSubgroup
@@ -79,6 +80,9 @@ newtype Checks
   = Checks { unwrap :: M.Map PairingId (M.Map CheckGroupFingerprint CheckSubgroup) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
+
+elaborateChecksFromInput :: StagesInput -> Checks
+elaborateChecksFromInput input = elaborateChecks (stages input).checks
 
 elaborateChecks :: StagesOutputChecks -> Checks
 elaborateChecks stagesOutputChecks = Checks $ M.mapWithKey f stagesOutputChecks.unwrap

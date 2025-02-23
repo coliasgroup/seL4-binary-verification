@@ -17,6 +17,7 @@ module BV.System.Core.Solvers
     , OnlineSolverConfig (..)
     , SolverBackend (..)
     , SolverCommand (..)
+    , SolverGate
     , SolverScope (..)
     , SolversConfig (..)
     , localSolverBackend
@@ -53,7 +54,7 @@ data SolversConfig
 
 runSolvers
     :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => (forall a. Integer -> m a -> m a)
+    => SolverGate m
     -> SolverBackend m
     -> SolversConfig
     -> CheckSubgroup
@@ -82,7 +83,7 @@ filterSubgroupUsingCache = traverseOf #checks . filterM $ \(_i, check) -> do
 
 filterSubgroupsUsingOnlineSolver
     :: (MonadLoggerWithContext m, MonadCache m)
-    => (forall a. Integer -> m a -> m a)
+    => SolverGate m
     -> SolverBackend m
     -> SolversConfig
     -> CheckSubgroup
@@ -117,7 +118,7 @@ filterSubgroupsUsingOnlineSolver throttle backend config subgroup =
 
 checkUsingOfflineSolvers
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => (forall a. Integer -> m a -> m a)
+    => SolverGate m
     -> SolverBackend m
     -> SolversConfig
     -> CheckSubgroup

@@ -4,42 +4,51 @@ module BV.CLI.Commands.Check
 
 import BV.CLI.Opts
 import BV.CLI.SolverList
+import BV.CLI.WorkersConfig
 import BV.Core
 import BV.Logging
 import BV.System.Cache.Postgres
 import BV.System.Cache.SQLite
 import BV.System.Core
+import BV.System.Distrib
 import BV.System.EvalStages
 import BV.System.Local
 import BV.TargetDir
 
+import BV.CLI.Distrib (driverAddr)
+import Conduit (awaitForever)
 import Control.Concurrent (getNumCapabilities)
+import Control.Concurrent.Async (forConcurrently_, withAsync)
+import Control.Distributed.Process (NodeId (NodeId))
 import Control.Monad (unless, when)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
+import Control.Monad.Trans (lift)
+import Data.Aeson (FromJSON)
+import qualified Data.ByteString.Char8 as BC
+import Data.Conduit (connect)
+import qualified Data.Conduit.Combinators as C
 import Data.Foldable (for_)
 import Data.List.NonEmpty (NonEmpty ((:|)))
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import qualified Data.Yaml as Y
+import Network.Transport (EndPointAddress (EndPointAddress))
+import Network.Transport.Static (withStaticTransport)
+import Network.Transport.Static.Utils (withDriverPeers)
 import Optics
 import System.Exit (die, exitFailure)
+import System.IO (BufferMode (NoBuffering), Handle, hSetBuffering)
+import System.Process (CreateProcess, StdStream (CreatePipe), proc, std_err)
 import Text.Printf (printf)
 
 -- TODO ensure --include functions, groups, and checks are actually present
 
 runCheck :: (MonadUnliftIO m, MonadMask m, MonadFail m, MonadLoggerWithContext m) => CheckOpts -> m ()
 runCheck opts = do
-    maxNumConcurrentSolvers <- fromIntegral <$> getMaxNumConcurrentSolvers opts
-    solverList <- readSolverList opts.solvers
-    let solversConfig = getSolversConfig opts solverList
-    let backendConfig = LocalConfig
-            { numJobs = maxNumConcurrentSolvers
-            , solversConfig
-            }
-    withCacheCtx <- getWithCacheCtx opts
     let earlyAsmFunctionFilter = getEarlyAsmFunctionFilter opts
     let checkFilter = getCheckFilter opts
     let evalStagesCtx = EvalStagesContext
@@ -49,9 +58,33 @@ runCheck opts = do
             , mismatchDumpDir = opts.mismatchDir
             }
     input <- liftIO $ readStagesInput earlyAsmFunctionFilter (TargetDir opts.inputTargetDir)
+    runChecks <- case opts.workers of
+        Nothing -> do
+            maxNumConcurrentSolvers <- fromIntegral <$> getMaxNumConcurrentSolvers opts
+            let backendConfig = LocalConfig
+                    { numJobs = maxNumConcurrentSolvers
+                    }
+            return $ runLocal backendConfig
+        Just workersConfigPath -> do
+            workersConfig <- readWorkersConfig workersConfigPath
+            return $ \solversConfig checks -> do
+                withRunInIO $ \run -> do
+                    withDriverPeers (workerCommandsFromWorkersConfig workersConfig) $ \peers stderrs -> do
+                        -- TODO ensure all worker stderr is logged in case of driver crash
+                        withAsync (run (handleStderrs stderrs)) $ \_ -> do
+                            withStaticTransport driverAddr peers $ \transport -> run $ do
+                                let backendConfig = DistribConfig
+                                        { transport
+                                        , workers = distribWorkerConfigsFromWorkersConfig workersConfig
+                                        , stagesInput = input
+                                        }
+                                runDistrib backendConfig solversConfig checks
+    solverList <- readSolverList opts.solvers
+    let solversConfig = getSolversConfig opts solverList
+    withCacheCtx <- getWithCacheCtx opts
     checks <- filterChecks checkFilter <$> evalStages evalStagesCtx input
     report <- withCacheCtx $ runCacheT $ do
-        runLocal backendConfig checks
+        runChecks solversConfig checks
     let (success, displayedReport) = displayReport report
     liftIO $ putStr displayedReport
     case opts.reportFile of
@@ -112,11 +145,17 @@ getSolversConfig opts solverList = SolversConfig
     }
 
 readSolverList :: (MonadIO m, MonadLoggerWithContext m) => FilePath -> m SolverList
-readSolverList path = do
+readSolverList = decodeYamlFile "parsing solver list"
+
+readWorkersConfig :: (MonadIO m, MonadLoggerWithContext m) => FilePath -> m WorkersConfig
+readWorkersConfig = decodeYamlFile "parsing workers config"
+
+decodeYamlFile :: (MonadIO m, MonadLoggerWithContext m, FromJSON a) => String -> FilePath -> m a
+decodeYamlFile ctx path = do
     r <- liftIO $ Y.decodeFileWithWarnings path
     case r of
         Right (warnings, v) -> do
-            withPushLogContext "parsing solver list" $ do
+            withPushLogContext ctx $ do
                 for_ warnings $ \warning -> do
                     logWarn (show warning)
             return v
@@ -151,3 +190,33 @@ getCheckFilter opts = CheckFilter
             | pattern <- include
             ]
     }
+
+handleStderrs :: (MonadUnliftIO m, MonadLoggerWithContext m) => Map EndPointAddress Handle -> m ()
+handleStderrs stderrs = withRunInIO $ \run -> do
+    forConcurrently_ (M.toList stderrs) $ \(addr, h) -> do
+        hSetBuffering h NoBuffering
+        run $ C.sourceHandle h `connect` awaitForever (\chunk -> lift $ do
+            withPushLogContexts [show addr, "stderr"] $ do
+                logWarn $ show chunk)
+
+workerCommandsFromWorkersConfig :: WorkersConfig -> Map EndPointAddress CreateProcess
+workerCommandsFromWorkersConfig workersConfig = M.fromList
+    [ let addr = EndPointAddress (BC.pack workerName)
+          cmd = case workerConfig.command of
+                path :| args -> (proc path (args ++ [workerName]))
+                    { std_err = CreatePipe
+                    }
+      in (addr, cmd)
+    | (workerName, workerConfig) <- M.toList workersConfig.workers
+    ]
+
+distribWorkerConfigsFromWorkersConfig :: WorkersConfig -> Map NodeId DistribWorkerConfig
+distribWorkerConfigsFromWorkersConfig workersConfig = M.fromList
+    [ let nid = NodeId (EndPointAddress (BC.pack workerName))
+          cfg = DistribWorkerConfig
+                { numJobs = workerConfig.numJobs
+                , priority = workerConfig.priority
+                }
+        in (nid, cfg)
+    | (workerName, workerConfig) <- M.toList workersConfig.workers
+    ]

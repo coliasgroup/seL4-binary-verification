@@ -1,0 +1,13 @@
+workers:
+  w1:
+    local: true
+    num_jobs: 1
+  w2:
+    local: true
+    num_jobs: 1
+  w3:
+    local: true
+    num_jobs: 1
+  w4:
+    local: true
+    num_jobs: 1

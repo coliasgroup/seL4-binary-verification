@@ -312,8 +312,10 @@ library system
   exposed-modules:
       BV.System.Cache.Postgres
       BV.System.Cache.SQLite
+      BV.System.Distrib
       BV.System.EvalStages
       BV.System.Local
+      BV.System.Utils
   hs-source-dirs:
       components/system
   default-extensions:
@@ -342,12 +344,10 @@ library system
     , network-transport
     , optics
     , parallel
-    , process
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
-    , sel4-bv:network-transport-static
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system-core
@@ -539,8 +539,10 @@ executable cli
       BV.CLI.Commands.ExtractSMT
       BV.CLI.Commands.FormatSMT
       BV.CLI.Commands.Worker
+      BV.CLI.Distrib
       BV.CLI.Opts
       BV.CLI.SolverList
+      BV.CLI.WorkersConfig
   hs-source-dirs:
       components/cli
   default-extensions:
@@ -565,20 +567,24 @@ executable cli
     , conduit-extra
     , containers
     , deepseq
+    , distributed-process
     , exceptions
     , filepath
     , megaparsec
     , monad-logger
     , mtl
+    , network-transport
     , optics
     , optparse-applicative
     , parallel
     , pretty-simple
+    , process
     , resourcet
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
+    , sel4-bv:network-transport-static
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system
