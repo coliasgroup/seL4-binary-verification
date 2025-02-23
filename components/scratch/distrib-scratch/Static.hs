@@ -46,11 +46,11 @@ withDriverTransport f = do
                                 go
                     go
             withAsync handleStderrs $ \_ -> do
-                run $ withStaticTransport driverAddr peers (run . f)
+                withStaticTransport driverAddr peers (run . f)
 
 withWorkerTransport :: (MonadUnliftIO m, MonadLoggerIO m, MonadThrow m) => (Transport -> m a) -> m a
 withWorkerTransport f = do
     forever $ liftIO $ threadDelay 1000
     let peers = workerPeers driverAddr
     withRunInIO $ \run -> do
-        run $ withStaticTransport workerAddr peers (run . f)
+        withStaticTransport workerAddr peers (run . f)

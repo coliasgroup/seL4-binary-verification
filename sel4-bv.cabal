@@ -210,7 +210,6 @@ library network-transport-static
     , containers
     , deepseq
     , exceptions
-    , monad-logger
     , mtl
     , network-transport
     , optics
@@ -221,7 +220,6 @@ library network-transport-static
     , text
     , transformers
     , transformers-base
-    , unliftio-core
     , vector
   default-language: GHC2021
 

@@ -23,7 +23,6 @@ import Control.Concurrent.STM (atomically, newEmptyTMVarIO, putTMVar, takeTMVar)
 import Control.Exception.Safe (Exception (toException), SomeException)
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError),
                              runExceptT, withExceptT)
-import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO))
 import Control.Monad.STM (STM)
 import Control.Monad.Trans (lift)
 import Data.Bifunctor (first)
@@ -71,7 +70,7 @@ withPeers
     :: Peers e
     -> (PeerEventSource (PeerException e) -> PeerMessageSink (PeerException e) -> IO a)
     -> IO a
-withPeers peersOps m = withRunInIO $ \run -> do
+withPeers peersOps m = do
     peerEventChan <- newEmptyTMVarIO
     let peerEventSource = takeTMVar peerEventChan
     let forwardEvents = do
@@ -79,7 +78,7 @@ withPeers peersOps m = withRunInIO $ \run -> do
                 let sink = atomically . putTMVar peerEventChan . (peerAddr,)
                 recvMessages peerOps (sink . Right) >>= sink . Left
     withAsync forwardEvents $ \_ ->
-        run $ m peerEventSource peerMessageSink
+        m peerEventSource peerMessageSink
   where
     peerMessageSink addr = runExceptT . sendMessage (peersOps.unwrap ! addr)
 

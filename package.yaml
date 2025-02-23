@@ -108,9 +108,6 @@ internal-libraries:
       - binary
       - process
       - network-transport
-      # TODO for debugging
-      - unliftio-core
-      - monad-logger
 
   core:
     visibility: public

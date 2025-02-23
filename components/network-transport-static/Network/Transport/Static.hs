@@ -21,9 +21,6 @@ import Control.Exception.Safe (Exception, MonadThrow, SomeException,
 import Control.Monad (join, unless, when)
 import Control.Monad.Base (liftBase)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Logger (LoggingT (runLoggingT), MonadLogger, MonadLoggerIO,
-                             askLoggerIO, logDebugN)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (MonadState, StateT (runStateT), get, gets)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT))
@@ -36,7 +33,6 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (isJust)
 import Data.Set (Set)
-import qualified Data.Text as T
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
@@ -64,7 +60,6 @@ data ValidTransportStateContext
       , peerEndpointAddresses :: Set EndPointAddress
       , peerEventSource :: PeerEventSource'
       , peerMessageSink :: PeerMessageSink'
-      , hackRunLoggingT :: LoggingT IO () -> IO ()
       }
   deriving (Generic)
 
@@ -111,12 +106,12 @@ data LocalConnectionState
 --
 
 withStaticTransport
-    :: (MonadLoggerIO m, Typeable e, Show e)
+    :: (Typeable e, Show e)
     => EndPointAddress
     -> Peers e
     -> (Transport -> IO a)
-    -> m a
-withStaticTransport selfEndPointAddress peersOps m = askLoggerIO >>= \logger -> liftIO $ do
+    -> IO a
+withStaticTransport selfEndPointAddress peersOps m = do
     withPeers' peersOps $ \peerEventSource peerMessageSink -> do
         tsv <- newTVarIO $ TransportValid $ ValidTransportState
             { ctx = ValidTransportStateContext
@@ -124,7 +119,6 @@ withStaticTransport selfEndPointAddress peersOps m = askLoggerIO >>= \logger -> 
                 , peerEndpointAddresses = M.keysSet peersOps.unwrap
                 , peerEventSource
                 , peerMessageSink
-                , hackRunLoggingT = (`runLoggingT` logger)
                 }
             , endPointState = Nothing
             }
@@ -132,7 +126,7 @@ withStaticTransport selfEndPointAddress peersOps m = askLoggerIO >>= \logger -> 
                 { newEndPoint = apiNewEndpoint tsv
                 , closeTransport = apiCloseTransport tsv
                 }
-        m transport `finally` liftIO transport.closeTransport
+        m transport `finally` transport.closeTransport
 
 apiCloseTransport :: TVar TransportState -> IO ()
 apiCloseTransport _tsv = do
@@ -181,8 +175,8 @@ apiReceive tsv = atomically $ withLocalEndpointState tsv $ do
     zoomCasesOrThrow
         [ zoomMaybe #_LocalEndPointValid $ do
             peerEventSource <- gview #peerEventSource
-            (peerAddr, peerEvent) <- hackLogDebugId "inner event" =<< liftBase peerEventSource
-            hackLogDebugId "outer event" =<< case peerEvent of
+            (peerAddr, peerEvent) <- liftBase peerEventSource
+            case peerEvent of
                 Left ex -> do
                     return $ ErrorEvent $ transportErrorFromException (EventConnectionLost peerAddr) ex
                 Right msg -> do
@@ -329,22 +323,6 @@ mkSubmitMessageOr code peerAddr msg = fmap (first (transportErrorFromException c
 
 mkSubmitMessage_ :: MonadReader ValidTransportStateContext m => EndPointAddress -> Message -> m (IO ())
 mkSubmitMessage_ peerAddr msg = void <$> mkSubmitMessage peerAddr msg
-
-hackLog :: MonadReader ValidTransportStateContext m => (forall n. MonadLogger n => n ()) -> m ()
-hackLog action = do
-    -- SKIPPED
-    -- hackRunLoggingT <- gview #hackRunLoggingT
-    -- unsafePerformIO (hackRunLoggingT action) `seq` return ()
-    return ()
-
-hackLogDebug :: (MonadReader ValidTransportStateContext m, Show a) => String -> a -> m ()
-hackLogDebug s a = do
-    hackLog $ logDebugN $ T.pack $ s ++ ": " ++ show a
-
-hackLogDebugId :: (MonadReader ValidTransportStateContext m, Show a) => String -> a -> m a
-hackLogDebugId s a = do
-    hackLogDebug s a
-    return a
 
 --
 
