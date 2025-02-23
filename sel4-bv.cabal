@@ -423,9 +423,7 @@ library system-utils
   exposed-modules:
       BV.System.Utils.Async
       BV.System.Utils.Stopwatch
-      BV.System.Utils.Throttle
       BV.System.Utils.UnliftIO.Async
-      BV.System.Utils.UnliftIO.Throttle
   hs-source-dirs:
       components/system-utils
   default-extensions:
