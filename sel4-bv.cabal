@@ -329,12 +329,12 @@ library system
   build-depends:
       async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
     , directory
     , distributed-process
-    , distributed-process-async
     , exceptions
     , filepath
     , monad-logger

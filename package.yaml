@@ -195,13 +195,13 @@ internal-libraries:
       # external
       - unliftio-core
       - monad-logger
+      - binary
       - filepath
       - directory
       - process
       - sqlite-simple
       - network-transport
       - distributed-process
-      - distributed-process-async
 
   test-utils:
     source-dirs: components/tests/test-utils
