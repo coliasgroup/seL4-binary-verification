@@ -253,6 +253,7 @@ library smtlib2
       async
     , attoparsec
     , base
+    , binary
     , bytestring
     , containers
     , deepseq

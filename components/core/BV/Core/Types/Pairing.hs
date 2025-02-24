@@ -26,6 +26,7 @@ module BV.Core.Types.Pairing
 import BV.Core.Types.Program
 
 import Control.DeepSeq (NFData)
+import Data.Binary (Binary)
 import qualified Data.Map as M
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
@@ -63,10 +64,14 @@ instance Foldable PairingOf where
 instance Traversable PairingOf where
     traverse f p = (\c asm -> PairingOf { c, asm }) <$> f p.c <*> f p.asm
 
+instance Binary a => Binary (PairingOf a) where
+
 data Tag
   = C
   | Asm
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary Tag where
 
 data WithTag a
   = WithTag

@@ -41,6 +41,7 @@ module BV.SMTLIB2.SExpr
     ) where
 
 import Control.DeepSeq (NFData)
+import Data.Binary (Binary)
 import Data.Char (isDigit, isHexDigit, isLetter, isPrint, isSpace)
 import Data.Maybe (fromJust)
 import Data.String (IsString, fromString)
@@ -74,6 +75,8 @@ instance Monad GenericSExpr where
         Atom a -> f a
         List xs -> List (map (>>= f) xs)
 
+instance Binary a => Binary (GenericSExpr a) where
+
 type SExpr = GenericSExpr Atom
 
 type UncheckedSExpr = GenericSExpr UncheckedAtom
@@ -83,6 +86,8 @@ newtype Atom
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
+instance Binary Atom where
+
 data UncheckedAtom
   = NumeralAtom Natural
   | HexadecimalAtom String
@@ -91,6 +96,8 @@ data UncheckedAtom
   | SymbolAtom String
   | KeywordAtom String
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary UncheckedAtom where
 
 checkSExpr :: UncheckedSExpr -> Maybe SExpr
 checkSExpr = traverse checkAtom

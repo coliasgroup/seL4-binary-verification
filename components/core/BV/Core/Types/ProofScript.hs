@@ -24,12 +24,15 @@ import BV.Core.Types.Pairing
 import BV.Core.Types.Program
 
 import Control.DeepSeq (NFData, NFData1)
+import Data.Binary (Binary)
 import GHC.Generics (Generic, Generic1)
 
 newtype ProofScript a
   = ProofScript { root :: ProofNodeWith a }
   deriving (Eq, Foldable, Functor, Generic, Generic1, Ord, Show, Traversable)
   deriving newtype (NFData, NFData1)
+
+instance Binary a => Binary (ProofScript a) where
 
 data ProofNodeWith a
   = ProofNodeWith
@@ -49,6 +52,8 @@ data ProofNodeWith a
     , Traversable
     )
 
+instance Binary a => Binary (ProofNodeWith a) where
+
 data ProofNode a
   = ProofNodeLeaf
   | ProofNodeRestr (RestrProofNode a)
@@ -67,6 +72,8 @@ data ProofNode a
     , Show
     , Traversable
     )
+
+instance Binary a => Binary (ProofNode a) where
 
 data RestrProofNode a
   = RestrProofNode
@@ -88,6 +95,8 @@ data RestrProofNode a
     , Traversable
     )
 
+instance Binary a => Binary (RestrProofNode a) where
+
 data RestrProofNodeRange
   = RestrProofNodeRange
       { kind :: RestrProofNodeRangeKind
@@ -96,10 +105,14 @@ data RestrProofNodeRange
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary RestrProofNodeRange where
+
 data RestrProofNodeRangeKind
   = RestrProofNodeRangeKindNumber
   | RestrProofNodeRangeKindOffset
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary RestrProofNodeRangeKind where
 
 prettyRestrProofNodeRangeKind :: RestrProofNodeRangeKind -> String
 prettyRestrProofNodeRangeKind = \case
@@ -126,6 +139,8 @@ data CaseSplitProofNode a
     , Traversable
     )
 
+instance Binary a => Binary (CaseSplitProofNode a) where
+
 data SplitProofNode a
   = SplitProofNode
       { n :: Integer
@@ -148,6 +163,8 @@ data SplitProofNode a
     , Traversable
     )
 
+instance Binary a => Binary (SplitProofNode a) where
+
 data SplitProofNodeDetails
   = SplitProofNodeDetails
       { split :: NodeAddr
@@ -156,6 +173,8 @@ data SplitProofNodeDetails
       , eqs :: [Lambda]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary SplitProofNodeDetails where
 
 data SingleRevInductProofNode a
   = SingleRevInductProofNode
@@ -180,6 +199,8 @@ data SingleRevInductProofNode a
     , Traversable
     )
 
+instance Binary a => Binary (SingleRevInductProofNode a) where
+
 data Lambda
   = Lambda
       { freeVar :: Ident
@@ -187,6 +208,8 @@ data Lambda
       , expr :: Expr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary Lambda where
 
 traverseRestrProofNodeChild
     :: Applicative f

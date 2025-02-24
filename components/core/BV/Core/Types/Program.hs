@@ -42,6 +42,7 @@ import BV.Core.Utils
 
 import Control.DeepSeq (NFData)
 import Control.Monad.Identity (Identity (Identity, runIdentity))
+import Data.Binary (Binary)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.String (IsString (..))
@@ -53,6 +54,8 @@ newtype Ident
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
+instance Binary Ident where
+
 instance IsString Ident where
     fromString = Ident
 
@@ -62,6 +65,8 @@ data Named a
       , value :: a
       }
   deriving (Eq, Functor, Generic, NFData, Ord, Show)
+
+instance Binary a => Binary (Named a) where
 
 toListOfNamed :: Map Ident a -> [Named a]
 toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toAscList
@@ -79,6 +84,8 @@ data Program
       , functions :: Map Ident Function
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary Program where
 
 instance Semigroup Program where
     x <> y = Program
@@ -102,6 +109,8 @@ data Struct
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary Struct where
+
 data StructField
   = StructField
       { ty :: ExprType
@@ -109,11 +118,15 @@ data StructField
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary StructField where
+
 data ConstGlobal
   = ConstGlobal
       { value :: Expr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary ConstGlobal where
 
 data Function
   = Function
@@ -122,6 +135,8 @@ data Function
       , body :: Maybe FunctionBody
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary Function where
 
 type NodeMap = Map NodeAddr Node
 
@@ -132,6 +147,8 @@ data FunctionBody
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary FunctionBody where
+
 data Argument
   = Argument
       { name :: Ident
@@ -139,16 +156,22 @@ data Argument
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary Argument where
+
 newtype NodeAddr
   = NodeAddr { unwrap :: Integer }
   deriving (Enum, Eq, Generic, Ord, Show)
   deriving newtype (Integral, NFData, Num, Real)
+
+instance Binary NodeAddr where
 
 data NodeId
   = Ret
   | Err
   | Addr NodeAddr
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary NodeId where
 
 prettyNodeId :: NodeId -> String
 prettyNodeId = \case
@@ -162,12 +185,16 @@ data Node
   | NodeCall CallNode
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary Node where
+
 data BasicNode
   = BasicNode
       { next :: NodeId
       , varUpdates :: [VarUpdate]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary BasicNode where
 
 data CondNode
   = CondNode
@@ -176,6 +203,8 @@ data CondNode
       , expr :: Expr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary CondNode where
 
 data CallNode
   = CallNode
@@ -186,6 +215,8 @@ data CallNode
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary CallNode where
+
 data VarUpdate
   = VarUpdate
       { varName :: Ident
@@ -194,12 +225,16 @@ data VarUpdate
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary VarUpdate where
+
 data Expr
   = Expr
       { ty :: ExprType
       , value :: ExprValue
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary Expr where
 
 data ExprType
   = ExprTypeBool
@@ -226,6 +261,8 @@ data ExprType
   | ExprTypePtr ExprType
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary ExprType where
+
 data ExprValue
   = ExprValueVar Ident
   | ExprValueOp Op [Expr]
@@ -235,6 +272,8 @@ data ExprValue
   | ExprValueToken Ident
   | ExprValueSMTExpr SExprWithPlaceholders
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary ExprValue where
 
 data Op
   = OpPlus
@@ -294,6 +333,8 @@ data Op
   | OpImpliesStackEquals
   | OpStackEqualsImplies
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary Op where
 
 class TraverseTopLevelExprs a where
     traverseTopLevelLevelExprs :: Traversal' a Expr

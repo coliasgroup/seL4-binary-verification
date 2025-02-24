@@ -18,6 +18,7 @@ import BV.SMTLIB2.SExpr.Read (anySExprWhitespaceP, atomP, genericSExprP)
 
 import Control.Applicative (many, (<|>))
 import Control.DeepSeq (NFData)
+import Data.Binary (Binary)
 import Data.Maybe (fromJust)
 import Data.String (IsString, fromString)
 import GHC.Generics (Generic)
@@ -30,12 +31,16 @@ data GenericAtomOrPlaceholder a
   | AtomOrPlaceholderPlaceholder SExprPlaceholder
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
+instance Binary a => Binary (GenericAtomOrPlaceholder a) where
+
 type AtomOrPlaceholder = GenericAtomOrPlaceholder Atom
 
 data SExprPlaceholder
   = SExprPlaceholderMemSort
   | SExprPlaceholderMemDomSort
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary SExprPlaceholder where
 
 readSToTryRead :: ReadS a -> String -> Maybe a
 readSToTryRead p s = case p s of

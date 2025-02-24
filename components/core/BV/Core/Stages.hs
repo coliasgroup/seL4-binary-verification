@@ -35,6 +35,7 @@ import BV.Core.Utils
 import Control.DeepSeq (NFData, liftRnf)
 import Control.Monad (guard)
 import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
+import Data.Binary (Binary)
 import Data.Foldable (fold)
 import Data.Functor (void)
 import Data.Map ((!))
@@ -55,6 +56,8 @@ data StagesInput
       , compatSMTProofChecks :: CompatSMTProofChecks
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary StagesInput where
 
 type AsmFunctionFilter = IncludeExcludeFilter Ident
 

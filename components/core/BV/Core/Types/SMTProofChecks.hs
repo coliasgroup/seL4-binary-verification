@@ -19,6 +19,7 @@ import BV.Core.Types.ProofScript
 import BV.Core.Types.SExprWithPlaceholders
 
 import Control.DeepSeq (NFData)
+import Data.Binary (Binary)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
@@ -34,6 +35,9 @@ data SMTProofCheckGroup a
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
+-- TODO temporary
+instance Binary a => Binary (SMTProofCheckGroup a) where
+
 data SMTProofCheck a
   = SMTProofCheck
       { setup :: [SExprWithPlaceholders]
@@ -41,9 +45,15 @@ data SMTProofCheck a
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
+-- TODO temporary
+instance Binary a => Binary (SMTProofCheck a) where
+
 data SMTProofCheckImp a
   = SMTProofCheckImp
       { meta :: a
       , term :: SExprWithPlaceholders
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
+
+-- TODO temporary
+instance Binary a => Binary (SMTProofCheckImp a) where

@@ -70,6 +70,7 @@ internal-libraries:
       - BV.SMTLIB2.SExpr.Parse.Attoparsec
       - BV.SMTLIB2.SExpr.Parse.Megaparsec
     dependencies:
+      - binary
       - attoparsec
       - megaparsec
 

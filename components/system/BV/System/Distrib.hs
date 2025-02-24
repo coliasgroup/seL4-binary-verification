@@ -46,8 +46,8 @@ data DistribWorkerConfig
 
 data ServerInput
   = ServerInput
-  -- { stagesInput :: StagesInput
-  -- }
+      { stagesInput :: StagesInput
+      }
   deriving (Eq, Generic, Ord, Show)
 
 instance Binary ServerInput where
@@ -69,8 +69,8 @@ withBackend config f = do
     liftIO $ forConcurrently (M.toList config.workers) $ \(nid, workerConfig) -> do
         runProcess node $ do
             let serverInput = ServerInput
-                    -- { stagesInput = config.stagesInput
-                    -- }
+                    { stagesInput = config.stagesInput
+                    }
             pid <- spawn nid ($(mkClosure 'server) serverInput)
             return ()
     liftIO $ forever $ threadDelay maxBound

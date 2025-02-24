@@ -12,6 +12,7 @@ import BV.Core.Types.Pairing
 import BV.Core.Types.Program
 
 import Control.DeepSeq (NFData)
+import Data.Binary (Binary)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
@@ -38,6 +39,8 @@ data NodeBySource
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary NodeBySource where
+
 data NodeSource
   = NodeSource
       { tag :: Tag
@@ -45,6 +48,8 @@ data NodeSource
       , nodeAddr :: NodeAddr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary NodeSource where
 
 newtype Problems
   = Problems { unwrap :: M.Map PairingId Problem }
