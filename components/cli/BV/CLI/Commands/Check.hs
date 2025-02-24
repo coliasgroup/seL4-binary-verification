@@ -162,8 +162,11 @@ decodeYamlFile ctx path = do
         Left ex -> do
             liftIO $ die (Y.prettyPrintParseException ex)
 
-getEarlyAsmFunctionFilter :: CheckOpts -> Ident -> Bool
-getEarlyAsmFunctionFilter opts = (`S.notMember` S.fromList opts.ignoreFunctionsEarly)
+getEarlyAsmFunctionFilter :: CheckOpts -> AsmFunctionFilter
+getEarlyAsmFunctionFilter opts = IncludeExcludeFilter
+    { include = Nothing
+    , exclude = S.fromList opts.ignoreFunctionsEarly
+    }
 
 getCheckFilter :: CheckOpts -> CheckFilter
 getCheckFilter opts = CheckFilter

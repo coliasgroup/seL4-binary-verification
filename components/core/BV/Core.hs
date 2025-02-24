@@ -1,5 +1,7 @@
 module BV.Core
-    ( Ident (..)
+    ( AsmFunctionFilter
+    , Ident (..)
+    , IncludeExcludeFilter (..)
     , IntermediateStagesOutput (..)
     , MemoryMode (..)
     , ModelConfig (..)
@@ -34,3 +36,4 @@ import BV.Core.ExecuteSMTProofChecks
 import BV.Core.ModelConfig
 import BV.Core.Stages
 import BV.Core.Types
+import BV.Core.Utils

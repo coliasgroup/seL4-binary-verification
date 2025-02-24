@@ -3,7 +3,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module BV.Core.Stages
-    ( module BV.Core.Stages.BuildProblem
+    ( AsmFunctionFilter
+    , module BV.Core.Stages.BuildProblem
     , module BV.Core.Stages.CompileProofChecks
     , module BV.Core.Stages.EnumerateProofChecks
     , module BV.Core.Stages.Fixup
@@ -29,6 +30,7 @@ import BV.Core.Stages.InlineAssembly
 import BV.Core.Stages.PseudoCompile
 import BV.Core.Types
 import BV.Core.Types.Extras
+import BV.Core.Utils
 
 import Control.DeepSeq (NFData, liftRnf)
 import Control.Monad (guard)
@@ -48,11 +50,13 @@ data StagesInput
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts
       , proofs :: Proofs ()
-      , earlyAsmFunctionFilter :: Ident -> Bool
+      , earlyAsmFunctionFilter :: IncludeExcludeFilter Ident
         -- HACK
       , compatSMTProofChecks :: CompatSMTProofChecks
       }
-  deriving (Generic)
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+type AsmFunctionFilter = IncludeExcludeFilter Ident
 
 data StagesOutput
   = StagesOutput
@@ -107,7 +111,8 @@ stages input = StagesOutput
   where
 
     alteredPrograms = fixupProgram <$> PairingOf
-        { asm = input.programs.asm & #functions %~ M.filterWithKey (\k _v -> input.earlyAsmFunctionFilter k)
+        { asm = input.programs.asm & #functions %~ M.filterWithKey (\k _v ->
+            applyIncludeExcludeFilter input.earlyAsmFunctionFilter k)
         , c = pseudoCompile input.objDumpInfo input.programs.c
         }
 

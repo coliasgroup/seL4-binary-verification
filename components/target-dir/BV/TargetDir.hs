@@ -108,7 +108,7 @@ writeTargetDirFile :: WriteBVFile c a => TargetDir -> TargetDirFile a -> a -> IO
 writeTargetDirFile targetDir targetDirFile =
     writeBVFile (targetDirFilePath targetDir (eraseTargetDirFileType targetDirFile))
 
-readStagesInputEither :: (Ident -> Bool) -> TargetDir -> IO (Either ReadTargetDirFileException StagesInput)
+readStagesInputEither :: AsmFunctionFilter -> TargetDir -> IO (Either ReadTargetDirFileException StagesInput)
 readStagesInputEither earlyAsmFunctionFilter targetDir = runExceptT $ do
     cFunctions <- f targetDirFiles.cFunctions
     asmFunctions <- f targetDirFiles.asmFunctions
@@ -133,6 +133,6 @@ readStagesInputEither earlyAsmFunctionFilter targetDir = runExceptT $ do
   where
     f file = ExceptT $ readTargetDirFileEither targetDir file
 
-readStagesInput :: (Ident -> Bool) -> TargetDir -> IO StagesInput
+readStagesInput :: AsmFunctionFilter -> TargetDir -> IO StagesInput
 readStagesInput earlyAsmFunctionFilter targetDir =
     readStagesInputEither earlyAsmFunctionFilter targetDir >>= either throwIO return

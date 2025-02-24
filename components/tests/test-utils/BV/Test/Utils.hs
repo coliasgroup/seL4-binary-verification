@@ -1,9 +1,12 @@
+{-# LANGUAGE OverloadedLists #-}
+
 module BV.Test.Utils where
 
 import BV.Core
 import BV.TargetDir
 
 import Data.Maybe (fromJust)
+import qualified Data.Set as S
 import System.FilePath ((<.>), (</>))
 import qualified Text.Show.Pretty as H
 
@@ -57,9 +60,10 @@ tmpOutDir = tmpDir </> "out"
 tmpOutPath :: FilePath -> FilePath
 tmpOutPath = (tmpOutDir </>)
 
-seL4DefaultEarlyAsmFunctionFilter :: Ident -> Bool
-seL4DefaultEarlyAsmFunctionFilter = (`notElem` ignore)
-  where
-    ignore = map Ident
-        [ "c_handle_syscall"
+seL4DefaultEarlyAsmFunctionFilter :: AsmFunctionFilter
+seL4DefaultEarlyAsmFunctionFilter = IncludeExcludeFilter
+    { include = Nothing
+    , exclude = S.fromList
+        [ Ident "c_handle_syscall"
         ]
+    }
