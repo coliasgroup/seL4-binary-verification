@@ -118,6 +118,7 @@ internal-libraries:
     dependencies:
       - sel4-bv:smtlib2
       # external
+      - binary
       - file-embed
       # TODO for debugging
       - filepath

@@ -118,6 +118,7 @@ library core
   build-depends:
       async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
