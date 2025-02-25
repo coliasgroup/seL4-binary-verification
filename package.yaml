@@ -204,6 +204,7 @@ internal-libraries:
       - sqlite-simple
       - network-transport
       - distributed-process
+      - distributed-process-async
 
   test-utils:
     source-dirs: components/tests/test-utils

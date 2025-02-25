@@ -12,6 +12,7 @@ module BV.Logging.Types
     , defaultLogSource
     , isDefaultLoc
     , isDefaultLogSource
+    , logEntryWithContext
     , makeLogContextEntry
     , mapLoggingWithContextT
     , runLoggingWithContextT
@@ -39,6 +40,12 @@ class MonadLogger m => MonadLoggerWithContext m where
 
 withPushLogContext :: MonadLoggerWithContext m => String -> m a -> m a
 withPushLogContext entry = withPushLogContexts [entry]
+
+logEntryWithContext :: MonadLoggerWithContext m => LogEntry -> m ()
+logEntryWithContext entry =
+    withCleanLogContext $
+        withPushLogContexts (map (.unwrap) entry.context) $
+            monadLoggerLog entry.loc entry.source entry.level entry.msg
 
 instance MonadLoggerWithContext m => MonadLoggerWithContext (ReaderT r m) where
     withPushLogContexts = mapReaderT . withPushLogContexts

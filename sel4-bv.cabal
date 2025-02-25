@@ -341,6 +341,7 @@ library system
     , deepseq
     , directory
     , distributed-process
+    , distributed-process-async
     , exceptions
     , filepath
     , monad-logger

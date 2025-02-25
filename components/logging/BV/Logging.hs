@@ -14,6 +14,7 @@ module BV.Logging
     , levelTrace
     , logDebug
     , logDebugGeneric
+    , logEntryWithContext
     , logError
     , logErrorGeneric
     , logInfo
