@@ -18,7 +18,7 @@ module Network.Transport.Static.Peers
 
 import Network.Transport
 
-import Control.Concurrent.Async (forConcurrently_, withAsync)
+import Control.Concurrent.Async (forConcurrently_, link, withAsync)
 import Control.Concurrent.STM (atomically, newEmptyTMVarIO, putTMVar, takeTMVar)
 import Control.Exception.Safe (Exception (toException), SomeException)
 import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError),
@@ -77,7 +77,8 @@ withPeers peersOps m = do
             forConcurrently_ (M.toList peersOps.unwrap) $ \(peerAddr, peerOps) -> do
                 let sink = atomically . putTMVar peerEventChan . (peerAddr,)
                 recvMessages peerOps (sink . Right) >>= sink . Left
-    withAsync forwardEvents $ \_ ->
+    withAsync forwardEvents $ \a -> do
+        link a -- TODO better way to monitor background activity?
         m peerEventSource peerMessageSink
   where
     peerMessageSink addr = runExceptT . sendMessage (peersOps.unwrap ! addr)

@@ -591,6 +591,7 @@ executable cli
     , sel4-bv:smtlib2-process
     , sel4-bv:system
     , sel4-bv:system-core
+    , sel4-bv:system-utils
     , sel4-bv:target-dir
     , stm
     , text

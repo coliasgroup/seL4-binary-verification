@@ -9,7 +9,7 @@ import Network.Transport.Static.Utils
 import Network.Transport
 
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.Async (forConcurrently_, withAsync)
+import Control.Concurrent.Async (forConcurrently_, link, withAsync)
 import Control.Exception.Safe
 import Control.Monad (forever, unless)
 import Control.Monad.IO.Unlift (MonadUnliftIO, liftIO, withRunInIO)
@@ -45,7 +45,8 @@ withDriverTransport f = do
                                     run $ logDebug $ "stderr from " ++ show addr ++ ": " ++ line
                                 go
                     go
-            withAsync handleStderrs $ \_ -> do
+            withAsync handleStderrs $ \a -> do
+                link a
                 withStaticTransport driverAddr peers (run . f)
 
 withWorkerTransport :: (MonadUnliftIO m, MonadLoggerIO m, MonadThrow m) => (Transport -> m a) -> m a

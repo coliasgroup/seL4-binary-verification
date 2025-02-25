@@ -13,12 +13,13 @@ import BV.System.Core
 import BV.System.Distrib
 import BV.System.EvalStages
 import BV.System.Local
+import BV.System.Utils.Async
 import BV.TargetDir
 
 import BV.CLI.Distrib (driverAddr)
 import Conduit (awaitForever)
 import Control.Concurrent (getNumCapabilities)
-import Control.Concurrent.Async (forConcurrently_, withAsync)
+import Control.Concurrent.Async (forConcurrently_)
 import Control.Distributed.Process (NodeId (NodeId))
 import Control.Monad (unless, when)
 import Control.Monad.Catch (MonadMask)
@@ -71,7 +72,7 @@ runCheck opts = do
                 withRunInIO $ \run -> do
                     withDriverPeers (workerCommandsFromWorkersConfig workersConfig) $ \peers stderrs -> do
                         -- TODO ensure all worker stderr is logged in case of driver crash
-                        withAsync (run (handleStderrs stderrs)) $ \_ -> do
+                        withLinkedAsync (run (handleStderrs stderrs)) $ \_ -> do
                             withStaticTransport driverAddr peers $ \transport -> run $ do
                                 let backendConfig = DistribConfig
                                         { transport

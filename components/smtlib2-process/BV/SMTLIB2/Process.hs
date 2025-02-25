@@ -16,7 +16,7 @@ import BV.SMTLIB2.SExpr.Parse.Attoparsec
 
 import Control.Applicative ((<|>))
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
-                                 cancelWith, wait, withAsync)
+                                 link, withAsync)
 import Control.Concurrent.STM
 import Control.Exception (Exception, SomeException, bracket)
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow, try)
@@ -129,15 +129,11 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
                 <|> SolverProcessExceptionLogging <$> Concurrently (try logging)
                 <|> SolverProcessExceptionTermination <$ Concurrently termination
 
-        interaction <- toIO $ runSolverT m (modifyCtx (liftIOContext ctx))
+        let interaction = runSolverT m (modifyCtx (liftIOContext ctx))
 
-        liftIO . withAsync env $ \envA ->
-            withAsync interaction $ \interactionA ->
-                let propagate = do
-                        ex <- wait envA
-                        cancelWith interactionA ex
-                in withAsync propagate $ \_ ->
-                        wait interactionA
+        liftIO $ withAsync env $ \envA -> do
+            link envA
+            run interaction
 
 data SolverProcessException
   = SolverProcessExceptionSource (Either SomeException ())

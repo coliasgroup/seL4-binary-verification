@@ -227,6 +227,7 @@ executables:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
+      - sel4-bv:system-utils
       - sel4-bv:system
       - sel4-bv:system-core
       - sel4-bv:network-transport-static
