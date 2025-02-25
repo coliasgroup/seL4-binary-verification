@@ -60,20 +60,13 @@ data LogEntry
       }
   deriving (Eq, Generic, Show)
 
--- TODO
--- instance Binary LogContextEntry where
--- instance Binary Loc where
--- instance Generic LogLevel where
--- instance Binary LogLevel where
--- instance Generic LogStr where
--- instance Binary LogStr where
--- instance Binary LogEntry where
-
 type LogContext = [LogContextEntry]
 
 newtype LogContextEntry
   = LogContextEntry { unwrap :: String }
   deriving (Eq, FromJSON, Generic, Ord, Show, ToJSON)
+
+instance Binary LogContextEntry where
 
 makeLogContextEntry :: String -> LogContextEntry
 makeLogContextEntry s =

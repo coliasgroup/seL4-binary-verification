@@ -145,6 +145,7 @@ library logging
   other-modules:
       BV.Logging.Adapters
       BV.Logging.Aeson
+      BV.Logging.Binary
       BV.Logging.Formatting
       BV.Logging.LevelWithTrace
       BV.Logging.Parsing

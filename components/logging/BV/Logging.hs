@@ -34,6 +34,7 @@ module BV.Logging
 
 import BV.Logging.Adapters
 import BV.Logging.Aeson ()
+import BV.Logging.Binary ()
 import BV.Logging.Formatting
 import BV.Logging.LevelWithTrace
 import BV.Logging.Parsing
