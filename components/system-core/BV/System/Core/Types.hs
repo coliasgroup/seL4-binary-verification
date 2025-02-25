@@ -34,6 +34,7 @@ import BV.System.Core.Fingerprinting
 import BV.System.Core.Utils
 
 import Control.DeepSeq (NFData)
+import Data.Binary (Binary)
 import Data.List (genericSplitAt, intercalate)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
@@ -60,7 +61,7 @@ data CheckGroup
 newtype CheckIndexInGroup
   = CheckIndexInGroup { unwrap :: Integer }
   deriving (Eq, Generic, Ord, Show)
-  deriving newtype (NFData)
+  deriving newtype (Binary, NFData)
 
 data CheckSubgroup
   = CheckSubgroup
@@ -75,6 +76,8 @@ data CheckSubgroupId
       , checkIndices :: [CheckIndexInGroup]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary CheckSubgroupId where
 
 newtype Checks
   = Checks { unwrap :: M.Map PairingId (M.Map CheckGroupFingerprint CheckSubgroup) }
@@ -189,6 +192,8 @@ data CheckPath
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary CheckPath where
+
 pathForCheck :: Check -> CheckPath
 pathForCheck check = CheckPath
     { pairingId = check.group.pairingId
@@ -213,6 +218,8 @@ data CheckSubgroupPath
       , subgroupId :: CheckSubgroupId
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary CheckSubgroupPath where
 
 pathForCheckSubgroup :: CheckSubgroup -> CheckSubgroupPath
 pathForCheckSubgroup subgroup = CheckSubgroupPath

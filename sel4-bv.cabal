@@ -167,6 +167,7 @@ library logging
     , attoparsec
     , attoparsec-aeson
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
@@ -395,6 +396,7 @@ library system-core
       async
     , base
     , base16-bytestring
+    , binary
     , bytestring
     , containers
     , cryptohash-sha256

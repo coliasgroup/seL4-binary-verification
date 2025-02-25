@@ -93,6 +93,7 @@ internal-libraries:
     exposed-modules:
       - BV.Logging
     dependencies:
+      - binary
       - attoparsec
       - aeson
       - attoparsec-aeson
@@ -174,6 +175,7 @@ internal-libraries:
       - sel4-bv:concrete-syntax
       - sel4-bv:system-utils
       # external
+      - binary
       - unliftio-core
       - monad-logger
       - process

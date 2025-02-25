@@ -38,6 +38,7 @@ import Control.Monad.Catch (MonadThrow, throwM)
 import Control.Monad.Except (ExceptT, MonadError, runExceptT, throwError)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), runMaybeT)
+import Data.Binary (Binary)
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 import Numeric.Natural (Natural)
@@ -89,6 +90,8 @@ data SatResult
   | Unsat
   | Unknown SExpr
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary SatResult where
 
 checkSatWithTimeoutE :: (MonadSolver m, MonadError CommandError m) => Maybe SolverTimeout -> m (Maybe SatResult)
 checkSatWithTimeoutE timeout = runMaybeT $ do

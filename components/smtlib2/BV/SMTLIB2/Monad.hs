@@ -12,13 +12,14 @@ import Control.Monad.Except (ExceptT)
 import Control.Monad.State (StateT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT)
+import Data.Binary (Binary)
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 
 newtype SolverTimeout
   = SolverTimeout { seconds :: Integer }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Binary, Eq, Generic, Ord, Show)
 
 solverTimeoutFromSeconds :: HasCallStack => Integer -> SolverTimeout
 solverTimeoutFromSeconds seconds =

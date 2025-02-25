@@ -21,6 +21,7 @@ import BV.System.Utils.Stopwatch
 
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Data.Binary (Binary)
 import Data.List (genericIndex)
 import GHC.Generics (Generic)
 import System.Process (CreateProcess, proc)
@@ -59,6 +60,8 @@ data OnlineSolverConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
+instance Binary OnlineSolverConfig where
+
 data OfflineSolverConfig
   = OfflineSolverConfig
       { commandName :: OfflineSolverCommandName
@@ -68,12 +71,16 @@ data OfflineSolverConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
+instance Binary OfflineSolverConfig where
+
 data SolverCommand
   = SolverCommand
       { path :: String
       , args :: [String]
       }
   deriving (Eq, Generic, Ord, Show)
+
+instance Binary SolverCommand where
 
 type OfflineSolverCommandName = String
 

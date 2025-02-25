@@ -21,6 +21,7 @@ import BV.Core
 
 import Control.DeepSeq (NFData)
 import Crypto.Hash.SHA256 (hashlazy)
+import Data.Binary (Binary)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Base16 as B16
@@ -32,7 +33,7 @@ import GHC.IsList (fromList)
 
 newtype CheckFingerprint
   = CheckFingerprint { unwrap :: ByteString }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Binary, Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
 fingerprintCheck :: SMTProofCheck a -> CheckFingerprint
@@ -45,7 +46,7 @@ fingerprintCheck check =
 
 newtype CheckGroupFingerprint
   = CheckGroupFingerprint { unwrap :: ByteString }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Binary, Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
 fingerprintCheckGroup :: SMTProofCheckGroup a -> CheckGroupFingerprint

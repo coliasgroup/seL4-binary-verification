@@ -12,6 +12,7 @@ module BV.Core.ModelConfig
 import BV.Core.Types
 import BV.SMTLIB2
 
+import Data.Binary (Binary)
 import Data.FileEmbed (embedStringFile, makeRelativeToProject)
 import GHC.Generics (Generic)
 
@@ -21,6 +22,8 @@ data ModelConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
+instance Binary ModelConfig where
+
 prettyModelConfig :: ModelConfig -> String
 prettyModelConfig modelConfig = prettyMemoryMode modelConfig.memoryMode
 
@@ -28,6 +31,8 @@ data MemoryMode
   = MemoryModeWord8
   | MemoryModeWord32
   deriving (Eq, Generic, Ord, Show)
+
+instance Binary MemoryMode where
 
 prettyMemoryMode :: MemoryMode -> String
 prettyMemoryMode = \case

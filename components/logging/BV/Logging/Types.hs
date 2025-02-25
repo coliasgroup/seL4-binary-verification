@@ -13,6 +13,7 @@ module BV.Logging.Types
     , isDefaultLoc
     , isDefaultLogSource
     , makeLogContextEntry
+    , mapLoggingWithContextT
     , runLoggingWithContextT
     , withPushLogContext
     ) where
@@ -23,8 +24,10 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Logger (Loc, LogLevel (..), LogSource, LogStr,
                              MonadLogger (monadLoggerLog), defaultLoc, toLogStr)
-import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT, withReaderT)
+import Control.Monad.Reader (MonadTrans, ReaderT, mapReaderT, runReaderT,
+                             withReaderT)
 import Data.Aeson.Types
+import Data.Binary (Binary)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Optics (ViewableOptic (gview), (%~), (.~))
@@ -57,6 +60,15 @@ data LogEntry
       }
   deriving (Eq, Generic, Show)
 
+-- TODO
+-- instance Binary LogContextEntry where
+-- instance Binary Loc where
+-- instance Generic LogLevel where
+-- instance Binary LogLevel where
+-- instance Generic LogStr where
+-- instance Binary LogStr where
+-- instance Binary LogEntry where
+
 type LogContext = [LogContextEntry]
 
 newtype LogContextEntry
@@ -74,12 +86,14 @@ newtype LoggingWithContextT m a
   deriving
     ( Applicative
     , Functor
+    , Generic
     , Monad
     , MonadCatch
     , MonadFail
     , MonadIO
     , MonadMask
     , MonadThrow
+    , MonadTrans
     , MonadUnliftIO
     )
 
@@ -119,6 +133,9 @@ runLoggingWithContextT m logAction =
             { context = []
             , logAction
             }
+
+mapLoggingWithContextT :: (m a -> n b) -> LoggingWithContextT m a -> LoggingWithContextT n b
+mapLoggingWithContextT f = #unwrap %~ mapReaderT f
 
 --
 

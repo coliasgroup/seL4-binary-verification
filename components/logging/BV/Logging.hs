@@ -22,6 +22,7 @@ module BV.Logging
     , logTraceGeneric
     , logWarn
     , logWarnGeneric
+    , mapLoggingWithContextT
     , parseLogEntryHumanBestEffort
     , parseLogEntryJSON
     , parseLogEntryText

@@ -18,6 +18,7 @@ import BV.SMTLIB2.Command
 import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (runExceptT, throwError)
+import Data.Binary (Binary)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
@@ -55,11 +56,15 @@ data OnlineSolverFailureInfo
       }
   deriving (Eq, Generic, Ord, Show)
 
+instance Binary OnlineSolverFailureInfo where
+
 data OnlineSolverFailureReason
   = OnlineSolverAnsweredSat
   | OnlineSolverTimedOut
   | OnlineSolverAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
+
+instance Binary OnlineSolverFailureReason where
 
 -- TODO
 -- - This hyp numbering doesn't match graph-refine.
