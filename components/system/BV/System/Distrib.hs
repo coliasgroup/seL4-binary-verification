@@ -18,15 +18,16 @@ import BV.System.Utils
 import BV.System.Utils.Async
 
 import Control.Concurrent (newChan, newEmptyMVar, putMVar, readChan, takeMVar,
-                           writeChan)
+                           threadDelay, writeChan)
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently))
 import Control.Concurrent.STM (modifyTVar', newEmptyTMVarIO, newTVarIO,
                                putTMVar, readTMVar, stateTVar)
 import Control.Distributed.Process (NodeId, Process, ProcessId, RemoteTable,
-                                    SendPort, expect, getSelfPid, link,
+                                    SendPort, expect, getSelfPid, kill, link,
                                     receiveChan, send, sendChan, spawnLink,
                                     spawnLocal)
 import qualified Control.Distributed.Process as D
+import qualified Control.Distributed.Process.Async as A
 import Control.Distributed.Process.Closure (mkClosure, remotable)
 import Control.Distributed.Process.Node (LocalNode, forkProcess,
                                          initRemoteTable, newLocalNode,
@@ -35,7 +36,7 @@ import Control.Exception.Safe (MonadMask, SomeException, bracket, throwIO,
                                throwString, try)
 import Control.Monad (forever, replicateM, when)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO, askRunInIO, withRunInIO)
 import Control.Monad.STM (atomically)
 import Control.Monad.Trans (lift)
 import Data.Binary (Binary)
@@ -105,10 +106,16 @@ serverThread :: Checks -> LoggingWithContextT Process ()
 serverThread checks = do
     selfPid <- lift getSelfPid
     withPushLogContext (show selfPid) $ do
+        run <- mapLoggingWithContextT liftIO $ askRunInIO
         forever $ do
             (req, src) <- lift expect
-            resp <- mapLoggingWithContextT liftIO $ executeRequest checks req
-            lift $ send src resp
+            handle <- lift $ A.async $ A.task $ do
+                    resp <- liftIO $ run $ executeRequest checks req
+                    send src resp
+            linked :: A.Async () <- lift $ A.async $ A.task $ do
+                    link src
+                    liftIO $ forever $ threadDelay maxBound
+            lift $ A.waitEither handle linked
 
 server :: (ServerInput, ProcessId) -> Process ()
 server (input, replyProcessId) = do
@@ -197,10 +204,15 @@ runDistrib config solversConfig checks = do
 --
 
 runProcessForOutput :: LocalNode -> Process a -> IO a
-runProcessForOutput node proc = do
-  done <- newEmptyMVar
-  void $ forkProcess node $ try proc >>= liftIO . putMVar done
-  takeMVar done >>= either (throwIO :: SomeException -> IO a) return
+runProcessForOutput node proc = bracket
+    (do
+        done <- newEmptyMVar
+        pid <- forkProcess node $ try proc >>= liftIO . putMVar done
+        return (done, pid))
+    (\(done, pid) -> do
+        forkProcess node $ kill pid "cancelled")
+    (\(done, pid) -> do
+        takeMVar done >>= either (throwIO :: SomeException -> IO a) return)
 
 --
 
