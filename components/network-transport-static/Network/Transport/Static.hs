@@ -22,12 +22,12 @@ import Control.Monad (join, unless, when)
 import Control.Monad.Base (liftBase)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Control.Monad.State (MonadState, StateT (runStateT), get, gets)
+import Control.Monad.State (MonadState, StateT (runStateT), get, gets, put)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT))
 import Data.Bifunctor (first)
 import Data.ByteString (ByteString)
 import Data.Either (fromRight)
-import Data.Foldable ()
+import Data.Foldable (for_)
 import Data.Functor (void)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -128,16 +128,12 @@ withStaticTransport selfEndPointAddress peersOps m = do
                 }
         m transport `finally` transport.closeTransport
 
+-- TODO idempotence
 apiCloseTransport :: TVar TransportState -> IO ()
-apiCloseTransport _tsv = do
-    -- TODO
-    unimplemented "apiCloseTransport"
-
-    -- atomically $ withTransportState tsv $ do
-    -- TODO close endpoint?
-    -- zoomMaybe #_TransportValid $ do
-        -- undefined
-    -- put TransportClosed
+apiCloseTransport tsv = do
+    apiCloseEndPoint tsv
+    atomically $ withTransportState tsv $ do
+        put TransportClosed
 
 apiNewEndpoint :: TVar TransportState -> IO (Either (TransportError NewEndPointErrorCode) EndPoint)
 apiNewEndpoint tsv = atomically $ withValidTransportState tsv $ do
@@ -156,22 +152,17 @@ apiNewEndpoint tsv = atomically $ withValidTransportState tsv $ do
     return $ Right endpoint
 
 apiCloseEndPoint :: TVar TransportState -> IO ()
-apiCloseEndPoint _tsv = do
-    -- TODO
-    unimplemented "apiCloseEndPoint"
-
-    -- atomically $ withTransportState tsv $ do
-    --     zoomOrThrow "apiCloseEndPoint endPointState" (#_TransportValid % #endPointState) $ do
-    --         get >>= \case
-    --             Nothing -> do
-    --                 return ()
-    --             Just _ -> do
-    --                 -- TODO close connections with peers?
-    --                 return ()
-    --         put $ Just $ LocalEndPointClosed { eventHasBeenReceived = False }
+apiCloseEndPoint tsv = do
+    join $ atomically $ withValidLocalEndpointStateOr (return (return ())) tsv $ do
+        conns <- use $ #connections % to M.keys
+        return $ for_ conns $ apiClose tsv
+    atomically $ withValidTransportStateOr (return ()) tsv $ do
+        put $ Just (LocalEndPointClosed
+            { eventHasBeenReceived = False
+            })
 
 apiReceive :: TVar TransportState -> IO Event
-apiReceive tsv = atomically $ withLocalEndpointState tsv $ do
+apiReceive tsv = atomically $ withLocalEndpointStateOr fallback tsv $ do
     zoomCasesOrThrow
         [ zoomMaybe #_LocalEndPointValid $ do
             peerEventSource <- gview #peerEventSource
@@ -209,6 +200,9 @@ apiReceive tsv = atomically $ withLocalEndpointState tsv $ do
                 throwString "endpoint closed"
             return EndPointClosed
         ]
+  where
+    -- HACK HACK HACK
+    fallback = return EndPointClosed
 
 apiConnect
     :: TVar TransportState
@@ -248,10 +242,12 @@ apiClose
 apiClose tsv cid = join $ atomically $ withValidLocalEndpointState tsv $ do
     zoomConnectionState cid $ \outerId -> do
         oldSt <- simple <<.= LocalConnectionClosed
-        when (oldSt /= LocalConnectionValid) $ do
-            throwString "old state /= LocalConnectionValid"
-        mkSubmitMessage_ outerId.endPointAddress $
-            Close (sendSharedConnectionId outerId.innerId)
+        case oldSt of
+            LocalConnectionValid ->
+                mkSubmitMessage_ outerId.endPointAddress $
+                    Close (sendSharedConnectionId outerId.innerId)
+            _ ->
+                return $ return ()
 
 --
 
@@ -262,19 +258,52 @@ withTransportState tsv m = do
     writeTVar tsv ts'
     return a
 
-withValidTransportState :: TVar TransportState -> ReaderT ValidTransportStateContext (StateT (Maybe LocalEndPointState) STM) a -> STM a
-withValidTransportState tsv m = withTransportState tsv $ do
-    zoomOrThrow "invalid transport state" #_TransportValid $ do
+withValidTransportStateOr
+    :: STM a
+    -> TVar TransportState
+    -> ReaderT ValidTransportStateContext (StateT (Maybe LocalEndPointState) STM) a
+    -> STM a
+withValidTransportStateOr fallback tsv m = withTransportState tsv $ do
+    zoomOr (liftBase fallback) #_TransportValid $ do
         ctx <- use #ctx
         runReaderT (zoom #endPointState m) ctx
 
-withLocalEndpointState :: TVar TransportState -> ReaderT ValidTransportStateContext (StateT LocalEndPointState STM) a -> STM a
-withLocalEndpointState tsv =
-    withValidTransportState tsv . zoomOrThrow "non-existent local endpoint state" #_Just
+withValidTransportState
+    :: HasCallStack
+    => TVar TransportState
+    -> ReaderT ValidTransportStateContext (StateT (Maybe LocalEndPointState) STM) a
+    -> STM a
+withValidTransportState = withValidTransportStateOr $ throwString "invalid transport state"
 
-withValidLocalEndpointState :: TVar TransportState -> ReaderT ValidTransportStateContext (StateT ValidLocalEndPointState STM) a -> STM a
-withValidLocalEndpointState tsv =
-    withLocalEndpointState tsv . zoomOrThrow "invalid local endpoint state" #_LocalEndPointValid
+withLocalEndpointStateOr
+    :: STM a
+    -> TVar TransportState
+    -> ReaderT ValidTransportStateContext (StateT LocalEndPointState STM) a
+    -> STM a
+withLocalEndpointStateOr fallback tsv =
+    withValidTransportStateOr (liftBase fallback) tsv . zoomOr (liftBase fallback) #_Just
+
+withLocalEndpointState
+    :: HasCallStack
+    => TVar TransportState
+    -> ReaderT ValidTransportStateContext (StateT LocalEndPointState STM) a
+    -> STM a
+withLocalEndpointState = withLocalEndpointStateOr $ throwString "non-existent local endpoint state"
+
+withValidLocalEndpointStateOr
+    :: STM a
+    -> TVar TransportState
+    -> ReaderT ValidTransportStateContext (StateT ValidLocalEndPointState STM) a
+    -> STM a
+withValidLocalEndpointStateOr fallback tsv =
+    withLocalEndpointStateOr (liftBase fallback) tsv . zoomOr (liftBase fallback) #_LocalEndPointValid
+
+withValidLocalEndpointState
+    :: HasCallStack
+    => TVar TransportState
+    -> ReaderT ValidTransportStateContext (StateT ValidLocalEndPointState STM) a
+    -> STM a
+withValidLocalEndpointState = withValidLocalEndpointStateOr $ throwString "invalid local endpoint state"
 
 nextConnectionId :: MonadState ValidLocalEndPointState m => m ConnectionId
 nextConnectionId = do
