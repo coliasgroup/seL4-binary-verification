@@ -266,8 +266,8 @@ executables:
       - sel4-bv:test-utils
     ghc-options: *exe-ghc-options
 
-  distrib-scratch:
-    source-dirs: components/scratch/distrib-scratch
+  remote-scratch:
+    source-dirs: components/scratch/remote-scratch
     main: Main
     dependencies:
       - sel4-bv:logging

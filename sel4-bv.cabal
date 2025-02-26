@@ -606,13 +606,50 @@ executable cli
     , yaml
   default-language: GHC2021
 
-executable distrib-scratch
+executable profiling-scratch
+  main-is: Main.hs
+  hs-source-dirs:
+      components/scratch/profiling-scratch
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
+  build-depends:
+      async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , mtl
+    , optics
+    , parallel
+    , safe-exceptions
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , sel4-bv:system
+    , sel4-bv:system-core
+    , sel4-bv:test-utils
+    , stm
+    , text
+    , transformers
+    , transformers-base
+    , vector
+  default-language: GHC2021
+
+executable remote-scratch
   main-is: Main.hs
   other-modules:
       Static
       TCP
   hs-source-dirs:
-      components/scratch/distrib-scratch
+      components/scratch/remote-scratch
   default-extensions:
       FunctionalDependencies
       DuplicateRecordFields
@@ -650,43 +687,6 @@ executable distrib-scratch
     , transformers-base
     , unix
     , unliftio-core
-    , vector
-  default-language: GHC2021
-
-executable profiling-scratch
-  main-is: Main.hs
-  hs-source-dirs:
-      components/scratch/profiling-scratch
-  default-extensions:
-      FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
-      OverloadedLabels
-      OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
-  build-depends:
-      async
-    , base
-    , bytestring
-    , containers
-    , deepseq
-    , exceptions
-    , mtl
-    , optics
-    , parallel
-    , safe-exceptions
-    , sel4-bv:concrete-syntax
-    , sel4-bv:core
-    , sel4-bv:system
-    , sel4-bv:system-core
-    , sel4-bv:test-utils
-    , stm
-    , text
-    , transformers
-    , transformers-base
     , vector
   default-language: GHC2021
 
