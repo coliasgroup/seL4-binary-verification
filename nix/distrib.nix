@@ -20,7 +20,7 @@ let
     name = "worker";
     runtimeInputs = [ package ] ++ workerSolvers;
     text = ''
-      exec cli "$@"
+      exec sel4-bv-cli "$@"
     '';
   };
 
@@ -61,7 +61,7 @@ let
     name = "driver";
     runtimeInputs = [ package run-worker-over-ssh ] ++ driverSolvers;
     text = ''
-      exec cli "$@"
+      exec sel4-bv-cli "$@"
     '';
     passthru = {
       inherit

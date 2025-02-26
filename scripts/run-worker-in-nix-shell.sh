@@ -6,5 +6,5 @@ here=$(dirname $0)
 
 cd $here/..
 
-nix-shell --run "cabal run cli -- $*"
+nix-shell --run "cabal run sel4-bv-cli -- $*"
 # nix-shell --run "echo $@"

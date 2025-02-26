@@ -538,74 +538,6 @@ library test-utils
     , vector
   default-language: GHC2021
 
-executable cli
-  main-is: BV/CLI/Main.hs
-  other-modules:
-      BV.CLI.Commands.Check
-      BV.CLI.Commands.ExtractSMT
-      BV.CLI.Commands.FormatSMT
-      BV.CLI.Commands.Worker
-      BV.CLI.Distrib
-      BV.CLI.Opts
-      BV.CLI.SolverList
-      BV.CLI.WorkersConfig
-  hs-source-dirs:
-      components/cli
-  default-extensions:
-      FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
-      OverloadedLabels
-      OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
-  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is BV.CLI.Main
-  build-depends:
-      aeson
-    , ansi-terminal
-    , async
-    , attoparsec
-    , base
-    , base16-bytestring
-    , bytestring
-    , conduit
-    , conduit-extra
-    , containers
-    , deepseq
-    , distributed-process
-    , exceptions
-    , filepath
-    , megaparsec
-    , monad-logger
-    , mtl
-    , network-transport
-    , optics
-    , optparse-applicative
-    , parallel
-    , pretty-simple
-    , process
-    , resourcet
-    , safe-exceptions
-    , sel4-bv:concrete-syntax
-    , sel4-bv:core
-    , sel4-bv:logging
-    , sel4-bv:network-transport-static
-    , sel4-bv:smtlib2
-    , sel4-bv:smtlib2-process
-    , sel4-bv:system
-    , sel4-bv:system-core
-    , sel4-bv:system-utils
-    , sel4-bv:target-dir
-    , stm
-    , text
-    , transformers
-    , transformers-base
-    , unliftio-core
-    , vector
-    , yaml
-  default-language: GHC2021
-
 executable profiling-scratch
   main-is: Main.hs
   hs-source-dirs:
@@ -688,6 +620,74 @@ executable remote-scratch
     , unix
     , unliftio-core
     , vector
+  default-language: GHC2021
+
+executable sel4-bv-cli
+  main-is: BV/CLI/Main.hs
+  other-modules:
+      BV.CLI.Commands.Check
+      BV.CLI.Commands.ExtractSMT
+      BV.CLI.Commands.FormatSMT
+      BV.CLI.Commands.Worker
+      BV.CLI.Distrib
+      BV.CLI.Opts
+      BV.CLI.SolverList
+      BV.CLI.WorkersConfig
+  hs-source-dirs:
+      components/cli
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is BV.CLI.Main
+  build-depends:
+      aeson
+    , ansi-terminal
+    , async
+    , attoparsec
+    , base
+    , base16-bytestring
+    , bytestring
+    , conduit
+    , conduit-extra
+    , containers
+    , deepseq
+    , distributed-process
+    , exceptions
+    , filepath
+    , megaparsec
+    , monad-logger
+    , mtl
+    , network-transport
+    , optics
+    , optparse-applicative
+    , parallel
+    , pretty-simple
+    , process
+    , resourcet
+    , safe-exceptions
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , sel4-bv:logging
+    , sel4-bv:network-transport-static
+    , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-process
+    , sel4-bv:system
+    , sel4-bv:system-core
+    , sel4-bv:system-utils
+    , sel4-bv:target-dir
+    , stm
+    , text
+    , transformers
+    , transformers-base
+    , unliftio-core
+    , vector
+    , yaml
   default-language: GHC2021
 
 test-suite concrete-syntax-test

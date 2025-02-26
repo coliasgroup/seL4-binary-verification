@@ -220,7 +220,7 @@ internal-libraries:
 
 executables:
 
-  cli:
+  sel4-bv-cli:
     source-dirs: components/cli
     main: BV.CLI.Main
     dependencies:

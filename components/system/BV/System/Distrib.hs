@@ -112,10 +112,10 @@ serverThread checks = do
             handle <- lift $ A.async $ A.task $ do
                     resp <- liftIO $ run $ executeRequest checks req
                     send src resp
-            linked :: A.Async () <- lift $ A.async $ A.task $ do
+            linked <- lift $ A.async $ A.task $ do
                     link src
                     liftIO $ forever $ threadDelay maxBound
-            lift $ A.waitEither handle linked
+            lift $ A.waitAnyCancel [handle, linked]
 
 server :: (ServerInput, ProcessId) -> Process ()
 server (input, replyProcessId) = do
@@ -209,9 +209,9 @@ runProcessForOutput node proc = bracket
         done <- newEmptyMVar
         pid <- forkProcess node $ try proc >>= liftIO . putMVar done
         return (done, pid))
-    (\(done, pid) -> do
+    (\(_done, pid) -> do
         forkProcess node $ kill pid "cancelled")
-    (\(done, pid) -> do
+    (\(done, _pid) -> do
         takeMVar done >>= either (throwIO :: SomeException -> IO a) return)
 
 --

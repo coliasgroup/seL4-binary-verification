@@ -56,3 +56,5 @@
   - add feature to require unsat from _multiple_ solvers, not just any solver, and(?) cache solver identities (witnesses) along with results
 
 - printf instances for all pretty* functions
+
+- bring back throttle, QSemN is FIFO so larger reqs block smaller ones

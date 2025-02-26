@@ -12,7 +12,7 @@ sd=small
 
 d=tmp/test-target-dirs/$sd
 
-x=cli
+x=sel4-bv-cli
 
 cabal build $x
 path=$(cabal list-bin $x)

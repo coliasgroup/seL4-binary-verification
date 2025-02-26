@@ -18,7 +18,7 @@ import Control.Applicative ((<|>))
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
                                  link, withAsync)
 import Control.Concurrent.STM
-import Control.Exception (Exception, SomeException, bracket)
+import Control.Exception (Exception, SomeException, bracket, finally)
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow, try)
 import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -91,7 +91,7 @@ runSolverWith
     => (SolverContext m -> SolverContext m) -> (T.Text -> m ()) -> CreateProcess -> SolverT m a -> m a
 runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
     (streamingProcess cmd)
-    (\(_, _, _, sph) -> closeStreamingProcessHandle sph *> terminateProcess (streamingProcessHandleRaw sph))
+    (\(_, _, _, sph) -> closeStreamingProcessHandle sph `finally` terminateProcess (streamingProcessHandleRaw sph))
     $ \(FlushInput procStdin, procStdout, procStderr, processHandle) -> run $ do
 
         sourceChan <- liftIO newTChanIO
