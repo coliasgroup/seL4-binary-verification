@@ -207,7 +207,7 @@ workerCommandsFromWorkersConfig :: WorkersConfig -> Map EndPointAddress CreatePr
 workerCommandsFromWorkersConfig workersConfig = M.fromList
     [ let addr = EndPointAddress (BC.pack workerName)
           cmd = case workerConfig.command of
-                path :| args -> (proc path (args ++ [workerName]))
+                path :| args -> (proc path (args ++ ["worker", workerName]))
                     { std_err = CreatePipe
                     }
       in (addr, cmd)

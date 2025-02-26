@@ -38,5 +38,5 @@ instance FromJSON WorkerConfig where
         <*> v .:? "priority" .!= 0
       where
         localTrue = \case
-            Bool True -> pure ("/proc/self/exe" :| ["worker"])
+            Bool True -> pure ("/proc/self/exe" :| [])
             _ -> fail "unexpected value"

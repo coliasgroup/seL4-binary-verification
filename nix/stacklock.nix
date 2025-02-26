@@ -37,6 +37,7 @@ stacklock2nix {
         # external
         prettyprinter = dontCheck hprev.prettyprinter;
         lifted-base = dontCheck hprev.lifted-base;
+        distributed-process-simplelocalnet = dontCheck hprev.distributed-process-simplelocalnet;
       };
 
   all-cabal-hashes =

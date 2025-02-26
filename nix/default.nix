@@ -50,4 +50,10 @@ in rec {
 
   mathsat5 = pkgs.callPackage ./solvers/mathsat5.nix {};
   sonolar = pkgs.callPackage ./solvers/sonolar.nix {};
+
+  distrib = pkgs.callPackage ./distrib.nix {
+    inherit
+      package
+    ;
+  };
 }

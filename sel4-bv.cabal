@@ -349,6 +349,7 @@ library system
     , network-transport
     , optics
     , parallel
+    , pretty-simple
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core

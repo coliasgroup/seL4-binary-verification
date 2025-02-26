@@ -47,6 +47,7 @@ import GHC.Generics (Generic)
 import Network.Transport (Transport)
 import Optics
 import Optics.Passthrough (PermeableOptic (passthrough))
+import Text.Pretty.Simple (pPrint)
 
 data DistribConfig
   = DistribConfig
