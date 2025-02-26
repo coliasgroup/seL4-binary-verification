@@ -205,8 +205,6 @@ internal-libraries:
       - network-transport
       - distributed-process
       - distributed-process-async
-      # TODO for debugging
-      - pretty-simple
 
   test-utils:
     source-dirs: components/tests/test-utils

@@ -31,8 +31,8 @@ import Control.Distributed.Process.Closure (mkClosure, remotable)
 import Control.Distributed.Process.Node (LocalNode, forkProcess,
                                          initRemoteTable, newLocalNode,
                                          runProcess)
-import Control.Exception.Safe (MonadMask, SomeException, throwIO, throwString,
-                               try)
+import Control.Exception.Safe (MonadMask, SomeException, bracket, throwIO,
+                               throwString, try)
 import Control.Monad (forever, replicateM, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
@@ -47,7 +47,6 @@ import GHC.Generics (Generic)
 import Network.Transport (Transport)
 import Optics
 import Optics.Passthrough (PermeableOptic (passthrough))
-import Text.Pretty.Simple (pPrint)
 
 data DistribConfig
   = DistribConfig
@@ -165,13 +164,10 @@ withBackend config f = withRunInIO $ \run -> do
 solverBackendFromServerProcesses :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => LocalNode -> Available -> m (SolverBackend m)
 solverBackendFromServerProcesses node availableInit = do
     availableVar <- liftIO $ newTVarIO availableInit
-    let withServerThread f = do
-            (prio, pid) <- liftIO $ atomically $ do
-                stateTVar availableVar takeAvailable
-            r <- f pid
-            liftIO $ atomically $ do
-                modifyTVar' availableVar $ returnAvailable prio pid
-            return r
+    let withServerThread f = withRunInIO $ \run -> bracket
+            (atomically (stateTVar availableVar takeAvailable))
+            (atomically . modifyTVar' availableVar . returnAvailable)
+            (\(_prio, pid) -> run (f pid))
     let doReq :: Request -> Prism' Response a -> m a
         doReq req o = withServerThread $ \pid -> withRunInIO $ \run -> runProcessForOutput node $ do
             src <- getSelfPid
@@ -218,5 +214,5 @@ takeAvailable av = passthrough (at prio % expecting _Just) f av
     prio:_ = [ prio' | (prio', _:_) <- M.toList av ]
     f (pid:pids) = ((prio, pid), pids)
 
-returnAvailable :: Priority -> ProcessId -> Available -> Available
-returnAvailable prio pid av = av & at prio % expecting _Just %~ (++ [pid])
+returnAvailable :: (Priority, ProcessId) -> Available -> Available
+returnAvailable (prio, pid) av = av & at prio % expecting _Just %~ (++ [pid])
