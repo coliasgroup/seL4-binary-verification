@@ -71,7 +71,7 @@ runCheck opts = do
             return $ \solversConfig checks -> do
                 withRunInIO $ \run -> do
                     withDriverPeers (workerCommandsFromWorkersConfig workersConfig) $ \peers stderrs -> do
-                        -- TODO ensure all worker stderr is logged in case of driver crash
+                        -- TODO ensure all worker stderr is logged in case of driver crash with some kind of flush on exception
                         withLinkedAsync (run (handleStderrs stderrs)) $ \_ -> do
                             withStaticTransport driverAddr peers $ \transport -> run $ do
                                 let backendConfig = DistribConfig

@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module BV.System.Distrib
     ( DistribConfig (..)
@@ -30,7 +31,8 @@ import Control.Distributed.Process.Closure (mkClosure, remotable)
 import Control.Distributed.Process.Node (LocalNode, forkProcess,
                                          initRemoteTable, newLocalNode,
                                          runProcess)
-import Control.Exception.Safe (MonadMask, SomeException, throwIO, try)
+import Control.Exception.Safe (MonadMask, SomeException, throwIO, throwString,
+                               try)
 import Control.Monad (forever, replicateM, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
@@ -65,7 +67,7 @@ data ServerInput
   = ServerInput
       { stagesInput :: StagesInput
       , logChanSend :: SendPort LogEntry
-      , numJobs :: Integer
+      , numThreads :: Integer
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -99,23 +101,26 @@ executeRequest checks = \case
         ResponseOfflineSingle <$>
             localSolverBackend.offlineSingle config (findCheck checkFingerprint checks)
 
-jobProcess :: Checks -> LoggingWithContextT Process ()
-jobProcess checks = forever $ do
-    (req, src) <- lift expect
-    resp <- mapLoggingWithContextT liftIO $ executeRequest checks req
-    lift $ send src resp
+serverThread :: Checks -> LoggingWithContextT Process ()
+serverThread checks = do
+    selfPid <- lift getSelfPid
+    withPushLogContext (show selfPid) $ do
+        forever $ do
+            (req, src) <- lift expect
+            resp <- mapLoggingWithContextT liftIO $ executeRequest checks req
+            lift $ send src resp
 
 server :: (ServerInput, ProcessId) -> Process ()
-server (input, replyPid) = do
+server (input, replyProcessId) = do
     localLogChan <- liftIO newChan
     let logAction entry = do
             when (levelAtLeastWithTrace LevelDebug entry.level) $ do
                 writeChan localLogChan entry
-    jobPids <- replicateM (fromInteger input.numJobs) $ do
-        pid <- spawnLocal (runLoggingWithContextT (jobProcess checks) logAction)
-        link pid
-        return pid
-    send replyPid jobPids
+    threadProcessIds <- replicateM (fromInteger input.numThreads) $ do
+        threadProcessId <- spawnLocal $ runLoggingWithContextT (serverThread checks) logAction
+        link threadProcessId
+        return threadProcessId
+    send replyProcessId threadProcessIds
     forever $ do
         entry <- liftIO $ readChan localLogChan
         sendChan input.logChanSend entry
@@ -130,77 +135,59 @@ distribRemoteTable = __remoteTable initRemoteTable
 withBackend :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => DistribConfig -> (SolverBackend m -> m a) -> m a
 withBackend config f = withRunInIO $ \run -> do
     node <- newLocalNode config.transport distribRemoteTable
-    serverProcessIdSlots <- for config.workers $ \workerConfig -> (workerConfig.numJobs,) <$> newEmptyTMVarIO
-    let background = runConcurrently $ ifor_ serverProcessIdSlots $ \workerNodeId (numJobs, slot) -> Concurrently $ do
+    serverThreadProcessIdSlots <- for config.workers $ const newEmptyTMVarIO
+    let background = runConcurrently $ ifor_ serverThreadProcessIdSlots $ \workerNodeId slot -> Concurrently $ do
             runProcess node $ do
                 selfPid <- getSelfPid
                 (logChanSend, logChanRecv) <- D.newChan
                 let serverInput = ServerInput
                         { stagesInput = config.stagesInput
                         , logChanSend
-                        , numJobs = numJobs
+                        , numThreads = (config.workers ! workerNodeId).numJobs
                         }
                 spawnLink workerNodeId ($(mkClosure 'server) (serverInput, selfPid))
-                jobPids <- expect
+                serverThreadProcessIds <- expect
                 liftIO $ atomically $ do
-                    putTMVar slot jobPids
+                    putTMVar slot serverThreadProcessIds
                 forever $ do
                     entry <- receiveChan logChanRecv
                     liftIO $ run $ logEntryWithContext entry
     withLinkedAsync background $ \_ -> run $ do
-        serverProcessIds <- for serverProcessIdSlots $ liftIO . atomically . readTMVar . snd
-        let serverProcesses = M.fromListWith (<>)
+        serverThreadProcessIds <- for serverThreadProcessIdSlots $ liftIO . atomically . readTMVar
+        let available = M.fromListWith (<>)
                 [ ((config.workers ! workerNodeId).priority, jobPids)
-                | (workerNodeId, jobPids) <- M.toList serverProcessIds
+                | (workerNodeId, jobPids) <- M.toList serverThreadProcessIds
                 ]
-        backend <- solverBackendFromServerProcesses node serverProcesses
+        backend <- solverBackendFromServerProcesses node available
         f backend
 
-runProcess' :: LocalNode -> Process a -> IO a
-runProcess' node proc = do
-  done <- newEmptyMVar
-  void $ forkProcess node $ try proc >>= liftIO . putMVar done
-  takeMVar done >>= either (throwIO :: SomeException -> IO a) return
-
 solverBackendFromServerProcesses :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => LocalNode -> Available -> m (SolverBackend m)
-solverBackendFromServerProcesses node jobsByPriority = do
-    availableVar <- liftIO $ newTVarIO jobsByPriority
-    let withServerJob f = do
+solverBackendFromServerProcesses node availableInit = do
+    availableVar <- liftIO $ newTVarIO availableInit
+    let withServerThread f = do
             (prio, pid) <- liftIO $ atomically $ do
                 stateTVar availableVar takeAvailable
             r <- f pid
             liftIO $ atomically $ do
                 modifyTVar' availableVar $ returnAvailable prio pid
             return r
-    let go :: Request -> Prism' Response a -> m a
-        go req o = withServerJob $ \serverProcessId -> withRunInIO $ \run -> runProcess' node $ do
+    let doReq :: Request -> Prism' Response a -> m a
+        doReq req o = withServerThread $ \pid -> withRunInIO $ \run -> runProcessForOutput node $ do
             src <- getSelfPid
-            send serverProcessId (req, src)
+            liftIO $ run $ logDebug $ "making request to " ++ show pid
+            send pid (req, src)
             resp <- expect
             case preview o resp of
                 Just x -> return x
-                Nothing -> error "TODO"
+                Nothing -> throwString "unexpected response"
     return $ SolverBackend
         { online = \config subgroup ->
-            go (RequestOnline config (pathForCheckSubgroup subgroup)) #_ResponseOnline
+            doReq (RequestOnline config (pathForCheckSubgroup subgroup)) #_ResponseOnline
         , offline = \config subgroup ->
-            go (RequestOffline config (pathForCheckSubgroup subgroup)) #_ResponseOffline
+            doReq (RequestOffline config (pathForCheckSubgroup subgroup)) #_ResponseOffline
         , offlineSingle = \config check ->
-            go (RequestOfflineSingle config (pathForCheck check)) #_ResponseOfflineSingle
+            doReq (RequestOfflineSingle config (pathForCheck check)) #_ResponseOfflineSingle
         }
-
-type Priority = Integer
-
-type Available = M.Map Priority [ProcessId]
-
-takeAvailable :: Available -> ((Priority, ProcessId), Available)
-takeAvailable av = passthrough (at prio % expecting _Just) f av
-  where
-    prio = head [ prio' | (prio', _:_) <- M.toList av ]
-    f (pid:pids) = ((prio, pid), pids)
-
-returnAvailable :: Priority -> ProcessId -> Available -> Available
-returnAvailable prio pid av = av & at prio % expecting _Just %~ (++ [pid])
 
 runDistrib
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
@@ -209,3 +196,26 @@ runDistrib config solversConfig checks = do
     gate <- liftIO $ newSemGate $ sumOf (folded % #numJobs) config.workers
     withBackend config $ \backend -> do
         frontend (applySemGate gate) backend solversConfig checks
+
+--
+
+runProcessForOutput :: LocalNode -> Process a -> IO a
+runProcessForOutput node proc = do
+  done <- newEmptyMVar
+  void $ forkProcess node $ try proc >>= liftIO . putMVar done
+  takeMVar done >>= either (throwIO :: SomeException -> IO a) return
+
+--
+
+type Priority = Integer
+
+type Available = M.Map Priority [ProcessId]
+
+takeAvailable :: Available -> ((Priority, ProcessId), Available)
+takeAvailable av = passthrough (at prio % expecting _Just) f av
+  where
+    prio:_ = [ prio' | (prio', _:_) <- M.toList av ]
+    f (pid:pids) = ((prio, pid), pids)
+
+returnAvailable :: Priority -> ProcessId -> Available -> Available
+returnAvailable prio pid av = av & at prio % expecting _Just %~ (++ [pid])

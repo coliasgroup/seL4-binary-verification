@@ -28,8 +28,8 @@ time $path \
     --ignore-function arm_swi_syscall \
     --file-log $here/../tmp/logs/test-check.log.txt \
     --file-log-level debug \
-    --log-level debug \
     -j 16 \
     "$@"
 
     # --sqlite-cache $here/../tmp/cache.sqlite \
+    # --log-level debug \
