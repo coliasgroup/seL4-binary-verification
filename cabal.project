@@ -3,4 +3,4 @@ with-compiler: ghc-9.8.4
 
 -- multi-repl: True
 
-import: https://www.stackage.org/lts-23.6/cabal.config
+import: https://www.stackage.org/lts-23.10/cabal.config
