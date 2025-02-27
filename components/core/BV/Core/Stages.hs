@@ -92,6 +92,7 @@ data IntermediateStagesOutput
       { functions :: Program
       , pairings :: Pairings
       , problems :: Problems
+      , proofChecks :: ProofChecks ProofCheckDescription
       , compatProofChecks :: CompatProofChecks
       , compatSMTProofChecks :: CompatSMTProofChecks
       }
@@ -106,6 +107,7 @@ stages input = StagesOutput
         { functions = collectedFunctions
         , pairings
         , problems
+        , proofChecks
         , compatProofChecks
         , compatSMTProofChecks
         }

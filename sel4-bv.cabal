@@ -556,10 +556,13 @@ executable profiling-scratch
   build-depends:
       async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
     , exceptions
+    , filepath
+    , monad-logger
     , mtl
     , optics
     , parallel
@@ -568,12 +571,15 @@ executable profiling-scratch
     , sel4-bv:core
     , sel4-bv:system
     , sel4-bv:system-core
+    , sel4-bv:system-utils
+    , sel4-bv:target-dir
     , sel4-bv:test-utils
     , stm
     , text
     , transformers
     , transformers-base
     , vector
+    , zlib
   default-language: GHC2021
 
 executable remote-scratch
