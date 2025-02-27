@@ -60,7 +60,7 @@ runSolvers
     -> CheckSubgroup
     -> m CheckResult
 runSolvers throttle backend config subgroup = runExceptT $ do
-    filterPipeline subgroup
+    filterPipeline (deduplicateSubgroup subgroup)
   where
     filterPipeline =
         filterSubgroupUsingCache

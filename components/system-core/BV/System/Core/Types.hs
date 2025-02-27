@@ -12,6 +12,7 @@ module BV.System.Core.Types
     , CheckSubgroupId (..)
     , CheckSubgroupPath (..)
     , Checks (..)
+    , deduplicateSubgroup
     , elaborateChecks
     , elaborateChecksFromInput
     , filterChecks
@@ -35,7 +36,8 @@ import BV.System.Core.Utils
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
-import Data.List (genericSplitAt, intercalate)
+import Data.Function (on)
+import Data.List (genericSplitAt, intercalate, nubBy)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
@@ -144,6 +146,9 @@ splitSubgroupAt :: Integer -> CheckSubgroup -> (CheckSubgroup, CheckSubgroup)
 splitSubgroupAt i subgroup = (subgroup & #checks .~ l, subgroup & #checks .~ r)
   where
     (l, r) = genericSplitAt i subgroup.checks
+
+deduplicateSubgroup :: CheckSubgroup -> CheckSubgroup
+deduplicateSubgroup = #checks %~ nubBy ((==) `on` view (_2 % #fingerprint))
 
 takeSubgroupId :: CheckSubgroup -> CheckSubgroupId
 takeSubgroupId subgroup =
