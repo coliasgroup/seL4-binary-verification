@@ -27,7 +27,7 @@ testStages :: IO ()
 testStages = do
     input <- readStagesInput seL4DefaultEarlyAsmFunctionFilter referenceTargetDir
     let output = stages input
-    output.intermediate.compatProofChecks `deepseq` return ()
+    output.intermediate.compatSMTProofChecks `deepseq` return ()
   where
     referenceTargetDir =
         testSeL4TargetDirBig
