@@ -1,11 +1,11 @@
 workers:
   w1:
-    # local: true
-    command: [
-      "ssh", "localhost", "--",
-      "i/v/seL4-verification-reproducibility/projects/bv-sandbox/scripts/run-worker-in-nix-shell.sh",
-    ]
-    num_jobs: 2
+    local: true
+    # command: [
+    #   "ssh", "localhost", "--",
+    #   "i/v/seL4-verification-reproducibility/projects/bv-sandbox/scripts/run-worker-in-nix-shell.sh",
+    # ]
+    num_jobs: 16
   # w2:
   #   local: true
   #   num_jobs: 2

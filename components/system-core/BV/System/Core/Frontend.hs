@@ -28,7 +28,7 @@ frontend
     -> SolversConfig
     -> Checks
     -> m Report
-frontend throttle backend config checks = do
+frontend gate backend config checks = do
     let numChecks = lengthOf (#unwrap % folded % folded) checks
     completedGroups <- liftIO $ newTVarIO (0 :: Integer)
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
@@ -37,7 +37,7 @@ frontend throttle backend config checks = do
                 runConcurrentlyUnliftIOE $ do
                     for_ checksForPairing (\subgroup -> makeConcurrentlyUnliftIOE $ do
                         withPushLogContextCheckGroup subgroup.group $ do
-                            result <- runSolvers throttle backend config subgroup
+                            result <- runSolvers gate backend config subgroup
                             logInfo $ case result of
                                 Right _ -> "success"
                                 Left failure -> "failure: " ++ prettyCheckFailure failure

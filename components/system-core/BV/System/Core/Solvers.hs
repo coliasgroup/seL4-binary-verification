@@ -59,13 +59,13 @@ runSolvers
     -> SolversConfig
     -> CheckSubgroup
     -> m CheckResult
-runSolvers throttle backend config subgroup = runExceptT $ do
+runSolvers gate backend config subgroup = runExceptT $ do
     filterPipeline (deduplicateSubgroup subgroup)
   where
     filterPipeline =
         filterSubgroupUsingCache
-            >=> filterSubgroupsUsingOnlineSolver throttle backend config
-            >=> checkUsingOfflineSolvers throttle backend config
+            >=> filterSubgroupsUsingOnlineSolver gate backend config
+            >=> checkUsingOfflineSolvers gate backend config
 
 filterSubgroupUsingCache
     :: MonadCache m
@@ -88,10 +88,10 @@ filterSubgroupsUsingOnlineSolver
     -> SolversConfig
     -> CheckSubgroup
     -> ExceptT CheckFailure m CheckSubgroup
-filterSubgroupsUsingOnlineSolver throttle backend config subgroup =
+filterSubgroupsUsingOnlineSolver gate backend config subgroup =
     case config.online of
         Just onlineConfig -> do
-            result <- lift . throttle 1 $ backend.online onlineConfig subgroup
+            result <- lift . gate 1 $ backend.online onlineConfig subgroup
             let (unsat, rest) = case result of
                     Right () -> (subgroup, Right (takeEmptySubgroup subgroup))
                     Left failureInfo ->
@@ -123,12 +123,12 @@ checkUsingOfflineSolvers
     -> SolversConfig
     -> CheckSubgroup
     -> ExceptT CheckFailure m ()
-checkUsingOfflineSolvers throttle backend config subgroup =
+checkUsingOfflineSolvers gate backend config subgroup =
     case subgroup.checks of
         [] -> do
             return ()
         [(_i, check)] -> do
-            result <- lift . throttle (numParallelSolversForSingleCheck config.offline) $
+            result <- lift . gate (numParallelSolversForSingleCheck config.offline) $
                 runParellelOfflineSolversForSingleCheck
                     config.offline
                     backend.offlineSingle
@@ -148,7 +148,7 @@ checkUsingOfflineSolvers throttle backend config subgroup =
                         , source = CheckFailureSourceCheck check
                         }
         _ -> do
-            result <- lift . throttle (numParallelSolvers config.offline) $
+            result <- lift . gate (numParallelSolvers config.offline) $
                 runParellelOfflineSolvers
                     config.offline
                     backend.offline

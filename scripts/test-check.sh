@@ -8,7 +8,8 @@ solvers=$here/solvers.yaml
 workers=$here/workers.yaml
 
 # sd=big
-sd=small
+# sd=small
+sd=focused
 
 d=tmp/test-target-dirs/$sd
 
