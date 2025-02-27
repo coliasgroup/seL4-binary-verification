@@ -223,7 +223,7 @@ type Available = M.Map Priority [ProcessId]
 takeAvailable :: Available -> ((Priority, ProcessId), Available)
 takeAvailable av = passthrough (at prio % expecting _Just) f av
   where
-    prio:_ = [ prio' | (prio', _:_) <- M.toList av ]
+    prio:_ = [ prio' | (prio', _:_) <- M.toDescList av ]
     f (pid:pids) = ((prio, pid), pids)
 
 returnAvailable :: (Priority, ProcessId) -> Available -> Available
