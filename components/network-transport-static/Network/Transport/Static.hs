@@ -231,10 +231,14 @@ apiSend
 apiSend tsv cid bs = join $ atomically $ withValidLocalEndpointState tsv $ do
     zoomConnectionState cid $ \outerId -> do
         st <- get
-        when (st /= LocalConnectionValid) $ do
-            throwString "state /= LocalConnectionValid"
-        mkSubmitMessageOr SendFailed outerId.endPointAddress $
-            Send (sendSharedConnectionId outerId.innerId) bs
+        case st of
+            LocalConnectionValid -> do
+                mkSubmitMessageOr SendFailed outerId.endPointAddress $
+                    Send (sendSharedConnectionId outerId.innerId) bs
+            LocalConnectionClosed -> do
+                return $ return $ Left $ TransportError SendClosed ""
+            LocalConnectionFailed -> do
+                throwString "state == LocalConnectionFailed"
 
 apiClose
     :: TVar TransportState
