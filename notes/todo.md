@@ -58,3 +58,5 @@
 - printf instances for all pretty* functions
 
 - bring back throttle, QSemN is FIFO so larger reqs block smaller ones
+
+- tee woker stderr to remote file

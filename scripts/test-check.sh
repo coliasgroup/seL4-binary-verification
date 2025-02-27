@@ -28,11 +28,11 @@ time $path \
     --ignore-function arm_swi_syscall \
     --file-log $here/../tmp/logs/test-check.log.txt \
     --file-log-level debug \
-    --include-function invokeTCB_WriteRegisters \
-    --include-group 42f7dc8a4b6f \
     -j 16 \
     "$@"
 
     # --sqlite-cache $here/../tmp/cache.sqlite \
     # --log-level debug \
+    # --include-function invokeTCB_WriteRegisters \
+    # --include-group 42f7dc8a4b6f \
     # --workers $workers \
