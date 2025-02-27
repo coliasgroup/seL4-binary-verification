@@ -206,16 +206,18 @@ pathForCheck check = CheckPath
     , checkFingerprint = check.fingerprint
     }
 
-findCheck :: CheckPath -> Checks -> Check
-findCheck path checks = theCheck
+findChecks :: CheckPath -> Checks -> [Check]
+findChecks path checks =
+    [ check
+    | (_i, check) <- subgroup.checks
+    , check.fingerprint == path.checkFingerprint
+    ]
   where
     subgroup = checks ^.
         #unwrap % at path.pairingId % unwrapped % at path.groupFingerprint % unwrapped
-    [theCheck] =
-        [ check
-        | (_i, check) <- subgroup.checks
-        , check.fingerprint == path.checkFingerprint
-        ]
+
+findCheck :: CheckPath -> Checks -> Check
+findCheck path checks = head $ findChecks path checks
 
 data CheckSubgroupPath
   = CheckSubgroupPath
