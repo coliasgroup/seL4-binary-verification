@@ -8,6 +8,7 @@
 
 -- TODO
 {-# OPTIONS -Wno-all #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module BV.Core.Stages.CompileProofChecks
     ( CheckGroupKey
@@ -128,9 +129,10 @@ strengthenHyp sign expr = case expr.value of
             let [_l, r] = args
                 args' = applyWhen (r `elem` ([trueE, falseE] :: [Expr])) reverse args
                 [l', r'] = args'
-             in if l' == trueE then goWith r'
-                else if l' == falseE then goWith (notE r')
-                else expr
+             in if
+                | l' == trueE -> goWith r'
+                | l' == falseE -> goWith (notE r')
+                | otherwise -> expr
         _ -> expr
     _ -> expr
   where
@@ -146,14 +148,13 @@ smtExprM env expr = do
                     let ExprTypeWord bitsExpr = expr.ty
                     let ExprTypeWord bitsV = v.ty
                     ex <- smtExprM env v
-                    return $
-                        if bitsExpr == bitsV
-                        then ex
-                        else if bitsExpr < bitsV
-                        then [["_", "extract", intS (bitsExpr - 1), intS 0], ex]
-                        else case op of
-                            OpWordCast -> [["_", "zero_extend", intS (bitsExpr - bitsV), ex]]
-                            OpWordCastSigned -> [["_", "sign_extend", intS (bitsExpr - bitsV), ex]]
+                    return $ if
+                        | bitsExpr == bitsV -> ex
+                        | bitsExpr < bitsV -> [["_", "extract", intS (bitsExpr - 1), intS 0], ex]
+                        | otherwise ->
+                            case op of
+                                OpWordCast -> [["_", "zero_extend", intS (bitsExpr - bitsV), ex]]
+                                OpWordCastSigned -> [["_", "sign_extend", intS (bitsExpr - bitsV), ex]]
             _ | op == OpToFloatingPoint || op == OpToFloatingPointSigned ||
                 op == OpToFloatingPointUnsigned || op == OpFloatingPointCast -> do
                     error "unsupported"

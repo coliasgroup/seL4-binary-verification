@@ -2,20 +2,20 @@ module Main
     ( main
     ) where
 
-import BV.Core
 import BV.ConcreteSyntax
+import BV.Core
 import BV.System.EvalStages
+import BV.System.Utils.Stopwatch
 import BV.TargetDir
 import BV.Test.Utils
-import BV.System.Utils.Stopwatch
 
-import Control.DeepSeq (deepseq)
-import Data.Functor (void)
-import Control.Monad.Logger (runStderrLoggingT)
-import System.FilePath ((</>))
-import qualified Data.ByteString.Lazy as B
-import Data.Binary
 import Codec.Compression.Zlib (compress)
+import Control.DeepSeq (deepseq)
+import Control.Monad.Logger (runStderrLoggingT)
+import Data.Binary
+import qualified Data.ByteString.Lazy as B
+import Data.Functor (void)
+import System.FilePath ((</>))
 
 main :: IO ()
 main = do

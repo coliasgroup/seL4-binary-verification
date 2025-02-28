@@ -53,7 +53,7 @@ data StagesInput
       , proofs :: Proofs ()
       , earlyAsmFunctionFilter :: IncludeExcludeFilter Ident
         -- HACK
-      -- , compatSMTProofChecks :: CompatSMTProofChecks
+        -- , compatSMTProofChecks :: CompatSMTProofChecks
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
