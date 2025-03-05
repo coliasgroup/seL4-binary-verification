@@ -6,15 +6,17 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.ConcreteSyntax.ObjDump
-    (
+    ( readROData
     ) where
 
 import BV.ConcreteSyntax.Classes
 import BV.Core.Types
 
+import Control.Monad ((<$!>))
 import Data.Bifunctor (first)
 import Data.Char (isSpace)
 import qualified Data.Map as M
+import Data.Maybe (catMaybes)
 import Data.Monoid (Endo (Endo, appEndo))
 import qualified Data.Text.Lazy as TL
 import Data.Void (Void)
@@ -24,8 +26,15 @@ import qualified Text.Megaparsec.Char.Lexer as L
 
 type Parser = Parsec Void TL.Text
 
-parseLines :: Parser [(String, Symbol)]
-parseLines = do
+readUsingParser :: Parsec Void TL.Text a -> FilePath -> TL.Text -> Either String a
+readUsingParser p fp = first errorBundlePretty . parse (p <* eof) fp
+
+--
+
+type SymtabLine = (String, Symbol)
+
+parseSymtabLines :: Parser [SymtabLine]
+parseSymtabLines = do
     _ <- skipManyTill anySingle (string "SYMBOL TABLE:" *> eol)
     lines <- many $ do
         addr <- L.hexadecimal
@@ -47,7 +56,7 @@ parseLines = do
   where
     ident = some (satisfy (not . isSpace))
 
-makeObjDumpInfo :: [(String, Symbol)] -> ObjDumpInfo
+makeObjDumpInfo :: [SymtabLine] -> ObjDumpInfo
 makeObjDumpInfo lines =
     ObjDumpInfo
         { symbols
@@ -71,7 +80,27 @@ makeObjDumpInfo lines =
                 }
 
 parseObjDumpInfo :: Parsec Void TL.Text ObjDumpInfo
-parseObjDumpInfo = makeObjDumpInfo <$> parseLines
+parseObjDumpInfo = makeObjDumpInfo <$> parseSymtabLines
 
 instance ReadBVFile TL.Text ObjDumpInfo where
-    readBVContents fp = first errorBundlePretty . parse (parseObjDumpInfo <* eof) fp
+    readBVContents = readUsingParser parseObjDumpInfo
+
+--
+
+type RODataLine = (Integer, Integer)
+
+parseRODataLines :: Parser [RODataLine]
+parseRODataLines =
+    catMaybes <$> many (optional (try p) <* skipManyTill anySingle eol)
+  where
+    p = (,) <$> (L.hexadecimal <* ":\t") <*> L.hexadecimal
+
+makeROData :: ObjDumpInfo -> RODataInputRanges -> [RODataLine] -> ROData
+makeROData objDumpInfo ranges lines =
+    undefined
+
+parseROData :: ObjDumpInfo -> RODataInputRanges -> Parsec Void TL.Text ROData
+parseROData objDumpInfo ranges = makeROData objDumpInfo ranges <$!> parseRODataLines
+
+readROData :: ObjDumpInfo -> RODataInputRanges -> FilePath -> TL.Text -> Either String ROData
+readROData objDumpInfo ranges = readUsingParser $ parseROData objDumpInfo ranges

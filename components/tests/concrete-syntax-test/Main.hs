@@ -69,6 +69,7 @@ testRoundTripPath path = testRoundTrip @a $ readBVFile path
 parsePrintSeL4 :: TestTree
 parsePrintSeL4 = testGroup "seL4"
     [ f targetDirFiles.symtab
+    -- , f targetDirFiles.rodata TODO
     , f targetDirFiles.cFunctions
     , f targetDirFiles.asmFunctions
     , f targetDirFiles.functions

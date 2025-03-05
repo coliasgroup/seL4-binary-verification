@@ -2,6 +2,7 @@ module BV.CLI.Commands.Check
     ( runCheck
     ) where
 
+import BV.CLI.Distrib
 import BV.CLI.Opts
 import BV.CLI.SolverList
 import BV.CLI.WorkersConfig
@@ -16,7 +17,6 @@ import BV.System.Local
 import BV.System.Utils.Async
 import BV.TargetDir
 
-import BV.CLI.Distrib (driverAddr)
 import Conduit (awaitForever)
 import Control.Concurrent (getNumCapabilities)
 import Control.Concurrent.Async (forConcurrently_)
@@ -51,6 +51,7 @@ import Text.Printf (printf)
 runCheck :: (MonadUnliftIO m, MonadMask m, MonadFail m, MonadLoggerWithContext m) => CheckOpts -> m ()
 runCheck opts = do
     let earlyAsmFunctionFilter = getEarlyAsmFunctionFilter opts
+    let rodataInputRanges = getRODataInputRanges opts
     let checkFilter = getCheckFilter opts
     let evalStagesCtx = EvalStagesContext
             { force = True
@@ -58,7 +59,10 @@ runCheck opts = do
             , referenceTargetDir = Just (TargetDir opts.inputTargetDir)
             , mismatchDumpDir = opts.mismatchDir
             }
-    input <- liftIO $ readStagesInput earlyAsmFunctionFilter (TargetDir opts.inputTargetDir)
+    input <- liftIO $ readStagesInput
+        earlyAsmFunctionFilter
+        rodataInputRanges
+        (TargetDir opts.inputTargetDir)
     runChecks <- case opts.workers of
         Nothing -> do
             maxNumConcurrentSolvers <- fromIntegral <$> getMaxNumConcurrentSolvers opts
@@ -168,6 +172,11 @@ getEarlyAsmFunctionFilter opts = IncludeExcludeFilter
     { include = Nothing
     , exclude = S.fromList opts.ignoreFunctionsEarly
     }
+
+getRODataInputRanges :: CheckOpts -> RODataInputRanges
+getRODataInputRanges opts =
+    map (RODataInputRangeTypeSection,) opts.rodataSections
+        ++ map (RODataInputRangeTypeSymbol,) opts.rodataSymbols
 
 getCheckFilter :: CheckOpts -> CheckFilter
 getCheckFilter opts = CheckFilter

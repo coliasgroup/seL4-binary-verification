@@ -25,7 +25,7 @@ main = do
 
 testInput :: IO ()
 testInput = do
-    input <- readStagesInput seL4DefaultEarlyAsmFunctionFilter targetDir
+    input <- seL4DefaultReadStagesInput targetDir
     let enc = encode input
     print (B.length enc)
     print (B.length (compress enc))
@@ -37,7 +37,7 @@ testInput = do
 
 testStages :: IO ()
 testStages = do
-    input <- readStagesInput seL4DefaultEarlyAsmFunctionFilter targetDir
+    input <- seL4DefaultReadStagesInput targetDir
     let output = stages input
     -- output.intermediate.compatProofChecks `deepseq` return ()
     -- void output.intermediate.proofChecks `deepseq` return ()
@@ -64,7 +64,7 @@ testStages = do
 
 testStagesWithChecking :: IO ()
 testStagesWithChecking = do
-    input <- readStagesInput seL4DefaultEarlyAsmFunctionFilter referenceTargetDir
+    input <- seL4DefaultReadStagesInput referenceTargetDir
     runStderrLoggingT $ evalStages ctx input
     return ()
   where

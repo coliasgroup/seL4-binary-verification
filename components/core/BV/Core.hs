@@ -12,6 +12,8 @@ module BV.Core
     , ProofCheckDescription
     , ProofCheckMeta (..)
     , ProofScriptNodePath (..)
+    , RODataInputRangeType (..)
+    , RODataInputRanges
     , SExprWithPlaceholders
     , SMTProofCheck (..)
     , SMTProofCheckGroup (..)

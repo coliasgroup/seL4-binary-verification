@@ -67,3 +67,14 @@ seL4DefaultEarlyAsmFunctionFilter = IncludeExcludeFilter
         [ Ident "c_handle_syscall"
         ]
     }
+
+seL4DefaultRODataInputRanges :: RODataInputRanges
+seL4DefaultRODataInputRanges =
+    [ (RODataInputRangeTypeSection, ".rodata")
+    , (RODataInputRangeTypeSymbol, "kernel_device_frames")
+    , (RODataInputRangeTypeSymbol, "avail_p_regs")
+    ]
+
+seL4DefaultReadStagesInput :: TargetDir -> IO StagesInput
+seL4DefaultReadStagesInput =
+    readStagesInput seL4DefaultEarlyAsmFunctionFilter seL4DefaultRODataInputRanges

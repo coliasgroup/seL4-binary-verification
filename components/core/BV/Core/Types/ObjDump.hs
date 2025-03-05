@@ -2,6 +2,10 @@
 
 module BV.Core.Types.ObjDump
     ( ObjDumpInfo (..)
+    , ROData (..)
+    , RODataInputRangeType (..)
+    , RODataInputRanges
+    , RODataRange (..)
     , Section (..)
     , Symbol (..)
     , sectionEnd
@@ -50,6 +54,25 @@ sectionEnd = (+) <$> view #addr <*> view #size
 
 data ROData
   = ROData
-      { rodata :: Map Integer Integer
+      { ranges :: [RODataRange]
+      , rodata :: Map Integer Integer
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary ROData where
+
+data RODataRange
+  = RODataRange
+      { addr :: Integer
+      , size :: Integer
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary RODataRange where
+
+data RODataInputRangeType
+  = RODataInputRangeTypeSection
+  | RODataInputRangeTypeSymbol
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+type RODataInputRanges = [(RODataInputRangeType, String)]

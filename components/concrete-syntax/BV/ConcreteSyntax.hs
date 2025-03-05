@@ -7,6 +7,7 @@ module BV.ConcreteSyntax
     , parseSExprWithPlaceholders
     , parseSExprWithPlaceholdersFaster
     , readBVFile
+    , readROData
     , writeBVFile
       -- TODO necessary?
     , BuildInBlock
@@ -24,7 +25,7 @@ import BV.ConcreteSyntax.GraphLangLike.Adapters
 import BV.ConcreteSyntax.GraphLangLike.Building
 import BV.ConcreteSyntax.GraphLangLike.Instances ()
 import BV.ConcreteSyntax.GraphLangLike.Parsing
-import BV.ConcreteSyntax.ObjDump ()
+import BV.ConcreteSyntax.ObjDump (readROData)
 import BV.ConcreteSyntax.SExprWithPlaceholders (buildAtomOrPlaceholder,
                                                 buildSExprWithPlaceholders,
                                                 parseSExprWithPlaceholders)
