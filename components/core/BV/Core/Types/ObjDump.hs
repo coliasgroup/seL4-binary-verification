@@ -47,3 +47,9 @@ symbolEnd = (+) <$> view #addr <*> view #size
 
 sectionEnd :: Section -> Integer
 sectionEnd = (+) <$> view #addr <*> view #size
+
+data ROData
+  = ROData
+      { rodata :: Map Integer Integer
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
