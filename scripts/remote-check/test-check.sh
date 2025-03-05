@@ -26,7 +26,10 @@ time $path \
     --ignore-function fastpath_reply_recv \
     --ignore-function-early c_handle_syscall \
     --ignore-function arm_swi_syscall \
-    --file-log $here/../logs/remote-test-check.log.txt \
+    --rodata-section .rodata \
+    --rodata-symbol kernel_device_frames \
+    --rodata-symbol avail_p_regs \
+    --file-log $here/../../tmp/logs/remote-test-check.log.txt \
     --file-log-level debug \
     -j 16 \
     "$@"

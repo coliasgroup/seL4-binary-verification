@@ -25,7 +25,7 @@ tests = testGroup "Tests"
 
 testStages :: IO ()
 testStages = do
-    input <- readStagesInput seL4DefaultEarlyAsmFunctionFilter referenceTargetDir
+    input <- seL4DefaultReadStagesInput referenceTargetDir
     let output = stages input
     output.intermediate.compatSMTProofChecks `deepseq` return ()
   where
@@ -36,7 +36,7 @@ testStages = do
 
 testStagesWithChecking :: IO ()
 testStagesWithChecking = do
-    input <- readStagesInput seL4DefaultEarlyAsmFunctionFilter referenceTargetDir
+    input <- seL4DefaultReadStagesInput referenceTargetDir
     runStderrLoggingT $ evalStages ctx input
     return ()
   where

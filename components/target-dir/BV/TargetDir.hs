@@ -9,6 +9,8 @@ module BV.TargetDir
     , readStagesInputEither
     , readTargetDirFile
     , readTargetDirFileEither
+    , readTargetDirROData
+    , readTargetDirRODataEither
     , targetDirFilePath
     , targetDirFiles
     , writeTargetDirFile
@@ -42,6 +44,7 @@ eraseTargetDirFileType (TargetDirFile relativePath) = UntypedTargetDirFile relat
 data TargetDirFiles
   = TargetDirFiles
       { symtab :: TargetDirFile ObjDumpInfo
+      , rodata :: TargetDirFile ROData
       , cFunctions :: TargetDirFile Program
       , asmFunctions :: TargetDirFile Program
       , functions :: TargetDirFile Program
@@ -58,6 +61,7 @@ data TargetDirFiles
 targetDirFiles :: TargetDirFiles
 targetDirFiles = TargetDirFiles
     { symtab = TargetDirFile "kernel.elf.symtab"
+    , rodata = TargetDirFile "kernel.elf.rodata"
     , cFunctions = TargetDirFile "CFunctions.txt"
     , asmFunctions = TargetDirFile "ASMFunctions.txt"
     , functions = TargetDirFile "functions.txt"
@@ -73,10 +77,14 @@ targetDirFiles = TargetDirFiles
 targetDirFilePath :: TargetDir -> UntypedTargetDirFile -> FilePath
 targetDirFilePath targetDir targetDirFile = targetDir.path </> targetDirFile.relativePath
 
-readTargetDirFileEither :: ReadBVFile c a => TargetDir -> TargetDirFile a -> IO (Either ReadTargetDirFileException a)
-readTargetDirFileEither targetDir targetDirFile =
-    first elaborate <$> readBVFile (targetDirFilePath targetDir untypedTargetDirFile)
+readTargetDirFileEitherWith
+    :: IsContents c
+    => (FilePath -> c -> Either String a)
+    -> TargetDir -> TargetDirFile a -> IO (Either ReadTargetDirFileException a)
+readTargetDirFileEitherWith readContents targetDir targetDirFile =
+    first elaborate . readContents filePath <$> readContentsFromFile filePath
   where
+    filePath = targetDirFilePath targetDir untypedTargetDirFile
     untypedTargetDirFile = eraseTargetDirFileType targetDirFile
     elaborate message =
         ReadTargetDirFileException
@@ -85,9 +93,20 @@ readTargetDirFileEither targetDir targetDirFile =
             , targetDirFile = untypedTargetDirFile
             }
 
+readTargetDirFileEither :: ReadBVFile c a => TargetDir -> TargetDirFile a -> IO (Either ReadTargetDirFileException a)
+readTargetDirFileEither = readTargetDirFileEitherWith readBVContents
+
 readTargetDirFile :: ReadBVFile c a => TargetDir -> TargetDirFile a -> IO a
 readTargetDirFile targetDir targetDirFile =
     readTargetDirFileEither targetDir targetDirFile >>= either throwIO return
+
+readTargetDirRODataEither :: ObjDumpInfo -> RODataInputRanges -> TargetDir -> TargetDirFile ROData -> IO (Either ReadTargetDirFileException ROData)
+readTargetDirRODataEither objDumpInfo rodataInputRanges =
+    readTargetDirFileEitherWith (readROData objDumpInfo rodataInputRanges)
+
+readTargetDirROData :: ObjDumpInfo -> RODataInputRanges -> TargetDir -> TargetDirFile ROData -> IO ROData
+readTargetDirROData objDumpInfo rodataInputRanges targetDir targetDirFile =
+    readTargetDirRODataEither objDumpInfo rodataInputRanges targetDir targetDirFile >>= either throwIO return
 
 data ReadTargetDirFileException
   = ReadTargetDirFileException
@@ -108,11 +127,13 @@ writeTargetDirFile :: WriteBVFile c a => TargetDir -> TargetDirFile a -> a -> IO
 writeTargetDirFile targetDir targetDirFile =
     writeBVFile (targetDirFilePath targetDir (eraseTargetDirFileType targetDirFile))
 
-readStagesInputEither :: AsmFunctionFilter -> TargetDir -> IO (Either ReadTargetDirFileException StagesInput)
-readStagesInputEither earlyAsmFunctionFilter targetDir = runExceptT $ do
+readStagesInputEither :: AsmFunctionFilter -> RODataInputRanges -> TargetDir -> IO (Either ReadTargetDirFileException StagesInput)
+readStagesInputEither earlyAsmFunctionFilter rodataInputRanges targetDir = runExceptT $ do
     cFunctions <- f targetDirFiles.cFunctions
     asmFunctions <- f targetDirFiles.asmFunctions
     objDumpInfo <- f targetDirFiles.symtab
+    rodata <- ExceptT $
+        readTargetDirRODataEither objDumpInfo rodataInputRanges targetDir targetDirFiles.rodata
     stackBounds <- f targetDirFiles.stackBounds
     inlineScripts <- f targetDirFiles.inlineScripts
     proofs <- f targetDirFiles.proofs
@@ -123,6 +144,7 @@ readStagesInputEither earlyAsmFunctionFilter targetDir = runExceptT $ do
             , asm = asmFunctions
             }
         , objDumpInfo
+        , rodata
         , stackBounds
         , inlineScripts
         , proofs
@@ -133,6 +155,6 @@ readStagesInputEither earlyAsmFunctionFilter targetDir = runExceptT $ do
   where
     f file = ExceptT $ readTargetDirFileEither targetDir file
 
-readStagesInput :: AsmFunctionFilter -> TargetDir -> IO StagesInput
-readStagesInput earlyAsmFunctionFilter targetDir =
-    readStagesInputEither earlyAsmFunctionFilter targetDir >>= either throwIO return
+readStagesInput :: AsmFunctionFilter -> RODataInputRanges -> TargetDir -> IO StagesInput
+readStagesInput earlyAsmFunctionFilter rodataInputRanges targetDir =
+    readStagesInputEither earlyAsmFunctionFilter rodataInputRanges targetDir >>= either throwIO return

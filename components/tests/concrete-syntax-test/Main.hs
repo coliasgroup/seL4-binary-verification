@@ -69,6 +69,10 @@ testRoundTripPath path = testRoundTrip @a $ readBVFile path
 parsePrintSeL4 :: TestTree
 parsePrintSeL4 = testGroup "seL4"
     [ f targetDirFiles.symtab
+    , testCase targetDirFiles.rodata.relativePath $ do
+        objDumpInfo <- readTargetDirFile testSeL4TargetDirDefault targetDirFiles.symtab
+        readTargetDirROData objDumpInfo seL4DefaultRODataInputRanges testSeL4TargetDirDefault targetDirFiles.rodata
+        return ()
     , f targetDirFiles.cFunctions
     , f targetDirFiles.asmFunctions
     , f targetDirFiles.functions

@@ -48,6 +48,7 @@ data StagesInput
   = StagesInput
       { programs :: PairingOf Program
       , objDumpInfo :: ObjDumpInfo
+      , rodata :: ROData
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts
       , proofs :: Proofs ()

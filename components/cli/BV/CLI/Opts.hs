@@ -119,6 +119,8 @@ data CheckOpts
       , inputTargetDir :: FilePath
       , dumpTargetDir :: Maybe FilePath
       , mismatchDir :: Maybe FilePath
+      , rodataSections :: [String]
+      , rodataSymbols :: [String]
       , includeFunctions :: [Ident]
       , ignoreFunctions :: [Ident]
       , ignoreFunctionsEarly :: [Ident]
@@ -349,6 +351,14 @@ checkOptsParser = do
         , metavar "DATABASE"
         , help "PostgreSQL database to use as a cache"
         ]
+    rodataSections <- many $ option' str
+        [ long "rodata-section"
+        , metavar "SECTION"
+        ]
+    rodataSymbols <- many $ option' str
+        [ long "rodata-symbol"
+        , metavar "SYMBOL"
+        ]
     inputTargetDir <- option' str
         [ long "target-dir"
         , short 'd'
@@ -403,6 +413,8 @@ checkOptsParser = do
         , inputTargetDir
         , dumpTargetDir
         , mismatchDir
+        , rodataSections
+        , rodataSymbols
         , includeFunctions
         , ignoreFunctions
         , ignoreFunctionsEarly
