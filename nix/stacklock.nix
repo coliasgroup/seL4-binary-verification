@@ -24,7 +24,7 @@ in
 stacklock2nix {
   stackYaml = ../stack.yaml;
 
-  baseHaskellPkgSet = haskell.packages.ghc966;
+  baseHaskellPkgSet = haskell.packages.ghc9101;
 
   additionalHaskellPkgSetOverrides =
     let
@@ -38,7 +38,15 @@ stacklock2nix {
         prettyprinter = dontCheck hprev.prettyprinter;
         lifted-base = dontCheck hprev.lifted-base;
         distributed-process-simplelocalnet = dontCheck hprev.distributed-process-simplelocalnet;
+        temporary = dontCheck hprev.temporary;
+        call-stack = dontCheck hprev.call-stack;
+        optparse-applicative = dontCheck hprev.optparse-applicative;
+        optics = dontCheck hprev.optics;
       };
+
+  cabal2nixArgsOverrides = args: args // {
+    "test-framework" = ver: {};
+  };
 
   all-cabal-hashes =
     let

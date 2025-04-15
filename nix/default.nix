@@ -10,12 +10,14 @@ let
 
   stacklock2nixPath =
     let
-      rev = "3cb77e9c869be90ad939f368096ff2cc940881d4";
+      rev = "108f6ab6d0208e3842443bea26dfd72b37d82f28";
     in
       builtins.fetchTarball {
         url = "https://github.com/cdepillabout/stacklock2nix/archive/${rev}.tar.gz";
-        sha256 = "sha256:09mcf8w4wdvzp0k4wk9ksv0ksfnnlp216ccqvqy1ijlv58gp9pbm";
+        sha256 = "sha256:0vrhwqm6gwrqmjd4gm8ylwv1yvl0ngx7yx07wwxhwhmjfg32j26r";
       };
+    # ../../../../x/stacklock2nix;
+
 in
 
 # let
