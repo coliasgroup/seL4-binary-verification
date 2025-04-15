@@ -1,11 +1,11 @@
 let
   nixpkgsPath =
     let
-      rev = "9189ac18287c599860e878e905da550aa6dec1cd";
+      rev = "18dd725c29603f582cf1900e0d25f9f1063dbf11";
     in
       builtins.fetchTarball {
         url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
-        sha256 = "sha256:0hbbpljkrj2mn5giq8cympf3cn6ihcrdm2n4glsdbwgd3hadm2q1";
+        sha256 = "sha256:0zrp7w41vqln7mmhvpb8ww6g6807bhic5c72mkqf9qh5336vc13b";
       };
 
   stacklock2nixPath =
