@@ -27,9 +27,23 @@ let
 
   stacklock2nixOverlay = import (stacklock2nixPath + "/nix/overlay.nix");
 
+  haskellPackagesOverlay = self: super: {
+    haskellPackages = super.haskellPackages.override {
+      overrides = self': super': with self.haskell.lib.compose; {
+        Cabal_3_14_1_0 = appendPatch (self.fetchpatch {
+          # https://github.com/haskell/cabal/pull/10891
+          url = "https://github.com/haskell/cabal/commit/c9411cbe729f1b432e30f860b40e4c3cc62c0e7e.patch";
+          hash = "sha256-4nGD7+/U2l7DNqz6uf6PT4oFnrnbapEYEcH1TDnURWQ=";
+          stripLen = 1;
+        }) (doJailbreak super'.Cabal_3_14_1_0);
+      };
+    };
+  };
+
   pkgs = nixpkgsFn {
     overlays = [
       stacklock2nixOverlay
+      haskellPackagesOverlay
     ];
   };
 
