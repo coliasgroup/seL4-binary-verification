@@ -67,7 +67,7 @@ compatOrdKey visits = CheckGroupKey $ sort
 
 --
 
-compileProofCheckGroup :: Problem -> [ProofCheck a] -> SMTProofCheckGroup a
+compileProofCheckGroup :: Problem -> ProofCheckGroup a -> SMTProofCheckGroup a
 compileProofCheckGroup problem group = SMTProofCheckGroup setup imps
   where
     (imps, _, setup) = runRWS (interpretGroupM group) problem state0
