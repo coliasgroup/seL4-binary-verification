@@ -150,6 +150,13 @@ stages input = StagesOutput
 
     lookupFunction (WithTag tag funName) = (pairingSide tag finalPrograms).functions ! funName
 
+    functionSigs = sig . lookupFunction
+      where
+        sig fun = FunctionSignature
+            { input = fun.input
+            , output = fun.output
+            }
+
     -- TODO by doing this we lose laziness, and it's probably overkill anyways (reduces eval from ~8s -> ~4s)
     -- TODO parallelism probably overkill
     problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
@@ -192,7 +199,8 @@ stages input = StagesOutput
     -- smtProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
 
     smtProofChecks'nohack = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
-        compileProofChecks problem <$> (proofChecks `atPairingId` pairingId)
+        compileProofChecks input.programs.c.structs functionSigs pairings input.rodata problem
+            <$> (proofChecks `atPairingId` pairingId)
 
     -- smtProofChecks = smtProofChecks'hack
     smtProofChecks = smtProofChecks'nohack
