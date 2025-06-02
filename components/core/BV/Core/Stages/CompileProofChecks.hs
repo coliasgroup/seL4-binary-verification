@@ -1,97 +1,84 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-type-defaults #-}
-
--- TODO
-{-# OPTIONS -Wno-all #-}
-{-# LANGUAGE MultiWayIf #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.Stages.CompileProofChecks
-    ( CheckGroupKey
+    ( FunctionSignature (..)
+    , FunctionSignatures
     , compileProofChecks
-    , proofCheckGroupsWithKeys
     ) where
 
-import BV.Core.Stages.Utils
+import BV.Core.Stages.CompileProofChecks.Grouping
+import BV.Core.Stages.CompileProofChecks.RepGraph
+import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils
-import BV.SMTLIB2
 
-import Control.DeepSeq (NFData)
-import Control.Monad.RWS (RWS, modify, runRWS, tell)
-import Data.Foldable (toList)
+import Control.Monad.RWS (RWS, runRWS)
 import Data.Function (applyWhen)
-import Data.Functor (void)
-import Data.List (sort, sortOn)
-import Data.Map (Map, (!), (!?))
-import qualified Data.Map as M
-import Data.Maybe (isJust)
-import Data.Set (Set)
-import qualified Data.Set as S
-import Debug.Trace
+import Data.Map (Map)
 import GHC.Generics (Generic)
 import Optics
-import Text.Printf (printf)
 
-type ProofCheckGroup a = [ProofCheck a]
+compileProofChecks :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
+compileProofChecks cStructs functionSigs pairings rodata problem checks =
+    map
+        (compileProofCheckGroup cStructs functionSigs pairings rodata problem)
+        (proofCheckGroups checks)
 
-compileProofChecks :: Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
-compileProofChecks problem checks =
-    map (compileProofCheckGroup problem) (proofCheckGroups checks)
-
-proofCheckGroups :: [ProofCheck a] -> [ProofCheckGroup a]
-proofCheckGroups = toList . proofCheckGroupsWithKeys
-
-proofCheckGroupsWithKeys :: [ProofCheck a] -> Map CheckGroupKey (ProofCheckGroup a)
-proofCheckGroupsWithKeys =
-    foldMap (\check -> M.singleton (compatOrdKey (groupKeyOf check)) [check])
-
-newtype CheckGroupKey
-  = CheckGroupKey { unwrap :: [((String, [(Integer, ([Integer], [Integer]))]), String)] }
-  deriving (Eq, Generic, Ord, Show)
-  deriving newtype (NFData)
-
-groupKeyOf :: ProofCheck a -> Set VisitWithTag
-groupKeyOf check = S.fromList (check ^.. checkVisits)
-
-compatOrdKey :: Set VisitWithTag -> CheckGroupKey
-compatOrdKey visits = CheckGroupKey $ sort
-    [ ((prettyNodeId visit.nodeId, []), prettyTag tag)
-    | VisitWithTag visit tag <- S.toList visits
-    ]
-
---
-
-compileProofCheckGroup :: Problem -> [ProofCheck a] -> SMTProofCheckGroup a
-compileProofCheckGroup problem group = SMTProofCheckGroup setup imps
+compileProofCheckGroup :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> Problem -> ProofCheckGroup a -> SMTProofCheckGroup a
+compileProofCheckGroup cStructs functionSigs pairings rodata problem group =
+    SMTProofCheckGroup setup imps
   where
-    (imps, _, setup) = runRWS (interpretGroupM group) problem state0
+    env = initEnv rodata cStructs functionSigs pairings problem
+    state = initState
+    (imps, _, setup) = runRWS (interpretGroupM group).run env state
 
-type M = RWS Problem [SExprWithPlaceholders] State
+newtype M a
+  = M { run :: RWS Env SolverOutput State a }
+  deriving (Functor)
+  deriving newtype (Applicative, Monad)
+
+data Env
+  = Env
+      { solver :: SolverEnv
+      , repGraph :: RepGraphEnv
+      }
+  deriving (Generic)
 
 data State
   = State
-      { smtDerivedOps :: Map (Op, Integer) String
-      , namesUsed :: Set Ident
-      , externalNames :: Set Ident
+      { solver :: SolverState
+      , repGraph :: RepGraphState
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Generic)
 
-state0 :: State
-state0 = State
-    { smtDerivedOps = mempty
-    , namesUsed = mempty
-    , externalNames = mempty
+initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> Problem -> Env
+initEnv rodata cStructs functionSigs pairings problem = Env
+    { solver = initSolverEnv rodata cStructs problem
+    , repGraph = initRepGraphEnv functionSigs pairings problem
     }
 
-interpretGroupM :: [ProofCheck a] -> M [SMTProofCheckImp a]
-interpretGroupM group = do
-    mapM interpretCheckM group
+initState :: State
+initState = State
+    { solver = initSolverState
+    , repGraph = initRepGraphState
+    }
+
+instance MonadSolver M where
+    liftSolver m = M . zoom #solver . magnify #solver $ m
+
+instance MonadRepGraph M where
+    liftRepGraph m = M . zoom #repGraph . magnify #repGraph $ m
+
+interpretGroupM :: ProofCheckGroup a -> M [SMTProofCheckImp a]
+interpretGroupM group = mapM interpretCheckM group
 
 interpretCheckM :: ProofCheck a -> M (SMTProofCheckImp a)
 interpretCheckM check = do
@@ -103,127 +90,42 @@ interpretCheckM check = do
 interpretHypImpsM :: [Hyp] -> Expr -> M Expr
 interpretHypImpsM hyps concl = do
     hyps' <- mapM interpretHypM hyps
-    return $ strengthenHyp' (nImpliesE hyps' concl)
+    return $ strengthenHyp (nImpliesE hyps' concl)
 
-strengthenHyp' :: Expr -> Expr
-strengthenHyp' = strengthenHyp 1
-
-strengthenHyp :: Integer ->  Expr -> Expr
-strengthenHyp sign expr = case expr.value of
-    ExprValueOp op args -> case op of
-        _ | op == OpAnd || op == OpOr ->
-            Expr expr.ty (ExprValueOp op (map goWith args))
-        OpImplies ->
-            let [l, r] = args
-             in goAgainst l `impliesE` goWith r
-        OpNot ->
-            let [x] = args
-             in notE (goAgainst x)
-        OpStackEquals -> case sign of
-            1 -> boolE (ExprValueOp OpImpliesStackEquals args)
-            -1 -> boolE (ExprValueOp OpStackEqualsImplies args)
-        OpROData -> case sign of
-            1 -> boolE (ExprValueOp OpImpliesROData args)
-            -1 -> expr
-        OpEquals | isBoolT (head args).ty ->
-            let [_l, r] = args
-                args' = applyWhen (r `elem` ([trueE, falseE] :: [Expr])) reverse args
-                [l', r'] = args'
-             in if
-                | l' == trueE -> goWith r'
-                | l' == falseE -> goWith (notE r')
-                | otherwise -> expr
-        _ -> expr
-    _ -> expr
+strengthenHyp :: Expr -> Expr
+strengthenHyp = go 1
   where
-    goWith = strengthenHyp sign
-    goAgainst = strengthenHyp (-sign)
-
-smtExprM :: Map (Ident, ExprType) S -> Expr -> M S
-smtExprM env expr = do
-    case expr.value of
+    go sign expr = case expr.value of
         ExprValueOp op args -> case op of
-            _ | op == OpWordCast || op == OpWordCastSigned -> do
-                    let [v] = args
-                    let ExprTypeWord bitsExpr = expr.ty
-                    let ExprTypeWord bitsV = v.ty
-                    ex <- smtExprM env v
-                    return $ if
-                        | bitsExpr == bitsV -> ex
-                        | bitsExpr < bitsV -> [["_", "extract", intS (bitsExpr - 1), intS 0], ex]
-                        | otherwise ->
-                            case op of
-                                OpWordCast -> [["_", "zero_extend", intS (bitsExpr - bitsV), ex]]
-                                OpWordCastSigned -> [["_", "sign_extend", intS (bitsExpr - bitsV), ex]]
-            _ | op == OpToFloatingPoint || op == OpToFloatingPointSigned ||
-                op == OpToFloatingPointUnsigned || op == OpFloatingPointCast -> do
-                    error "unsupported"
-            _ | op == OpCountLeadingZeroes || op == OpWordReverse -> do
-                    let [v] = args
-                    v' <- smtExprM env v
-                    op' <- getSMTDerivedOpM op (expr.ty ^. expecting #_ExprTypeWord)
-                    return [symbolS op', v']
-            _ | op == OpCountTrailingZeroes -> do
-                    let [v] = args
-                    smtExprM env $ clzE (wordReverseE v)
-            _ -> do
-                -- undefined
-                return ["TODO"]
-        ExprValueNum n -> do
-            return $ intWithWidthS (wordTBits expr.ty) n
-        ExprValueVar var -> do
-            let envKey = (var, expr.ty)
-            return $ case env !? envKey of
-                Just sexpr ->
-                    let check = case sexpr of
-                            List ("SplitMem":_) -> True
-                            Atom (AtomOrPlaceholderAtom atom)
-                                | isJust (preview #_SymbolAtom (viewAtom atom)) -> True
-                            _ -> False
-                     in ensure check sexpr
-                Nothing -> error $ "env miss: " ++ show envKey
-        ExprValueSMTExpr sexpr -> do
-            return sexpr
-        ExprValueToken tok -> do
-            undefined
-
-getSMTDerivedOpM :: Op -> Integer -> M String
-getSMTDerivedOpM op n = do
-    opt <- use $ #smtDerivedOps % at (op, n)
-    case opt of
-        Just fname -> return fname
-        Nothing -> do
-            let fname = case op of
-                    OpCountLeadingZeroes -> printf "bvclz_%d" n
-                    OpWordReverse -> printf "bvrev_%d" n
-            body <- case n of
-                    1 -> return $ case op of
-                            OpCountLeadingZeroes -> iteS ("x" `eqS` hexS "0") (hexS "1") (hexS "0")
-                            OpWordReverse -> "x"
-                    _ -> do
-                        let m = n `div` 2
-                        topAppOp <- getSMTDerivedOpM op (n - m)
-                        botAppOp <- getSMTDerivedOpM op m
-                        let top = [ixS "extract" [intS (n - 1), intS m], "x"]
-                            bot = [ixS "extract" [intS (m - 1), intS 0], "x"]
-                            topApp = [symbolS topAppOp, top]
-                            topAppX = [ixS "zero_extend" [intS m], topApp]
-                            botApp = [symbolS botAppOp, bot]
-                            botAppX = [ixS "zero_extend" [intS (n - m)], botApp]
-                        return $ case op of
-                                OpCountLeadingZeroes ->
-                                    iteS
-                                        (top `eqS` intWithWidthS (n - m) 0)
-                                        (bvaddS botAppX (intWithWidthS n m))
-                                        topAppX
-                                OpWordReverse ->
-                                    concatS botApp topApp
-            let def = defineFunS fname [("x", bitVecS 1)] (bitVecS 1) body
-            tell [def]
-            modify $ #smtDerivedOps % at (op, n) ?~ fname
-            return fname
+            _ | op == OpAnd || op == OpOr ->
+                Expr expr.ty (ExprValueOp op (map goWith args))
+            OpImplies ->
+                let [l, r] = args
+                in goAgainst l `impliesE` goWith r
+            OpNot ->
+                let [x] = args
+                in notE (goAgainst x)
+            OpStackEquals -> case sign of
+                1 -> boolE (ExprValueOp OpImpliesStackEquals args)
+                -1 -> boolE (ExprValueOp OpStackEqualsImplies args)
+            OpROData -> case sign of
+                1 -> boolE (ExprValueOp OpImpliesROData args)
+                -1 -> expr
+            OpEquals | isBoolT (head args).ty ->
+                let [_l, r] = args
+                    args' = applyWhen (r `elem` ([trueE, falseE] :: [Expr])) reverse args
+                    [l', r'] = args'
+                in if
+                    | l' == trueE -> goWith r'
+                    | l' == falseE -> goWith (notE r')
+                    | otherwise -> expr
+            _ -> expr
+        _ -> expr
+      where
+        goWith = go sign
+        goAgainst = go (-sign)
 
 interpretHypM :: Hyp -> M Expr
-interpretHypM hyp = do
+interpretHypM _hyp = do
     -- undefined
     return $ Expr boolT (ExprValueSMTExpr ["TODO"])
