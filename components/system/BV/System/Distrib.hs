@@ -2,6 +2,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.System.Distrib
     ( DistribConfig (..)
@@ -40,7 +41,6 @@ import Control.Monad.IO.Unlift (MonadUnliftIO, askRunInIO, withRunInIO)
 import Control.Monad.STM (atomically)
 import Control.Monad.Trans (lift)
 import Data.Binary (Binary)
-import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Traversable (for)

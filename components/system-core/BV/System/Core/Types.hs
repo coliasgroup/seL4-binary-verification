@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.System.Core.Types
     ( Check (..)

@@ -2,6 +2,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 module BV.Core.Stages
     ( AsmFunctionFilter
     , module BV.Core.Stages.BuildProblem

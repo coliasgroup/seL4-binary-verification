@@ -6,7 +6,6 @@ import BV.ConcreteSyntax
 import BV.Core
 import BV.System.EvalStages
 import BV.System.Utils.Stopwatch
-import BV.TargetDir
 import BV.Test.Utils
 
 import Codec.Compression.Zlib (compress)
@@ -14,7 +13,6 @@ import Control.DeepSeq (deepseq)
 import Control.Monad.Logger (runStderrLoggingT)
 import Data.Binary
 import qualified Data.ByteString.Lazy as B
-import Data.Functor (void)
 import System.FilePath ((</>))
 
 main :: IO ()

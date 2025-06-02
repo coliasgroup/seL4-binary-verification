@@ -11,5 +11,5 @@ import BV.System.Core
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 
 withPostgresCacheContext :: (MonadUnliftIO m, MonadLoggerWithContext m) => String -> (CacheContext m -> m a) -> m a
-withPostgresCacheContext connString f =
+withPostgresCacheContext _connString _f =
     error "TODO"
