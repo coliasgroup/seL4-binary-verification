@@ -11,6 +11,7 @@ import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
 import Text.Printf (printf)
 
+-- TODO private
 type S = SExprWithPlaceholders
 
 listS :: [S] -> S
