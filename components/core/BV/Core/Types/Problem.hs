@@ -15,6 +15,7 @@ import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
+import Optics
 
 data Problem
   = Problem
@@ -31,6 +32,11 @@ data ProblemSide
       , entryPoint :: NodeId
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+instance HasVarNames Problem where
+    varNamesOf =
+        (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
+            `adjoin` (#nodes % traversed % varNamesOf)
 
 data NodeBySource
   = NodeBySource

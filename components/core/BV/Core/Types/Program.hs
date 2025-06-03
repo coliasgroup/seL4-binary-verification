@@ -22,6 +22,8 @@ module BV.Core.Types.Program
     , NodeMap
     , Op (..)
     , Program (..)
+    , SMT (..)
+    , SplitMem (..)
     , Struct (..)
     , StructField (..)
     , TraverseTopLevelExprs (..)
@@ -32,6 +34,8 @@ module BV.Core.Types.Program
     , renameVars
     , renameVarsI
     , toListOfNamed
+    , varSubst
+    , varSubstNotMust
     , walkExprs
     , walkExprsI
     , withNamed
@@ -177,7 +181,7 @@ prettyNodeId :: NodeId -> String
 prettyNodeId = \case
     Ret -> "Ret"
     Err -> "Err"
-    Addr addr -> show addr
+    Addr addr -> show addr.unwrap
 
 data Node
   = NodeBasic BasicNode
@@ -270,7 +274,7 @@ data ExprValue
   | ExprValueType ExprType
   | ExprValueSymbol Ident
   | ExprValueToken Ident
-  | ExprValueSMTExpr SExprWithPlaceholders
+  | ExprValueSMTExpr SMT
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary ExprValue where
@@ -332,9 +336,28 @@ data Op
   | OpStackEquals
   | OpImpliesStackEquals
   | OpStackEqualsImplies
+  | OpMemAccWrapper
+  | OpMemWrapper
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary Op where
+
+data SMT
+  = SMT SExprWithPlaceholders
+  | SMTSplitMem SplitMem
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary SMT where
+
+data SplitMem
+  = SplitMem
+      { split :: SExprWithPlaceholders
+      , top :: SExprWithPlaceholders
+      , bottom :: SExprWithPlaceholders
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary SplitMem where
 
 class TraverseTopLevelExprs a where
     traverseTopLevelLevelExprs :: Traversal' a Expr
@@ -372,6 +395,16 @@ walkExprs f expr = do
 
 walkExprsI :: (Expr -> Expr) -> Expr -> Expr
 walkExprsI f = runIdentity . walkExprs (Identity . f)
+
+varSubstNotMust :: (Ident -> ExprType -> Maybe Expr) -> Expr -> Expr
+varSubstNotMust f = walkExprsI $ \case
+        expr@(Expr ty (ExprValueVar ident)) -> case f ident ty of
+            Just expr' -> expr'
+            Nothing -> expr
+        expr -> expr
+
+varSubst :: (Ident -> ExprType -> Expr) -> Expr -> Expr
+varSubst f = varSubstNotMust $ \ident ty -> Just (f ident ty)
 
 class HasVarNames a where
     varNamesOf :: Traversal' a Ident

@@ -12,6 +12,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
 import qualified Data.Set as S
+import Debug.Trace (trace, traceShowId)
 import GHC.Generics (Generic)
 import Optics
 
@@ -21,8 +22,10 @@ proofCheckGroups :: [ProofCheck a] -> [ProofCheckGroup a]
 proofCheckGroups = toList . proofCheckGroupsWithKeys
 
 proofCheckGroupsWithKeys :: [ProofCheck a] -> Map CheckGroupKey (ProofCheckGroup a)
-proofCheckGroupsWithKeys =
-    foldMap (\check -> M.singleton (compatOrdKey (groupKeyOf check)) [check])
+proofCheckGroupsWithKeys checks = M.unionsWith (<>)
+    [ M.singleton (compatOrdKey (groupKeyOf check)) [check]
+    | check <- checks
+    ]
 
 newtype CheckGroupKey
   = CheckGroupKey { unwrap :: [((String, [(Integer, ([Integer], [Integer]))]), String)] }
@@ -34,6 +37,12 @@ groupKeyOf check = S.fromList (check ^.. checkVisits)
 
 compatOrdKey :: Set VisitWithTag -> CheckGroupKey
 compatOrdKey visits = CheckGroupKey $ sort
-    [ ((prettyNodeId visit.nodeId, []), prettyTag tag)
+    [ ((prettyNodeId visit.nodeId, map compatRestr visit.restrs), prettyTag tag)
     | VisitWithTag visit tag <- S.toList visits
     ]
+
+compatRestr :: Restr -> (Integer, ([Integer], [Integer]))
+compatRestr restr = (restr.nodeAddr.unwrap, compatVisitCount restr.visitCount)
+
+compatVisitCount :: VisitCount -> ([Integer], [Integer])
+compatVisitCount vc = (vc.numbers, vc.offsets)

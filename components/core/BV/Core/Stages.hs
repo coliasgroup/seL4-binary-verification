@@ -40,11 +40,15 @@ import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
 import Data.Binary (Binary)
 import Data.Foldable (fold)
 import Data.Functor (void)
-import Data.Map ((!))
+-- import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
 import GHC.Generics (Generic)
 import Optics
+import GHC.Stack (HasCallStack)
+
+(!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
+(!) = findWithCallstack
 
 data StagesInput
   = StagesInput
@@ -159,8 +163,8 @@ stages input = StagesOutput
 
     -- TODO by doing this we lose laziness, and it's probably overkill anyways (reduces eval from ~8s -> ~4s)
     -- TODO parallelism probably overkill
-    problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
-    -- problems = problems'
+    -- problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
+    problems = problems'
 
     problems' = Problems . M.fromList $ do
         pairingId <- normalFunctionPairingIds
@@ -174,32 +178,33 @@ stages input = StagesOutput
     provenProblems = problems & #unwrap %~ \m -> M.restrictKeys m (M.keysSet input.proofs.unwrap)
 
     -- TODO (see above)
-    proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
+    -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
-    -- proofChecks = proofChecks'
+    proofChecks = proofChecks'
+
+    lookupOrigVarNameFor pairingId problem quadrant mangledName =
+        fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
+      where
+        fun = lookupFunction (pairingSideWithTag quadrant.tag pairingId)
+        origArgs = case quadrant.direction of
+            PairingEqDirectionIn -> fun.input
+            PairingEqDirectionOut -> fun.output
+        probSide = pairingSide quadrant.tag problem.sides
+        mangledArgs = case quadrant.direction of
+            PairingEqDirectionIn -> probSide.input
+            PairingEqDirectionOut -> probSide.output
 
     proofChecks' = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings `atPairingId` pairingId
             proofScript = input.proofs `atPairingId` pairingId
-            lookupOrigVarName quadrant mangledName =
-                fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
-              where
-                fun = lookupFunction (pairingSideWithTag quadrant.tag pairingId)
-                origArgs = case quadrant.direction of
-                    PairingEqDirectionIn -> fun.input
-                    PairingEqDirectionOut -> fun.output
-                probSide = pairingSide quadrant.tag problem.sides
-                mangledArgs = case quadrant.direction of
-                    PairingEqDirectionIn -> probSide.input
-                    PairingEqDirectionOut -> probSide.output
-         in enumerateProofChecks lookupOrigVarName pairing problem proofScript
+         in enumerateProofChecks (lookupOrigVarNameFor pairingId problem) pairing problem proofScript
 
     compatProofChecks = toCompatProofChecks proofChecks
 
     -- smtProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
 
     smtProofChecks'nohack = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
-        compileProofChecks input.programs.c.structs functionSigs pairings input.rodata problem
+        compileProofChecks input.programs.c.structs functionSigs pairings input.rodata (lookupOrigVarNameFor pairingId problem) problem
             <$> (proofChecks `atPairingId` pairingId)
 
     -- smtProofChecks = smtProofChecks'hack

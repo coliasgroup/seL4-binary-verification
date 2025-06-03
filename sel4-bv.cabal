@@ -134,6 +134,7 @@ library core
     , pretty-show
     , safe-exceptions
     , sel4-bv:smtlib2
+    , split
     , stm
     , text
     , transformers

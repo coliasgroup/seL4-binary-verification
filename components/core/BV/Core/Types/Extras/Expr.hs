@@ -1,12 +1,17 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.Extras.Expr where
 
 import BV.Core.Arch (archWordSizeBits)
 import BV.Core.Types
 import BV.Core.Utils
 
+import Control.DeepSeq (NFData)
 import Data.Bits (shiftL)
 import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
+import Debug.Trace (traceShow)
+import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
 
@@ -15,6 +20,9 @@ boolT = ExprTypeBool
 
 wordT :: Integer -> ExprType
 wordT = ExprTypeWord
+
+word32T :: ExprType
+word32T = wordT 32
 
 memT :: ExprType
 memT = ExprTypeMem
@@ -76,11 +84,14 @@ opV = ExprValueOp
 boolE :: ExprValue -> Expr
 boolE = Expr boolT
 
+fromBoolE :: Bool -> Expr
+fromBoolE v = if v then trueE else falseE
+
 numE :: ExprType -> Integer -> Expr
 numE ty n = ensure (isWordT ty) $ Expr ty (numV n)
 
-smtExprE :: ExprType -> SExprWithPlaceholders -> Expr
-smtExprE ty sexpr = Expr ty (ExprValueSMTExpr sexpr)
+smtExprE :: ExprType -> SMT -> Expr
+smtExprE ty smt = Expr ty (ExprValueSMTExpr smt)
 
 --
 
@@ -109,6 +120,9 @@ ifThenElseE :: Expr -> Expr -> Expr -> Expr
 ifThenElseE cond ifTrue ifFalse = ensureType_ isBoolT cond $
     Expr (ensureTypesEqual ifTrue ifFalse) (opV OpIfThenElse [cond, ifTrue, ifFalse])
 
+word32E :: Integer -> Expr
+word32E = numE word32T
+
 --
 
 plusE :: Expr -> Expr -> Expr
@@ -116,6 +130,12 @@ plusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpPlus [lhs, rhs
 
 minusE :: Expr -> Expr -> Expr
 minusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpMinus [lhs, rhs])
+
+timesE :: Expr -> Expr -> Expr
+timesE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpTimes [lhs, rhs])
+
+modulusE :: Expr -> Expr -> Expr
+modulusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpModulus [lhs, rhs])
 
 negE :: Expr -> Expr
 negE expr = numE expr.ty 0 `minusE` expr
@@ -207,12 +227,20 @@ varFromArgE arg = varE arg.ty arg.name
 wordVarE :: Integer -> Ident -> Expr
 wordVarE bits = varE (wordT bits)
 
-memAccE :: ExprType -> Expr -> Expr -> Expr
+memAccE :: HasCallStack => ExprType -> Expr -> Expr -> Expr
 memAccE ty addr mem =
+    -- traceShow mem .
     ensureType_ isMemT mem .
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
     ensure (isWordT ty) $
         Expr ty (opV OpMemAcc [mem, addr])
+
+memUpdE :: HasCallStack => Expr -> Expr -> Expr -> Expr
+memUpdE addr mem v =
+    ensureType_ isMemT mem .
+    ensureType_ (isWordWithSizeT archWordSizeBits) addr .
+    ensure (isWordT v.ty) $
+        Expr mem.ty (opV OpMemUpdate [mem, addr, v])
 
 rodataE :: Expr -> Expr
 rodataE mem = ensureType_ isMemT mem $ boolE (opV OpROData [mem])
@@ -229,7 +257,7 @@ stackWrapperE sp stack except =
 ensureType :: (ExprType -> Bool) -> Expr -> ExprType
 ensureType p expr = ensureType_ p expr expr.ty
 
-ensureType_ :: (ExprType -> Bool) -> Expr -> a -> a
+ensureType_ :: HasCallStack => (ExprType -> Bool) -> Expr -> a -> a
 ensureType_ p expr = ensure (p expr.ty)
 
 ensureTypesEqual :: Expr -> Expr -> ExprType
@@ -243,3 +271,35 @@ ensureTypesEqualAnd p lhs rhs = ensureTypesEqualAnd_ p lhs rhs lhs.ty
 
 ensureTypesEqualAnd_ :: (ExprType -> Bool) -> Expr -> Expr -> a -> a
 ensureTypesEqualAnd_ p lhs rhs = ensure (lhs.ty == rhs.ty && p lhs.ty)
+
+--
+
+data MemOpKind
+  = MemOpKindAcc
+  | MemOpKindUpdate
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data MemOp
+  = MemOp
+      { kind :: MemOpKind
+      , addr :: Expr
+      , value :: Expr
+      , mem :: Expr
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+getMemAccess :: AffineFold Expr MemOp
+getMemAccess = afolding $ \expr -> case expr.value of
+    ExprValueOp OpMemAcc [mem, addr] -> Just $ MemOp
+        { kind = MemOpKindAcc
+        , addr
+        , value = expr
+        , mem
+        }
+    ExprValueOp OpMemUpdate [mem, addr, value] -> Just $ MemOp
+        { kind = MemOpKindUpdate
+        , addr
+        , value
+        , mem
+        }
+    _ -> Nothing
