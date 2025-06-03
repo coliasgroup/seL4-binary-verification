@@ -10,14 +10,13 @@ import BV.Core.Utils
 import qualified Data.Set as S
 
 -- Implementation matches graph_refine.syntax.fresh_name
-chooseFreshName :: S.Set Ident -> Ident -> Ident
-chooseFreshName taken n =
-    if n `S.notMember` taken
+chooseFreshName :: (String -> Bool) -> String -> String
+chooseFreshName isTaken n =
+    if not (isTaken n)
     then n
     else loop1 1 1
   where
-    isTaken = (`S.member` taken)
-    fmt x = Ident (n.unwrap ++ "." ++ show x)
+    fmt x = n ++ "." ++ show x
     loop1 x y =
         if isTaken (fmt x)
         then loop1 (x * 2) x

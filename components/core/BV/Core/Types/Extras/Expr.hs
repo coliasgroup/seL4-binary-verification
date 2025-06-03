@@ -79,8 +79,8 @@ boolE = Expr boolT
 numE :: ExprType -> Integer -> Expr
 numE ty n = ensure (isWordT ty) $ Expr ty (numV n)
 
-smtExprE :: ExprType -> SExprWithPlaceholders -> Expr
-smtExprE ty sexpr = Expr ty (ExprValueSMTExpr sexpr)
+smtExprE :: ExprType -> SMT -> Expr
+smtExprE ty smt = Expr ty (ExprValueSMTExpr smt)
 
 --
 
@@ -116,6 +116,9 @@ plusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpPlus [lhs, rhs
 
 minusE :: Expr -> Expr -> Expr
 minusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpMinus [lhs, rhs])
+
+timesE :: Expr -> Expr -> Expr
+timesE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpTimes [lhs, rhs])
 
 negE :: Expr -> Expr
 negE expr = numE expr.ty 0 `minusE` expr

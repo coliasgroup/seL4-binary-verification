@@ -20,9 +20,12 @@ import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 import BV.Core.Types.Extras
 
+import BV.Core.Utils
+import Control.Monad.Reader (runReaderT)
 import Control.Monad.RWS (RWS, runRWS)
 import Data.Function (applyWhen)
 import Data.Map (Map)
+import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 
@@ -71,6 +74,9 @@ initState = State
     , repGraph = initRepGraphState
     }
 
+instance MonadStructs M where
+    lookupStruct = lookupStructForSolver
+
 instance MonadSolver M where
     liftSolver m = M . zoom #solver . magnify #solver $ m
 
@@ -84,7 +90,7 @@ interpretCheckM :: ProofCheck a -> M (SMTProofCheckImp a)
 interpretCheckM check = do
     concl <- interpretHypM check.hyp
     term <- interpretHypImpsM check.hyps concl
-    sexpr <- smtExprM mempty term
+    sexpr <- runReaderT (smtExprNoSplitM term) M.empty
     return $ SMTProofCheckImp check.meta sexpr
 
 interpretHypImpsM :: [Hyp] -> Expr -> M Expr
@@ -128,4 +134,4 @@ strengthenHyp = go 1
 interpretHypM :: Hyp -> M Expr
 interpretHypM _hyp = do
     -- undefined
-    return $ Expr boolT (ExprValueSMTExpr ["TODO"])
+    return $ Expr boolT (ExprValueSMTExpr (SMT ["TODO"]))

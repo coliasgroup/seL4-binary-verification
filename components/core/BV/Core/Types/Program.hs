@@ -22,6 +22,8 @@ module BV.Core.Types.Program
     , NodeMap
     , Op (..)
     , Program (..)
+    , SMT (..)
+    , SplitMem (..)
     , Struct (..)
     , StructField (..)
     , TraverseTopLevelExprs (..)
@@ -270,7 +272,7 @@ data ExprValue
   | ExprValueType ExprType
   | ExprValueSymbol Ident
   | ExprValueToken Ident
-  | ExprValueSMTExpr SExprWithPlaceholders
+  | ExprValueSMTExpr SMT
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary ExprValue where
@@ -335,6 +337,23 @@ data Op
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary Op where
+
+data SMT
+  = SMT SExprWithPlaceholders
+  | SMTSplitMem SplitMem
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary SMT where
+
+data SplitMem
+  = SplitMem
+      { split :: SExprWithPlaceholders
+      , top :: SExprWithPlaceholders
+      , bottom :: SExprWithPlaceholders
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary SplitMem where
 
 class TraverseTopLevelExprs a where
     traverseTopLevelLevelExprs :: Traversal' a Expr

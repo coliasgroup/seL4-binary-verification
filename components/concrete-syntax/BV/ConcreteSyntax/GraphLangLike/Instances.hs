@@ -132,7 +132,7 @@ instance ParseInLine Expr where
             "SMTExpr" -> do
                 s <- hexEncodedString
                 let r = parse (parseSExprWithPlaceholders <* eof) "SMTExpr" (TL.pack s)
-                value <- either (fail . errorBundlePretty) (pure . ExprValueSMTExpr) r
+                value <- either (fail . errorBundlePretty) (pure . ExprValueSMTExpr . SMT) r
                 ty <- parseInLine
                 return $ Expr { ty, value }
             "SMTExpr" -> error "unimplemented"
