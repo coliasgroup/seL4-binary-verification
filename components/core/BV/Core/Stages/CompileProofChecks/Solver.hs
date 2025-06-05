@@ -10,18 +10,26 @@
 
 module BV.Core.Stages.CompileProofChecks.Solver
     ( MonadSolver (..)
-    , MonadStructs (..)
     , SolverEnv
     , SolverOutput
     , SolverState
+    , addDefM
+    , addDefNoSplitM
+    , addPValidDomAssertionsM
+    , addSplitMemVarM
+    , addVarM
+    , addVarRestrM
+    , askLookupStructForSolver
+    , assertFactM
+    , getDefM
     , initSolver
     , initSolverEnv
     , initSolverState
-    , lookupStructForSolver
     , smtExprM
     , smtExprNoSplitM
     ) where
 
+import BV.Core.Logic
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
@@ -33,7 +41,8 @@ import Control.DeepSeq (NFData)
 import Control.Monad (unless, when)
 import Control.Monad.Reader (MonadReader (ask), ReaderT (runReaderT))
 import Control.Monad.RWS (MonadRWS, MonadTrans (lift), RWS)
-import Control.Monad.State (MonadState, State, get, modify)
+import Control.Monad.State (MonadState, State, StateT (..), execStateT, get,
+                            modify)
 import Control.Monad.Writer (MonadWriter, tell)
 import Data.Foldable (for_)
 import Data.List (intercalate)
@@ -53,11 +62,13 @@ import Text.Printf (printf)
 class MonadStructs m => MonadSolver m where
     liftSolver :: RWS SolverEnv SolverOutput SolverState a -> m a
 
-lookupStructForSolver :: MonadSolver m => Ident -> m Struct
-lookupStructForSolver ident = liftSolver $ gview $ #structs % at ident % unwrapped
+askLookupStructForSolver :: MonadSolver m => m (Ident -> Struct)
+askLookupStructForSolver = do
+    structs <- liftSolver $ gview $ #structs
+    return $ (structs M.!)
 
 instance MonadStructs m => MonadStructs (ReaderT r m) where
-    lookupStruct = lift . lookupStruct
+    askLookupStruct = lift askLookupStruct
 
 instance MonadSolver m => MonadSolver (ReaderT r m) where
     liftSolver = lift . liftSolver
@@ -85,6 +96,11 @@ data SolverState
         --   , ptrs :: Map SMT SMT
       , ptrs :: Map S Name
       , pvalids :: Map S (Map (PValidType, Name, PValidKind) S)
+      , tokenTokens :: Map String S
+      , tokenVals :: Map S String
+      , doms :: Set (S, S, S)
+      , stackEqsStackEqImpliesCheck :: Map S (Maybe S)
+      , stackEqsImpliesStackEq :: Map (Expr, Expr, Expr) Name
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -120,6 +136,11 @@ initSolverState = SolverState
     , cachedExprNames = mempty
     , ptrs = mempty
     , pvalids = mempty
+    , tokenTokens = mempty
+    , tokenVals = mempty
+    , doms = mempty
+    , stackEqsStackEqImpliesCheck = mempty
+    , stackEqsImpliesStackEq = mempty
     }
 
 initSolver :: MonadSolver m => m ()
@@ -128,37 +149,6 @@ initSolver = do
 
 send :: MonadSolver m => SExprWithPlaceholders -> m ()
 send sexpr = liftSolver $ tell [sexpr]
-
-class Monad m => MonadStructs m where
-    lookupStruct :: Ident -> m Struct
-
-typeSizeWith :: Map Ident Struct -> ExprType -> Integer
-typeSizeWith structs = go
-  where
-    go = \case
-        ExprTypeWord { bits } ->
-            let (bytes, 0) = bits `divMod` 8
-            in bytes
-        ExprTypeArray { ty, length } -> go ty * length
-        ExprTypeStruct ident -> (structs ! ident).size
-        ExprTypePtr _ -> archPtrSizeBytes
-
-typeSize :: MonadReader SolverEnv m => ExprType -> m Integer
-typeSize ty = do
-    structs <- gview #structs
-    return $ typeSizeWith structs ty
-
-typeAlignWith :: Map Ident Struct -> ExprType -> Integer
-typeAlignWith structs ty = case ty of
-    ExprTypeWord { } -> typeSizeWith structs ty
-    ExprTypeArray { ty } -> typeAlignWith structs ty
-    ExprTypeStruct ident -> (structs ! ident).align
-    ExprTypePtr _ -> archPtrSizeBytes
-
-typeAlign :: MonadReader SolverEnv m => ExprType -> m Integer
-typeAlign ty = do
-    structs <- gview #structs
-    return $ typeSizeWith structs ty
 
 typeName :: ExprType -> String
 typeName = go
@@ -185,8 +175,8 @@ globalWrapperStructName ty = Ident $ printf "Global (%s)" (typeName ty)
 
 globalWrapperStructWith :: Map Ident Struct -> ExprType -> Struct
 globalWrapperStructWith structs ty = Struct
-    { size = typeSizeWith structs ty
-    , align = typeAlignWith structs ty
+    { size = withStructs (structs M.!) $ sizeOfType ty
+    , align = withStructs (structs M.!) $ alignOfType ty
     , fields =
         [ ( "v"
           , StructField
@@ -254,7 +244,21 @@ augmentStructs rodata cStructs problem =
              in Just ty
         _ -> Nothing
 
+cheatMemDoms :: Bool
+cheatMemDoms = True
+
 type SMTEnv = Map (Ident, ExprType) SMT
+
+toSmtExprM :: MonadSolver m => Expr -> ReaderT SMTEnv m Expr
+toSmtExprM expr = case expr.ty of
+    ExprTypeRelWrapper -> case expr.value of
+        ExprValueOp op args -> do
+            args' <- for args toSmtExprM
+            return $ Expr expr.ty (ExprValueOp op args')
+        _ -> error ""
+    _ -> do
+        s <- smtExprM expr
+        return $ smtExprE expr.ty s
 
 smtExprNoSplitM :: MonadSolver m => Expr -> ReaderT SMTEnv m S
 smtExprNoSplitM expr = view (expecting #_SMT) <$> smtExprM expr
@@ -286,15 +290,84 @@ smtExprM expr = do
             _ | op == OpCountTrailingZeroes -> do
                     let [v] = args
                     smtExprM $ clzE (wordReverseE v)
+            _ | op `elem` ([OpPValid, OpPGlobalValid, OpPWeakValid, OpPArrayValid] :: [Op]) -> do
+                (htd, typ_expr, p, f) <- case op of
+                    OpPArrayValid -> do
+                        let [htd, typ_expr, p, num] = args
+                        len <- toSmtExprM num
+                        let f ty = PValidTypeArray { ty, len }
+                        return (htd, typ_expr, p, f)
+                    _ -> do
+                        let [htd, typ_expr, p] = args
+                        let f = PValidTypeType
+                        return (htd, typ_expr, p, f)
+                let (ExprValueType typ) = typ_expr.value
+                let typ' = case op of
+                        OpPGlobalValid -> globalWrapperT typ
+                        _ -> typ
+                let pvTy = f typ'
+                let (ExprValueVar htdName) = htd.value
+                htd_s <- gview $ at (htdName, htd.ty) % unwrapped % expecting #_SMT
+                p_s <- smtExprNoSplitM p
+                var <- lift $ addPValidsM htd_s pvTy p_s (pvalidKindFromOp op)
+                return $ SMT var
+            OpMemDom -> do
+                let [p, dom] = args
+                p' <- smtExprNoSplitM p
+                dom' <- smtExprNoSplitM dom
+                let md = [opS op, p', dom']
+                noteMemDomM p' dom' md
+                return $ SMT $ if cheatMemDoms
+                    then trueS
+                    else md
+            OpMemUpdate -> do
+                let [m, p, v] = args;
+                ensureM $ isWordT v.ty
+                m_s <- smtExprM m
+                p_s <- smtExprNoSplitM p
+                v_s <- smtExprNoSplitM v
+                smtExprMemupdM m_s p_s v_s v.ty
+            OpMemAcc -> do
+                let [m, p] = args;
+                ensureM $ isWordT expr.ty
+                m_s <- smtExprM m
+                p_s <- smtExprNoSplitM p
+                SMT <$> smtExprMemAccM m_s p_s expr.ty
+            OpStackEqualsImplies -> do
+                args' <- mapM smtExprM args
+                let [SMT sp1, st1, SMT sp2, st2] = args'
+                if sp1 == sp2 && st1 == st2
+                    then return $ SMT $ trueS
+                    else do
+                        let SMTSplitMem st2SplitMem = st2
+                        eq <- getStackEqImplies st2SplitMem.split st2SplitMem.top st1
+                        return $ SMT $ andS (eqS sp1 sp2) eq
+            OpImpliesStackEquals -> do
+                let [sp1, st1, sp2, st2] = args
+                eq <- addImpliesStackEqM sp1 st1 st2
+                sp1' <- smtExprNoSplitM sp1
+                sp2' <- smtExprNoSplitM sp2
+                return $ SMT $ andS (eqS sp1' sp2') eq
             _ | op == OpIfThenElse -> do
                     let [cond, x, y] = args
                     cond' <- smtExprNoSplitM cond
                     x' <- smtExprM x
                     y' <- smtExprM y
                     return $ smtIfThenElse cond' x' y'
+            OpHTDUpdate -> do
+                lift $ SMT . nameS <$> addVarM "update_htd" expr.ty
             _ -> do
-                -- undefined
-                return $ SMT ["TODO"]
+                args' <- for args smtExprNoSplitM
+                let (op', skipNote) = case (op, args) of
+                        (OpEquals, [x, _]) | x.ty == ExprTypeMem -> ("mem-eq", False)
+                        (OpEquals, [x, _]) | x.ty == word32T -> ("word32-eq", True)
+                        _ -> (opS op, False)
+                let s = case args' of
+                        [] -> op'
+                        _ -> List $ [op'] ++ args'
+                unless skipNote $ do
+                    lift $ maybeNoteModelExprM s expr.ty args
+                return $ SMT s
         ExprValueNum n -> do
             return . SMT $ intWithWidthS (wordTBits expr.ty) n
         ExprValueVar var -> do
@@ -306,7 +379,55 @@ smtExprM expr = do
         ExprValueSMTExpr sexpr -> do
             return sexpr
         ExprValueToken tok -> do
-            undefined
+            getTokenM tok.unwrap
+
+smtExprMemupdM :: MonadSolver m => SMT -> S -> S -> ExprType -> m SMT
+smtExprMemupdM mSplit p v (typ@(ExprTypeWord bits)) = do
+    case mSplit of
+        SMTSplitMem splitMem -> do
+            p' <- cacheLargeExprM p "memupd_pointer" word32T
+            v' <- cacheLargeExprM v "memupd_val" typ
+            top <- cacheLargeExprM splitMem.top "split_mem_top" memT
+            top_upd <- smtExprMemupdM (SMT top) p' v' typ
+            bot <- cacheLargeExprM splitMem.bottom "split_mem_bot" memT
+            bot_upd <- smtExprMemupdM (SMT bot) p' v' typ
+            return $ SMTSplitMem $ SplitMem
+                { split = splitMem.split
+                , top = iteS (bvuleS splitMem.split p') (top_upd ^. expecting #_SMT) top
+                , bottom = iteS (bvuleS splitMem.split p') bot (bot_upd ^. expecting #_SMT)
+                }
+        SMT m -> case bits of
+            8 -> do
+                p' <- cacheLargeExprM p "memupd_pointer" word32T
+                let p_align = bvandS p' (hexS "fffffffd")
+                noteModelExprM p_align word32T
+                noteModelExprM (loadWord32S m p_align) word32T
+                return $ SMT $ storeWord32S m p' v
+            32 -> do
+                noteModelExprM (loadWord32S m p) typ
+                noteModelExprM p word32T
+                return $ SMT $ storeWord32S m p v
+            64 -> do
+                noteModelExprM (loadWord64S m p) typ
+                noteModelExprM p word32T
+                return $ SMT $ storeWord64S m p v
+
+smtExprMemAccM :: MonadSolver m => SMT -> S -> ExprType -> m S
+smtExprMemAccM mSplit p (typ@(ExprTypeWord bits)) = do
+    case mSplit of
+        SMTSplitMem splitMem -> do
+            p' <- cacheLargeExprM p "memacc_pointer" word32T
+            top_acc <- smtExprMemAccM (SMT splitMem.top) p' typ
+            bot_acc <- smtExprMemAccM (SMT splitMem.bottom) p' typ
+            return $ iteS (bvuleS splitMem.split p') top_acc bot_acc
+        SMT m -> do
+            let s = case bits of
+                    8 -> loadWord8S m p
+                    32 -> loadWord32S m p
+                    64 -> loadWord64S m p
+            noteModelExprM p word32T
+            noteModelExprM s typ
+            return s
 
 getSMTDerivedOpM :: MonadSolver m => Op -> Integer -> m String
 getSMTDerivedOpM op n = do
@@ -569,17 +690,6 @@ notePtrM p_s = do
             liftSolver $ #ptrs %= M.insert p_s p
             return p
 
-data PValidType
-  = PValidTypeType ExprType
-  | PValidTypeArray
-      { ty :: ExprType
-      , length :: Integer
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-data PValidKind
-  = PValidKindGlobal
-  deriving (Eq, Generic, NFData, Ord, Show)
 
 addPValidsM :: MonadSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValidsM = go False
@@ -608,34 +718,159 @@ addPValidsM = go False
                         var <- addVarM "pvalid" boolT
                         liftSolver $ #pvalids %= M.insertWith (<>) htd_s mempty
                         others <- liftSolver $ #pvalids % at htd_s % unwrapped <<%= M.insert (typ, p, kind) (nameS var)
-                        undefined
+                        let pdata = smtify (typ, p, kind) (nameS var)
+                        let (_, pdataKind, p', pv') = pdata
+                        impl_al <- impliesE pv' <$> alignValidIneqM typ p'
+                        withoutEnv $ assertFactM impl_al
+                        for (M.toAscList others) $ \val@(valKey@(valPvTy, valName, valPvKind), valS) -> do
+                            let kinds :: [PValidKind] = [valPvKind, pdataKind]
+                            unless (PValidKindWeak `elem` kinds && not (PValidKindGlobal `elem` kinds)) $ do
+                                do
+                                    ass <- pvalidAssertion1 pdata (uncurry smtify val)
+                                    ass_s <- withoutEnv $ smtExprNoSplitM ass
+                                    assertFactSmtM ass_s
+                                do
+                                    ass <- pvalidAssertion2 pdata (uncurry smtify val)
+                                    ass_s <- withoutEnv $ smtExprNoSplitM ass
+                                    assertFactSmtM ass_s
+                        return $ nameS var
+    smtify (typ, p, kind) var = (typ, kind, smtExprE machineWordT (SMT $ nameS p), smtExprE boolT (SMT var))
 
-pvalidAssertion1E :: (PValidType, PValidKind, Expr, Expr) -> (PValidType, PValidKind, Expr, Expr) -> Expr
-pvalidAssertion1E (typ, k, p, pv) (typ2, k2, p2, pv2) =
-    (pv `andE` pv2) `impliesE` (foldr1 orE ([cond1, cond2, out1, out2] :: [Expr]))
+getTokenM :: MonadSolver m => String -> m SMT
+getTokenM string = do
+    present <- liftSolver $ use $ #tokenTokens % to (M.member string)
+    unless present $ do
+        n <- liftSolver $ use $ #tokenTokens % to M.size % to (1 +)
+        v <- withoutEnv $ addDefNoSplitM ("token_" ++ string) (numE tokenSmtType (toInteger n))
+        liftSolver $ do
+            #tokenTokens %= M.insert string (nameS v)
+            k <- use $ #defs % at v % unwrapped
+            #tokenVals %= M.insert k string
+    liftSolver $ use $ #tokenTokens % at string % unwrapped % to SMT
+
+noteMemDomM :: MonadSolver m => S -> S -> S -> m ()
+noteMemDomM p d md = liftSolver $ do
+    #doms %= S.insert (p, d, md)
+
+--
+
+opS :: Op -> S
+opS = \case
+    OpPlus -> "bvadd"
+    OpMinus -> "bvsub"
+    OpTimes -> "bvmul"
+    OpModulus -> "bvurem"
+    OpDividedBy -> "bvudiv"
+    OpBWAnd -> "bvand"
+    OpBWOr -> "bvor"
+    OpBWXOR -> "bvxor"
+    OpAnd -> "and"
+    OpOr -> "or"
+    OpImplies -> "=>"
+    OpEquals -> "="
+    OpLess -> "bvult"
+    OpLessEquals -> "bvule"
+    OpSignedLess -> "bvslt"
+    OpSignedLessEquals -> "bvsle"
+    OpShiftLeft -> "bvshl"
+    OpShiftRight -> "bvlshr"
+    OpSignedShiftRight -> "bvashr"
+    OpNot -> "not"
+    OpBWNot -> "bvnot"
+    OpTrue -> "true"
+    OpFalse -> "false"
+    OpUnspecifiedPrecond -> "unspecified-precond"
+    OpIfThenElse -> "ite"
+    OpMemDom -> "mem-dom"
+    OpROData -> "rodata"
+    OpImpliesROData -> "implies-rodata"
+    OpTokenWordsAccess -> "select"
+    OpTokenWordsUpdate -> "store"
+    _ -> error ""
+
+maybeNoteModelExprM :: MonadSolver m => S -> ExprType -> [Expr] -> m ()
+maybeNoteModelExprM sexpr typ subexprs = do
+    when (typeRepresentable typ && not (all typeRepresentable (map (.ty) subexprs))) $ do
+        noteModelExprM sexpr typ
+
+addImpliesStackEqM :: MonadSolver m => Expr -> Expr -> Expr -> ReaderT SMTEnv m S
+addImpliesStackEqM sp s1 s2 = do
+    let k = (sp, s1, s2)
+    lift (liftSolver (use (#stackEqsImpliesStackEq % at k))) >>= \case
+        Just v -> return $ nameS v
+        Nothing -> do
+            addr <- addVarM "stack-eq-witness" word32T
+            assertFactSmtM (eqS (bvandS (nameS addr) (hexS "00000003")) (hexS "00000000"))
+            sp_smt <- smtExprNoSplitM sp
+            assertFactSmtM (bvuleS sp_smt (nameS addr))
+            let ptr = smtExprE word32T (SMT (nameS addr))
+            let eq = eqE (memAccE word32T s1 ptr) (memAccE word32T s2 ptr)
+            stack_eq <- addDefNoSplitM "stack-eq" eq
+            liftSolver $ #stackEqsImpliesStackEq %= M.insert k stack_eq
+            return (nameS stack_eq)
+
+getStackEqImplies :: MonadSolver m => S -> S -> SMT -> ReaderT SMTEnv m S
+getStackEqImplies split st_top other = do
+    let (rhs, cond) = case other of
+            SMTSplitMem splitMem -> (splitMem.top, bvuleS splitMem.split split)
+            SMT other' -> (other', trueS)
+    noteModelExprM (eqS st_top rhs) boolT
+    -- let mems :: Set S = undefined
+    mems <- lift $ getImmBasisMems st_top
+    let [st_top_base] = S.toList mems
+    let k = st_top_base
+    old <- liftSolver $ use $ #stackEqsStackEqImpliesCheck % at k % unwrapped
+    ensureM $ case old of
+        Nothing -> True
+        Just old' -> old' == rhs
+    liftSolver $ #stackEqsStackEqImpliesCheck %= M.insert k (Just rhs)
+    return $ impliesS cond (eqS st_top rhs)
+
+getImmBasisMems :: MonadSolver m => S -> m (Set S)
+getImmBasisMems m = execStateT (go m) S.empty
   where
-    offs1 = p `minusE` p2
-    cond1 = getSTypCondition offs1 typ typ2
-    offs2 = p2 `minusE` p
-    cond2 = getSTypCondition offs2 typ2 typ
-    out1 = undefined
-    out2 = undefined
+    go m = case m of
+        List (op:args) -> case () of
+            _ | op == symbolS "ite" -> do
+                let [c, l, r] = args
+                go l
+                go r
+            _ | op == symbolS "store-word32" || op == symbolS "store-word8" -> do
+                let [m', p, v] = args
+                go m'
+            _ -> error ""
+        _ -> do
+            let Just sym = parseSymbol m
+            isCached <- lift $ liftSolver $ use $ #cachedExprNames % to (S.member (Name sym))
+            if isCached
+                then do
+                    def <- lift $ liftSolver $ use $ #defs % at (Name sym) % unwrapped
+                    go def
+                else do
+                    modify $ S.insert m
 
-getSTypCondition :: Expr -> PValidType -> PValidType -> Expr
-getSTypCondition =
+parseSymbol :: S -> Maybe String
+parseSymbol sexpr = do
+    Atom (AtomOrPlaceholderAtom atom) <- return sexpr
+    case viewAtom atom of
+        SymbolAtom s -> Just s
+        _ -> Nothing
     undefined
 
--- end_addr :: Expr -> PValidType -> Expr
--- end_addr p typ = p `plusE` (sz `minusE` machineWordE 1)
---   where
---     sz = case typ of
---         PValidTypeArray { ty, length } -> machineWordE
---         timesE
---     if typ[0] == 'Array':
---         (_, typ, n) = typ
---         sz = mk_times (mk_word32 (typ.size ()), n)
---     else:
---         assert typ[0] == 'Type', typ
---         (_, typ) = typ
---         sz = mk_word32 (typ.size ())
---     return mk_plus (p, mk_minus (sz, mk_word32 (1)))
+getDefM :: MonadSolver m => Name -> m S
+getDefM name = liftSolver $ use $ #defs % at name % unwrapped
+
+addSplitMemVarM :: MonadSolver m => S -> NameHint -> ExprType -> m SplitMem
+addSplitMemVarM addr nm ty@ExprTypeMem = do
+    bot_mem <- addVarM (nm ++ "_bot") ty
+    top_mem <- addVarM (nm ++ "_top") ty
+    liftSolver $ #stackEqsStackEqImpliesCheck %= M.insert (nameS top_mem) Nothing
+    return $ SplitMem
+        { split = addr
+        , top = nameS top_mem
+        , bottom = nameS bot_mem
+        }
+
+-- TODO
+addPValidDomAssertionsM :: MonadSolver m => m ()
+addPValidDomAssertionsM = return ()

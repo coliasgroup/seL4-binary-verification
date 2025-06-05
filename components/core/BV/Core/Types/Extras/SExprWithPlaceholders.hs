@@ -118,6 +118,9 @@ bvuleS = binOpS "bvule"
 bvandS :: S -> S -> S
 bvandS = binOpS "bvand"
 
+impliesS :: S -> S -> S
+impliesS = binOpS "=>"
+
 hexS :: String -> S
 hexS = atomS . hexadecimalAtom
 
@@ -135,6 +138,24 @@ intWithWidthS bits = intWithS bvNegS $ \nAbs ->
 
 machineWordS :: Integer -> S
 machineWordS = intWithWidthS archWordSizeBits
+
+loadWord8S :: S -> S -> S
+loadWord8S mem addr = ["load-word8", mem, addr]
+
+loadWord32S :: S -> S -> S
+loadWord32S mem addr = ["load-word32", mem, addr]
+
+loadWord64S :: S -> S -> S
+loadWord64S mem addr = ["load-word64", mem, addr]
+
+storeWord8S :: S -> S -> S -> S
+storeWord8S mem addr v = ["store-word8", mem, addr, v]
+
+storeWord32S :: S -> S -> S -> S
+storeWord32S mem addr v = ["store-word32", mem, addr, v]
+
+storeWord64S :: S -> S -> S -> S
+storeWord64S mem addr v = ["store-word64", mem, addr, v]
 
 concatS :: S -> S -> S
 concatS = binOpS "concat"

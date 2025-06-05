@@ -16,6 +16,9 @@ boolT = ExprTypeBool
 wordT :: Integer -> ExprType
 wordT = ExprTypeWord
 
+word32T :: ExprType
+word32T = wordT 32
+
 memT :: ExprType
 memT = ExprTypeMem
 
@@ -119,6 +122,9 @@ minusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpMinus [lhs, r
 
 timesE :: Expr -> Expr -> Expr
 timesE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpTimes [lhs, rhs])
+
+modulusE :: Expr -> Expr -> Expr
+modulusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpModulus [lhs, rhs])
 
 negE :: Expr -> Expr
 negE expr = numE expr.ty 0 `minusE` expr

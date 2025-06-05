@@ -14,6 +14,7 @@ module BV.Core.Stages.CompileProofChecks
     , compileProofChecks
     ) where
 
+import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.Grouping
 import BV.Core.Stages.CompileProofChecks.RepGraph
 import BV.Core.Stages.CompileProofChecks.Solver
@@ -75,7 +76,7 @@ initState = State
     }
 
 instance MonadStructs M where
-    lookupStruct = lookupStructForSolver
+    askLookupStruct = askLookupStructForSolver
 
 instance MonadSolver M where
     liftSolver m = M . zoom #solver . magnify #solver $ m
