@@ -27,6 +27,7 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , initSolverState
     , smtExprM
     , smtExprNoSplitM
+    , toSmtExprM
     ) where
 
 import BV.Core.Logic

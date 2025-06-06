@@ -15,14 +15,20 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , RepGraphContext
     , RepGraphEnv
     , RepGraphState
+    , getInductVarM
+    , getNodePcEnvM
+    , getPcM
     , initRepGraphEnv
     , initRepGraphState
+    , instEqWithEnvs
+    , substInduct
     ) where
 
 import BV.Core.Graph
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
+import BV.Core.Types.Extras.Expr
 import Control.DeepSeq (NFData)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
@@ -112,3 +118,23 @@ initRepGraphState = RepGraphState
     , namesUsed = S.empty
     , externalNames = S.empty
     }
+
+--
+
+getPcM :: MonadRepGraph m => Visit -> Maybe Tag -> m Expr
+getPcM = undefined
+
+getNodePcEnvM :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, ()))
+getNodePcEnvM = undefined
+
+getInductVarM :: MonadRepGraph m => EqHypInduct -> m Expr
+getInductVarM = undefined
+
+substInduct :: Expr -> Expr -> Expr
+substInduct expr inductVar = flip varSubstNotMust expr $ \ident ty ->
+    if ident.unwrap == "%n" && ty == word32T
+    then Just inductVar
+    else Nothing
+
+instEqWithEnvs :: MonadSolver m => (Expr, ()) -> (Expr, ()) -> m Expr
+instEqWithEnvs = undefined

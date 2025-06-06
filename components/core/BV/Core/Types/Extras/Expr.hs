@@ -79,6 +79,9 @@ opV = ExprValueOp
 boolE :: ExprValue -> Expr
 boolE = Expr boolT
 
+fromBoolE :: Bool -> Expr
+fromBoolE v = if v then trueE else falseE
+
 numE :: ExprType -> Integer -> Expr
 numE ty n = ensure (isWordT ty) $ Expr ty (numV n)
 

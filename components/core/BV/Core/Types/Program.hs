@@ -34,6 +34,8 @@ module BV.Core.Types.Program
     , renameVars
     , renameVarsI
     , toListOfNamed
+    , varSubst
+    , varSubstNotMust
     , walkExprs
     , walkExprsI
     , withNamed
@@ -391,6 +393,16 @@ walkExprs f expr = do
 
 walkExprsI :: (Expr -> Expr) -> Expr -> Expr
 walkExprsI f = runIdentity . walkExprs (Identity . f)
+
+varSubstNotMust :: (Ident -> ExprType -> Maybe Expr) -> Expr -> Expr
+varSubstNotMust f = walkExprsI $ \case
+        expr@(Expr ty (ExprValueVar ident)) -> case f ident ty of
+            Just expr' -> expr'
+            Nothing -> expr
+        expr -> expr
+
+varSubst :: (Ident -> ExprType -> Expr) -> Expr -> Expr
+varSubst f = varSubstNotMust $ \ident ty -> Just (f ident ty)
 
 class HasVarNames a where
     varNamesOf :: Traversal' a Ident

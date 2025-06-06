@@ -27,6 +27,7 @@ import Control.Monad.RWS (RWS, runRWS)
 import Data.Function (applyWhen)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (isNothing)
 import GHC.Generics (Generic)
 import Optics
 
@@ -42,7 +43,7 @@ compileProofCheckGroup cStructs functionSigs pairings rodata problem group =
   where
     env = initEnv rodata cStructs functionSigs pairings problem
     state = initState
-    (imps, _, setup) = runRWS (interpretGroupM group).run env state
+    (imps, _, setup) = runRWS (compileProofCheckGroupM group).run env state
 
 newtype M a
   = M { run :: RWS Env SolverOutput State a }
@@ -83,6 +84,12 @@ instance MonadSolver M where
 
 instance MonadRepGraph M where
     liftRepGraph m = M . zoom #repGraph . magnify #repGraph $ m
+
+compileProofCheckGroupM :: ProofCheckGroup a -> M [SMTProofCheckImp a]
+compileProofCheckGroupM group = do
+    imps <- interpretGroupM group
+    addPValidDomAssertionsM
+    return imps
 
 interpretGroupM :: ProofCheckGroup a -> M [SMTProofCheckImp a]
 interpretGroupM group = mapM interpretCheckM group
@@ -133,6 +140,33 @@ strengthenHyp = go 1
         goAgainst = go (-sign)
 
 interpretHypM :: Hyp -> M Expr
-interpretHypM _hyp = do
-    -- undefined
-    return $ Expr boolT (ExprValueSMTExpr (SMT ["TODO"]))
+interpretHypM = \case
+    HypPcImp hyp -> do
+        let f = \case
+                PcImpHypSideBool v -> return $ fromBoolE v
+                PcImpHypSidePc vt -> getPcM vt.visit (Just vt.tag)
+        pc1 <- f hyp.lhs
+        pc2 <- f hyp.rhs
+        return $ impliesE pc1 pc2
+    HypEq { ifAt, eq } -> do
+        (x, y) <- case eq.induct of
+            Nothing -> return (eq.lhs.expr, eq.rhs.expr)
+            Just induct -> do
+                v <- getInductVarM induct
+                let x = substInduct eq.lhs.expr v
+                let y = substInduct eq.rhs.expr v
+                return $ (x, y)
+        x_pc_env <- getNodePcEnvM eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+        y_pc_env <- getNodePcEnvM eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+        case (x_pc_env, y_pc_env) of
+            (Just (_, xenv), Just (_, yenv)) -> do
+                eq' <- instEqWithEnvs (x, xenv) (y, yenv)
+                if ifAt
+                    then do
+                        x_pc <- getPcM eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+                        y_pc <- getPcM eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+                        return $ nImpliesE [x_pc, y_pc] eq'
+                    else do
+                        return eq'
+            _ -> do
+                return $ fromBoolE ifAt
