@@ -302,8 +302,6 @@ applyRelWrapper lhs rhs =
             undefined
         _ | ops == S.fromList [OpEqSelectiveWrapper] ->
             undefined
-        _ | ops == S.fromList [OpStackWrapper] ->
-            undefined
         _ -> error ""
   where
     ops = S.fromList [opL, opR]
