@@ -122,7 +122,16 @@ initRepGraphState = RepGraphState
 --
 
 getPcM :: MonadRepGraph m => Visit -> Maybe Tag -> m Expr
-getPcM = undefined
+getPcM visit tag = do
+    pc_env <- getNodePcEnvM visit tag
+    let Just (pc, env) = pc_env
+    withEnv env $ toSmtExprM pc
+
+toSmtExprRM :: MonadRepGraph m => Expr -> Visit -> Maybe Tag -> m Expr
+toSmtExprRM expr visit tag = do
+    pc_env <- getNodePcEnvM visit tag
+    let Just (_pc, env) = pc_env
+    withEnv env $ toSmtExprM expr
 
 getNodePcEnvM :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, SMTEnv))
 getNodePcEnvM = undefined
