@@ -28,6 +28,8 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , smtExprM
     , smtExprNoSplitM
     , toSmtExprM
+    , SMTEnv
+    , withEnv
     ) where
 
 import BV.Core.Logic
@@ -677,6 +679,9 @@ cacheLargeExprM s nameHint typ = do
                     #cachedExprs %= M.insert s name
                     #cachedExprNames %= S.insert name
                 return $ nameS name
+
+withEnv :: SMTEnv -> ReaderT SMTEnv m a -> m a
+withEnv = flip runReaderT
 
 withoutEnv :: ReaderT SMTEnv m a -> m a
 withoutEnv = flip runReaderT mempty

@@ -20,7 +20,7 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , getPcM
     , initRepGraphEnv
     , initRepGraphState
-    , instEqWithEnvs
+    , instEqWithEnvsM
     , substInduct
     ) where
 
@@ -39,6 +39,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Control.Monad.Trans.Reader (ReaderT)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -136,5 +137,19 @@ substInduct expr inductVar = flip varSubstNotMust expr $ \ident ty ->
     then Just inductVar
     else Nothing
 
-instEqWithEnvs :: MonadSolver m => (Expr, ()) -> (Expr, ()) -> m Expr
-instEqWithEnvs = undefined
+toSmtExprUnderOpM :: MonadSolver m => Expr -> ReaderT SMTEnv m Expr
+toSmtExprUnderOpM expr = case expr.value of
+    ExprValueOp op args -> do
+        args' <- mapM toSmtExprM args
+        return $ expr & #value .~ ExprValueOp op args' 
+    _ -> toSmtExprM expr
+
+instEqWithEnvsM :: MonadSolver m => (Expr, SMTEnv) -> (Expr, SMTEnv) -> m Expr
+instEqWithEnvsM (x, env1) (y, env2) = do
+    x' <- withEnv env1 $ toSmtExprUnderOpM x
+    y' <- withEnv env2 $ toSmtExprUnderOpM y
+    case x'.ty of
+        ExprTypeRelWrapper -> do
+            undefined
+        _ -> do
+            return $ eqE x' y'
