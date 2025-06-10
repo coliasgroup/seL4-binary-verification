@@ -130,7 +130,7 @@ getNodePcEnvM :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, SMTEnv
 getNodePcEnvM = undefined
 
 getInductVarM :: MonadRepGraph m => EqHypInduct -> m Expr
-getInductVarM = undefined
+getInductVarM induct = undefined
 
 substInduct :: Expr -> Expr -> Expr
 substInduct expr inductVar = flip varSubstNotMust expr $ \ident ty ->
