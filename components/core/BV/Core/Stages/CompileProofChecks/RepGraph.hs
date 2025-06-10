@@ -36,13 +36,14 @@ import Control.Monad.State (MonadState)
 import Control.Monad.Trans.Reader (ReaderT)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import BV.Core.Utils
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -100,19 +101,23 @@ initRepGraphEnv functionSigs pairings problem =
   where
     nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
 
-loopIdR :: MonadReader RepGraphEnv m => NodeAddr -> m (Maybe NodeAddr)
-loopIdR addr = do
+loopIdR :: MonadRepGraph m => NodeAddr -> m (Maybe NodeAddr)
+loopIdR addr = liftRepGraph $ do
     loopData <- gview $ #loopData % at addr
     return (loopData <&> \case
         LoopHead _ -> addr
         LoopMember addr' -> addr')
 
-loopHeadsR :: MonadReader RepGraphEnv m => m [NodeAddr]
-loopHeadsR = do
+loopHeadsR :: MonadRepGraph m => m [NodeAddr]
+loopHeadsR = liftRepGraph $ do
     loopData <- gview #loopData
     return (mapMaybe (\(k, v) -> case v of
         LoopHead _ -> Just k
         LoopMember _ -> Nothing) (M.toList loopData))
+
+nodeTagR :: MonadRepGraph m => NodeAddr -> m Tag
+nodeTagR n = liftRepGraph $ do
+    gview (#nodeTag % to ($ n))
 
 initRepGraphState :: RepGraphState
 initRepGraphState = RepGraphState
@@ -134,7 +139,17 @@ toSmtExprRM expr visit tag = do
     withEnv env $ toSmtExprM expr
 
 getNodePcEnvM :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, SMTEnv))
-getNodePcEnvM = undefined
+getNodePcEnvM visit tag = do
+    (tag, vcount) <- getTagVCount visit tag
+    case vcount of
+        Nothing -> return Nothing
+        Just vcount' -> do
+            undefined
+
+getTagVCount :: MonadRepGraph m => Visit -> Maybe Tag -> m (NodeAddr, Maybe VisitCount)
+getTagVCount visit mtag = do
+    tag <- maybe (nodeTagR (visit.nodeId ^. expecting #_Addr)) return mtag
+    undefined
 
 getInductVarM :: MonadRepGraph m => EqHypInduct -> m Expr
 getInductVarM induct = do
