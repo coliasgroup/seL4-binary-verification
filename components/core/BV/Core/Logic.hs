@@ -39,6 +39,7 @@ import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
+import Data.List (nub)
 
 --
 
@@ -297,7 +298,10 @@ applyRelWrapper :: Expr -> Expr -> Expr
 applyRelWrapper lhs rhs =
     case () of
         _ | ops == S.fromList [OpStackWrapper] ->
-            undefined
+            let sp1:st1:rest1 = argsL
+                sp2:st2:rest2 = argsR
+                excepts = nub $ rest1 ++ rest2
+             in x
         _ | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
             undefined
         _ | ops == S.fromList [OpEqSelectiveWrapper] ->
