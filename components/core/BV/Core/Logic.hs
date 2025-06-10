@@ -32,14 +32,16 @@ import Control.DeepSeq (NFData)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT (runReaderT),
                              asks, runReader)
+import Data.Foldable (fold)
+import Data.Foldable1 (Foldable1 (fold1))
 import Data.Functor ((<&>))
+import Data.List (nub)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
-import Data.List (nub)
 
 --
 
@@ -301,11 +303,25 @@ applyRelWrapper lhs rhs =
             let sp1:st1:rest1 = argsL
                 sp2:st2:rest2 = argsR
                 excepts = nub $ rest1 ++ rest2
-             in x
+                f st0 = foldr (\p st -> memUpdE st p (word32E 0)) st0 excepts
+             in boolE $ ExprValueOp OpImpliesStackEquals [sp1, (f st1), sp2, (f st2)]
         _ | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
-            undefined
+            let [[addr, val]] =
+                    [ args
+                    | Expr { value = ExprValueOp OpMemAccWrapper args } <- [lhs, rhs]
+                    ]
+                [[m]] =
+                    [ args
+                    | Expr { value = ExprValueOp OpMemWrapper args } <- [lhs, rhs]
+                    ]
+             in ensure (addr.ty == word32T && m.ty == memT) $
+                    eqE (memAccE val.ty m addr) val
         _ | ops == S.fromList [OpEqSelectiveWrapper] ->
-            undefined
+            let [lhsV, _, _] = argsL
+                [rhsV, _, _] = argsR
+             in if lhsV.ty == ExprTypeRelWrapper
+                    then applyRelWrapper lhsV rhsV
+                    else eqE lhs rhs
         _ -> error ""
   where
     ops = S.fromList [opL, opR]

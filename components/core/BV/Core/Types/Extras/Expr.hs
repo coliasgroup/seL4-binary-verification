@@ -115,6 +115,9 @@ ifThenElseE :: Expr -> Expr -> Expr -> Expr
 ifThenElseE cond ifTrue ifFalse = ensureType_ isBoolT cond $
     Expr (ensureTypesEqual ifTrue ifFalse) (opV OpIfThenElse [cond, ifTrue, ifFalse])
 
+word32E :: Integer -> Expr
+word32E = numE word32T
+
 --
 
 plusE :: Expr -> Expr -> Expr
@@ -225,6 +228,13 @@ memAccE ty addr mem =
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
     ensure (isWordT ty) $
         Expr ty (opV OpMemAcc [mem, addr])
+
+memUpdE :: Expr -> Expr -> Expr -> Expr
+memUpdE addr mem v =
+    ensureType_ isMemT mem .
+    ensureType_ (isWordWithSizeT archWordSizeBits) addr .
+    ensure (isWordT v.ty) $
+        Expr v.ty (opV OpMemUpdate [mem, addr, v])
 
 rodataE :: Expr -> Expr
 rodataE mem = ensureType_ isMemT mem $ boolE (opV OpROData [mem])
