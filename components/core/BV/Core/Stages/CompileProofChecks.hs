@@ -22,6 +22,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 
 import BV.Core.Utils
+import Control.Monad.Except (runExceptT)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.RWS (RWS, runRWS)
 import Data.Function (applyWhen)
@@ -31,19 +32,24 @@ import Data.Maybe (isNothing)
 import GHC.Generics (Generic)
 import Optics
 
-compileProofChecks :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
-compileProofChecks cStructs functionSigs pairings rodata problem checks =
+compileProofChecks :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> ArgRenames -> Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
+compileProofChecks cStructs functionSigs pairings rodata argRenames problem checks =
     map
-        (compileProofCheckGroup cStructs functionSigs pairings rodata problem)
+        (compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem)
         (proofCheckGroups checks)
 
-compileProofCheckGroup :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> Problem -> ProofCheckGroup a -> SMTProofCheckGroup a
-compileProofCheckGroup cStructs functionSigs pairings rodata problem group =
+compileProofCheckGroup :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> ArgRenames -> Problem -> ProofCheckGroup a -> SMTProofCheckGroup a
+compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem group =
     SMTProofCheckGroup setup imps
   where
-    env = initEnv rodata cStructs functionSigs pairings problem
+    env = initEnv rodata cStructs functionSigs pairings argRenames problem
     state = initState
-    (imps, _, setup) = runRWS (compileProofCheckGroupM group).run env state
+    (imps, _, setup) = runRWS (initM >> compileProofCheckGroupM group).run env state
+
+initM :: M ()
+initM = do
+    initSolver
+    initRepGraph
 
 newtype M a
   = M { run :: RWS Env SolverOutput State a }
@@ -64,10 +70,10 @@ data State
       }
   deriving (Generic)
 
-initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> Problem -> Env
-initEnv rodata cStructs functionSigs pairings problem = Env
+initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> ArgRenames -> Problem -> Env
+initEnv rodata cStructs functionSigs pairings argRenames problem = Env
     { solver = initSolverEnv rodata cStructs problem
-    , repGraph = initRepGraphEnv functionSigs pairings problem
+    , repGraph = initRepGraphEnv functionSigs pairings argRenames problem
     }
 
 initState :: State
@@ -144,7 +150,7 @@ interpretHypM = \case
     HypPcImp hyp -> do
         let f = \case
                 PcImpHypSideBool v -> return $ fromBoolE v
-                PcImpHypSidePc vt -> getPcM vt.visit (Just vt.tag)
+                PcImpHypSidePc vt -> getPcM' vt.visit (Just vt.tag)
         pc1 <- f hyp.lhs
         pc2 <- f hyp.rhs
         return $ impliesE pc1 pc2
@@ -156,15 +162,15 @@ interpretHypM = \case
                 let x = substInduct eq.lhs.expr v
                 let y = substInduct eq.rhs.expr v
                 return $ (x, y)
-        x_pc_env <- getNodePcEnvM eq.lhs.visit.visit (Just eq.lhs.visit.tag)
-        y_pc_env <- getNodePcEnvM eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+        x_pc_env <- getNodePcEnvM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+        y_pc_env <- getNodePcEnvM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
         case (x_pc_env, y_pc_env) of
             (Just (_, xenv), Just (_, yenv)) -> do
-                eq' <- instEqWithEnvs (x, xenv) (y, yenv)
+                eq' <- instEqWithEnvsM (x, xenv) (y, yenv)
                 if ifAt
                     then do
-                        x_pc <- getPcM eq.lhs.visit.visit (Just eq.lhs.visit.tag)
-                        y_pc <- getPcM eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+                        x_pc <- getPcM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+                        y_pc <- getPcM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
                         return $ nImpliesE [x_pc, y_pc] eq'
                     else do
                         return eq'

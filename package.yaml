@@ -122,6 +122,7 @@ internal-libraries:
       # external
       - binary
       - file-embed
+      - split
       # TODO for debugging
       - filepath
       - pretty-show

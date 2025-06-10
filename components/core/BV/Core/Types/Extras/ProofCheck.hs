@@ -14,6 +14,9 @@ module BV.Core.Types.Extras.ProofCheck
     , eqWithIfAtH
     , fromRestrKindVC
     , hasZeroVC
+    , incrVC
+    , isEmptyVC
+    , isOptionsVC
     , numberVC
     , offsetVC
     , optionsVC
@@ -34,7 +37,9 @@ import BV.Core.Types.Extras.Expr
 import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
 import Data.Function ((&))
+import Data.Maybe (catMaybes)
 import GHC.Generics (Generic)
+import Optics ((%~))
 
 numberVC :: Integer -> VisitCount
 numberVC n = VisitCount
@@ -50,6 +55,17 @@ offsetVC n = VisitCount
 
 optionsVC :: [VisitCount] -> VisitCount
 optionsVC = fold
+
+isOptionsVC :: VisitCount -> Bool
+isOptionsVC vc = length vc.numbers + length vc.offsets > 1
+
+isEmptyVC :: VisitCount -> Bool
+isEmptyVC = \case
+    VisitCount
+        { numbers = []
+        , offsets = []
+        } -> True
+    _ -> False
 
 data SimpleVisitCountView
   = SimpleVisitCountViewNumber Integer
@@ -76,6 +92,11 @@ doubleRangeVC n m = optionsVC $
 
 hasZeroVC :: VisitCount -> Bool
 hasZeroVC vc = 0 `elem` vc.numbers
+
+incrVC :: Integer -> VisitCount -> VisitCount
+incrVC incr = (#numbers %~ f) . (#offsets %~ f)
+  where
+    f = filter (>= 0) . map (+ incr)
 
 tagV :: Tag -> Visit -> VisitWithTag
 tagV tag visit = VisitWithTag visit tag

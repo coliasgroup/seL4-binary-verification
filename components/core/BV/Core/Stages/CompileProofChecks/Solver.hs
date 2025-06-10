@@ -10,6 +10,9 @@
 
 module BV.Core.Stages.CompileProofChecks.Solver
     ( MonadSolver (..)
+    , Name (..)
+    , NameHint
+    , SMTEnv
     , SolverEnv
     , SolverOutput
     , SolverState
@@ -25,9 +28,13 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , initSolver
     , initSolverEnv
     , initSolverState
+    , mergeEnvsPcs
+    , nameS
     , smtExprM
     , smtExprNoSplitM
     , toSmtExprM
+    , withEnv
+    , withoutEnv
     ) where
 
 import BV.Core.Logic
@@ -39,7 +46,8 @@ import BV.SMTLIB2.SExpr
 import BV.Core.Arch
 import BV.Core.Stages.Utils
 import Control.DeepSeq (NFData)
-import Control.Monad (unless, when)
+import Control.Monad (join, unless, when)
+import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader (ask), ReaderT (runReaderT))
 import Control.Monad.RWS (MonadRWS, MonadTrans (lift), RWS)
 import Control.Monad.State (MonadState, State, StateT (..), execStateT, get,
@@ -68,10 +76,10 @@ askLookupStructForSolver = do
     structs <- liftSolver $ gview $ #structs
     return $ (structs M.!)
 
-instance MonadStructs m => MonadStructs (ReaderT r m) where
-    askLookupStruct = lift askLookupStruct
-
 instance MonadSolver m => MonadSolver (ReaderT r m) where
+    liftSolver = lift . liftSolver
+
+instance MonadSolver m => MonadSolver (ExceptT e m) where
     liftSolver = lift . liftSolver
 
 data SolverEnv
@@ -678,6 +686,9 @@ cacheLargeExprM s nameHint typ = do
                     #cachedExprNames %= S.insert name
                 return $ nameS name
 
+withEnv :: SMTEnv -> ReaderT SMTEnv m a -> m a
+withEnv = flip runReaderT
+
 withoutEnv :: ReaderT SMTEnv m a -> m a
 withoutEnv = flip runReaderT mempty
 
@@ -816,7 +827,6 @@ getStackEqImplies split st_top other = do
             SMTSplitMem splitMem -> (splitMem.top, bvuleS splitMem.split split)
             SMT other' -> (other', trueS)
     noteModelExprM (eqS st_top rhs) boolT
-    -- let mems :: Set S = undefined
     mems <- lift $ getImmBasisMems st_top
     let [st_top_base] = S.toList mems
     let k = st_top_base
@@ -856,7 +866,6 @@ parseSymbol sexpr = do
     case viewAtom atom of
         SymbolAtom s -> Just s
         _ -> Nothing
-    undefined
 
 getDefM :: MonadSolver m => Name -> m S
 getDefM name = liftSolver $ use $ #defs % at name % unwrapped
@@ -875,3 +884,47 @@ addSplitMemVarM addr nm ty@ExprTypeMem = do
 -- TODO
 addPValidDomAssertionsM :: MonadSolver m => m ()
 addPValidDomAssertionsM = return ()
+
+mergeEnvs :: MonadSolver m => [(Expr, SMTEnv)] -> m SMTEnv
+mergeEnvs envs = do
+    var_envs' <- fmap join $ for envs $ \(pc, env) -> do
+        pc_str <- withEnv env $ smtExprM pc
+        return $
+            [ M.singleton var (M.singleton s ([pc_str] :: [SMT]))
+            | (var, s) <- M.toAscList env
+            ]
+    let var_envs = foldr1 (M.unionWith (M.unionWith (<>))) var_envs'
+    let f :: [(SMT, [SMT])] -> SMT
+        f itsx =
+            let Just (its, (v', _)) = unsnoc itsx
+                g v (v2, pc_strs'') =
+                    let pc_strs = fmap (^. expecting #_SMT) pc_strs''
+                        pc_str = case pc_strs of
+                            [pc_str'] -> pc_str'
+                            _ -> orNS pc_strs
+                     in smtIfThenElse pc_str v2 v
+             in foldl g v' its
+    return $ fmap (f . M.toAscList) var_envs
+
+foldAssocBalanced :: (a -> a -> a) -> [a] -> a
+foldAssocBalanced f = go
+  where
+    go xs =
+        let n = length xs
+          in if n >= 4
+                then
+                    let (lhs, rhs) = splitAt (n `div` 2) xs
+                     in f (go lhs) (go rhs)
+                else
+                    foldr1 f xs
+
+mergeEnvsPcs :: MonadSolver m => [(Expr, SMTEnv)] -> m (Expr, SMTEnv, Bool)
+mergeEnvsPcs pc_envs' = do
+    let pc_envs = flip filter pc_envs' $ \(pc, _) -> pc /= falseE
+    let path_cond = case pc_envs of
+            [] -> falseE
+            _ ->
+                let pcs = S.toList $ S.fromList $ map fst pc_envs
+                 in foldAssocBalanced orE pcs
+    env <- mergeEnvs pc_envs
+    return $ (path_cond, env, length pc_envs > 1)

@@ -11,6 +11,7 @@ module BV.Core.Logic
     , alignOfType
     , alignValidIneqE
     , alignValidIneqM
+    , applyRelWrapper
     , isNodeNoop
     , lookupStruct
     , pvalidAssertion1
@@ -28,13 +29,19 @@ import BV.Core.Types.Extras.Expr
 import BV.Core.Utils
 
 import Control.DeepSeq (NFData)
+import Control.Monad.Except (ExceptT)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT (runReaderT),
                              asks, runReader)
+import Control.Monad.Trans (lift)
+import Data.Foldable (fold)
+import Data.Foldable1 (Foldable1 (fold1))
 import Data.Functor ((<&>))
+import Data.List (nub)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
+import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 
@@ -42,6 +49,12 @@ import GHC.Generics (Generic)
 
 class Monad m => MonadStructs m where
     askLookupStruct :: m (Ident -> Struct)
+
+instance MonadStructs m => MonadStructs (ReaderT r m) where
+    askLookupStruct = lift askLookupStruct
+
+instance MonadStructs m => MonadStructs (ExceptT e m) where
+    askLookupStruct = lift askLookupStruct
 
 lookupStruct :: MonadStructs m => Ident -> m Struct
 lookupStruct name = ($ name) <$> askLookupStruct
@@ -288,3 +301,38 @@ pvalidAssertion2 (typ, k, p, pv) (typ2, k2, p2, pv2) = do
             cond2 <- getSTypCondition offs2 typ2 typ
             let imp2 = impliesE (andE cond2 pv) pv2
             return $ imp1 `andE` imp2
+
+--
+
+applyRelWrapper :: Expr -> Expr -> Expr
+applyRelWrapper lhs rhs =
+    case () of
+        _ | ops == S.fromList [OpStackWrapper] ->
+            let sp1:st1:rest1 = argsL
+                sp2:st2:rest2 = argsR
+                excepts = nub $ rest1 ++ rest2
+                f st0 = foldr (\p st -> memUpdE st p (word32E 0)) st0 excepts
+             in boolE $ ExprValueOp OpImpliesStackEquals [sp1, (f st1), sp2, (f st2)]
+        _ | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
+            let [[addr, val]] =
+                    [ args
+                    | Expr { value = ExprValueOp OpMemAccWrapper args } <- [lhs, rhs]
+                    ]
+                [[m]] =
+                    [ args
+                    | Expr { value = ExprValueOp OpMemWrapper args } <- [lhs, rhs]
+                    ]
+             in ensure (addr.ty == word32T && m.ty == memT) $
+                    eqE (memAccE val.ty m addr) val
+        _ | ops == S.fromList [OpEqSelectiveWrapper] ->
+            let [lhsV, _, _] = argsL
+                [rhsV, _, _] = argsR
+             in if lhsV.ty == ExprTypeRelWrapper
+                    then applyRelWrapper lhsV rhsV
+                    else eqE lhs rhs
+        _ -> error ""
+  where
+    ops = S.fromList [opL, opR]
+    destructOp (Expr { ty = ExprTypeRelWrapper, value = ExprValueOp op args}) = (op, args)
+    (opL, argsL) = destructOp lhs
+    (opR, argsR) = destructOp rhs
