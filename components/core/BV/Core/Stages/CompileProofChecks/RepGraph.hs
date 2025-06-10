@@ -25,6 +25,7 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     ) where
 
 import BV.Core.Graph
+import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
@@ -32,6 +33,7 @@ import BV.Core.Types.Extras.Expr
 import Control.DeepSeq (NFData)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
+import Control.Monad.Trans.Reader (ReaderT)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
@@ -39,7 +41,6 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
-import Control.Monad.Trans.Reader (ReaderT)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -125,7 +126,7 @@ initRepGraphState = RepGraphState
 getPcM :: MonadRepGraph m => Visit -> Maybe Tag -> m Expr
 getPcM = undefined
 
-getNodePcEnvM :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, ()))
+getNodePcEnvM :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, SMTEnv))
 getNodePcEnvM = undefined
 
 getInductVarM :: MonadRepGraph m => EqHypInduct -> m Expr
@@ -141,15 +142,13 @@ toSmtExprUnderOpM :: MonadSolver m => Expr -> ReaderT SMTEnv m Expr
 toSmtExprUnderOpM expr = case expr.value of
     ExprValueOp op args -> do
         args' <- mapM toSmtExprM args
-        return $ expr & #value .~ ExprValueOp op args' 
+        return $ expr & #value .~ ExprValueOp op args'
     _ -> toSmtExprM expr
 
 instEqWithEnvsM :: MonadSolver m => (Expr, SMTEnv) -> (Expr, SMTEnv) -> m Expr
 instEqWithEnvsM (x, env1) (y, env2) = do
     x' <- withEnv env1 $ toSmtExprUnderOpM x
     y' <- withEnv env2 $ toSmtExprUnderOpM y
-    case x'.ty of
-        ExprTypeRelWrapper -> do
-            undefined
-        _ -> do
-            return $ eqE x' y'
+    return $ case x'.ty of
+        ExprTypeRelWrapper -> applyRelWrapper x' y'
+        _ -> eqE x' y'

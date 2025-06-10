@@ -160,7 +160,7 @@ interpretHypM = \case
         y_pc_env <- getNodePcEnvM eq.rhs.visit.visit (Just eq.rhs.visit.tag)
         case (x_pc_env, y_pc_env) of
             (Just (_, xenv), Just (_, yenv)) -> do
-                eq' <- instEqWithEnvs (x, xenv) (y, yenv)
+                eq' <- instEqWithEnvsM (x, xenv) (y, yenv)
                 if ifAt
                     then do
                         x_pc <- getPcM eq.lhs.visit.visit (Just eq.lhs.visit.tag)

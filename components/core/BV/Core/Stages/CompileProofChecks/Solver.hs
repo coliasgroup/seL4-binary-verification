@@ -10,6 +10,7 @@
 
 module BV.Core.Stages.CompileProofChecks.Solver
     ( MonadSolver (..)
+    , SMTEnv
     , SolverEnv
     , SolverOutput
     , SolverState
@@ -28,7 +29,6 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , smtExprM
     , smtExprNoSplitM
     , toSmtExprM
-    , SMTEnv
     , withEnv
     ) where
 

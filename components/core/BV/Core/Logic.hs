@@ -11,6 +11,7 @@ module BV.Core.Logic
     , alignOfType
     , alignValidIneqE
     , alignValidIneqM
+    , applyRelWrapper
     , isNodeNoop
     , lookupStruct
     , pvalidAssertion1
@@ -35,6 +36,7 @@ import Data.Functor ((<&>))
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
+import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 
@@ -288,3 +290,23 @@ pvalidAssertion2 (typ, k, p, pv) (typ2, k2, p2, pv2) = do
             cond2 <- getSTypCondition offs2 typ2 typ
             let imp2 = impliesE (andE cond2 pv) pv2
             return $ imp1 `andE` imp2
+
+--
+
+applyRelWrapper :: Expr -> Expr -> Expr
+applyRelWrapper lhs rhs =
+    case () of
+        _ | ops == S.fromList [OpStackWrapper] ->
+            undefined
+        _ | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
+            undefined
+        _ | ops == S.fromList [OpEqSelectiveWrapper] ->
+            undefined
+        _ | ops == S.fromList [OpStackWrapper] ->
+            undefined
+        _ -> error ""
+  where
+    ops = S.fromList [opL, opR]
+    f (Expr { ty = ExprTypeRelWrapper, value = ExprValueOp op args}) = (op, args)
+    (opL, argsL) = f lhs
+    (opR, argsR) = f rhs

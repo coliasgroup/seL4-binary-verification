@@ -336,6 +336,8 @@ data Op
   | OpStackEquals
   | OpImpliesStackEquals
   | OpStackEqualsImplies
+  | OpMemAccWrapper
+  | OpMemWrapper
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary Op where
