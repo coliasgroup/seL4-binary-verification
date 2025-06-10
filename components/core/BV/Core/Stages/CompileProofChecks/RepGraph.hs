@@ -30,20 +30,20 @@ import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
 import BV.Core.Types.Extras.Expr
+import BV.Core.Utils
 import Control.DeepSeq (NFData)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans.Reader (ReaderT)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
-import Data.Maybe (mapMaybe, fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-import BV.Core.Utils
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
