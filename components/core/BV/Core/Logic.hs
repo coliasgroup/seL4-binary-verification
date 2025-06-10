@@ -309,6 +309,6 @@ applyRelWrapper lhs rhs =
         _ -> error ""
   where
     ops = S.fromList [opL, opR]
-    f (Expr { ty = ExprTypeRelWrapper, value = ExprValueOp op args}) = (op, args)
-    (opL, argsL) = f lhs
-    (opR, argsR) = f rhs
+    destructOp (Expr { ty = ExprTypeRelWrapper, value = ExprValueOp op args}) = (op, args)
+    (opL, argsL) = destructOp lhs
+    (opR, argsR) = destructOp rhs
