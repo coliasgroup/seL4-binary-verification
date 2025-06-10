@@ -41,6 +41,8 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Optics.State.Operators ((%=))
+import Text.Printf (printf)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -60,9 +62,7 @@ data RepGraphEnv
 
 data RepGraphState
   = RepGraphState
-      { smtDerivedOps :: Map (Op, Integer) String
-      , namesUsed :: Set Ident
-      , externalNames :: Set Ident
+      { inductVarEnv :: Map EqHypInduct Name
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -116,9 +116,7 @@ loopHeadsR = do
 
 initRepGraphState :: RepGraphState
 initRepGraphState = RepGraphState
-    { smtDerivedOps = M.empty
-    , namesUsed = S.empty
-    , externalNames = S.empty
+    { inductVarEnv = M.empty
     }
 
 --
@@ -130,7 +128,14 @@ getNodePcEnvM :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, SMTEnv
 getNodePcEnvM = undefined
 
 getInductVarM :: MonadRepGraph m => EqHypInduct -> m Expr
-getInductVarM induct = undefined
+getInductVarM induct = do
+    vname <- liftRepGraph (use (#inductVarEnv % at induct)) >>= \case
+        Just vname -> return vname
+        Nothing -> do
+            vname <- addVarM (printf "induct_i_%d_%d" induct.a induct.b) word32T
+            liftRepGraph $ #inductVarEnv %= M.insert induct (vname)
+            return vname
+    return $ smtExprE word32T (SMT $ nameS vname)
 
 substInduct :: Expr -> Expr -> Expr
 substInduct expr inductVar = flip varSubstNotMust expr $ \ident ty ->
