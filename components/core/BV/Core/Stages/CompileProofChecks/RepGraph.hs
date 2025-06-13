@@ -17,9 +17,9 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , RepGraphState
     , getInductVarM
     , getNodePcEnvM
+    , getNodePcEnvM'
     , getPcM
     , getPcM'
-    , getNodePcEnvM'
     , initRepGraphEnv
     , initRepGraphState
     , instEqWithEnvsM
@@ -34,10 +34,12 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Utils
 import Control.DeepSeq (NFData)
+import Control.Monad.Error.Class (MonadError)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
@@ -48,8 +50,6 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-import Control.Monad.Error.Class (MonadError)
-import Control.Monad.Trans.Except (runExceptT)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 

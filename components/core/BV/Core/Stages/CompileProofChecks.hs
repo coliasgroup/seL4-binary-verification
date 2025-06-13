@@ -22,6 +22,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 
 import BV.Core.Utils
+import Control.Monad.Except (runExceptT)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.RWS (RWS, runRWS)
 import Data.Function (applyWhen)
@@ -30,7 +31,6 @@ import qualified Data.Map as M
 import Data.Maybe (isNothing)
 import GHC.Generics (Generic)
 import Optics
-import Control.Monad.Except (runExceptT)
 
 compileProofChecks :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
 compileProofChecks cStructs functionSigs pairings rodata problem checks =
