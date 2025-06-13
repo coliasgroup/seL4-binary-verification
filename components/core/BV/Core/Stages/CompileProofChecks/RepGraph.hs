@@ -34,7 +34,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Utils
 import Control.DeepSeq (NFData)
-import Control.Monad.Error.Class (MonadError)
+import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
@@ -43,13 +43,19 @@ import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe, catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import Data.Traversable (for)
+import Control.Monad (guard, when)
+import Control.Monad.Trans.Maybe (runMaybeT)
+import BV.Core.Types.Extras.ProofCheck
+import Data.List (sort)
+import Data.Foldable (for_)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -174,10 +180,28 @@ getNodePcEnvM visit tag = do
         Just vcount' -> do
             undefined
 
-getTagVCount :: MonadRepGraphE m => Visit -> Maybe Tag -> m (NodeAddr, Maybe VisitCount)
+getTagVCount :: MonadRepGraphE m => Visit -> Maybe Tag -> m (Tag, Maybe [Restr])
 getTagVCount visit mtag = do
     tag <- maybe (nodeTagR (visit.nodeId ^. expecting #_Addr)) return mtag
-    undefined
+    vcount_r <- catMaybes <$> for visit.restrs (\restr -> runMaybeT $ do
+        reachable <- lift $ getReachableR restr.nodeAddr visit.nodeId
+        tag' <- lift $ nodeTagR restr.nodeAddr
+        guard $ tag' == tag
+        return $ (restr.nodeAddr, restr.visitCount, reachable)
+        )
+    let done = flip any vcount_r $ \(_split, count, r) -> not r && not (hasZeroVC count)
+    if done
+        then return (tag, Nothing)
+        else do
+            let vcount = sort [ (split, count) | (split, count, r) <- vcount_r, r ]
+            maybeLoopId <- loopIdR (visit.nodeId ^. expecting #_Addr)
+            case maybeLoopId of
+                Nothing -> return ()
+                Just loopId -> for_ vcount $ \(split, visits) -> do
+                    maybeLoopId' <- loopIdR split
+                    when (maybeLoopId' == Just loopId && isOptionsVC visits) $ do
+                        throwError $ TooGeneral { split }
+            return (tag, Just visit.restrs)
 
 getInductVarM :: MonadRepGraph m => EqHypInduct -> m Expr
 getInductVarM induct = do

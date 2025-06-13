@@ -26,6 +26,7 @@ module BV.Core.Types.Extras.ProofCheck
     , trueIfAt
     , trueIfAt'
     , upToVC
+    , isOptionsVC
     ) where
 
 import BV.Core.Types
@@ -50,6 +51,9 @@ offsetVC n = VisitCount
 
 optionsVC :: [VisitCount] -> VisitCount
 optionsVC = fold
+
+isOptionsVC :: VisitCount -> Bool
+isOptionsVC vc = length vc.numbers + length vc.offsets > 1
 
 data SimpleVisitCountView
   = SimpleVisitCountViewNumber Integer
