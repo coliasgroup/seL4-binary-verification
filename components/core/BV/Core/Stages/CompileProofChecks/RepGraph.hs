@@ -18,6 +18,8 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , getInductVarM
     , getNodePcEnvM
     , getPcM
+    , getPcM'
+    , getNodePcEnvM'
     , initRepGraphEnv
     , initRepGraphState
     , instEqWithEnvsM
@@ -46,6 +48,8 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import Control.Monad.Error.Class (MonadError)
+import Control.Monad.Trans.Except (runExceptT)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -136,24 +140,33 @@ initRepGraphState = RepGraphState
 
 --
 
-data TooGeneral = TooGeneral
-    { split :: NodeAddr
-    }
+type MonadRepGraphE m = (MonadRepGraph m, MonadError TooGeneral m)
+
+data TooGeneral
+  = TooGeneral
+      { split :: NodeAddr
+      }
   deriving (Eq, Generic, Ord, Show)
 
-getPcM :: MonadRepGraph m => Visit -> Maybe Tag -> m Expr
+getPcM' :: MonadRepGraph m => Visit -> Maybe Tag -> m Expr
+getPcM' visit tag = view (expecting _Right) <$> runExceptT (getPcM visit tag)
+
+getPcM :: MonadRepGraphE m => Visit -> Maybe Tag -> m Expr
 getPcM visit tag = do
     pc_env <- getNodePcEnvM visit tag
     let Just (pc, env) = pc_env
     withEnv env $ toSmtExprM pc
 
-toSmtExprRM :: MonadRepGraph m => Expr -> Visit -> Maybe Tag -> m Expr
+toSmtExprRM :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
 toSmtExprRM expr visit tag = do
     pc_env <- getNodePcEnvM visit tag
     let Just (_pc, env) = pc_env
     withEnv env $ toSmtExprM expr
 
-getNodePcEnvM :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, SMTEnv))
+getNodePcEnvM' :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, SMTEnv))
+getNodePcEnvM' visit tag = view (expecting _Right) <$> runExceptT (getNodePcEnvM visit tag)
+
+getNodePcEnvM :: MonadRepGraphE m => Visit -> Maybe Tag -> m (Maybe (Expr, SMTEnv))
 getNodePcEnvM visit tag = do
     (tag, vcount) <- getTagVCount visit tag
     case vcount of
@@ -161,7 +174,7 @@ getNodePcEnvM visit tag = do
         Just vcount' -> do
             undefined
 
-getTagVCount :: MonadRepGraph m => Visit -> Maybe Tag -> m (NodeAddr, Maybe VisitCount)
+getTagVCount :: MonadRepGraphE m => Visit -> Maybe Tag -> m (NodeAddr, Maybe VisitCount)
 getTagVCount visit mtag = do
     tag <- maybe (nodeTagR (visit.nodeId ^. expecting #_Addr)) return mtag
     undefined

@@ -30,6 +30,7 @@ import qualified Data.Map as M
 import Data.Maybe (isNothing)
 import GHC.Generics (Generic)
 import Optics
+import Control.Monad.Except (runExceptT)
 
 compileProofChecks :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
 compileProofChecks cStructs functionSigs pairings rodata problem checks =
@@ -144,7 +145,7 @@ interpretHypM = \case
     HypPcImp hyp -> do
         let f = \case
                 PcImpHypSideBool v -> return $ fromBoolE v
-                PcImpHypSidePc vt -> getPcM vt.visit (Just vt.tag)
+                PcImpHypSidePc vt -> getPcM' vt.visit (Just vt.tag)
         pc1 <- f hyp.lhs
         pc2 <- f hyp.rhs
         return $ impliesE pc1 pc2
@@ -156,15 +157,15 @@ interpretHypM = \case
                 let x = substInduct eq.lhs.expr v
                 let y = substInduct eq.rhs.expr v
                 return $ (x, y)
-        x_pc_env <- getNodePcEnvM eq.lhs.visit.visit (Just eq.lhs.visit.tag)
-        y_pc_env <- getNodePcEnvM eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+        x_pc_env <- getNodePcEnvM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+        y_pc_env <- getNodePcEnvM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
         case (x_pc_env, y_pc_env) of
             (Just (_, xenv), Just (_, yenv)) -> do
                 eq' <- instEqWithEnvsM (x, xenv) (y, yenv)
                 if ifAt
                     then do
-                        x_pc <- getPcM eq.lhs.visit.visit (Just eq.lhs.visit.tag)
-                        y_pc <- getPcM eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+                        x_pc <- getPcM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+                        y_pc <- getPcM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
                         return $ nImpliesE [x_pc, y_pc] eq'
                     else do
                         return eq'
