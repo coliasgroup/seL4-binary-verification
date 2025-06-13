@@ -79,6 +79,7 @@ data RepGraphEnv
 data RepGraphState
   = RepGraphState
       { inductVarEnv :: Map EqHypInduct Name
+      , nodePcEnvs :: Map VisitWithTag (Maybe (Expr, SMTEnv))
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -142,6 +143,7 @@ getReachableR split n = do
 initRepGraphState :: RepGraphState
 initRepGraphState = RepGraphState
     { inductVarEnv = M.empty
+    , nodePcEnvs = M.empty
     }
 
 --
@@ -174,11 +176,37 @@ getNodePcEnvM' visit tag = view (expecting _Right) <$> runExceptT (getNodePcEnvM
 
 getNodePcEnvM :: MonadRepGraphE m => Visit -> Maybe Tag -> m (Maybe (Expr, SMTEnv))
 getNodePcEnvM visit tag = do
-    (tag, vcount) <- getTagVCount visit tag
+    (tag', vcount) <- getTagVCount visit tag
     case vcount of
         Nothing -> return Nothing
         Just vcount' -> do
-            undefined
+            let vt = VisitWithTag
+                    { visit = Visit
+                        { nodeId = visit.nodeId
+                        , restrs = vcount'
+                        }
+                    , tag = tag'
+                    }
+            liftRepGraph (use (#nodePcEnvs % at vt)) >>= \case
+                Just ret -> return ret
+                Nothing -> do
+                    warmPcEnvCacheM vt
+                    pc_env <- getNodePcEnvRawM vt
+                    pc_env' <- for pc_env $ \pc_env'' -> do
+                        applyKnownEqsPcEnvM vt pc_env''
+                    present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member vt)
+                    ensureM $ not present
+                    liftRepGraph $ #nodePcEnvs %= M.insert vt pc_env'
+                    return pc_env
+
+warmPcEnvCacheM :: MonadRepGraphE m => VisitWithTag -> m ()
+warmPcEnvCacheM = undefined
+
+getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
+getNodePcEnvRawM = undefined
+
+applyKnownEqsPcEnvM :: MonadRepGraphE m => VisitWithTag -> (Expr, SMTEnv) -> m (Expr, SMTEnv)
+applyKnownEqsPcEnvM = undefined
 
 getTagVCount :: MonadRepGraphE m => Visit -> Maybe Tag -> m (Tag, Maybe [Restr])
 getTagVCount visit mtag = do
