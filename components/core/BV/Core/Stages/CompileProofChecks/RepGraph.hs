@@ -32,30 +32,30 @@ import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
 import BV.Core.Types.Extras.Expr
+import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
 import Control.DeepSeq (NFData)
+import Control.Monad (guard, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
+import Control.Monad.Trans.Maybe (runMaybeT)
 import Control.Monad.Trans.Reader (ReaderT)
+import Data.Foldable (for_)
+import Data.List (sort)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe, mapMaybe, catMaybes)
+import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
+import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-import Data.Traversable (for)
-import Control.Monad (guard, when)
-import Control.Monad.Trans.Maybe (runMaybeT)
-import BV.Core.Types.Extras.ProofCheck
-import Data.List (sort)
-import Data.Foldable (for_)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 

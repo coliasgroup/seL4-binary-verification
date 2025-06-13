@@ -14,6 +14,7 @@ module BV.Core.Types.Extras.ProofCheck
     , eqWithIfAtH
     , fromRestrKindVC
     , hasZeroVC
+    , isOptionsVC
     , numberVC
     , offsetVC
     , optionsVC
@@ -26,7 +27,6 @@ module BV.Core.Types.Extras.ProofCheck
     , trueIfAt
     , trueIfAt'
     , upToVC
-    , isOptionsVC
     ) where
 
 import BV.Core.Types
