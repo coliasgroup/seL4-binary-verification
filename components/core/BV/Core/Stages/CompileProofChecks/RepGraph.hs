@@ -32,8 +32,10 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Utils
 import Control.DeepSeq (NFData)
+import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
+import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Reader (ReaderT)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
@@ -49,6 +51,9 @@ type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: (forall n. RepGraphContext n => n a) -> m a
+
+instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
+    liftRepGraph f = lift $ liftRepGraph f
 
 data RepGraphEnv
   = RepGraphEnv
@@ -118,6 +123,11 @@ loopHeadsR = liftRepGraph $ do
 nodeTagR :: MonadRepGraph m => NodeAddr -> m Tag
 nodeTagR n = liftRepGraph $ do
     gview (#nodeTag % to ($ n))
+
+getReachableR :: MonadRepGraph m => NodeId -> NodeId -> m Bool
+getReachableR split n = do
+    g <- liftRepGraph $ gview #nodeGraph
+    return $ isReachableFrom g split n
 
 initRepGraphState :: RepGraphState
 initRepGraphState = RepGraphState

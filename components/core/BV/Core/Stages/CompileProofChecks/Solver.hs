@@ -44,6 +44,7 @@ import BV.Core.Arch
 import BV.Core.Stages.Utils
 import Control.DeepSeq (NFData)
 import Control.Monad (unless, when)
+import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader (ask), ReaderT (runReaderT))
 import Control.Monad.RWS (MonadRWS, MonadTrans (lift), RWS)
 import Control.Monad.State (MonadState, State, StateT (..), execStateT, get,
@@ -72,10 +73,10 @@ askLookupStructForSolver = do
     structs <- liftSolver $ gview $ #structs
     return $ (structs M.!)
 
-instance MonadStructs m => MonadStructs (ReaderT r m) where
-    askLookupStruct = lift askLookupStruct
-
 instance MonadSolver m => MonadSolver (ReaderT r m) where
+    liftSolver = lift . liftSolver
+
+instance MonadSolver m => MonadSolver (ExceptT e m) where
     liftSolver = lift . liftSolver
 
 data SolverEnv

@@ -29,9 +29,11 @@ import BV.Core.Types.Extras.Expr
 import BV.Core.Utils
 
 import Control.DeepSeq (NFData)
+import Control.Monad.Except (ExceptT)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT (runReaderT),
                              asks, runReader)
+import Control.Monad.Trans (lift)
 import Data.Foldable (fold)
 import Data.Foldable1 (Foldable1 (fold1))
 import Data.Functor ((<&>))
@@ -47,6 +49,12 @@ import GHC.Generics (Generic)
 
 class Monad m => MonadStructs m where
     askLookupStruct :: m (Ident -> Struct)
+
+instance MonadStructs m => MonadStructs (ReaderT r m) where
+    askLookupStruct = lift askLookupStruct
+
+instance MonadStructs m => MonadStructs (ExceptT e m) where
+    askLookupStruct = lift askLookupStruct
 
 lookupStruct :: MonadStructs m => Ident -> m Struct
 lookupStruct name = ($ name) <$> askLookupStruct
