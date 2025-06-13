@@ -124,10 +124,10 @@ nodeTagR :: MonadRepGraph m => NodeAddr -> m Tag
 nodeTagR n = liftRepGraph $ do
     gview (#nodeTag % to ($ n))
 
-getReachableR :: MonadRepGraph m => NodeId -> NodeId -> m Bool
+getReachableR :: MonadRepGraph m => NodeAddr -> NodeId -> m Bool
 getReachableR split n = do
     g <- liftRepGraph $ gview #nodeGraph
-    return $ isReachableFrom g split n
+    return $ isReachableFrom g (Addr split) n
 
 initRepGraphState :: RepGraphState
 initRepGraphState = RepGraphState
@@ -135,6 +135,11 @@ initRepGraphState = RepGraphState
     }
 
 --
+
+data TooGeneral = TooGeneral
+    { split :: NodeAddr
+    }
+  deriving (Eq, Generic, Ord, Show)
 
 getPcM :: MonadRepGraph m => Visit -> Maybe Tag -> m Expr
 getPcM visit tag = do
