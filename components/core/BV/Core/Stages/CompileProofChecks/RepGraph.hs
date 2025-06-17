@@ -73,6 +73,7 @@ data RepGraphEnv
       , nodeTag :: NodeAddr -> Tag
       , loopData :: Map NodeAddr LoopData
       , nodeGraph :: NodeGraph
+      , preds :: Map NodeId (Set NodeAddr)
       }
   deriving (Generic)
 
@@ -113,6 +114,12 @@ initRepGraphEnv functionSigs pairings problem =
              in M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
                     [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
                         if member == loopHead then Nothing else Just (member, LoopMember loopHead))
+        , preds = M.fromListWith (<>) $ concat
+            [ [ (cont, S.singleton nodeAddr)
+              | cont <- node ^.. nodeConts
+              ]
+            | (nodeAddr, node) <- M.toAscList problem.nodes
+            ]
         }
   where
     nodeGraph = makeNodeGraph (M.toAscList problem.nodes)

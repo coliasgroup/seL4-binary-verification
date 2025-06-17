@@ -14,6 +14,8 @@ module BV.Core.Types.Extras.ProofCheck
     , eqWithIfAtH
     , fromRestrKindVC
     , hasZeroVC
+    , incrVC
+    , isEmptyVC
     , isOptionsVC
     , numberVC
     , offsetVC
@@ -27,8 +29,6 @@ module BV.Core.Types.Extras.ProofCheck
     , trueIfAt
     , trueIfAt'
     , upToVC
-    , incrVC
-    , isEmptyVC
     ) where
 
 import BV.Core.Types
@@ -37,9 +37,9 @@ import BV.Core.Types.Extras.Expr
 import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
 import Data.Function ((&))
+import Data.Maybe (catMaybes)
 import GHC.Generics (Generic)
 import Optics ((%~))
-import Data.Maybe (catMaybes)
 
 numberVC :: Integer -> VisitCount
 numberVC n = VisitCount
