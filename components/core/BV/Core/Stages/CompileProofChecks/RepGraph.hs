@@ -83,7 +83,7 @@ data RepGraphState
   = RepGraphState
       { inductVarEnv :: Map EqHypInduct Name
       , nodePcEnvs :: Map VisitWithTag (Maybe (Expr, SMTEnv))
-    --   , knownEqs :: Map VisitWithTag [KnownEqsValue]
+        --   , knownEqs :: Map VisitWithTag [KnownEqsValue]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -274,10 +274,6 @@ getNodePcEnvRawM = undefined
 
 applyKnownEqsPcEnvM :: MonadRepGraphE m => VisitWithTag -> (Expr, SMTEnv) -> m (Expr, SMTEnv)
 applyKnownEqsPcEnvM = undefined
-
--- fetchKnownEqsM :: MonadRepGraph m => VisitWithTag -> m [(Expr, SMTEnv)]
--- fetchKnownEqsM visitWithTag = do
---     undefined
 
 getTagVCount :: MonadRepGraphE m => Visit -> Maybe Tag -> m (Tag, Maybe [Restr])
 getTagVCount visit mtag = do
