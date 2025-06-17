@@ -7,3 +7,10 @@
 
 - syntax.concrete_type
 - BangPatterns to make sure assertions expressed as irrefutable let patterns are checked
+
+--
+
+what happened to:
+- self.p.known_eqs
+- self.avail_hyps
+- self.used_hyps
