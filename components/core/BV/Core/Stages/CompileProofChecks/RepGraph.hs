@@ -35,7 +35,7 @@ import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
 import Control.DeepSeq (NFData)
-import Control.Monad (guard, when)
+import Control.Monad (guard, when, filterM)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
@@ -56,6 +56,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import Control.Monad.RWS (RWST(runRWST), MonadState (get, put), evalRWST, MonadWriter (..))
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -238,8 +239,27 @@ incrVCs vcount n incr = if isEmptyVC vc then Nothing else Just (vcountFromMap (M
     m = vcountToMap vcount
     vc = incrVC incr (m ! n)
 
-warmPcEnvCacheM :: MonadRepGraphE m => VisitWithTag -> m ()
-warmPcEnvCacheM = undefined
+warmPcEnvCacheM :: MonadRepGraph m => VisitWithTag -> m ()
+warmPcEnvCacheM visitWithTag = do
+    let go = do
+            n_vc <- get
+            prevs <- lift $ prevsR n_vc
+            let f p = do
+                    present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member (VisitWithTag p visitWithTag.tag))
+                    if present
+                        then return False
+                        else do
+                            vc <- getTagVCount p Nothing
+                            return $ vc == (visitWithTag.tag, Just n_vc.restrs)
+            prevs' <- lift $ runExceptT $ filterM f prevs
+            case prevs' of
+                Left (n_vc':_) -> do
+                    tell [n_vc]
+                    put n_vc'
+                    undefined
+                _ -> undefined
+    ((), prevChain :: [Visit]) <- evalRWST go () visitWithTag.visit
+    undefined
 
 getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
 getNodePcEnvRawM = undefined
