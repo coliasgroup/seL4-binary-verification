@@ -199,6 +199,25 @@ getNodePcEnvM visit tag = do
                     liftRepGraph $ #nodePcEnvs %= M.insert vt pc_env'
                     return pc_env
 
+type VCount = [Restr]
+
+vcountToMap :: [Restr] -> Map NodeAddr VisitCount
+vcountToMap restrs = ensure check m
+  where
+    m = M.fromList [ (restr.nodeAddr, restr.visitCount) | restr <- restrs ]
+    check = M.size m == length restrs
+
+vcountFromMap :: Map NodeAddr VisitCount -> [Restr]
+vcountFromMap = map f . M.toAscList
+  where
+    f (nodeAddr, visitCount) = Restr { nodeAddr, visitCount }
+
+incrVCs :: VCount -> NodeAddr -> Integer -> Maybe VCount
+incrVCs vcount n incr = if isEmptyVC vc then Nothing else Just (vcountFromMap (M.insert n vc m))
+  where
+    m = vcountToMap vcount
+    vc = incrVC incr (m ! n)
+
 warmPcEnvCacheM :: MonadRepGraphE m => VisitWithTag -> m ()
 warmPcEnvCacheM = undefined
 
