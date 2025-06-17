@@ -147,9 +147,18 @@ getReachableR split n = do
     g <- liftRepGraph $ gview #nodeGraph
     return $ isReachableFrom g (Addr split) n
 
-prevsR :: MonadRepGraph m => Visit -> m [NodeAddr]
+predsR :: MonadRepGraph m => NodeId -> m (Set NodeAddr)
+predsR n = liftRepGraph $ gview $ #preds % at n % unwrapped
+
+prevsR :: MonadRepGraph m => Visit -> m [Visit]
 prevsR visit = do
-    undefined
+    let m = vcountToMap visit.restrs
+    preds <- S.toAscList <$> predsR visit.nodeId
+    let f p = Visit (Addr p) <$>
+            if M.member p m
+            then incrVCs visit.restrs p (-1)
+            else Just visit.restrs
+    return $ catMaybes $ map f preds
 
 initRepGraphState :: RepGraphState
 initRepGraphState = RepGraphState
