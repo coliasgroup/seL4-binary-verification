@@ -272,8 +272,8 @@ warmPcEnvCacheM visitWithTag = do
 getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
 getNodePcEnvRawM = undefined
 
-applyKnownEqsPcEnvM :: MonadRepGraphE m => VisitWithTag -> (Expr, SMTEnv) -> m (Expr, SMTEnv)
-applyKnownEqsPcEnvM = undefined
+applyKnownEqsPcEnvM :: Monad m => VisitWithTag -> (Expr, SMTEnv) -> m (Expr, SMTEnv)
+applyKnownEqsPcEnvM _ pc_env = return pc_env
 
 getTagVCount :: MonadRepGraphE m => Visit -> Maybe Tag -> m (Tag, Maybe [Restr])
 getTagVCount visit mtag = do
