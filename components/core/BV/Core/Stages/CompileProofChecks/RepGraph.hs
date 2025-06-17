@@ -35,10 +35,12 @@ import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
 import Control.DeepSeq (NFData)
-import Control.Monad (guard, when, filterM)
+import Control.Monad (filterM, guard, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
+import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
+                          RWST (runRWST), evalRWST)
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
@@ -56,7 +58,6 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-import Control.Monad.RWS (RWST(runRWST), MonadState (get, put), evalRWST, MonadWriter (..))
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
