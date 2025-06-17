@@ -147,6 +147,10 @@ getReachableR split n = do
     g <- liftRepGraph $ gview #nodeGraph
     return $ isReachableFrom g (Addr split) n
 
+prevsR :: MonadRepGraph m => Visit -> m [NodeAddr]
+prevsR visit = do
+    undefined
+
 initRepGraphState :: RepGraphState
 initRepGraphState = RepGraphState
     { inductVarEnv = M.empty
