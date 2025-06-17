@@ -44,7 +44,12 @@ compileProofCheckGroup cStructs functionSigs pairings rodata problem group =
   where
     env = initEnv rodata cStructs functionSigs pairings problem
     state = initState
-    (imps, _, setup) = runRWS (compileProofCheckGroupM group).run env state
+    (imps, _, setup) = runRWS (initM >> compileProofCheckGroupM group).run env state
+
+initM :: M ()
+initM = do
+    initSolver
+    initRepGraph
 
 newtype M a
   = M { run :: RWS Env SolverOutput State a }

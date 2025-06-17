@@ -24,6 +24,7 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , initRepGraphState
     , instEqWithEnvsM
     , substInduct
+    , initRepGraph
     ) where
 
 import BV.Core.Graph
@@ -173,6 +174,14 @@ initRepGraphState = RepGraphState
     }
 
 --
+
+initRepGraph :: MonadRepGraph m => m ()
+initRepGraph = do
+    addInputEnvsM
+
+addInputEnvsM :: MonadRepGraph m => m ()
+addInputEnvsM = do
+    undefined
 
 type MonadRepGraphE m = (MonadRepGraph m, MonadError TooGeneral m)
 
