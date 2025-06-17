@@ -259,8 +259,11 @@ warmPcEnvCacheM visitWithTag = do
                     put n_vc'
                     return ()
                 _ -> hoistMaybe Nothing
-    (_, prevChain :: [Visit]) <- evalRWST (runMaybeT go) () visitWithTag.visit
-    undefined
+    (_, prevChain' :: [Visit]) <- evalRWST (runMaybeT go) () visitWithTag.visit
+    let prevChain = reverse prevChain'
+    for prevChain $ \n_vc -> do
+        getNodePcEnvM' n_vc (Just visitWithTag.tag)
+    return ()
 
 getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
 getNodePcEnvRawM = undefined
