@@ -44,7 +44,7 @@ import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
-import Control.Monad.Trans.Maybe (runMaybeT)
+import Control.Monad.Trans.Maybe (hoistMaybe, runMaybeT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Data.Foldable (for_)
 import Data.List (sort)
@@ -244,22 +244,22 @@ warmPcEnvCacheM :: MonadRepGraph m => VisitWithTag -> m ()
 warmPcEnvCacheM visitWithTag = do
     let go = do
             n_vc <- get
-            prevs <- lift $ prevsR n_vc
+            prevs <- lift $ lift $ prevsR n_vc
             let f p = do
-                    present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member (VisitWithTag p visitWithTag.tag))
+                    present <- lift $ liftRepGraph $ use $ #nodePcEnvs % to (M.member (VisitWithTag p visitWithTag.tag))
                     if present
                         then return False
                         else do
                             vc <- getTagVCount p Nothing
                             return $ vc == (visitWithTag.tag, Just n_vc.restrs)
-            prevs' <- lift $ runExceptT $ filterM f prevs
+            prevs' <- lift $ lift $ runExceptT $ filterM f prevs
             case prevs' of
-                Left (n_vc':_) -> do
+                Right (n_vc':_) -> do
                     tell [n_vc]
                     put n_vc'
-                    undefined
-                _ -> undefined
-    ((), prevChain :: [Visit]) <- evalRWST go () visitWithTag.visit
+                    return ()
+                _ -> hoistMaybe Nothing
+    (_, prevChain :: [Visit]) <- evalRWST (runMaybeT go) () visitWithTag.visit
     undefined
 
 getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
