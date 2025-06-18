@@ -48,8 +48,10 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Control.Monad.Trans.Reader (ReaderT)
+import Data.Char (isAlpha)
 import Data.Foldable (for_)
-import Data.List (intercalate, isPrefixOf, sort)
+import Data.List (inits, intercalate, isPrefixOf, sort)
+import Data.List.Split (splitOn)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
@@ -446,4 +448,14 @@ pathCondName visitWithTag = printf "path_cond_to_%s_%s" (nodeCountName visitWith
 
 successName :: Ident -> Visit -> NameHint
 successName fname n_vc =
-    undefined
+    printf "%s_success_at_%s" nm (nodeCountName n_vc)
+  where
+    bits = splitOn "." fname.unwrap
+    nms =
+        [ intercalate "_" bits'
+        | bits' <- inits bits
+        , all isAlpha (head bits')
+        ]
+    nm = case reverse nms of
+        [] -> "fun"
+        nm':_ -> nm'
