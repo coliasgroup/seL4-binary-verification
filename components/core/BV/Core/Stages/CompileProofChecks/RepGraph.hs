@@ -421,9 +421,6 @@ visitCountName = \case
     showNumber = show
     showOffset n = "i+" ++ show n
 
-getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
-getNodePcEnvRawM = undefined
-
 contractM :: MonadRepGraph m => Ident -> Visit -> SExprWithPlaceholders -> ExprType -> m SMT
 contractM name n_vc val typ = do
     liftRepGraph (use $ #contractions % at val) >>= \case
@@ -459,3 +456,6 @@ successName fname n_vc =
     nm = case reverse nms of
         [] -> "fun"
         nm':_ -> nm'
+
+getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
+getNodePcEnvRawM = undefined
