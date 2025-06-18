@@ -447,5 +447,3 @@ pathCondName visitWithTag = printf "path_cond_to_%s_%s" (nodeCountName visitWith
 successName :: Ident -> Visit -> NameHint
 successName fname n_vc =
     undefined
-  where
-    undefined
