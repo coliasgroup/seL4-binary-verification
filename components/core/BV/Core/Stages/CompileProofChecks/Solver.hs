@@ -31,6 +31,7 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , smtExprM
     , smtExprNoSplitM
     , toSmtExprM
+    , NameHint
     , withEnv
     ) where
 

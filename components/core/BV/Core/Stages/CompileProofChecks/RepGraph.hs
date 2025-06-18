@@ -89,6 +89,7 @@ data RepGraphState
       { inductVarEnv :: Map EqHypInduct Name
       , nodePcEnvs :: Map VisitWithTag (Maybe (Expr, SMTEnv))
       , inpEnvs :: Map NodeId SMTEnv
+      , memCalls :: Map Name (Maybe MemCalls)
         --   , knownEqs :: Map VisitWithTag [KnownEqsValue]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -177,6 +178,7 @@ initRepGraphState = RepGraphState
     { inductVarEnv = M.empty
     , nodePcEnvs = M.empty
     , inpEnvs = M.empty
+    , memCalls = M.empty
     -- , knownEqs = M.empty
     }
 
@@ -354,3 +356,16 @@ instEqWithEnvsM (x, env1) (y, env2) = do
     return $ case x'.ty of
         ExprTypeRelWrapper -> applyRelWrapper x' y'
         _ -> eqE x' y'
+
+type MemCalls = ()
+
+addVarMR :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
+addVarMR nameHint ty memCallsOpt = do
+    r <- addVarRestrM nameHint ty
+    when (ty == ExprTypeMem) $ do
+        liftRepGraph $ #memCalls %= M.insert r memCallsOpt
+    return r
+
+-- varRepRequest
+
+-- asmStackRepHook :: MonadRepGraph m => 
