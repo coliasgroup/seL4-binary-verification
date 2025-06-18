@@ -32,17 +32,17 @@ import Data.Maybe (isNothing)
 import GHC.Generics (Generic)
 import Optics
 
-compileProofChecks :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
-compileProofChecks cStructs functionSigs pairings rodata problem checks =
+compileProofChecks :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> ArgRenames -> Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
+compileProofChecks cStructs functionSigs pairings rodata argRenames problem checks =
     map
-        (compileProofCheckGroup cStructs functionSigs pairings rodata problem)
+        (compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem)
         (proofCheckGroups checks)
 
-compileProofCheckGroup :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> Problem -> ProofCheckGroup a -> SMTProofCheckGroup a
-compileProofCheckGroup cStructs functionSigs pairings rodata problem group =
+compileProofCheckGroup :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> ArgRenames -> Problem -> ProofCheckGroup a -> SMTProofCheckGroup a
+compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem group =
     SMTProofCheckGroup setup imps
   where
-    env = initEnv rodata cStructs functionSigs pairings problem
+    env = initEnv rodata cStructs functionSigs pairings argRenames problem
     state = initState
     (imps, _, setup) = runRWS (initM >> compileProofCheckGroupM group).run env state
 
@@ -70,10 +70,10 @@ data State
       }
   deriving (Generic)
 
-initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> Problem -> Env
-initEnv rodata cStructs functionSigs pairings problem = Env
+initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> ArgRenames -> Problem -> Env
+initEnv rodata cStructs functionSigs pairings argRenames problem = Env
     { solver = initSolverEnv rodata cStructs problem
-    , repGraph = initRepGraphEnv functionSigs pairings problem
+    , repGraph = initRepGraphEnv functionSigs pairings argRenames problem
     }
 
 initState :: State

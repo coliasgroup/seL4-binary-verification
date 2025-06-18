@@ -9,7 +9,8 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module BV.Core.Stages.CompileProofChecks.RepGraph
-    ( FunctionSignature (..)
+    ( ArgRenames
+    , FunctionSignature (..)
     , FunctionSignatures
     , MonadRepGraph (..)
     , RepGraphContext
@@ -20,11 +21,11 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , getNodePcEnvM'
     , getPcM
     , getPcM'
+    , initRepGraph
     , initRepGraphEnv
     , initRepGraphState
     , instEqWithEnvsM
     , substInduct
-    , initRepGraph
     ) where
 
 import BV.Core.Graph
@@ -62,6 +63,8 @@ import Text.Printf (printf)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
+type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident
+
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: (forall n. RepGraphContext n => n a) -> m a
 
@@ -72,6 +75,7 @@ data RepGraphEnv
   = RepGraphEnv
       { functionSigs :: FunctionSignatures
       , pairings :: Pairings
+      , argRenames :: ArgRenames
       , problem :: Problem
       , nodeTag :: NodeAddr -> Tag
       , loopData :: Map NodeAddr LoopData
@@ -84,6 +88,7 @@ data RepGraphState
   = RepGraphState
       { inductVarEnv :: Map EqHypInduct Name
       , nodePcEnvs :: Map VisitWithTag (Maybe (Expr, SMTEnv))
+      , inpEnvs :: Map NodeId SMTEnv
         --   , knownEqs :: Map VisitWithTag [KnownEqsValue]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -104,11 +109,12 @@ data LoopData
   | LoopMember NodeAddr
   deriving (Eq, Generic, Ord, Show)
 
-initRepGraphEnv :: FunctionSignatures -> Pairings -> Problem -> RepGraphEnv
-initRepGraphEnv functionSigs pairings problem =
+initRepGraphEnv :: FunctionSignatures -> Pairings -> ArgRenames -> Problem -> RepGraphEnv
+initRepGraphEnv functionSigs pairings argRenames problem =
     RepGraphEnv
         { functionSigs
         , pairings
+        , argRenames
         , problem
         -- , nodeGraph = makeNodeGraph (map (_2 %~ view #node) (M.toAscList problem.nodes))
         , nodeGraph
@@ -170,6 +176,7 @@ initRepGraphState :: RepGraphState
 initRepGraphState = RepGraphState
     { inductVarEnv = M.empty
     , nodePcEnvs = M.empty
+    , inpEnvs = M.empty
     -- , knownEqs = M.empty
     }
 
@@ -181,6 +188,16 @@ initRepGraph = do
 
 addInputEnvsM :: MonadRepGraph m => m ()
 addInputEnvsM = do
+    p <- liftRepGraph $ gview #problem
+    f p.sides.asm
+    f p.sides.c
+  where
+    f side = do
+        env <- mkInpEnv side.entryPoint side.input
+        liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
+
+mkInpEnv :: MonadRepGraph m => NodeId -> [Argument] -> m SMTEnv
+mkInpEnv n args = do
     undefined
 
 type MonadRepGraphE m = (MonadRepGraph m, MonadError TooGeneral m)
