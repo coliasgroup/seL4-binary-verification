@@ -46,10 +46,10 @@ import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
-import Control.Monad.Trans.Maybe (hoistMaybe, runMaybeT)
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Data.Foldable (for_)
-import Data.List (sort)
+import Data.List (intercalate, isPrefixOf, sort)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
@@ -366,6 +366,47 @@ addVarMR nameHint ty memCallsOpt = do
         liftRepGraph $ #memCalls %= M.insert r memCallsOpt
     return r
 
--- varRepRequest
+varRepRequest :: MonadRepGraph m => Ident -> ExprType -> VarRepRequestKind -> Visit -> SMTEnv -> m (Maybe SplitMem)
+varRepRequest nm typ kind n_vc env = runMaybeT $ do
+    let hook = asmStackRepHook
+    let n = n_vc.nodeId ^. expecting #_Addr
+    addr <- MaybeT $ hook nm typ kind n
+    addr_s <- lift $ withEnv env $ smtExprM addr
+    let countName = nodeCountName n_vc
+    let name = printf "%s_for_%s" nm.unwrap countName
+    lift $ addSplitMemVarM (addr_s ^. expecting #_SMT) name typ
 
--- asmStackRepHook :: MonadRepGraph m =>
+data VarRepRequestKind
+  = VarRepRequestKindCall
+  | VarRepRequestKindInit
+  | VarRepRequestKindLoop
+  deriving (Eq, Generic, Ord, Show)
+
+asmStackRepHook :: MonadRepGraph m => Ident -> ExprType -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
+asmStackRepHook nm typ kind n = runMaybeT $ do
+    tag <- lift $ nodeTagR n
+    guard $ tag == Asm
+    guard $ "stack" `isPrefixOf` nm.unwrap
+    guard $ typ == ExprTypeMem
+    guard $ kind /= VarRepRequestKindInit
+    argRenames <- lift $ liftRepGraph $ gview #argRenames
+    return $ varE memT (argRenames (PairingEqSideQuadrant
+        { tag
+        , direction = PairingEqDirectionIn
+        }) (Ident "r13"))
+
+nodeCountName :: Visit -> NameHint
+nodeCountName visit = intercalate "_" $ [ prettyNodeId visit.nodeId ] ++
+    [ printf "%s=%s" (show restr.nodeAddr) (visitCountName restr.visitCount)
+    | restr <- visit.restrs
+    ]
+
+-- TODO will not match python
+visitCountName :: VisitCount -> String
+visitCountName = \case
+    VisitCount { numbers = [n], offsets = [] } -> showNumber n
+    VisitCount { numbers = [], offsets = [n] } -> showOffset n
+    VisitCount { numbers, offsets } -> intercalate " " $ map showNumber numbers ++ map showOffset offsets
+  where
+    showNumber = show
+    showOffset n = "i+" ++ show n
