@@ -306,9 +306,6 @@ warmPcEnvCacheM visitWithTag = do
         getNodePcEnvM' n_vc (Just visitWithTag.tag)
     return ()
 
-getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
-getNodePcEnvRawM = undefined
-
 applyKnownEqsPcEnvM :: Monad m => VisitWithTag -> (Expr, SMTEnv) -> m (Expr, SMTEnv)
 applyKnownEqsPcEnvM _ pc_env = return pc_env
 
@@ -419,3 +416,6 @@ visitCountName = \case
   where
     showNumber = show
     showOffset n = "i+" ++ show n
+
+getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
+getNodePcEnvRawM = undefined
