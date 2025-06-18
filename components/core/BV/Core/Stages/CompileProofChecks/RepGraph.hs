@@ -43,7 +43,7 @@ import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
                           RWST (runRWST), evalRWST)
-import Control.Monad.State (MonadState)
+import Control.Monad.State (MonadState, execStateT, modify)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
@@ -199,8 +199,17 @@ addInputEnvsM = do
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
 
 mkInpEnv :: MonadRepGraph m => NodeId -> [Argument] -> m SMTEnv
-mkInpEnv n args = do
-    undefined
+mkInpEnv n args = flip execStateT M.empty $ do
+    for_ args $ \arg -> do
+        x <- lift $ addVarMR (arg.name.unwrap ++ "_init") arg.ty (Just M.empty)
+        modify $ M.insert (arg.name, arg.ty) (SMT $ nameS x)
+    for_ args $ \arg -> do
+        env <- get
+        z <- lift $ varRepRequest arg.name arg.ty VarRepRequestKindInit (Visit { nodeId = n, restrs = []}) env
+        case z of
+            Nothing -> return ()
+            Just z' -> do
+                modify $ M.insert (arg.name, arg.ty) (SMTSplitMem z')
 
 type MonadRepGraphE m = (MonadRepGraph m, MonadError TooGeneral m)
 
@@ -357,7 +366,7 @@ instEqWithEnvsM (x, env1) (y, env2) = do
         ExprTypeRelWrapper -> applyRelWrapper x' y'
         _ -> eqE x' y'
 
-type MemCalls = ()
+type MemCalls = Map () ()
 
 addVarMR :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
 addVarMR nameHint ty memCallsOpt = do
