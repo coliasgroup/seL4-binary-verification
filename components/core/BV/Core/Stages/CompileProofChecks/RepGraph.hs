@@ -90,6 +90,7 @@ data RepGraphState
       , nodePcEnvs :: Map VisitWithTag (Maybe (Expr, SMTEnv))
       , inpEnvs :: Map NodeId SMTEnv
       , memCalls :: Map Name (Maybe MemCalls)
+      , contractions :: Map SExprWithPlaceholders SMT
         --   , knownEqs :: Map VisitWithTag [KnownEqsValue]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -179,6 +180,7 @@ initRepGraphState = RepGraphState
     , nodePcEnvs = M.empty
     , inpEnvs = M.empty
     , memCalls = M.empty
+    , contractions = M.empty
     -- , knownEqs = M.empty
     }
 
@@ -419,3 +421,16 @@ visitCountName = \case
 
 getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, SMTEnv))
 getNodePcEnvRawM = undefined
+
+contractM :: MonadRepGraph m => Ident -> Visit -> SExprWithPlaceholders -> ExprType -> m SMT
+contractM name n_vc val typ = do
+    liftRepGraph (use $ #contractions % at val) >>= \case
+        Just x -> return x
+        Nothing -> do
+            let name' = localNameBefore name n_vc
+            name'' <- withoutEnv $ addDefM name' (smtExprE typ (SMT val))
+            liftRepGraph $ #contractions %= M.insert val name''
+            return name''
+
+localNameBefore :: Ident -> Visit -> NameHint
+localNameBefore s n_vc = printf "%s_v_at_%s" s.unwrap (nodeCountName n_vc)

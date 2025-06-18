@@ -33,6 +33,7 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , smtExprNoSplitM
     , toSmtExprM
     , withEnv
+    , withoutEnv
     ) where
 
 import BV.Core.Logic
