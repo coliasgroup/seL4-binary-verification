@@ -434,3 +434,18 @@ contractM name n_vc val typ = do
 
 localNameBefore :: Ident -> Visit -> NameHint
 localNameBefore s n_vc = printf "%s_v_at_%s" s.unwrap (nodeCountName n_vc)
+
+localName :: Ident -> Visit -> NameHint
+localName s n_vc = printf "%s_after_%s" s.unwrap (nodeCountName n_vc)
+
+condName :: Visit -> NameHint
+condName  n_vc = printf "cond_at_%s" (nodeCountName n_vc)
+
+pathCondName :: VisitWithTag -> NameHint
+pathCondName visitWithTag = printf "path_cond_to_%s_%s" (nodeCountName visitWithTag.visit) (prettyTag visitWithTag.tag)
+
+successName :: Ident -> Visit -> NameHint
+successName fname n_vc =
+    undefined
+  where
+    undefined
