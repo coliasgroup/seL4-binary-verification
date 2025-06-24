@@ -148,6 +148,11 @@ loopIdR addr = liftRepGraph $ do
         LoopHead _ -> addr
         LoopMember addr' -> addr')
 
+loopIdR' :: MonadRepGraph m => NodeId -> m (Maybe NodeAddr)
+loopIdR' = \case
+    Addr addr -> loopIdR addr
+    _ -> return Nothing
+
 loopHeadsR :: MonadRepGraph m => m [NodeAddr]
 loopHeadsR = liftRepGraph $ do
     loopData <- gview #loopData
@@ -328,7 +333,7 @@ getTagVCount visit mtag = do
         then return (tag, Nothing)
         else do
             let vcount = sort [ (split, count) | (split, count, r) <- vcount_r, r ]
-            maybeLoopId <- loopIdR (visit.nodeId ^. expecting #_Addr)
+            maybeLoopId <- loopIdR' visit.nodeId
             case maybeLoopId of
                 Nothing -> return ()
                 Just loopId -> for_ vcount $ \(split, visits) -> do
