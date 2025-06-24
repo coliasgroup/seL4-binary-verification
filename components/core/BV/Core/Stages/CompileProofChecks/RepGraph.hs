@@ -265,7 +265,7 @@ getNodePcEnvM visit tag = do
                     present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member vt)
                     ensureM $ not present
                     liftRepGraph $ #nodePcEnvs %= M.insert vt pc_env'
-                    return pc_env
+                    return pc_env'
 
 type VCount = [Restr]
 
