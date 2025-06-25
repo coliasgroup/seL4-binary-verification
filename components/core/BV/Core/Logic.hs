@@ -43,8 +43,8 @@ import qualified Data.Map as M
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Data.Traversable (for)
-import GHC.Generics (Generic)
 import Debug.Trace (trace)
+import GHC.Generics (Generic)
 
 --
 

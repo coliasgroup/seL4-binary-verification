@@ -63,12 +63,12 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
 import Data.Traversable (for)
+import Debug.Trace (traceShowId)
 import GHC.Generics (Generic)
+import GHC.Stack (HasCallStack)
 import Optics
 import Optics.State.Operators ((%=), (.=), (<<%=))
 import Text.Printf (printf)
-import Debug.Trace (traceShowId)
-import GHC.Stack (HasCallStack)
 
 class MonadStructs m => MonadSolver m where
     liftSolver :: RWS SolverEnv SolverOutput SolverState a -> m a

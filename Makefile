@@ -91,6 +91,7 @@ p:
 t:
 	cabal test core-test \
 		--enable-profiling \
+		--disable-optimization \
 		--test-option=+RTS \
 		--test-option=-xc \
 		--test-option=-RTS

@@ -53,7 +53,7 @@ import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_)
-import Data.List (inits, intercalate, isPrefixOf, sort)
+import Data.List (inits, intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
@@ -61,6 +61,8 @@ import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
+import Data.Vector.Internal.Check (HasCallStack)
+import Debug.Trace (traceShowId)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
@@ -470,7 +472,7 @@ successName fname n_vc =
     bits = splitOn "." fname.unwrap
     nms =
         [ intercalate "_" bits'
-        | bits' <- inits bits
+        | bits' <- filter (not . null) $ tails bits
         , all isAlpha (head bits')
         ]
     nm = case reverse nms of
