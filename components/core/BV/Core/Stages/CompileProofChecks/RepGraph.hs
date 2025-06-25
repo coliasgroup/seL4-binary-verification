@@ -438,7 +438,7 @@ asmStackRepHook nm typ kind n = runMaybeT $ do
     return $ varE memT (argRenames (PairingEqSideQuadrant
         { tag
         , direction = PairingEqDirectionIn
-        }) (Ident "r13"))
+        }) (Ident "stack"))
 
 nodeCountName :: Visit -> NameHint
 nodeCountName visit = intercalate "_" $ [ prettyNodeId visit.nodeId ] ++
