@@ -681,10 +681,27 @@ emitNodeM n = do
                     x <- withEnv env $ smtExprM (app_eqs callArg)
                     return ((funArg.name, funArg.ty), x))
                 mem_calls <- addMemCallM callNode.functionName (scanMemCalls ins)
-                
-                undefined
+                let m = do
+                        for (zip callNode.output sig.output) $ \(Argument x typ, Argument y typ2) -> do
+                            ensureM $ typ == typ2
+                            let name = localName x n
+                            var <- lift $ addVarMR name typ mem_calls
+                            modify $ M.insert (x, typ) (SMT $ nameS var)
+                            tell [((y, typ2), (SMT $ nameS var))]
+                        for (zip callNode.output sig.output) $ \(Argument x typ, Argument y typ2) -> do
+                            env' <- get
+                            z <- lift $ varRepRequest x typ VarRepRequestKindCall n env'
+                            case z of
+                                Nothing -> return ()
+                                Just z' -> do
+                                    modify $ M.insert (x, typ) (SMTSplitMem z')
+                                    tell [((y, typ), (SMTSplitMem z'))]
+                (_, env', outs') <- runRWST m () env
+                let outs = M.fromList outs'
+                addFuncM callNode.functionName ins outs success n
+                return $ [(callNode.next, pc, env')]
 
-addFuncM :: MonadRepGraphE m => m ()
+addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m ()
 addFuncM = do
     -- TODO
     return ()
