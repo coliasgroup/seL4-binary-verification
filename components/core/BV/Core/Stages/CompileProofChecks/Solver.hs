@@ -893,7 +893,7 @@ mergeEnvs envs = do
             [ M.singleton var (M.singleton s ([pc_str] :: [SMT]))
             | (var, s) <- M.toAscList env
             ]
-    let var_envs = foldr1 (M.unionWith (M.unionWith (<>))) var_envs'
+    let var_envs = foldr (M.unionWith (M.unionWith (<>))) M.empty var_envs'
     let f :: [(SMT, [SMT])] -> SMT
         f itsx =
             let Just (its, (v', _)) = unsnoc itsx
