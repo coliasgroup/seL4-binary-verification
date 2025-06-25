@@ -616,6 +616,9 @@ postEmitNodeHooksM visit = do
             [] -> return ()
             _ -> error "unexpected"
 
+addLocalDefMR :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT SMTEnv m SMT
+addLocalDefMR _ _ = addDefM
+
 emitNodeM :: MonadRepGraphE m => Visit -> m [(NodeId, Expr, SMTEnv)]
 emitNodeM n = do
     undefined
@@ -633,8 +636,4 @@ addMemCallM = do
 
 addFuncM :: MonadRepGraphE m => m ()
 addFuncM = do
-    undefined
-
-addLocalDefMR :: MonadRepGraphE m => m ()
-addLocalDefMR = do
     undefined
