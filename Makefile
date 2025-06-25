@@ -68,3 +68,14 @@ i: hpack
 .PHONY: it
 it: hpack
 	cabal repl sel4-bv:test:test
+
+# # #
+
+.PHONY: x
+x:
+	cabal test core-test \
+		--enable-profiling \
+		--profiling-detail=late \
+		--test-option=+RTS \
+		--test-option=-pj \
+		--test-option=-RTS
