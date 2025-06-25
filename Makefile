@@ -86,3 +86,11 @@ p:
 		--test-option=-RTS
 
 		# --profiling-detail=late \
+
+.PHONY: t
+t:
+	cabal test core-test \
+		--enable-profiling \
+		--test-option=+RTS \
+		--test-option=-xc \
+		--test-option=-RTS
