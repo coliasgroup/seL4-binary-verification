@@ -535,9 +535,12 @@ getLoopPcEnvM split vcount = do
                         return $ prev_env ! (nm, typ)
                     else do
                         SMT . nameS <$> lift (av (nm.unwrap ++ "_after") typ)
-                undefined
             env' <- flip M.traverseWithKey env $ \(nm, typ) v -> do
-                undefined
+                if S.member (nm, typ) consts
+                    then return v
+                    else do
+                        z <- varRepRequest nm typ VarRepRequestKindLoop (Visit (Addr split) vcount) env
+                        return $ fromMaybe v (SMTSplitMem <$> z)
             pc <- smtExprE boolT . SMT . nameS <$> av "pc_of" boolT
             return $ Just (pc, env')
 
