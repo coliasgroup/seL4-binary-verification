@@ -290,6 +290,9 @@ vcountFromMap = map f . M.toAscList
   where
     f (nodeAddr, visitCount) = Restr { nodeAddr, visitCount }
 
+withVCountMap :: (Map NodeAddr VisitCount -> Map NodeAddr VisitCount) -> [Restr] -> [Restr]
+withVCountMap f restrs = vcountFromMap (f (vcountToMap restrs))
+
 incrVCs :: VCount -> NodeAddr -> Integer -> Maybe VCount
 incrVCs vcount n incr = if isEmptyVC vc then Nothing else Just (vcountFromMap (M.insert n vc m))
   where
@@ -510,7 +513,25 @@ getNodePcEnvRawM visitWithTag = do
                             return $ Just (pc', env')
 
 getLoopPcEnvM :: MonadRepGraphE m => NodeAddr -> [Restr] -> m (Maybe (Expr, SMTEnv))
-getLoopPcEnvM = undefined
+getLoopPcEnvM split vcount = do
+    let vcount2 = flip withVCountMap vcount $ M.insert split (numberVC 0)
+    prev_pc_envOpt <- getNodePcEnvM (Visit (Addr split) vcount2) Nothing
+    case prev_pc_envOpt of
+        Nothing -> return Nothing
+        Just prev_pc_env -> do
+            let (_, prev_env) = prev_pc_env
+            mem_calls <- addLoopMemCallsM split (scanMemCalls prev_env)
+            let av nm typ = do
+                    let nm2 = printf "%s_loop_at_%s" nm (prettyNodeId (Addr split))
+                    addVarMR nm2 typ mem_calls
+            undefined
+
+scanMemCalls :: SMTEnv -> Maybe ()
+scanMemCalls env = undefined
+
+addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe () -> m (Maybe MemCalls)
+addLoopMemCallsM split mem_calls = do
+    undefined
 
 getArcPcEnvsM :: MonadRepGraph m => NodeAddr -> Visit -> m [Maybe (Expr, SMTEnv)]
 getArcPcEnvsM n n_vc2 = do
