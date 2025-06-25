@@ -427,7 +427,7 @@ asmStackRepHook nm typ kind n = runMaybeT $ do
 
 nodeCountName :: Visit -> NameHint
 nodeCountName visit = intercalate "_" $ [ prettyNodeId visit.nodeId ] ++
-    [ printf "%s=%s" (show restr.nodeAddr) (visitCountName restr.visitCount)
+    [ printf "%s=%s" (prettyNodeId (Addr restr.nodeAddr)) (visitCountName restr.visitCount)
     | restr <- visit.restrs
     ]
 

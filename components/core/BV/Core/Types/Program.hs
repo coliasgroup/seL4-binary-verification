@@ -181,7 +181,7 @@ prettyNodeId :: NodeId -> String
 prettyNodeId = \case
     Ret -> "Ret"
     Err -> "Err"
-    Addr addr -> show addr
+    Addr addr -> show addr.unwrap
 
 data Node
   = NodeBasic BasicNode
