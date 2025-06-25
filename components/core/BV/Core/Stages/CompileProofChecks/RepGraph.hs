@@ -708,7 +708,8 @@ addFuncM name inputs outputs success n_vc = do
 
 isSyntConstM :: MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
 isSyntConstM nm typ split = do
-    undefined
+    -- TODO
+    return False
 
 scanMemCalls :: SMTEnv -> Maybe MemCalls
 scanMemCalls env = undefined
