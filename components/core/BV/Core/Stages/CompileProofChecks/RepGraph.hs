@@ -6,7 +6,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-type-defaults #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+-- {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module BV.Core.Stages.CompileProofChecks.RepGraph
     ( ArgRenames
@@ -247,8 +247,9 @@ getPcM' visit tag = view (expecting _Right) <$> runExceptT (getPcM visit tag)
 getPcM :: MonadRepGraphE m => Visit -> Maybe Tag -> m Expr
 getPcM visit tag = do
     pc_env <- getNodePcEnvM visit tag
-    let Just (pc, env) = pc_env
-    withEnv env $ toSmtExprM pc
+    case pc_env of
+        Nothing -> return falseE
+        Just (pc, env) -> withEnv env $ toSmtExprM pc
 
 toSmtExprRM :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
 toSmtExprRM expr visit tag = do
