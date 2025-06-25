@@ -38,7 +38,7 @@ import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
 import Control.Applicative (asum)
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, when, replicateM)
+import Control.Monad (filterM, guard, replicateM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
