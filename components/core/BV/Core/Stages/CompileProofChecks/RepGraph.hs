@@ -396,7 +396,7 @@ data MemCallsForOne
       { min :: Integer
       , max :: Maybe Integer
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 zeroMemCallsForOne :: MemCallsForOne
 zeroMemCallsForOne = MemCallsForOne
