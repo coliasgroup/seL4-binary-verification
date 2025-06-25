@@ -226,7 +226,7 @@ varFromArgE arg = varE arg.ty arg.name
 wordVarE :: Integer -> Ident -> Expr
 wordVarE bits = varE (wordT bits)
 
-memAccE :: ExprType -> Expr -> Expr -> Expr
+memAccE :: HasCallStack => ExprType -> Expr -> Expr -> Expr
 memAccE ty addr mem =
     ensureType_ isMemT mem .
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
@@ -255,7 +255,7 @@ stackWrapperE sp stack except =
 ensureType :: (ExprType -> Bool) -> Expr -> ExprType
 ensureType p expr = ensureType_ p expr expr.ty
 
-ensureType_ :: (ExprType -> Bool) -> Expr -> a -> a
+ensureType_ :: HasCallStack => (ExprType -> Bool) -> Expr -> a -> a
 ensureType_ p expr = ensure (p expr.ty)
 
 ensureTypesEqual :: Expr -> Expr -> ExprType
