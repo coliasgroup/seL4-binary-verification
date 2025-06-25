@@ -713,7 +713,7 @@ isSyntConstM = do
 scanMemCalls :: SMTEnv -> Maybe MemCalls
 scanMemCalls env = undefined
 
-addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe () -> m (Maybe MemCalls)
+addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCallsM split mem_calls = do
     undefined
 
