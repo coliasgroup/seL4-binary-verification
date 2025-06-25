@@ -67,6 +67,8 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=), (.=), (<<%=))
 import Text.Printf (printf)
+import Debug.Trace (traceShowId)
+import GHC.Stack (HasCallStack)
 
 class MonadStructs m => MonadSolver m where
     liftSolver :: RWS SolverEnv SolverOutput SolverState a -> m a
@@ -184,8 +186,8 @@ globalWrapperStructName ty = Ident $ printf "Global (%s)" (typeName ty)
 
 globalWrapperStructWith :: Map Ident Struct -> ExprType -> Struct
 globalWrapperStructWith structs ty = Struct
-    { size = withStructs (structs M.!) $ sizeOfType ty
-    , align = withStructs (structs M.!) $ alignOfType ty
+    { size = withStructs (structs !@) $ sizeOfType ty
+    , align = withStructs (structs !@) $ alignOfType ty
     , fields =
         [ ( "v"
           , StructField
@@ -240,12 +242,14 @@ augmentStructs rodata cStructs problem =
     nonGlobal <> global
   where
     rodataStructs = rodataStructsWith rodata
+    rodataStructTypes = [ structT name | name <- M.keys rodataStructs ]
     nonGlobal = cStructs <> rodataStructs
     global = M.fromList
-        [ (globalWrapperStructName ty, globalWrapperStructWith cStructs ty)
+        [ (globalWrapperStructName ty, globalWrapperStructWith nonGlobal ty)
         | ty <- toWrap
         ]
-    toWrap = problem.nodes ^.. folded % traverseTopLevelLevelExprs % foldExprs % afolding isPGlobalValid
+    toWrap = pglobalValidsToWrap <> rodataStructTypes
+    pglobalValidsToWrap = problem.nodes ^.. folded % traverseTopLevelLevelExprs % foldExprs % afolding isPGlobalValid
     isPGlobalValid expr = case expr.value of
         ExprValueOp OpPGlobalValid args ->
             let [_, tyExpr, _] = args
