@@ -33,6 +33,7 @@ import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
+import BV.Core.Types.Extras (showSExprWithPlaceholders)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
@@ -478,10 +479,36 @@ getNodePcEnvRawM visitWithTag = do
             ] of
                 Just m -> m
                 Nothing -> do
-                    undefined
+                    pc_envs <- catMaybes . concat <$> do
+                        preds <- predsR visitWithTag.visit.nodeId
+                        for (S.toList preds) $ \n_prev -> do
+                            tag <- nodeTagR n_prev
+                            if tag /= visitWithTag.tag
+                                then return []
+                                else geArcPcEnvsM n_prev visitWithTag.visit
+                    case pc_envs of
+                        [] -> return Nothing
+                        _ -> do
+                            pc_envs' <- case visitWithTag.visit.nodeId of
+                                Err -> do
+                                    for pc_envs $ \(pc, env) -> do
+                                        pc' <- withEnv env $ toSmtExprM pc
+                                        return $ (pc', M.empty)
+                                _ -> return pc_envs
+                            (pc, env, _large) <- mergeEnvsPcs pc_envs'
+                            pc' <- case pc.value of
+                                ExprValueSMTExpr _ -> return pc
+                                _ -> do
+                                    name <- withEnv env $ addDefM (pathCondName visitWithTag) pc
+                                    return $ smtExprE boolT name
+                            env' <- flip M.traverseWithKey env $ \(nm, typ) v -> do
+                                case v of
+                                    SMT v' | length (showSExprWithPlaceholders v') > 80 -> contractM nm visitWithTag.visit v' typ
+                                    _ -> return v
+                            return $ Just (pc', env')
 
 getLoopPcEnvM :: MonadRepGraphE m => NodeAddr -> [Restr] -> m (Maybe (Expr, SMTEnv))
 getLoopPcEnvM = undefined
 
-geArcPcEnvsM :: MonadRepGraphE m => NodeAddr -> VisitWithTag -> m [(Expr, SMTEnv)]
+geArcPcEnvsM :: MonadRepGraphE m => NodeAddr -> Visit -> m [Maybe (Expr, SMTEnv)]
 geArcPcEnvsM = undefined
