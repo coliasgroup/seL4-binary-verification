@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.Extras.Expr where
 
 import BV.Core.Arch (archWordSizeBits)
@@ -9,6 +11,8 @@ import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
 import GHC.Stack (HasCallStack)
 import Optics
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
 
 boolT :: ExprType
 boolT = ExprTypeBool
@@ -265,3 +269,34 @@ ensureTypesEqualAnd p lhs rhs = ensureTypesEqualAnd_ p lhs rhs lhs.ty
 
 ensureTypesEqualAnd_ :: (ExprType -> Bool) -> Expr -> Expr -> a -> a
 ensureTypesEqualAnd_ p lhs rhs = ensure (lhs.ty == rhs.ty && p lhs.ty)
+
+--
+
+data MemOpKind = MemOpKindAcc | MemOpKindUpdate
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data MemOp = MemOp
+    { kind :: MemOpKind
+    , addr :: Expr
+    , value :: Expr
+    , mem :: Expr
+    }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+getMemAccesses :: Expr -> [MemOp]
+getMemAccesses = toListOf $ foldExprs % afolding f
+  where
+    f expr = case expr.value of
+        ExprValueOp OpMemAcc [mem, addr] -> Just $ MemOp
+            { kind = MemOpKindAcc
+            , addr
+            , value = expr
+            , mem
+            }
+        ExprValueOp OpMemUpdate [mem, addr, value] -> Just $ MemOp
+            { kind = MemOpKindUpdate
+            , addr
+            , value
+            , mem
+            }
+        _ -> Nothing
