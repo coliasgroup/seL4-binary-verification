@@ -677,6 +677,11 @@ emitNodeM n = do
                 success' <- addVarM nm boolT
                 let success = smtExprE boolT $ SMT $ nameS success'
                 sig <- liftRepGraph $ gview $ #functionSigs % to ($ (WithTag tag callNode.functionName))
+                ins <- M.fromList <$> (for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
+                    x <- withEnv env $ smtExprM (app_eqs callArg)
+                    return ((funArg.name, funArg.ty), x))
+                mem_calls <- addMemCallM callNode.functionName (scanMemCalls ins)
+                
                 undefined
 
 addFuncM :: MonadRepGraphE m => m ()
@@ -688,13 +693,13 @@ isSyntConstM :: MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
 isSyntConstM = do
     undefined
 
-scanMemCalls :: SMTEnv -> Maybe ()
+scanMemCalls :: SMTEnv -> Maybe MemCalls
 scanMemCalls env = undefined
 
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe () -> m (Maybe MemCalls)
 addLoopMemCallsM split mem_calls = do
     undefined
 
-addMemCallM :: MonadRepGraphE m => m ()
+addMemCallM :: MonadRepGraphE m => Ident -> Maybe MemCalls -> m (Maybe MemCalls)
 addMemCallM = do
     undefined
