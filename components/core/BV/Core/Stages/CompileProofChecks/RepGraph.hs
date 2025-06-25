@@ -54,7 +54,7 @@ import Data.Char (isAlpha)
 import Data.Foldable (for_)
 import Data.List (inits, intercalate, isPrefixOf, sort)
 import Data.List.Split (splitOn)
-import Data.Map (Map, (!))
+import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
 import Data.Set (Set)
@@ -95,6 +95,7 @@ data RepGraphState
       , inpEnvs :: Map NodeId SMTEnv
       , memCalls :: Map Name (Maybe MemCalls)
       , contractions :: Map SExprWithPlaceholders SMT
+      , arcPcEnvs :: Map Visit (Map NodeId (Expr, SMTEnv))
         --   , knownEqs :: Map VisitWithTag [KnownEqsValue]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -192,6 +193,7 @@ initRepGraphState = RepGraphState
     , inpEnvs = M.empty
     , memCalls = M.empty
     , contractions = M.empty
+    , arcPcEnvs = M.empty
     -- , knownEqs = M.empty
     }
 
@@ -516,7 +518,6 @@ getArcPcEnvsM n n_vc2 = do
         prevs <- prevsR n_vc2 <&> filter (\n_vc -> n_vc.nodeId == Addr n)
         ensureM $ length prevs <= 1
         for prevs $ \n_vc -> getArcPcEnvM n_vc n_vc2
-        undefined
     case r of
         Right x -> return x
         Left (TooGeneral { split }) -> do
@@ -543,5 +544,32 @@ specializeM visit split = do
             | (nodeAddr, visitCount) <- M.toAscList (M.insert split (fromSimpleVisitCountView n) vcount)
             ]
 
-getArcPcEnvM :: MonadRepGraphE m => Visit -> Visit -> m [Maybe (Expr, SMTEnv)]
-getArcPcEnvM = undefined
+getArcPcEnvM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Expr, SMTEnv))
+getArcPcEnvM visit n2 = do
+    (tag, vcountOpt) <- getTagVCount visit Nothing
+    case vcountOpt of
+        Nothing -> return Nothing
+        Just vcount -> do
+            present <- liftRepGraph $ use $ #arcPcEnvs % at visit
+            case present of
+                Just r -> return $ M.lookup n2.nodeId r
+                Nothing -> do
+                    getNodePcEnvM visit Nothing >>= \case
+                        Nothing -> return Nothing
+                        Just _ -> do
+                            arcs <- emitNodeM visit
+                            postEmitNodeHooksM visit
+                            let arcs' = M.fromList [ (cont, (pc, env)) | (cont, pc, env) <- arcs ]
+                            liftRepGraph $ #arcPcEnvs %= M.insert visit arcs'
+                            return $ arcs' !? n2.nodeId
+
+-- TODO
+-- isContM :: MonadRepGraph m => Visit -> Visit
+
+emitNodeM :: MonadRepGraphE m => Visit -> m [(NodeId, Expr, SMTEnv)]
+emitNodeM n = do
+    undefined
+
+postEmitNodeHooksM :: MonadRepGraphE m => Visit -> m ()
+postEmitNodeHooksM n = do
+    undefined
