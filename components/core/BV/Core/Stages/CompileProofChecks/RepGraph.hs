@@ -389,7 +389,20 @@ instEqWithEnvsM (x, env1) (y, env2) = do
         ExprTypeRelWrapper -> applyRelWrapper x' y'
         _ -> eqE x' y'
 
-type MemCalls = Map () ()
+type MemCalls = Map Ident MemCallsForOne
+
+data MemCallsForOne
+  = MemCallsForOne
+      { min :: Integer
+      , max :: Maybe Integer
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+zeroMemCallsForOne :: MemCallsForOne
+zeroMemCallsForOne = MemCallsForOne
+    { min = 0
+    , max = Just 0
+    }
 
 addVarMR :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
 addVarMR nameHint ty memCallsOpt = do
@@ -680,7 +693,7 @@ emitNodeM n = do
                 ins <- M.fromList <$> (for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
                     x <- withEnv env $ smtExprM (app_eqs callArg)
                     return ((funArg.name, funArg.ty), x))
-                mem_calls <- addMemCallM callNode.functionName (scanMemCalls ins)
+                let mem_calls = addMemCall callNode.functionName (scanMemCalls ins)
                 let m = do
                         for (zip callNode.output sig.output) $ \(Argument x typ, Argument y typ2) -> do
                             ensureM $ typ == typ2
@@ -711,13 +724,14 @@ isSyntConstM nm typ split = do
     -- TODO
     return False
 
+addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
+addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
+    let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
+     in fromMaybe zeroMemCallsForOne slot & f
+
 scanMemCalls :: SMTEnv -> Maybe MemCalls
 scanMemCalls env = undefined
 
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCallsM split mem_calls = do
-    undefined
-
-addMemCallM :: MonadRepGraphE m => Ident -> Maybe MemCalls -> m (Maybe MemCalls)
-addMemCallM = do
     undefined
