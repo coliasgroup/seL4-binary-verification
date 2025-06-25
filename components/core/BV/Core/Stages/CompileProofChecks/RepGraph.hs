@@ -602,9 +602,6 @@ getArcPcEnvM visit' n2 = do
 -- TODO
 -- isContM :: MonadRepGraph m => Visit -> Visit
 
-emitNodeM :: MonadRepGraphE m => Visit -> m [(NodeId, Expr, SMTEnv)]
-emitNodeM n = do
-    undefined
 
 postEmitNodeHooksM :: MonadRepGraphE m => Visit -> m ()
 postEmitNodeHooksM visit = do
@@ -619,6 +616,10 @@ postEmitNodeHooksM visit = do
         case upd_ps of
             [] -> return ()
             _ -> error "unexpected"
+
+emitNodeM :: MonadRepGraphE m => Visit -> m [(NodeId, Expr, SMTEnv)]
+emitNodeM n = do
+    undefined
 
 scanMemCalls :: SMTEnv -> Maybe ()
 scanMemCalls env = undefined
