@@ -33,6 +33,7 @@ import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
+import BV.Core.Stages.Utils (chooseFreshName)
 import BV.Core.Types.Extras (showSExprWithPlaceholders)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
@@ -64,7 +65,6 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-import BV.Core.Stages.Utils (chooseFreshName)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -670,6 +670,10 @@ emitNodeM n = do
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, lpc, env'), (condNode.right, rpc, env')]
             NodeCall callNode -> do
+                let nm = successName callNode.functionName n
+                success' <- addVarM nm boolT
+                let success = smtExprE boolT $ SMT $ nameS success'
+                sig <- liftRepGraph $ gview $ #functionSigs % to ($ (WithTag tag callNode.functionName))
                 undefined
 
 scanMemCalls :: SMTEnv -> Maybe ()
