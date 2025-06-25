@@ -452,7 +452,7 @@ visitCountName :: VisitCount -> String
 visitCountName = \case
     VisitCount { numbers = [n], offsets = [] } -> showNumber n
     VisitCount { numbers = [], offsets = [n] } -> showOffset n
-    VisitCount { numbers, offsets } -> intercalate " " $ map showNumber numbers ++ map showOffset offsets
+    VisitCount { numbers, offsets } -> intercalate "_" $ map showNumber numbers ++ map showOffset offsets
   where
     showNumber = show
     showOffset n = "i+" ++ show n
