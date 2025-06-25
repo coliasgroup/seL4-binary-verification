@@ -6,13 +6,13 @@ import BV.Core.Arch (archWordSizeBits)
 import BV.Core.Types
 import BV.Core.Utils
 
+import Control.DeepSeq (NFData)
 import Data.Bits (shiftL)
 import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
+import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
-import GHC.Generics (Generic)
-import Control.DeepSeq (NFData)
 
 boolT :: ExprType
 boolT = ExprTypeBool
@@ -272,15 +272,18 @@ ensureTypesEqualAnd_ p lhs rhs = ensure (lhs.ty == rhs.ty && p lhs.ty)
 
 --
 
-data MemOpKind = MemOpKindAcc | MemOpKindUpdate
+data MemOpKind
+  = MemOpKindAcc
+  | MemOpKindUpdate
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data MemOp = MemOp
-    { kind :: MemOpKind
-    , addr :: Expr
-    , value :: Expr
-    , mem :: Expr
-    }
+data MemOp
+  = MemOp
+      { kind :: MemOpKind
+      , addr :: Expr
+      , value :: Expr
+      , mem :: Expr
+      }
   deriving (Eq, Generic, NFData, Ord, Show)
 
 getMemAccesses :: Expr -> [MemOp]
