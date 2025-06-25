@@ -91,7 +91,13 @@ p:
 t:
 	cabal test core-test \
 		--enable-profiling \
-		--disable-optimization \
-		--test-option=+RTS \
-		--test-option=-xc \
-		--test-option=-RTS
+		--disable-optimization
+
+		# --test-option=+RTS \
+		# --test-option=-xc \
+		# --test-option=-RTS
+
+.PHONY: o
+o:
+	cabal test core-test \
+		--enable-profiling
