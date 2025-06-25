@@ -602,7 +602,6 @@ getArcPcEnvM visit' n2 = do
 -- TODO
 -- isContM :: MonadRepGraph m => Visit -> Visit
 
-
 postEmitNodeHooksM :: MonadRepGraphE m => Visit -> m ()
 postEmitNodeHooksM visit = do
     let n = visit.nodeId ^. expecting #_Addr
