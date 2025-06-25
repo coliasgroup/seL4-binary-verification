@@ -707,7 +707,7 @@ addFuncM name inputs outputs success n_vc = do
     return ()
 
 isSyntConstM :: MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
-isSyntConstM = do
+isSyntConstM nm typ split = do
     undefined
 
 scanMemCalls :: SMTEnv -> Maybe MemCalls
