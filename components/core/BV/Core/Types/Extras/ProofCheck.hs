@@ -5,6 +5,7 @@ module BV.Core.Types.Extras.ProofCheck
     , asmV
     , cV
     , doubleRangeVC
+    , enumerateSimpleVC
     , eqH
     , eqH'
     , eqIfAtH
@@ -13,6 +14,7 @@ module BV.Core.Types.Extras.ProofCheck
     , eqSideH
     , eqWithIfAtH
     , fromRestrKindVC
+    , fromSimpleVisitCountView
     , hasZeroVC
     , incrVC
     , isEmptyVC
@@ -77,6 +79,14 @@ simpleVisitCountView = \case
     VisitCount { numbers = [n], offsets = [] } -> Just (SimpleVisitCountViewNumber n)
     VisitCount { numbers = [], offsets = [n] } -> Just (SimpleVisitCountViewOffset n)
     _ -> Nothing
+
+fromSimpleVisitCountView :: SimpleVisitCountView -> VisitCount
+fromSimpleVisitCountView = \case
+    SimpleVisitCountViewNumber n -> numberVC n
+    SimpleVisitCountViewOffset n -> offsetVC n
+
+enumerateSimpleVC :: VisitCount -> [SimpleVisitCountView]
+enumerateSimpleVC vc = map SimpleVisitCountViewNumber vc.numbers ++ map SimpleVisitCountViewOffset vc.offsets
 
 fromRestrKindVC :: RestrProofNodeRangeKind -> Integer -> VisitCount
 fromRestrKindVC kind n = n & case kind of

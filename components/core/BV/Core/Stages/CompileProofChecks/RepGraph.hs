@@ -485,7 +485,7 @@ getNodePcEnvRawM visitWithTag = do
                             tag <- nodeTagR n_prev
                             if tag /= visitWithTag.tag
                                 then return []
-                                else geArcPcEnvsM n_prev visitWithTag.visit
+                                else getArcPcEnvsM n_prev visitWithTag.visit
                     case pc_envs of
                         [] -> return Nothing
                         _ -> do
@@ -510,5 +510,35 @@ getNodePcEnvRawM visitWithTag = do
 getLoopPcEnvM :: MonadRepGraphE m => NodeAddr -> [Restr] -> m (Maybe (Expr, SMTEnv))
 getLoopPcEnvM = undefined
 
-geArcPcEnvsM :: MonadRepGraphE m => NodeAddr -> Visit -> m [Maybe (Expr, SMTEnv)]
-geArcPcEnvsM = undefined
+getArcPcEnvsM :: MonadRepGraph m => NodeAddr -> Visit -> m [Maybe (Expr, SMTEnv)]
+getArcPcEnvsM n n_vc2 = do
+    r <- do
+        undefined
+    case r of
+        Right x -> return x
+        Left (TooGeneral { split }) -> do
+            specs <- specializeM n_vc2 split
+            let specs' =
+                    [ Visit
+                        { nodeId = n_vc2.nodeId
+                        , restrs = spec
+                        }
+                    | spec <- specs
+                    ]
+            concat <$> (for specs' $ \spec -> getArcPcEnvsM n spec)
+
+specializeM :: MonadRepGraph m => Visit -> NodeAddr -> m [[Restr]]
+specializeM visit split = do
+    let vcount = M.fromList $ [ (r.nodeAddr, r.visitCount) | r <- visit.restrs ]
+    ensureM $ isOptionsVC $ vcount ! split
+    for (enumerateSimpleVC (vcount ! split)) $ \n -> do
+        return
+            [ Restr
+                { nodeAddr
+                , visitCount
+                }
+            | (nodeAddr, visitCount) <- M.toAscList (M.insert split (fromSimpleVisitCountView n) vcount)
+            ]
+
+geArcPcEnvM :: MonadRepGraphE m => Visit -> NodeAddr -> m [Maybe (Expr, SMTEnv)]
+geArcPcEnvM = undefined
