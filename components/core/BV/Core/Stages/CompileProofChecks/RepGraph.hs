@@ -536,7 +536,8 @@ getLoopPcEnvM split vcount = do
                         ExprTypeHtd -> True
                         ExprTypeDom -> True
                         _ -> False
-                if check_const
+                isSyntConst <- lift $ isSyntConstM nm typ split
+                if check_const && isSyntConst
                     then do
                         modify $ S.insert (nm, typ)
                         return $ prev_env ! (nm, typ)
@@ -677,6 +678,10 @@ emitNodeM n = do
                 let success = smtExprE boolT $ SMT $ nameS success'
                 sig <- liftRepGraph $ gview $ #functionSigs % to ($ (WithTag tag callNode.functionName))
                 undefined
+
+isSyntConstM :: MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
+isSyntConstM = do
+    undefined
 
 scanMemCalls :: SMTEnv -> Maybe ()
 scanMemCalls env = undefined
