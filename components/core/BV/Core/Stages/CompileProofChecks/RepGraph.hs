@@ -56,7 +56,7 @@ import Data.List (inits, intercalate, isPrefixOf, sort)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromMaybe, mapMaybe, fromJust)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
