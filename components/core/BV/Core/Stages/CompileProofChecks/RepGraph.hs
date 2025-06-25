@@ -634,7 +634,18 @@ emitNodeM n = do
             NodeCond condNode | condNode.expr == trueE -> do
                 return [(condNode.left, pc, env), (condNode.right, falseE, env)]
             NodeBasic basicNode -> do
-                undefined
+                upds <- for basicNode.varUpdates $ \upd -> do
+                    let k = (upd.varName, upd.ty)
+                    val <- case upd.expr.value of
+                        ExprValueVar nm -> return $ env ! (nm, upd.expr.ty)
+                        _ -> do
+                            name <- return $ localName upd.varName n
+                            let v = app_eqs upd.expr
+                            vname <- withEnv env $ addLocalDefMR () () name v
+                            return vname
+                    return (k, val)
+                let env' = M.union (M.fromList upds) env
+                return [(basicNode.next, pc, env')]
             NodeCond condNode -> do
                 undefined
             NodeCall callNode -> do
