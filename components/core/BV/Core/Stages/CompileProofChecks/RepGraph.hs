@@ -607,8 +607,12 @@ emitNodeM n = do
     undefined
 
 postEmitNodeHooksM :: MonadRepGraphE m => Visit -> m ()
-postEmitNodeHooksM n = do
-    undefined
+postEmitNodeHooksM visit = do
+    -- TODO?
+    return ()
+    -- tag <- nodeTagR (visit.nodeId ^. expecting #_Addr)
+    -- when (tag == C) $ do
+    --     undefined
 
 scanMemCalls :: SMTEnv -> Maybe ()
 scanMemCalls env = undefined
