@@ -679,6 +679,11 @@ emitNodeM n = do
                 sig <- liftRepGraph $ gview $ #functionSigs % to ($ (WithTag tag callNode.functionName))
                 undefined
 
+addFuncM :: MonadRepGraphE m => m ()
+addFuncM = do
+    -- TODO
+    return ()
+
 isSyntConstM :: MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
 isSyntConstM = do
     undefined
@@ -692,8 +697,4 @@ addLoopMemCallsM split mem_calls = do
 
 addMemCallM :: MonadRepGraphE m => m ()
 addMemCallM = do
-    undefined
-
-addFuncM :: MonadRepGraphE m => m ()
-addFuncM = do
     undefined
