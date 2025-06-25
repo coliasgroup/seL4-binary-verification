@@ -45,7 +45,7 @@ import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
                           RWST (runRWST), evalRWST)
-import Control.Monad.State (MonadState, execStateT, modify, StateT (runStateT))
+import Control.Monad.State (MonadState, StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
