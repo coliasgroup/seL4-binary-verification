@@ -3,3 +3,5 @@
 /.stack-work/
 /result
 /tmp/
+
+*.prof
