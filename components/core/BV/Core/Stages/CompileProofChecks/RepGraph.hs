@@ -64,6 +64,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import BV.Core.Stages.Utils (chooseFreshName)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -85,6 +86,7 @@ data RepGraphEnv
       , loopData :: Map NodeAddr LoopData
       , nodeGraph :: NodeGraph
       , preds :: Map NodeId (Set NodeAddr)
+      , problemNames :: S.Set Ident
       }
   deriving (Generic)
 
@@ -96,6 +98,7 @@ data RepGraphState
       , memCalls :: Map Name (Maybe MemCalls)
       , contractions :: Map SExprWithPlaceholders SMT
       , arcPcEnvs :: Map Visit (Map NodeId (Expr, SMTEnv))
+      , extraProblemNames :: S.Set Ident
         --   , knownEqs :: Map VisitWithTag [KnownEqsValue]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -141,6 +144,7 @@ initRepGraphEnv functionSigs pairings argRenames problem =
                     ]
                     | (nodeAddr, node) <- M.toAscList problem.nodes
                     ]
+        , problemNames = S.fromList $ toListOf varNamesOf problem
         }
   where
     nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
@@ -194,6 +198,7 @@ initRepGraphState = RepGraphState
     , memCalls = M.empty
     , contractions = M.empty
     , arcPcEnvs = M.empty
+    , extraProblemNames = S.empty
     -- , knownEqs = M.empty
     }
 
@@ -619,6 +624,15 @@ postEmitNodeHooksM visit = do
 addLocalDefMR :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT SMTEnv m SMT
 addLocalDefMR _ _ = addDefM
 
+getFreshIdentMR :: MonadRepGraph m => NameHint -> m Ident
+getFreshIdentMR hint = do
+    problemNames <- liftRepGraph $ gview #problemNames
+    extraProblemNames <- liftRepGraph $ use #extraProblemNames
+    let taken n = S.member n problemNames || S.member n extraProblemNames
+    let n = Ident $ chooseFreshName (taken . Ident) hint
+    liftRepGraph $ #extraProblemNames %= S.insert n
+    return $ n
+
 emitNodeM :: MonadRepGraphE m => Visit -> m [(NodeId, Expr, SMTEnv)]
 emitNodeM n = do
     (pc, env) <- fromJust <$> getNodePcEnvM n Nothing
@@ -647,7 +661,14 @@ emitNodeM n = do
                 let env' = M.union (M.fromList upds) env
                 return [(basicNode.next, pc, env')]
             NodeCond condNode -> do
-                undefined
+                let name = condName n
+                condName <- getFreshIdentMR name
+                let cond = varE boolT condName
+                def <- withEnv env $ addLocalDefMR () () name (app_eqs condNode.expr)
+                let env' = M.insert (condName, boolT) def env
+                let lpc = andE cond pc
+                let rpc = andE (notE cond) pc
+                return [(condNode.left, lpc, env'), (condNode.right, rpc, env')]
             NodeCall callNode -> do
                 undefined
 
