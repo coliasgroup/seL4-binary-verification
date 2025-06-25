@@ -148,7 +148,7 @@ trySymbolAtom = checkAtom . SymbolAtom
 
 symbolAtom :: String -> Atom
 -- symbolAtom = fromJust . trySymbolAtom
-symbolAtom s = case tryStringAtom s of
+symbolAtom s = case trySymbolAtom s of
     Nothing -> error $ "bad: " ++ s
     Just x -> x
 
