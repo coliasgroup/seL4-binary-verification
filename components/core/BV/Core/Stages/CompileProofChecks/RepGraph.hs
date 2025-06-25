@@ -731,8 +731,11 @@ addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
      in fromMaybe zeroMemCallsForOne slot & f
 
 scanMemCalls :: SMTEnv -> Maybe MemCalls
-scanMemCalls env = undefined
+scanMemCalls env =
+    -- TODO
+    Nothing
 
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCallsM split mem_calls = do
-    undefined
+    -- TODO
+    return Nothing
