@@ -512,7 +512,10 @@ getLoopPcEnvM = undefined
 
 getArcPcEnvsM :: MonadRepGraph m => NodeAddr -> Visit -> m [Maybe (Expr, SMTEnv)]
 getArcPcEnvsM n n_vc2 = do
-    r <- do
+    r <- runExceptT $ do
+        prevs <- prevsR n_vc2 <&> filter (\n_vc -> n_vc.nodeId == Addr n)
+        ensureM $ length prevs <= 1
+        for prevs $ \n_vc -> getArcPcEnvM n_vc n_vc2
         undefined
     case r of
         Right x -> return x
@@ -540,5 +543,5 @@ specializeM visit split = do
             | (nodeAddr, visitCount) <- M.toAscList (M.insert split (fromSimpleVisitCountView n) vcount)
             ]
 
-geArcPcEnvM :: MonadRepGraphE m => Visit -> NodeAddr -> m [Maybe (Expr, SMTEnv)]
-geArcPcEnvM = undefined
+getArcPcEnvM :: MonadRepGraphE m => Visit -> Visit -> m [Maybe (Expr, SMTEnv)]
+getArcPcEnvM = undefined
