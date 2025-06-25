@@ -544,13 +544,6 @@ getLoopPcEnvM split vcount = do
             pc <- smtExprE boolT . SMT . nameS <$> av "pc_of" boolT
             return $ Just (pc, env')
 
-scanMemCalls :: SMTEnv -> Maybe ()
-scanMemCalls env = undefined
-
-addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe () -> m (Maybe MemCalls)
-addLoopMemCallsM split mem_calls = do
-    undefined
-
 getArcPcEnvsM :: MonadRepGraph m => NodeAddr -> Visit -> m [Maybe (Expr, SMTEnv)]
 getArcPcEnvsM n n_vc2 = do
     r <- runExceptT $ do
@@ -615,4 +608,11 @@ emitNodeM n = do
 
 postEmitNodeHooksM :: MonadRepGraphE m => Visit -> m ()
 postEmitNodeHooksM n = do
+    undefined
+
+scanMemCalls :: SMTEnv -> Maybe ()
+scanMemCalls env = undefined
+
+addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe () -> m (Maybe MemCalls)
+addLoopMemCallsM split mem_calls = do
     undefined
