@@ -771,7 +771,7 @@ noteMemDomM p d md = liftSolver $ do
 --
 
 opS :: Op -> S
-opS = \case
+opS x = case x of
     OpPlus -> "bvadd"
     OpMinus -> "bvsub"
     OpTimes -> "bvmul"
@@ -802,7 +802,9 @@ opS = \case
     OpImpliesROData -> "implies-rodata"
     OpTokenWordsAccess -> "select"
     OpTokenWordsUpdate -> "store"
-    _ -> error ""
+    OpWordArrayAccess -> "select"
+    OpWordArrayUpdate -> "store"
+    _ -> error $ "xxx " ++ show x
 
 maybeNoteModelExprM :: MonadSolver m => S -> ExprType -> [Expr] -> m ()
 maybeNoteModelExprM sexpr typ subexprs = do
