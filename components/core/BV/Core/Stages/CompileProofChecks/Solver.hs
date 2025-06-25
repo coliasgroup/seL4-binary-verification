@@ -820,7 +820,7 @@ addImpliesStackEqM sp s1 s2 = do
             sp_smt <- smtExprNoSplitM sp
             assertFactSmtM (bvuleS sp_smt (nameS addr))
             let ptr = smtExprE word32T (SMT (nameS addr))
-            let eq = eqE (memAccE word32T s1 ptr) (memAccE word32T s2 ptr)
+            let eq = eqE (memAccE word32T ptr s1) (memAccE word32T ptr s2)
             stack_eq <- addDefNoSplitM "stack-eq" eq
             liftSolver $ #stackEqsImpliesStackEq %= M.insert k stack_eq
             return (nameS stack_eq)

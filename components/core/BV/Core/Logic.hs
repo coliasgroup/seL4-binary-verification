@@ -324,7 +324,7 @@ applyRelWrapper lhs rhs =
                     | Expr { value = ExprValueOp OpMemWrapper args } <- [lhs, rhs]
                     ]
              in ensure (addr.ty == word32T && m.ty == memT) $
-                    eqE (memAccE val.ty m addr) val
+                    eqE (memAccE val.ty addr m) val
         _ | ops == S.fromList [OpEqSelectiveWrapper] ->
             let [lhsV, _, _] = argsL
                 [rhsV, _, _] = argsR
