@@ -608,11 +608,17 @@ emitNodeM n = do
 
 postEmitNodeHooksM :: MonadRepGraphE m => Visit -> m ()
 postEmitNodeHooksM visit = do
-    -- TODO?
-    return ()
-    -- tag <- nodeTagR (visit.nodeId ^. expecting #_Addr)
-    -- when (tag == C) $ do
-    --     undefined
+    let n = visit.nodeId ^. expecting #_Addr
+    tag <- nodeTagR n
+    when (tag == C) $ do
+        node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+        let accs = toListOf (foldExprs % getMemAccess) node
+        upd_ps <- catMaybes <$> (for accs $ \acc -> case acc.kind of
+            MemOpKindUpdate -> Just <$> toSmtExprRM acc.addr visit Nothing
+            _ -> return Nothing)
+        case upd_ps of
+            [] -> return ()
+            _ -> error "unexpected"
 
 scanMemCalls :: SMTEnv -> Maybe ()
 scanMemCalls env = undefined

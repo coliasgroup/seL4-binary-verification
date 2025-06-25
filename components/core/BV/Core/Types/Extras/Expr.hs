@@ -286,20 +286,18 @@ data MemOp
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-getMemAccesses :: Expr -> [MemOp]
-getMemAccesses = toListOf $ foldExprs % afolding f
-  where
-    f expr = case expr.value of
-        ExprValueOp OpMemAcc [mem, addr] -> Just $ MemOp
-            { kind = MemOpKindAcc
-            , addr
-            , value = expr
-            , mem
-            }
-        ExprValueOp OpMemUpdate [mem, addr, value] -> Just $ MemOp
-            { kind = MemOpKindUpdate
-            , addr
-            , value
-            , mem
-            }
-        _ -> Nothing
+getMemAccess :: AffineFold Expr MemOp
+getMemAccess = afolding $ \expr -> case expr.value of
+    ExprValueOp OpMemAcc [mem, addr] -> Just $ MemOp
+        { kind = MemOpKindAcc
+        , addr
+        , value = expr
+        , mem
+        }
+    ExprValueOp OpMemUpdate [mem, addr, value] -> Just $ MemOp
+        { kind = MemOpKindUpdate
+        , addr
+        , value
+        , mem
+        }
+    _ -> Nothing
