@@ -131,12 +131,14 @@ initRepGraphEnv functionSigs pairings argRenames problem =
              in M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
                     [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
                         if member == loopHead then Nothing else Just (member, LoopMember loopHead))
-        , preds = M.fromListWith (<>) $ concat
-            [ [ (cont, S.singleton nodeAddr)
-              | cont <- node ^.. nodeConts
-              ]
-            | (nodeAddr, node) <- M.toAscList problem.nodes
-            ]
+        , preds =
+            let defaults = map (, []) $ [Ret, Err] ++ map Addr (M.keys problem.nodes)
+             in M.fromListWith (<>) $ concat $ [defaults] ++
+                    [ [ (cont, S.singleton nodeAddr)
+                    | cont <- node ^.. nodeConts
+                    ]
+                    | (nodeAddr, node) <- M.toAscList problem.nodes
+                    ]
         }
   where
     nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
@@ -306,7 +308,7 @@ warmPcEnvCacheM visitWithTag = do
             prevs' <- lift $ lift $ runExceptT $ filterM f prevs
             case prevs' of
                 Right (n_vc':_) -> do
-                    tell [n_vc]
+                    tell [n_vc']
                     put n_vc'
                     return ()
                 _ -> hoistMaybe Nothing

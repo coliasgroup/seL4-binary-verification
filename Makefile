@@ -73,9 +73,16 @@ it: hpack
 
 .PHONY: x
 x:
+	cabal test core-test
+
+.PHONY: p
+p:
 	cabal test core-test \
 		--enable-profiling \
-		--profiling-detail=late \
+		--disable-optimization \
 		--test-option=+RTS \
 		--test-option=-pj \
+		--test-option=-N1 \
 		--test-option=-RTS
+
+		# --profiling-detail=late \
