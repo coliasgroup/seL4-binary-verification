@@ -524,7 +524,17 @@ getLoopPcEnvM split vcount = do
             let av nm typ = do
                     let nm2 = printf "%s_loop_at_%s" (nm :: String) (prettyNodeId (Addr split))
                     addVarMR nm2 typ mem_calls
-            (env, consts) <- flip runStateT M.empty $ flip M.traverseWithKey prev_env $ \(nm, typ) v -> do
+            (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prev_env $ \(nm, typ) v -> do
+                let check_const = case typ of
+                        ExprTypeHtd -> True
+                        ExprTypeDom -> True
+                        _ -> False
+                if check_const
+                    then do
+                        modify $ S.insert (nm, typ)
+                        return $ prev_env ! (nm, typ)
+                    else do
+                        SMT . nameS <$> lift (av (nm.unwrap ++ "_after") typ)
                 undefined
             env' <- flip M.traverseWithKey env $ \(nm, typ) v -> do
                 undefined
