@@ -38,7 +38,7 @@ import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
 import Control.Applicative (asum)
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, when)
+import Control.Monad (filterM, guard, when, replicateM)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
@@ -310,7 +310,8 @@ warmPcEnvCacheM visitWithTag = do
                     put n_vc'
                     return ()
                 _ -> hoistMaybe Nothing
-    (_, prevChain' :: [Visit]) <- evalRWST (runMaybeT go) () visitWithTag.visit
+    (_, prevChain' :: [Visit]) <- evalRWST (runMaybeT (replicateM 5000 go)) () visitWithTag.visit
+    ensureM $ length prevChain' < 5000
     let prevChain = reverse prevChain'
     for prevChain $ \n_vc -> do
         getNodePcEnvM' n_vc (Just visitWithTag.tag)
