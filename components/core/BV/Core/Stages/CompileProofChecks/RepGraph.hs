@@ -545,11 +545,15 @@ specializeM visit split = do
             ]
 
 getArcPcEnvM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Expr, SMTEnv))
-getArcPcEnvM visit n2 = do
-    (tag, vcountOpt) <- getTagVCount visit Nothing
+getArcPcEnvM visit' n2 = do
+    (tag, vcountOpt) <- getTagVCount visit' Nothing
     case vcountOpt of
         Nothing -> return Nothing
         Just vcount -> do
+            let visit = Visit
+                    { nodeId = visit'.nodeId
+                    , restrs = vcount
+                    }
             present <- liftRepGraph $ use $ #arcPcEnvs % at visit
             case present of
                 Just r -> return $ M.lookup n2.nodeId r
