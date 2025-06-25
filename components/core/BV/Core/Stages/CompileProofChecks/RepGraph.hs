@@ -616,7 +616,7 @@ getArcPcEnvM visit' n2 = do
                         Nothing -> return Nothing
                         Just _ -> do
                             arcs <- emitNodeM visit
-                            postEmitNodeHooksM visit
+                            -- postEmitNodeHooksM visit
                             let arcs' = M.fromList [ (cont, (pc, env)) | (cont, pc, env) <- arcs ]
                             liftRepGraph $ #arcPcEnvs %= M.insert visit arcs'
                             return $ arcs' !? n2.nodeId

@@ -540,9 +540,9 @@ addDefEitherM nameHint val = do
             then do
                 return $ Left name
             else do
-                case val.value of
-                    ExprValueVar _ -> error ""
-                    _ -> return ()
+                -- case val.value of
+                --     ExprValueVar _ -> error ""
+                --     _ -> return ()
                 let ty = smtType val.ty
                 send $ defineFunS name.unwrap [] ty smt'
                 liftSolver $ #defs %= M.insert name smt'
