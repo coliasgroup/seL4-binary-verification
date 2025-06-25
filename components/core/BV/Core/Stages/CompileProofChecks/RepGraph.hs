@@ -626,3 +626,15 @@ scanMemCalls env = undefined
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe () -> m (Maybe MemCalls)
 addLoopMemCallsM split mem_calls = do
     undefined
+
+addMemCallM :: MonadRepGraphE m => m ()
+addMemCallM = do
+    undefined
+
+addFuncM :: MonadRepGraphE m => m ()
+addFuncM = do
+    undefined
+
+addLocalDefMR :: MonadRepGraphE m => m ()
+addLocalDefMR = do
+    undefined
