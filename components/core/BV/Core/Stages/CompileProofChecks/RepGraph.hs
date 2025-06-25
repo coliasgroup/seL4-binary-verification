@@ -45,7 +45,7 @@ import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
                           RWST (runRWST), evalRWST)
-import Control.Monad.State (MonadState, execStateT, modify)
+import Control.Monad.State (MonadState, execStateT, modify, StateT (runStateT))
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
@@ -522,9 +522,14 @@ getLoopPcEnvM split vcount = do
             let (_, prev_env) = prev_pc_env
             mem_calls <- addLoopMemCallsM split (scanMemCalls prev_env)
             let av nm typ = do
-                    let nm2 = printf "%s_loop_at_%s" nm (prettyNodeId (Addr split))
+                    let nm2 = printf "%s_loop_at_%s" (nm :: String) (prettyNodeId (Addr split))
                     addVarMR nm2 typ mem_calls
-            undefined
+            (env, consts) <- flip runStateT M.empty $ flip M.traverseWithKey prev_env $ \(nm, typ) v -> do
+                undefined
+            env' <- flip M.traverseWithKey env $ \(nm, typ) v -> do
+                undefined
+            pc <- smtExprE boolT . SMT . nameS <$> av "pc_of" boolT
+            return $ Just (pc, env')
 
 scanMemCalls :: SMTEnv -> Maybe ()
 scanMemCalls env = undefined
