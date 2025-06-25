@@ -702,7 +702,7 @@ emitNodeM n = do
                 return $ [(callNode.next, pc, env')]
 
 addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m ()
-addFuncM = do
+addFuncM name inputs outputs success n_vc = do
     -- TODO
     return ()
 
