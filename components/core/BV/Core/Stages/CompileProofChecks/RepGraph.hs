@@ -56,7 +56,7 @@ import Data.List (inits, intercalate, isPrefixOf, sort)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
+import Data.Maybe (catMaybes, fromMaybe, mapMaybe, fromJust)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -621,7 +621,24 @@ addLocalDefMR _ _ = addDefM
 
 emitNodeM :: MonadRepGraphE m => Visit -> m [(NodeId, Expr, SMTEnv)]
 emitNodeM n = do
-    undefined
+    (pc, env) <- fromJust <$> getNodePcEnvM n Nothing
+    let nodeAddr = n.nodeId ^. expecting #_Addr
+    tag <- nodeTagR nodeAddr
+    let app_eqs = id
+    node <- liftRepGraph $ gview $ #problem % #nodes % at nodeAddr % unwrapped
+    if pc == falseE
+        then return [ (c, falseE, M.empty) | c <- node ^.. nodeConts ]
+        else case node of
+            NodeCond condNode | condNode.left == condNode.right -> do
+                return [(condNode.left, pc, env)]
+            NodeCond condNode | condNode.expr == trueE -> do
+                return [(condNode.left, pc, env), (condNode.right, falseE, env)]
+            NodeBasic basicNode -> do
+                undefined
+            NodeCond condNode -> do
+                undefined
+            NodeCall callNode -> do
+                undefined
 
 scanMemCalls :: SMTEnv -> Maybe ()
 scanMemCalls env = undefined
