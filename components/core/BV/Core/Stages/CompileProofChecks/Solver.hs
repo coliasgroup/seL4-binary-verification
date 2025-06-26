@@ -903,13 +903,13 @@ mergeEnvs envs = do
     let f :: [(SMT, [SMT])] -> SMT
         f itsx =
             let Just (its, (v', _)) = unsnoc itsx
-                g v (v2, pc_strs'') =
+                g (v2, pc_strs'') v =
                     let pc_strs = fmap (^. expecting #_SMT) pc_strs''
                         pc_str = case pc_strs of
                             [pc_str'] -> pc_str'
                             _ -> orNS pc_strs
                      in smtIfThenElse pc_str v2 v
-             in foldl g v' its
+             in foldr g v' its
     return $ fmap (f . M.toAscList) var_envs
 
 foldAssocBalanced :: (a -> a -> a) -> [a] -> a
