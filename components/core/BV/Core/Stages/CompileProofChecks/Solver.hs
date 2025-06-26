@@ -54,7 +54,7 @@ import Control.Monad.State (MonadState, State, StateT (..), execStateT, get,
                             modify)
 import Control.Monad.Writer (MonadWriter, tell)
 import Data.Foldable (for_)
-import Data.List (intercalate, sort)
+import Data.List (intercalate, sort, nub)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (isJust, isNothing)
@@ -930,7 +930,7 @@ mergeEnvsPcs pc_envs' = do
     let path_cond = case pc_envs of
             [] -> falseE
             _ ->
-                let pcs = S.toList $ S.fromList $ map fst pc_envs
+                let pcs = nub $ map fst pc_envs
                  in foldAssocBalanced orE pcs
     env <- mergeEnvs pc_envs
     return $ (path_cond, env, length pc_envs > 1)
