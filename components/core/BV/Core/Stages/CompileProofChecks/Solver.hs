@@ -909,7 +909,7 @@ mergeEnvs envs = do
                             [pc_str'] -> pc_str'
                             _ -> orNS pc_strs
                      in smtIfThenElse pc_str v2 v
-             in foldr g v' its
+             in foldr g v' (reverse its)
     return $ fmap (f . M.toAscList) var_envs
 
 foldAssocBalanced :: (a -> a -> a) -> [a] -> a
