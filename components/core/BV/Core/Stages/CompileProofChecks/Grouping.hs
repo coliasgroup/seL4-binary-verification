@@ -21,8 +21,10 @@ proofCheckGroups :: [ProofCheck a] -> [ProofCheckGroup a]
 proofCheckGroups = toList . proofCheckGroupsWithKeys
 
 proofCheckGroupsWithKeys :: [ProofCheck a] -> Map CheckGroupKey (ProofCheckGroup a)
-proofCheckGroupsWithKeys =
-    foldMap (\check -> M.singleton (compatOrdKey (groupKeyOf check)) [check])
+proofCheckGroupsWithKeys checks = M.unionsWith (<>)
+    [ M.singleton (compatOrdKey (groupKeyOf check)) [check]
+    | check <- checks
+    ]
 
 newtype CheckGroupKey
   = CheckGroupKey { unwrap :: [((String, [(Integer, ([Integer], [Integer]))]), String)] }
