@@ -609,8 +609,8 @@ addRODataDefM = do
         [] -> do
             return $ (trueS, trueS)
         _ -> do
-            roWitness <- smtNameM "rodata-witness"
-            roWitnessVal <- smtNameM "rodata-witness-val"
+            roWitness <- addVarM "rodata-witness" word32T
+            roWitnessVal <- addVarM "rodata-witness-val" word32T
             ensureM $ roWitness.unwrap == "rodata-witness"
             ensureM $ roWitnessVal.unwrap == "rodata-witness-val"
             rodata <- liftSolver $ gview #rodata
