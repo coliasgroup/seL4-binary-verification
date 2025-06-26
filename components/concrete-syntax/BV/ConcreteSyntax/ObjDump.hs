@@ -118,7 +118,7 @@ makeROData objDumpInfo inputRanges file =
         , rodata
         }
   where
-    ranges = map (uncurry (lookupRODataRange objDumpInfo)) inputRanges
+    ranges = sort $ map (uncurry (lookupRODataRange objDumpInfo)) inputRanges
     rangesMap = M.fromList . normalizeRanges . sort $
         [ (range.addr, range.addr + range.size)
         | range <- ranges

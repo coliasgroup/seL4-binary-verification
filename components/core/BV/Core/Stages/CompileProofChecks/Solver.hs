@@ -54,7 +54,7 @@ import Control.Monad.State (MonadState, State, StateT (..), execStateT, get,
                             modify)
 import Control.Monad.Writer (MonadWriter, tell)
 import Data.Foldable (for_)
-import Data.List (intercalate)
+import Data.List (intercalate, sort)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (isJust, isNothing)
@@ -627,7 +627,7 @@ addRODataDefM = do
             let ro_def = andNS eqs
             let ro_ineqs =
                     [ bvuleS (smtNum range.addr 32) (symbolS roWitness.unwrap)
-                        `andS` bvuleS (smtNum (range.addr + range.size) 32) (symbolS roWitnessVal.unwrap)
+                        `andS` bvuleS (symbolS roWitness.unwrap) (smtNum (range.addr + range.size - 1) 32)
                     | range <- rodata.ranges
                     ]
             let assns :: [S] =
