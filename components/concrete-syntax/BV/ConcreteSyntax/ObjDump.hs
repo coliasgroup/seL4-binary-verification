@@ -159,11 +159,11 @@ containsRange (start, end) ranges = fromJust $ do
     case M.lookupLE start ranges of
         Just (_, end') ->
             if end' <= start
-            then return True
+            then return False
             else if end' < end
             then empty
-            else return False
-        Nothing -> return True
+            else return True
+        Nothing -> return False
 
 parseROData :: ObjDumpInfo -> RODataInputRanges -> Parsec Void TL.Text ROData
 parseROData objDumpInfo ranges = makeROData objDumpInfo ranges <$!> parseRODataFile
