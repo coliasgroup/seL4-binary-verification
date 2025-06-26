@@ -436,10 +436,10 @@ asmStackRepHook nm typ kind n = runMaybeT $ do
     guard $ typ == ExprTypeMem
     guard $ kind /= VarRepRequestKindInit
     argRenames <- lift $ liftRepGraph $ gview #argRenames
-    return $ varE memT (argRenames (PairingEqSideQuadrant
+    return $ varE word32T (argRenames (PairingEqSideQuadrant
         { tag
         , direction = PairingEqDirectionIn
-        }) (Ident "stack"))
+        }) (Ident "r13"))
 
 nodeCountName :: Visit -> NameHint
 nodeCountName visit = intercalate "_" $ [ prettyNodeId visit.nodeId ] ++
