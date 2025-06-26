@@ -114,11 +114,11 @@ isNodeNoop = \case
 --
 
 data PValidType
-  = PValidTypeType ExprType
-  | PValidTypeArray
+  = PValidTypeArray
       { ty :: ExprType
       , len :: Expr
       }
+  | PValidTypeType ExprType
   deriving (Eq, Generic, NFData, Ord, Show)
 
 alignValidIneqE :: ExprType -> Expr -> Expr
@@ -189,18 +189,18 @@ data PArrayValidStrength
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data PValidKind
-  = PValidKindGlobal
-  | PValidKindWeak
-  | PValidKind
-  | PValidKindArray
+  = PValidKindPArrayValid
+  | PValidKindPGlobalValid
+  | PValidKindPValid
+  | PValidKindPWeakValid
   deriving (Eq, Generic, NFData, Ord, Show)
 
 pvalidKindFromOp :: Op -> PValidKind
 pvalidKindFromOp = \case
-    OpPValid -> PValidKind
-    OpPGlobalValid -> PValidKindGlobal
-    OpPArrayValid -> PValidKindArray
-    OpPWeakValid -> PValidKindWeak
+    OpPValid -> PValidKindPValid
+    OpPGlobalValid -> PValidKindPGlobalValid
+    OpPArrayValid -> PValidKindPArrayValid
+    OpPWeakValid -> PValidKindPWeakValid
 
 endAddr :: MonadStructs m => Expr -> PValidType -> m Expr
 endAddr p pvTy = do

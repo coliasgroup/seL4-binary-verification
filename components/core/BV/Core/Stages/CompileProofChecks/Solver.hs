@@ -54,7 +54,7 @@ import Control.Monad.State (MonadState, State, StateT (..), execStateT, get,
                             modify)
 import Control.Monad.Writer (MonadWriter, tell)
 import Data.Foldable (for_)
-import Data.List (intercalate, sort, nub)
+import Data.List (intercalate, nub, sort)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (isJust, isNothing)
@@ -723,7 +723,7 @@ addPValidsM = go False
                     rodataPtrs <- liftSolver rodataPtrsM
                     for_ rodataPtrs $ \(r_addr, r_typ) -> do
                         r_addr_s <- withoutEnv $ smtExprNoSplitM r_addr
-                        var <- go True htd_s (PValidTypeType r_typ) r_addr_s PValidKindGlobal
+                        var <- go True htd_s (PValidTypeType r_typ) r_addr_s PValidKindPGlobalValid
                         assertFactSmtM var
                 p <- notePtrM p_s
                 present <- liftSolver $ preuse $ #pvalids % at htd_s % #_Just % at (typ, p, kind) % #_Just
@@ -740,7 +740,7 @@ addPValidsM = go False
                         withoutEnv $ assertFactM impl_al
                         for (M.toAscList others) $ \val@(valKey@(valPvTy, valName, valPvKind), valS) -> do
                             let kinds :: [PValidKind] = [valPvKind, pdataKind]
-                            unless (PValidKindWeak `elem` kinds && not (PValidKindGlobal `elem` kinds)) $ do
+                            unless (PValidKindPWeakValid `elem` kinds && not (PValidKindPGlobalValid `elem` kinds)) $ do
                                 do
                                     ass <- pvalidAssertion1 pdata (uncurry smtify val)
                                     ass_s <- withoutEnv $ smtExprNoSplitM ass
