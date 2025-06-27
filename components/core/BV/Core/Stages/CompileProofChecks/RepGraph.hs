@@ -62,7 +62,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import Data.Vector.Internal.Check (HasCallStack)
-import Debug.Trace (traceShowId)
+import Debug.Trace (traceShowId, traceM)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
@@ -350,6 +350,7 @@ getTagVCount visit mtag = do
         then return (tag, Nothing)
         else do
             let vcount = sort [ (split, count) | (split, count, r) <- vcount_r, r ]
+            -- traceM $ ("XXX " ++ nodeCountName visit ++ " -> " ++ nodeCountName (Visit visit.nodeId [ Restr x y | (x, y) <- vcount ]))
             maybeLoopId <- loopIdR' visit.nodeId
             case maybeLoopId of
                 Nothing -> return ()
@@ -357,7 +358,7 @@ getTagVCount visit mtag = do
                     maybeLoopId' <- loopIdR split
                     when (maybeLoopId' == Just loopId && isOptionsVC visits) $ do
                         throwError $ TooGeneral { split }
-            return (tag, Just visit.restrs)
+            return (tag, Just [ Restr x y | (x, y) <- vcount ])
 
 getInductVarM :: MonadRepGraph m => EqHypInduct -> m Expr
 getInductVarM induct = do
