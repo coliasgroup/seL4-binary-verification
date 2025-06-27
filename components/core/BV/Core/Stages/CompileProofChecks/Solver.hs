@@ -63,7 +63,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
 import Data.Traversable (for)
-import Debug.Trace (traceShowId)
+import Debug.Trace (traceShowId, traceM)
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
@@ -718,7 +718,7 @@ addPValidsM = go False
                 r' <- addPValidsM r typ p_s kind
                 return $ iteS cond l' r'
             _ -> do
-                alreadyIn <- liftSolver $ use $ #pvalids % at htd_s % to isNothing
+                alreadyIn <- liftSolver $ use $ #pvalids % to (M.member htd_s)
                 when (not alreadyIn && not recursion) $ do
                     rodataPtrs <- liftSolver rodataPtrsM
                     for_ rodataPtrs $ \(r_addr, r_typ) -> do
