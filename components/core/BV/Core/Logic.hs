@@ -312,7 +312,7 @@ applyRelWrapper lhs rhs =
             let sp1:st1:rest1 = argsL
                 sp2:st2:rest2 = argsR
                 excepts = nub $ rest1 ++ rest2
-                f st0 = foldr (\p st -> memUpdE st p (word32E 0)) st0 excepts
+                f st0 = foldr (\p st -> memUpdE p st (word32E 0)) st0 excepts
              in boolE $ ExprValueOp OpImpliesStackEquals [sp1, (f st1), sp2, (f st2)]
         _ | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
             let [[addr, val]] =

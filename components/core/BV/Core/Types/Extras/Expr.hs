@@ -13,6 +13,7 @@ import Data.Monoid (Endo (Endo, appEndo))
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
+import Debug.Trace (traceShow)
 
 boolT :: ExprType
 boolT = ExprTypeBool
@@ -228,17 +229,18 @@ wordVarE bits = varE (wordT bits)
 
 memAccE :: HasCallStack => ExprType -> Expr -> Expr -> Expr
 memAccE ty addr mem =
+    -- traceShow mem .
     ensureType_ isMemT mem .
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
     ensure (isWordT ty) $
         Expr ty (opV OpMemAcc [mem, addr])
 
-memUpdE :: Expr -> Expr -> Expr -> Expr
+memUpdE :: HasCallStack => Expr -> Expr -> Expr -> Expr
 memUpdE addr mem v =
     ensureType_ isMemT mem .
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
     ensure (isWordT v.ty) $
-        Expr v.ty (opV OpMemUpdate [mem, addr, v])
+        Expr mem.ty (opV OpMemUpdate [mem, addr, v])
 
 rodataE :: Expr -> Expr
 rodataE mem = ensureType_ isMemT mem $ boolE (opV OpROData [mem])
