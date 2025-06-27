@@ -54,7 +54,7 @@ import Control.Monad.State (MonadState, State, StateT (..), execStateT, get,
                             modify)
 import Control.Monad.Writer (MonadWriter, tell)
 import Data.Foldable (for_)
-import Data.List (intercalate, nub, sort)
+import Data.List (intercalate, nub, sort, sortOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (isJust, isNothing)
@@ -903,14 +903,24 @@ mergeEnvs envs = do
     let f :: [(SMT, [SMT])] -> SMT
         f itsx =
             let Just (its, (v', _)) = unsnoc itsx
-                g (v2, pc_strs'') v =
+                g v (v2, pc_strs'') =
                     let pc_strs = fmap (^. expecting #_SMT) pc_strs''
                         pc_str = case pc_strs of
                             [pc_str'] -> pc_str'
                             _ -> orNS pc_strs
                      in smtIfThenElse pc_str v2 v
-             in foldr g v' (reverse its)
-    return $ fmap (f . M.toAscList) var_envs
+             in foldl g v' its
+    return $ fmap (f . sortOn (smtComparisonKey . fst) . M.toAscList) var_envs
+
+data SMTComparisonKey
+  = SMTComparisonKeySMT String
+  | SMTComparisonKeySplitMem String String String
+  deriving (Eq, Generic, Ord, Show)
+
+smtComparisonKey :: SMT -> SMTComparisonKey
+smtComparisonKey = \case
+    SMT s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
+    SMTSplitMem s -> SMTComparisonKeySplitMem (showSExprWithPlaceholders s.split) (showSExprWithPlaceholders s.top) (showSExprWithPlaceholders s.bottom)
 
 foldAssocBalanced :: (a -> a -> a) -> [a] -> a
 foldAssocBalanced f = go
