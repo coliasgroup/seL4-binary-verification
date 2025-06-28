@@ -40,7 +40,7 @@ import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
 import Control.Applicative (asum)
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, replicateM, when)
+import Control.Monad (filterM, guard, replicateM, when, unless)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
@@ -176,11 +176,9 @@ nodeTagR n = liftRepGraph $ do
 
 getReachableR :: MonadRepGraph m => NodeAddr -> NodeId -> m Bool
 getReachableR split n = do
-    if Addr split == n
-        then return False
-        else do
-            g <- liftRepGraph $ gview #nodeGraph
-            return $ isReachableFrom g (Addr split) n
+    g <- liftRepGraph $ gview #nodeGraph
+    splitNode <- liftRepGraph $ gview $ #problem % #nodes % at split % unwrapped
+    return $ any id [ isReachableFrom g splitCont n | splitCont <- splitNode ^.. nodeConts ]
 
 predsR :: MonadRepGraph m => NodeId -> m (Set NodeAddr)
 predsR n = liftRepGraph $ gview $ #preds % at n % unwrapped
@@ -328,7 +326,8 @@ warmPcEnvCacheM visitWithTag = do
                     tell [n_vc']
                     put n_vc'
                     return ()
-                _ -> hoistMaybe Nothing
+                _ -> do
+                    hoistMaybe Nothing
     (_, prevChain' :: [Visit]) <- evalRWST (runMaybeT (replicateM 5000 go)) () visitWithTag.visit
     ensureM $ length prevChain' < 5000
     let prevChain = reverse prevChain'
