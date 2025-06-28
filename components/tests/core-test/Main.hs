@@ -30,9 +30,9 @@ testStages = do
     output.intermediate.compatSMTProofChecks `deepseq` return ()
   where
     referenceTargetDir =
-        -- testSeL4TargetDirBig
+        testSeL4TargetDirBig
         -- testSeL4TargetDirSmall
-        testSeL4TargetDirFocused
+        -- testSeL4TargetDirFocused
 
 testStagesWithChecking :: IO ()
 testStagesWithChecking = do
