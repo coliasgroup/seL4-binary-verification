@@ -291,7 +291,7 @@ smtExprM expr = do
                         | otherwise ->
                             case op of
                                 OpWordCast -> [["_", "zero_extend", intS (bitsExpr - bitsV)], ex]
-                                OpWordCastSigned -> [["_", "sign_extend", intS (bitsExpr - bitsV), ex]]
+                                OpWordCastSigned -> [["_", "sign_extend", intS (bitsExpr - bitsV)], ex]
             _ | op == OpToFloatingPoint || op == OpToFloatingPointSigned ||
                 op == OpToFloatingPointUnsigned || op == OpFloatingPointCast -> do
                     error "unsupported"
