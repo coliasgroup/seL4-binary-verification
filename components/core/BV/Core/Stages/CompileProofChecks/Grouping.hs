@@ -14,11 +14,15 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Debug.Trace (traceShowId, trace)
 
 type ProofCheckGroup a = [ProofCheck a]
 
 proofCheckGroups :: [ProofCheck a] -> [ProofCheckGroup a]
-proofCheckGroups = toList . proofCheckGroupsWithKeys
+-- proofCheckGroups = toList . proofCheckGroupsWithKeys
+proofCheckGroups x = trace ("XABCY " ++ show (length y)) $ y
+  where
+    y = toList . proofCheckGroupsWithKeys $ x
 
 proofCheckGroupsWithKeys :: [ProofCheck a] -> Map CheckGroupKey (ProofCheckGroup a)
 proofCheckGroupsWithKeys checks = M.unionsWith (<>)
@@ -36,6 +40,12 @@ groupKeyOf check = S.fromList (check ^.. checkVisits)
 
 compatOrdKey :: Set VisitWithTag -> CheckGroupKey
 compatOrdKey visits = CheckGroupKey $ sort
-    [ ((prettyNodeId visit.nodeId, []), prettyTag tag)
+    [ ((prettyNodeId visit.nodeId, map compatRestr visit.restrs), prettyTag tag)
     | VisitWithTag visit tag <- S.toList visits
     ]
+
+compatRestr :: Restr -> (Integer, ([Integer], [Integer]))
+compatRestr restr = (restr.nodeAddr.unwrap, compatVisitCount restr.visitCount)
+
+compatVisitCount :: VisitCount -> ([Integer], [Integer])
+compatVisitCount vc = (vc.numbers, vc.offsets)
