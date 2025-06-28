@@ -19,10 +19,7 @@ import Debug.Trace (traceShowId, trace)
 type ProofCheckGroup a = [ProofCheck a]
 
 proofCheckGroups :: [ProofCheck a] -> [ProofCheckGroup a]
--- proofCheckGroups = toList . proofCheckGroupsWithKeys
-proofCheckGroups x = trace ("XABCY " ++ show (length y)) $ y
-  where
-    y = toList . proofCheckGroupsWithKeys $ x
+proofCheckGroups = toList . proofCheckGroupsWithKeys
 
 proofCheckGroupsWithKeys :: [ProofCheck a] -> Map CheckGroupKey (ProofCheckGroup a)
 proofCheckGroupsWithKeys checks = M.unionsWith (<>)
