@@ -422,7 +422,7 @@ smtExprMemupdM mSplit p v (typ@(ExprTypeWord bits)) = do
                 let p_align = bvandS p' (hexS "fffffffd")
                 noteModelExprM p_align word32T
                 noteModelExprM (loadWord32S m p_align) word32T
-                return $ SMT $ storeWord32S m p' v
+                return $ SMT $ storeWord8S m p' v
             32 -> do
                 noteModelExprM (loadWord32S m p) typ
                 noteModelExprM p word32T
