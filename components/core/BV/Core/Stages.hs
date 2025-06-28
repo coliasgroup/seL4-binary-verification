@@ -159,8 +159,8 @@ stages input = StagesOutput
 
     -- TODO by doing this we lose laziness, and it's probably overkill anyways (reduces eval from ~8s -> ~4s)
     -- TODO parallelism probably overkill
-    problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
-    -- problems = problems'
+    -- problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
+    problems = problems'
 
     problems' = Problems . M.fromList $ do
         pairingId <- normalFunctionPairingIds
@@ -174,9 +174,9 @@ stages input = StagesOutput
     provenProblems = problems & #unwrap %~ \m -> M.restrictKeys m (M.keysSet input.proofs.unwrap)
 
     -- TODO (see above)
-    proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
+    -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
-    -- proofChecks = proofChecks'
+    proofChecks = proofChecks'
 
     lookupOrigVarNameFor pairingId problem quadrant mangledName =
         fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
