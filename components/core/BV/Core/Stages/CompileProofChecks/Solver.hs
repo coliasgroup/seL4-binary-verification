@@ -763,7 +763,9 @@ getTokenM :: MonadSolver m => String -> m SMT
 getTokenM string = do
     present <- liftSolver $ use $ #tokenTokens % to (M.member string)
     unless present $ do
-        n <- liftSolver $ use $ #tokenTokens % to M.size % to (1 +)
+        n_x <- liftSolver $ use $ #tokenTokens % to M.size
+        n_y <- liftSolver $ use $ #tokenVals % to M.size
+        let n = n_x + n_y + 1
         v <- withoutEnv $ addDefNoSplitM ("token_" ++ string) (numE tokenSmtType (toInteger n))
         liftSolver $ do
             #tokenTokens %= M.insert string (nameS v)
