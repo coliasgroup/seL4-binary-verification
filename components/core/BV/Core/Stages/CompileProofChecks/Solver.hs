@@ -460,7 +460,7 @@ getSMTDerivedOpM op n = do
                     OpWordReverse -> printf "bvrev_%d" n
             body <- case n of
                     1 -> return $ case op of
-                            OpCountLeadingZeroes -> iteS ("x" `eqS` hexS "0") (hexS "1") (hexS "0")
+                            OpCountLeadingZeroes -> iteS ("x" `eqS` binS "0") (binS "1") (binS "0")
                             OpWordReverse -> "x"
                     _ -> do
                         let m = n `div` 2
@@ -480,7 +480,7 @@ getSMTDerivedOpM op n = do
                                         topAppX
                                 OpWordReverse ->
                                     concatS botApp topApp
-            send $ defineFunS fname [("x", bitVecS 1)] (bitVecS 1) body
+            send $ defineFunS fname [("x", bitVecS n)] (bitVecS n) body
             liftSolver $ modify $ #smtDerivedOps % at (op, n) ?~ fname
             return fname
 
