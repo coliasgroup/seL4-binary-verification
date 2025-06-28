@@ -176,8 +176,11 @@ nodeTagR n = liftRepGraph $ do
 
 getReachableR :: MonadRepGraph m => NodeAddr -> NodeId -> m Bool
 getReachableR split n = do
-    g <- liftRepGraph $ gview #nodeGraph
-    return $ isReachableFrom g (Addr split) n
+    if Addr split == n
+        then return False
+        else do
+            g <- liftRepGraph $ gview #nodeGraph
+            return $ isReachableFrom g (Addr split) n
 
 predsR :: MonadRepGraph m => NodeId -> m (Set NodeAddr)
 predsR n = liftRepGraph $ gview $ #preds % at n % unwrapped
