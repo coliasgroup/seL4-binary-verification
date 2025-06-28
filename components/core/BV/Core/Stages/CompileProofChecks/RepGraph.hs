@@ -62,7 +62,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import Data.Vector.Internal.Check (HasCallStack)
-import Debug.Trace (traceShowId, traceM)
+import Debug.Trace (traceM, traceShowId)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))

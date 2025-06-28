@@ -63,7 +63,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
 import Data.Traversable (for)
-import Debug.Trace (traceShowId, traceM)
+import Debug.Trace (traceM, traceShowId)
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics

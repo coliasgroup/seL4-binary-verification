@@ -10,10 +10,10 @@ import Control.DeepSeq (NFData)
 import Data.Bits (shiftL)
 import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
+import Debug.Trace (traceShow)
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
-import Debug.Trace (traceShow)
 
 boolT :: ExprType
 boolT = ExprTypeBool

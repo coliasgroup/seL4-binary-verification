@@ -12,9 +12,9 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
 import qualified Data.Set as S
+import Debug.Trace (trace, traceShowId)
 import GHC.Generics (Generic)
 import Optics
-import Debug.Trace (traceShowId, trace)
 
 type ProofCheckGroup a = [ProofCheck a]
 
