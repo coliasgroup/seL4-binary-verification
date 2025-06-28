@@ -29,6 +29,7 @@ import Data.Function (applyWhen)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (isNothing)
+import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 
@@ -98,14 +99,21 @@ compileProofCheckGroupM group = do
     return imps
 
 interpretGroupM :: ProofCheckGroup a -> M [SMTProofCheckImp a]
-interpretGroupM group = mapM interpretCheckM group
+interpretGroupM group = do
+    hyps <- for group $ \check -> do
+        concl <- interpretHypM check.hyp
+        term <- interpretHypImpsM check.hyps concl
+        return (check, term)
+    for hyps $ \(check, term) -> do
+        sexpr <- runReaderT (smtExprNoSplitM term) M.empty
+        return $ SMTProofCheckImp check.meta sexpr
 
-interpretCheckM :: ProofCheck a -> M (SMTProofCheckImp a)
-interpretCheckM check = do
-    concl <- interpretHypM check.hyp
-    term <- interpretHypImpsM check.hyps concl
-    sexpr <- runReaderT (smtExprNoSplitM term) M.empty
-    return $ SMTProofCheckImp check.meta sexpr
+-- interpretCheckM :: ProofCheck a -> M (SMTProofCheckImp a)
+-- interpretCheckM check = do
+--     concl <- interpretHypM check.hyp
+--     term <- interpretHypImpsM check.hyps concl
+--     sexpr <- runReaderT (smtExprNoSplitM term) M.empty
+--     return $ SMTProofCheckImp check.meta sexpr
 
 interpretHypImpsM :: [Hyp] -> Expr -> M Expr
 interpretHypImpsM hyps concl = do
