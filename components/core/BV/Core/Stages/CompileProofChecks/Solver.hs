@@ -369,17 +369,24 @@ smtExprM expr = do
                     return $ smtIfThenElse cond' x' y'
             OpHTDUpdate -> do
                 lift $ SMT . nameS <$> addVarM "update_htd" expr.ty
+            OpEquals | (head args).ty == ExprTypeMem -> do
+                args' <- for args smtExprNoSplitM
+                let [x, y] = args'
+                let s = ["mem-eq", x, y]
+                noteModelExprM s boolT
+                return $ SMT s
+            OpEquals | (head args).ty == word32T -> do
+                args' <- for args smtExprNoSplitM
+                let [x, y] = args'
+                let s = ["word32-eq", x, y]
+                return $ SMT s
             _ -> do
                 args' <- for args smtExprNoSplitM
-                let (op', skipNote) = case (op, args) of
-                        (OpEquals, [x, _]) | x.ty == ExprTypeMem -> ("mem-eq", False)
-                        (OpEquals, [x, _]) | x.ty == word32T -> ("word32-eq", True)
-                        _ -> (opS op, False)
+                let op' = opS op
                 let s = case args' of
                         [] -> op'
                         _ -> List $ [op'] ++ args'
-                unless skipNote $ do
-                    lift $ maybeNoteModelExprM s expr.ty args
+                lift $ maybeNoteModelExprM s expr.ty args
                 return $ SMT s
         ExprValueNum n -> do
             return . SMT $ intWithWidthS (wordTBits expr.ty) n
