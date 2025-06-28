@@ -745,7 +745,7 @@ addPValidsM = go False
                         let (_, pdataKind, p', pv') = pdata
                         impl_al <- impliesE pv' <$> alignValidIneqM typ p'
                         withoutEnv $ assertFactM impl_al
-                        for (M.toAscList others) $ \val@(valKey@(valPvTy, valName, valPvKind), valS) -> do
+                        for (sortOn snd (M.toAscList others)) $ \val@(valKey@(valPvTy, valName, valPvKind), valS) -> do
                             let kinds :: [PValidKind] = [valPvKind, pdataKind]
                             unless (PValidKindPWeakValid `elem` kinds && not (PValidKindPGlobalValid `elem` kinds)) $ do
                                 do
