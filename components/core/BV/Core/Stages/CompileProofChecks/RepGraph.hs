@@ -72,6 +72,8 @@ import Text.Printf (printf)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
+-- TODO cache more accross groups
+
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
 type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident
