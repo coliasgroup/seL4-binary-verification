@@ -41,7 +41,7 @@ import BV.Core.Utils
 import BV.SMTLIB2 (GenericSExpr (Atom), unsafeAtom, viewAtom)
 import BV.SMTLIB2.SExpr (GenericSExpr (List), UncheckedAtom (..))
 import Control.Applicative (asum)
-import Control.DeepSeq (NFData, deepseq)
+import Control.DeepSeq (NFData, deepseq, force)
 import Control.Monad (filterM, guard, join, replicateM, unless, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
@@ -979,7 +979,7 @@ memCallsCompatible p_mem_calls = do
             r_cast_calls <- fmap M.fromList $ fmap catMaybes $ for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
                 pair <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
                 let r_fun = pair.asm
-                r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
+                r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag Asm r_fun)
                 let memOut = any (\arg -> arg.ty == memT) r_sig.output
                 return $
                     if memOut

@@ -40,11 +40,15 @@ import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
 import Data.Binary (Binary)
 import Data.Foldable (fold)
 import Data.Functor (void)
-import Data.Map ((!))
+-- import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
 import GHC.Generics (Generic)
 import Optics
+import GHC.Stack (HasCallStack)
+
+(!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
+(!) = findWithCallstack
 
 data StagesInput
   = StagesInput
