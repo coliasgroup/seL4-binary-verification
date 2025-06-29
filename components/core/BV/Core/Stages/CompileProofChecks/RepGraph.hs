@@ -941,7 +941,10 @@ getFuncPairingM n_vc n_vc2 = do
             (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
             l_mem_calls <- scanMemCalls lin
             r_mem_calls <- scanMemCalls rin
-            (c, s) <- memCallsCompatible $ PairingOf l_mem_calls r_mem_calls
+            (c, s) <- memCallsCompatible $ PairingOf
+                { asm = l_mem_calls
+                , c = r_mem_calls
+                }
             unless c $ do
                 -- traceShowM ("skipping", s)
                 return ()
