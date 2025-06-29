@@ -40,7 +40,7 @@ import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
 import Control.Applicative (asum)
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, replicateM, when, unless)
+import Control.Monad (filterM, guard, replicateM, unless, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
@@ -52,7 +52,8 @@ import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Data.Char (isAlpha)
-import Data.Foldable (for_)
+import Data.Foldable (for_, toList)
+import qualified Data.Graph as G
 import Data.List (inits, intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
@@ -62,14 +63,12 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import Data.Vector.Internal.Check (HasCallStack)
+import Data.Void (Void)
 import Debug.Trace (traceM, traceShowId)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-import qualified Data.Graph as G
-import Data.Foldable (toList)
-import Data.Void (Void)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
