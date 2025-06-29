@@ -38,11 +38,11 @@ import BV.Core.Types.Extras (showSExprWithPlaceholders, uncheckedAtomS)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
-import BV.SMTLIB2 (GenericSExpr (Atom), viewAtom)
+import BV.SMTLIB2 (GenericSExpr (Atom), viewAtom, unsafeAtom)
 import BV.SMTLIB2.SExpr (GenericSExpr (List), UncheckedAtom (..))
 import Control.Applicative (asum)
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, replicateM, unless, when)
+import Control.Monad (filterM, guard, replicateM, unless, when, join)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
@@ -60,7 +60,7 @@ import Data.List (inits, intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe, isJust)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
@@ -90,6 +90,7 @@ data RepGraphEnv
   = RepGraphEnv
       { functionSigs :: FunctionSignatures
       , pairings :: Pairings
+      , pairingsAccess :: M.Map Ident PairingId
       , argRenames :: ArgRenames
       , problem :: Problem
       , nodeTag :: NodeAddr -> Tag
@@ -110,6 +111,8 @@ data RepGraphState
       , arcPcEnvs :: Map Visit (Map NodeId (Expr, SMTEnv))
       , extraProblemNames :: S.Set Ident
       , hasInnerLoop :: M.Map NodeAddr Bool
+      , funcs :: M.Map Visit (SMTEnv, SMTEnv, Expr)
+      , funcsByName :: M.Map (PairingOf Ident) [Visit]
         --   , knownEqs :: Map VisitWithTag [KnownEqsValue]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -135,6 +138,7 @@ initRepGraphEnv functionSigs pairings argRenames problem =
     RepGraphEnv
         { functionSigs
         , pairings
+        , pairingsAccess = M.fromListWith undefined $ join [ [(p.c, p), (p.asm, p)] | p <- M.keys (pairings.unwrap)]
         , argRenames
         , problem
         -- , nodeGraph = makeNodeGraph (map (_2 %~ view #node) (M.toAscList problem.nodes))
@@ -219,6 +223,8 @@ initRepGraphState = RepGraphState
     , arcPcEnvs = M.empty
     , extraProblemNames = S.empty
     , hasInnerLoop = M.empty
+    , funcs = M.empty
+    , funcsByName = M.empty
     -- , knownEqs = M.empty
     }
 
@@ -896,5 +902,61 @@ getContM visit = do
 
 addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m ()
 addFuncM name inputs outputs success n_vc = do
-    -- TODO
-    return ()
+    present <- liftRepGraph $ use $ #funcs % to (M.member n_vc)
+    ensureM $ not present
+    liftRepGraph $ #funcs %= M.insert n_vc (inputs, outputs, success)
+    pair <- liftRepGraph $ gview $ #pairingsAccess % at name % unwrapped
+    group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pair)
+    for_ group $ \n_vc2 -> do
+        x <- getFuncPairingM n_vc n_vc2
+        when (isJust x) $ do
+            addFuncAssertM n_vc n_vc2
+    liftRepGraph $ #funcsByName %= M.insert pair (group ++ [n_vc])
+
+getFuncPairingNoCheckM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairingNoCheckM n_vc n_vc2 = do
+    n <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
+    n2 <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc2.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
+    pair <- liftRepGraph $ gview $ #pairingsAccess % at n % unwrapped
+    p <- liftRepGraph $ gview $ #pairings % #unwrap % at pair % unwrapped
+    return $
+        if PairingOf n n2 == pair
+        then Just $ (p, PairingOf n_vc n_vc2)
+        else if PairingOf n2 n == pair
+        then Just $ (p, PairingOf n_vc2 n_vc)
+        else Nothing
+
+getFuncPairingM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairingM n_vc n_vc2 = do
+    getFuncPairingNoCheckM n_vc n_vc2 >>= \case
+        Nothing -> return Nothing
+        Just (p, p_n_vc) -> do
+            (lin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
+            (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
+            l_mem_calls <- scanMemCalls lin
+            r_mem_calls <- scanMemCalls rin
+            (c, s) <- memCallsCompatible $ PairingOf l_mem_calls r_mem_calls
+            unless c $ do
+                traceShowM ("skipping", PairingOf l_mem_calls r_mem_calls)
+            return $ if c then Just (p, p_n_vc) else Nothing
+
+getFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m Expr
+getFuncAssertM n_vc n_vc2 = do
+    (pair, p_n_vc) <- fromJust <$> getFuncPairingM n_vc n_vc2
+    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
+    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
+    l_pc <- getPcM' p_n_vc.c Nothing
+    r_pc <- getPcM' p_n_vc.asm Nothing
+    undefined
+
+instEqs :: MonadSolver m => () -> () -> m [Expr]
+instEqs = undefined
+
+addFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m ()
+addFuncAssertM n_vc n_vc2 = do
+    imp <- weakenAssert <$> getFuncAssertM n_vc n_vc2
+    withoutEnv $ assertFactM imp
+
+memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, String)
+memCallsCompatible p_mem_calls = do
+    undefined

@@ -120,39 +120,6 @@ interpretHypImpsM hyps concl = do
     hyps' <- mapM interpretHypM hyps
     return $ strengthenHyp (nImpliesE hyps' concl)
 
-strengthenHyp :: Expr -> Expr
-strengthenHyp = go 1
-  where
-    go sign expr = case expr.value of
-        ExprValueOp op args -> case op of
-            _ | op == OpAnd || op == OpOr ->
-                Expr expr.ty (ExprValueOp op (map goWith args))
-            OpImplies ->
-                let [l, r] = args
-                in goAgainst l `impliesE` goWith r
-            OpNot ->
-                let [x] = args
-                in notE (goAgainst x)
-            OpStackEquals -> case sign of
-                1 -> boolE (ExprValueOp OpImpliesStackEquals args)
-                -1 -> boolE (ExprValueOp OpStackEqualsImplies args)
-            OpROData -> case sign of
-                1 -> boolE (ExprValueOp OpImpliesROData args)
-                -1 -> expr
-            OpEquals | isBoolT (head args).ty ->
-                let [_l, r] = args
-                    args' = applyWhen (r `elem` ([trueE, falseE] :: [Expr])) reverse args
-                    [l', r'] = args'
-                in if
-                    | l' == trueE -> goWith r'
-                    | l' == falseE -> goWith (notE r')
-                    | otherwise -> expr
-            _ -> expr
-        _ -> expr
-      where
-        goWith = go sign
-        goAgainst = go (-sign)
-
 interpretHypM :: Hyp -> M Expr
 interpretHypM = \case
     HypPcImp hyp -> do
