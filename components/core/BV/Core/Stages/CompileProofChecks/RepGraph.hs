@@ -69,6 +69,8 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -759,7 +761,7 @@ isSyntConstM orig_nm typ split = do
         then return False
         else do
             loop_set <- loopBodyR split
-            let go :: [(Ident, NodeAddr)] -> S.Set (Ident, NodeAddr) -> (Ident, NodeAddr) -> ExceptT Bool m Void
+            let go :: Seq (Ident, NodeAddr) -> S.Set (Ident, NodeAddr) -> (Ident, NodeAddr) -> ExceptT Bool m Void
                 go visit safe (nm, n) = do
                     let new_nm = nm
                     node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
@@ -789,8 +791,8 @@ isSyntConstM orig_nm typ split = do
                     let (visit', safe') =
                             if null unknowns
                             then (visit, S.insert (nm, n) safe)
-                            else (visit ++ [(nm, n)] ++ unknowns, safe)
-                    let f :: [(Ident, NodeAddr)] -> ExceptT Bool m Void
+                            else (visit <> Seq.fromList [(nm, n)] <> Seq.fromList unknowns, safe)
+                    let f :: Seq (Ident, NodeAddr) -> ExceptT Bool m Void
                         f v = case unsnoc v of
                             Nothing -> throwError True
                             Just (v', hd) -> do
@@ -801,7 +803,7 @@ isSyntConstM orig_nm typ split = do
                                         else go v' safe' hd
                     f visit'
 
-            runExceptT (go ([] :: [(Ident, NodeAddr)]) (S.singleton (orig_nm, split)) (orig_nm, split)) >>= \case
+            runExceptT (go (mempty) (S.singleton (orig_nm, split)) (orig_nm, split)) >>= \case
                 Left r -> return r
 
 addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m ()
