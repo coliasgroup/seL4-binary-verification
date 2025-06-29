@@ -60,7 +60,7 @@ import Data.List (inits, intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe, isNothing)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
@@ -939,7 +939,7 @@ getFuncPairingM n_vc n_vc2 = do
             r_mem_calls <- scanMemCalls rin
             (c, s) <- memCallsCompatible $ PairingOf l_mem_calls r_mem_calls
             unless c $ do
-                traceShowM ("skipping", PairingOf l_mem_calls r_mem_calls)
+                traceShowM ("skipping", s)
             return $ if c then Just (p, p_n_vc) else Nothing
 
 getFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m Expr
@@ -967,6 +967,21 @@ addFuncAssertM n_vc n_vc2 = do
     imp <- weakenAssert <$> getFuncAssertM n_vc n_vc2
     withoutEnv $ assertFactM imp
 
-memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, String)
+memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
 memCallsCompatible p_mem_calls = do
-    undefined
+    case (p_mem_calls.c, p_mem_calls.asm) of
+        (Just l_mem_calls, Just r_mem_calls) -> do
+            -- x :: Maybe [Maybe (Ident, MemCallsForOne)] <-
+            --     runMaybeT $ for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
+            --         undefined
+            x <- for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
+                pair <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
+                let r_fun = pair.asm
+                r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
+                let memOut = any (\arg -> arg.ty == memT) r_sig.output
+                return $
+                    if memOut
+                    then Just (r_fun, calls)
+                    else Nothing
+            undefined
+        _ -> return (True, Nothing)
