@@ -810,11 +810,6 @@ isSyntConstM orig_nm typ split = do
             runExceptT (go (mempty) (S.singleton (orig_nm, split)) (orig_nm, split)) >>= \case
                 Left r -> return r
 
-addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m ()
-addFuncM name inputs outputs success n_vc = do
-    -- TODO
-    return ()
-
 addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
 addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
     let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
@@ -886,3 +881,8 @@ mergeMemCalls mem_calls_x mem_calls_y =
         { min = min x.min y.min
         , max = liftA2 max x.max y.max
         }
+
+addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m ()
+addFuncM name inputs outputs success n_vc = do
+    -- TODO
+    return ()
