@@ -882,11 +882,6 @@ mergeMemCalls mem_calls_x mem_calls_y =
         , max = liftA2 max x.max y.max
         }
 
-addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m ()
-addFuncM name inputs outputs success n_vc = do
-    -- TODO
-    return ()
-
 getContM :: MonadRepGraph m => Visit -> m Visit
 getContM visit = do
     conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at (visit.nodeId ^. expecting #_Addr) % unwrapped % nodeConts
@@ -898,3 +893,8 @@ getContM visit = do
         { nodeId = cont
         , restrs = if p then fromJust (incrVCs visit.restrs (visit.nodeId ^. expecting #_Addr) 1) else visit.restrs
         }
+
+addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m ()
+addFuncM name inputs outputs success n_vc = do
+    -- TODO
+    return ()
