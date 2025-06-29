@@ -856,9 +856,24 @@ scanMemCalls env = do
         _ -> Just $ foldr1 mergeMemCalls mem_calls
 
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
-addLoopMemCallsM split mem_calls = do
-    -- TODO
-    return Nothing
+addLoopMemCallsM split mem_callsOpt = do
+    case mem_callsOpt of
+        Nothing -> return Nothing
+        Just mem_calls -> do
+            loopBody <- loopBodyR split
+            fnames <- S.fromList . catMaybes <$> (for (S.toAscList loopBody) $ \n -> do
+                node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+                return $ case node of
+                    NodeCall callNode -> Just callNode.functionName
+                    _ -> Nothing)
+            if S.null fnames
+            then return $ Just mem_calls
+            else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForOne 0 Nothing)) | fname <- S.toAscList fnames ]
+  where
+    f x y = MemCallsForOne
+        { min = min x.min y.min
+        , max = liftA2 max x.max y.max
+        }
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
 mergeMemCalls mem_calls_x mem_calls_y =
