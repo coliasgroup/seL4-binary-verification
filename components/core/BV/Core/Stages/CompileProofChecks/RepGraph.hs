@@ -47,7 +47,7 @@ import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
-                          RWST (runRWST), evalRWST)
+                          RWST (runRWST), asks, evalRWST)
 import Control.Monad.State (MonadState, StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
@@ -73,7 +73,6 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-import Control.Monad.RWS (asks)
 
 -- TODO cache more accross groups
 
