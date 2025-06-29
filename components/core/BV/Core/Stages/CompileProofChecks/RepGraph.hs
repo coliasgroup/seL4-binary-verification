@@ -73,6 +73,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import Control.Monad.RWS (asks)
 
 -- TODO cache more accross groups
 
@@ -886,3 +887,15 @@ addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m 
 addFuncM name inputs outputs success n_vc = do
     -- TODO
     return ()
+
+getContM :: MonadRepGraph m => Visit -> m Visit
+getContM visit = do
+    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at n % unwrapped % nodeConts
+    let p = case visit.nodeId of
+            Addr addr | any (\restr -> restr.nodeAddr == addr) visit.restrs -> True
+            _ -> False
+    let [cont] = conts
+    return $ Visit
+        { nodeId = cont
+        , restrs = if p then fromJust (incrVCs visit.restrs visit.nodeAddr 1) else visit.restrs
+        }
