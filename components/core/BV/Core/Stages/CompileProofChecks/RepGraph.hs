@@ -138,7 +138,7 @@ initRepGraphEnv functionSigs pairings argRenames problem =
     RepGraphEnv
         { functionSigs
         , pairings
-        , pairingsAccess = M.fromListWith undefined $ join [ [(p.c, p), (p.asm, p)] | p <- M.keys (pairings.unwrap)]
+        , pairingsAccess = M.fromListWith (error "unexpected") $ join [ [(p.c, p), (p.asm, p)] | p <- M.keys (pairings.unwrap)]
         , argRenames
         , problem
         -- , nodeGraph = makeNodeGraph (map (_2 %~ view #node) (M.toAscList problem.nodes))
@@ -905,13 +905,15 @@ addFuncM name inputs outputs success n_vc = do
     present <- liftRepGraph $ use $ #funcs % to (M.member n_vc)
     ensureM $ not present
     liftRepGraph $ #funcs %= M.insert n_vc (inputs, outputs, success)
-    pair <- liftRepGraph $ gview $ #pairingsAccess % at name % unwrapped
-    group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pair)
-    for_ group $ \n_vc2 -> do
-        x <- getFuncPairingM n_vc n_vc2
-        when (isJust x) $ do
-            addFuncAssertM n_vc n_vc2
-    liftRepGraph $ #funcsByName %= M.insert pair (group ++ [n_vc])
+    (liftRepGraph $ gview $ #pairingsAccess % at name) >>= \case
+        Nothing -> return ()
+        Just pair -> do
+            group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pair)
+            for_ group $ \n_vc2 -> do
+                x <- getFuncPairingM n_vc n_vc2
+                when (isJust x) $ do
+                    addFuncAssertM n_vc n_vc2
+            liftRepGraph $ #funcsByName %= M.insert pair (group ++ [n_vc])
 
 getFuncPairingNoCheckM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairingNoCheckM n_vc n_vc2 = do
@@ -945,12 +947,20 @@ getFuncAssertM n_vc n_vc2 = do
     (pair, p_n_vc) <- fromJust <$> getFuncPairingM n_vc n_vc2
     (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
     (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
-    l_pc <- getPcM' p_n_vc.c Nothing
-    r_pc <- getPcM' p_n_vc.asm Nothing
-    undefined
+    lpc <- getPcM' p_n_vc.c Nothing
+    rpc <- getPcM' p_n_vc.asm Nothing
+    let envs = \case
+            PairingEqSideQuadrant C PairingEqDirectionIn -> lin
+            PairingEqSideQuadrant Asm PairingEqDirectionIn -> rin
+            PairingEqSideQuadrant C PairingEqDirectionOut -> lout
+            PairingEqSideQuadrant Asm PairingEqDirectionOut -> rout
+    inp_eqs <- instEqsM pair.inEqs envs
+    out_eqs <- instEqsM pair.outEqs envs
+    let succ_imp = impliesE rsucc lsucc
+    return $ impliesE (foldr1 andE (inp_eqs ++ [rpc])) (foldr1 andE (out_eqs ++ [succ_imp]))
 
-instEqs :: MonadSolver m => () -> () -> m [Expr]
-instEqs = undefined
+instEqsM :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> SMTEnv) -> m [Expr]
+instEqsM eqs envs = for eqs $ \eq -> instEqWithEnvsM (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
 
 addFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m ()
 addFuncAssertM n_vc n_vc2 = do
