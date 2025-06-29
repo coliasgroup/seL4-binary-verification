@@ -994,7 +994,7 @@ memCallsCompatible p_mem_calls = do
                         y = case r_actual.max of
                                 Just n -> n < r_cast.min
                                 _ -> False
-                     in x || y
+                     in not x && not y
             let bad = any f (nub $ M.keys r_mem_calls ++ M.keys r_mem_calls)
             return $ if bad then (False, Just "foo") else (True, Nothing)
         _ -> return (True, Nothing)
