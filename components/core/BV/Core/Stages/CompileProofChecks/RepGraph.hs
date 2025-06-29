@@ -34,7 +34,7 @@ import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
 import BV.Core.Stages.Utils (chooseFreshName)
-import BV.Core.Types.Extras (showSExprWithPlaceholders)
+import BV.Core.Types.Extras (showSExprWithPlaceholders, uncheckedAtomS)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
@@ -559,7 +559,7 @@ getLoopPcEnvM split vcount = do
         Nothing -> return Nothing
         Just prev_pc_env -> do
             let (_, prev_env) = prev_pc_env
-            mem_calls <- addLoopMemCallsM split (scanMemCalls prev_env)
+            mem_calls <- scanMemCalls prev_env >>= addLoopMemCallsM split
             let av nm typ = do
                     let nm2 = printf "%s_loop_at_%s" (nm :: String) (prettyNodeId (Addr split))
                     addVarMR nm2 typ mem_calls
@@ -712,7 +712,7 @@ emitNodeM n = do
                 ins <- M.fromList <$> (for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
                     x <- withEnv env $ smtExprM (app_eqs callArg)
                     return ((funArg.name, funArg.ty), x))
-                let mem_calls = addMemCall callNode.functionName (scanMemCalls ins)
+                mem_calls <- addMemCall callNode.functionName <$> scanMemCalls ins
                 let m = do
                         for (zip callNode.output sig.output) $ \(Argument x typ, Argument y typ2) -> do
                             ensureM $ typ == typ2
@@ -818,12 +818,31 @@ addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
     let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
      in fromMaybe zeroMemCallsForOne slot & f
 
-scanMemCalls :: SMTEnv -> Maybe MemCalls
-scanMemCalls env =
-    -- TODO
-    Nothing
+getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
+getMemCalls mem_sexpr = do
+    undefined
+
+scanMemCalls :: MonadRepGraph m => SMTEnv -> m (Maybe MemCalls)
+scanMemCalls env = do
+    let mem_vs = [ v | ((_nm, typ), v) <- M.toAscList env, typ == memT ]
+    mem_calls <- for (catMaybes (map (preview #_SMT) mem_vs)) $ \v -> do
+        getMemCalls v
+    return $ case mem_calls of
+        [] -> Nothing
+        _ -> Just $ foldr1 mergeMemCalls mem_calls
 
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCallsM split mem_calls = do
     -- TODO
     return Nothing
+
+mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
+mergeMemCalls mem_calls_x mem_calls_y =
+    if mem_calls_x == mem_calls_y
+    then mem_calls_x
+    else M.unionWith f mem_calls_x mem_calls_y
+  where
+    f x y = MemCallsForOne
+        { min = min x.min y.min
+        , max = liftA2 max x.max y.max
+        }
