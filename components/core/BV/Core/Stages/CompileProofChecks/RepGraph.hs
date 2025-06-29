@@ -56,11 +56,11 @@ import Control.Monad.Trans.Reader (ReaderT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
-import Data.List (inits, intercalate, isPrefixOf, sort, tails)
+import Data.List (inits, intercalate, isPrefixOf, nub, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe, isNothing)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
@@ -939,7 +939,8 @@ getFuncPairingM n_vc n_vc2 = do
             r_mem_calls <- scanMemCalls rin
             (c, s) <- memCallsCompatible $ PairingOf l_mem_calls r_mem_calls
             unless c $ do
-                traceShowM ("skipping", s)
+                -- traceShowM ("skipping", s)
+                return ()
             return $ if c then Just (p, p_n_vc) else Nothing
 
 getFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m Expr
@@ -971,10 +972,7 @@ memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, 
 memCallsCompatible p_mem_calls = do
     case (p_mem_calls.c, p_mem_calls.asm) of
         (Just l_mem_calls, Just r_mem_calls) -> do
-            -- x :: Maybe [Maybe (Ident, MemCallsForOne)] <-
-            --     runMaybeT $ for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
-            --         undefined
-            x <- for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
+            r_cast_calls <- fmap M.fromList $ fmap catMaybes $ for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
                 pair <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
                 let r_fun = pair.asm
                 r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
@@ -983,5 +981,16 @@ memCallsCompatible p_mem_calls = do
                     if memOut
                     then Just (r_fun, calls)
                     else Nothing
-            undefined
+            let f fname =
+                    let r_cast = fromMaybe zeroMemCallsForOne $ r_cast_calls !? fname
+                        r_actual = fromMaybe zeroMemCallsForOne $ r_mem_calls !? fname
+                        x = case r_cast.max of
+                                Just n -> n < r_actual.min
+                                _ -> False
+                        y = case r_actual.max of
+                                Just n -> n < r_cast.min
+                                _ -> False
+                     in x || y
+            let bad = any f (nub $ M.keys r_mem_calls ++ M.keys r_mem_calls)
+            return $ if bad then (False, Just "foo") else (True, Nothing)
         _ -> return (True, Nothing)
