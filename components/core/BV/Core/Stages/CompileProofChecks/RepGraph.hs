@@ -67,6 +67,9 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import qualified Data.Graph as G
+import Data.Foldable (toList)
+import Data.Void (Void)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -101,6 +104,7 @@ data RepGraphState
       , contractions :: Map SExprWithPlaceholders SMT
       , arcPcEnvs :: Map Visit (Map NodeId (Expr, SMTEnv))
       , extraProblemNames :: S.Set Ident
+      , hasInnerLoop :: M.Map NodeAddr Bool
         --   , knownEqs :: Map VisitWithTag [KnownEqsValue]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -170,6 +174,13 @@ loopHeadsR = liftRepGraph $ do
         LoopHead _ -> Just k
         LoopMember _ -> Nothing) (M.toList loopData))
 
+loopBodyR :: MonadRepGraph m => NodeAddr -> m (S.Set NodeAddr)
+loopBodyR n = do
+    head <- fromJust <$> loopIdR n
+    loopData <- liftRepGraph $ gview $ #loopData % at head % unwrapped
+    let LoopHead body = loopData
+    return body
+
 nodeTagR :: MonadRepGraph m => NodeAddr -> m Tag
 nodeTagR n = liftRepGraph $ do
     gview (#nodeTag % to ($ n))
@@ -202,6 +213,7 @@ initRepGraphState = RepGraphState
     , contractions = M.empty
     , arcPcEnvs = M.empty
     , extraProblemNames = S.empty
+    , hasInnerLoop = M.empty
     -- , knownEqs = M.empty
     }
 
@@ -718,15 +730,86 @@ emitNodeM n = do
                 addFuncM callNode.functionName ins outs success n
                 return $ [(callNode.next, pc, env')]
 
+loopBodyInnerLoops :: Problem -> NodeAddr -> Set NodeAddr -> [Set NodeAddr]
+loopBodyInnerLoops p head loop_body = sccs
+  where
+    loop_set = S.delete head loop_body
+    (g, toNodeAddr', _) = G.graphFromEdges [((), n, filter (`S.member` loop_set) (p ^.. #nodes % at n % unwrapped % nodeConts % #_Addr)) | n <- S.toList loop_body]
+    toNodeAddr = view _2 . toNodeAddr'
+    sccs = do
+        comp <- S.fromList . toList <$> G.scc g
+        guard $ S.size comp > 1
+        return $ S.map toNodeAddr comp
+
+hasInnerLoopM :: MonadRepGraph m => NodeAddr -> m Bool
+hasInnerLoopM head = do
+    present <- liftRepGraph $ use $ #hasInnerLoop % at head
+    case present of
+        Just x -> return x
+        Nothing -> do
+            p <- liftRepGraph $ gview #problem
+            body <- loopBodyR head
+            let x = not $ null $ loopBodyInnerLoops p head body
+            liftRepGraph $ #hasInnerLoop %= M.insert head x
+            return x
+
+isSyntConstM :: forall m. MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
+isSyntConstM orig_nm typ split = do
+    hasInnerLoop <- hasInnerLoopM split
+    if hasInnerLoop
+        then return False
+        else do
+            loop_set <- loopBodyR split
+
+            let go :: [(Ident, NodeAddr)] -> S.Set (Ident, NodeAddr) -> (Ident, NodeAddr) -> ExceptT Bool m Void
+                go visit safe (nm, n) = do
+                    let new_nm = nm
+                    node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+                    new_nm' <- case node of
+                        NodeCall callNode ->
+                            if Argument nm typ `elem` callNode.output
+                            then return new_nm
+                            else throwError False
+                        NodeBasic basicNode -> do
+                            let upds =
+                                    [ vu.expr
+                                    | vu <- basicNode.varUpdates
+                                    , Argument vu.varName vu.ty == Argument nm typ
+                                    ]
+                            let vupds = for upds $ \v -> case v.value of
+                                    ExprValueVar i -> Just i
+                                    _ -> Nothing
+                            case vupds of
+                                Nothing -> throwError False
+                                Just vupds' -> case vupds' of
+                                    x:_ -> return x
+                                    _ -> return new_nm
+                        _ -> return new_nm
+                    all_preds <- predsR $ Addr n
+                    let preds = [ (new_nm', n2) | n2 <- S.toAscList all_preds, n2 `S.member` loop_set ]
+                    let unknowns = [ p | p <- preds, p `S.notMember` safe ]
+                    let (visit', safe') =
+                            if null unknowns
+                            then (visit, S.insert (nm, n) safe)
+                            else (visit ++ [(nm, n)] ++ unknowns, safe)
+                    let f :: [(Ident, NodeAddr)] -> ExceptT Bool m Void
+                        f = \case
+                            [] -> throwError True
+                            (hd:v') -> do
+                                if hd `S.member` safe'
+                                    then f v'
+                                    else if snd hd == split
+                                        then throwError False
+                                        else go v' safe' hd
+                    f visit'
+
+            runExceptT (go ([] :: [(Ident, NodeAddr)]) (S.singleton (orig_nm, split)) (orig_nm, split)) >>= \case
+                Left r -> return r
+
 addFuncM :: MonadRepGraphE m => Ident -> SMTEnv -> SMTEnv -> Expr -> Visit -> m ()
 addFuncM name inputs outputs success n_vc = do
     -- TODO
     return ()
-
-isSyntConstM :: MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
-isSyntConstM nm typ split = do
-    -- TODO
-    return False
 
 addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
 addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
