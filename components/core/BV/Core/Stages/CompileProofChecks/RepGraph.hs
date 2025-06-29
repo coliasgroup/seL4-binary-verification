@@ -754,14 +754,11 @@ hasInnerLoopM head = do
 
 isSyntConstM :: forall m. MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
 isSyntConstM orig_nm typ split = do
-    traceShowM $ ("XXBB", orig_nm, split)
     hasInnerLoop <- hasInnerLoopM split
     if hasInnerLoop
         then return False
         else do
             loop_set <- loopBodyR split
-            traceShowM $ ("XXAB", orig_nm, split, S.size loop_set)
-
             let go :: [(Ident, NodeAddr)] -> S.Set (Ident, NodeAddr) -> (Ident, NodeAddr) -> ExceptT Bool m Void
                 go visit safe (nm, n) = do
                     let new_nm = nm
@@ -794,9 +791,9 @@ isSyntConstM orig_nm typ split = do
                             then (visit, S.insert (nm, n) safe)
                             else (visit ++ [(nm, n)] ++ unknowns, safe)
                     let f :: [(Ident, NodeAddr)] -> ExceptT Bool m Void
-                        f = \case
-                            [] -> throwError True
-                            (hd:v') -> do
+                        f v = case unsnoc v of
+                            Nothing -> throwError True
+                            Just (v', hd) -> do
                                 if hd `S.member` safe'
                                     then f v'
                                     else if snd hd == split
