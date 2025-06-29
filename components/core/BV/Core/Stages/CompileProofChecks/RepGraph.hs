@@ -770,8 +770,8 @@ isSyntConstM orig_nm typ split = do
                     new_nm' <- case node of
                         NodeCall callNode ->
                             if Argument nm typ `elem` callNode.output
-                            then return new_nm
-                            else throwError False
+                            then throwError False
+                            else return new_nm
                         NodeBasic basicNode -> do
                             let upds =
                                     [ vu.expr
