@@ -64,7 +64,7 @@ import qualified Data.Set as S
 import Data.Traversable (for)
 import Data.Vector.Internal.Check (HasCallStack)
 import Data.Void (Void)
-import Debug.Trace (traceM, traceShowId)
+import Debug.Trace (traceM, traceShowId, traceShowM)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
@@ -564,8 +564,8 @@ getLoopPcEnvM split vcount = do
                         ExprTypeHtd -> True
                         ExprTypeDom -> True
                         _ -> False
-                isSyntConst <- lift $ isSyntConstM nm typ split
-                if check_const && isSyntConst
+                isSyntConst <- lift $ if check_const then isSyntConstM nm typ split else return False
+                if isSyntConst
                     then do
                         modify $ S.insert (nm, typ)
                         return $ prev_env ! (nm, typ)
@@ -754,11 +754,13 @@ hasInnerLoopM head = do
 
 isSyntConstM :: forall m. MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
 isSyntConstM orig_nm typ split = do
+    traceShowM $ ("XXBB", orig_nm, split)
     hasInnerLoop <- hasInnerLoopM split
     if hasInnerLoop
         then return False
         else do
             loop_set <- loopBodyR split
+            traceShowM $ ("XXAB", orig_nm, split, S.size loop_set)
 
             let go :: [(Ident, NodeAddr)] -> S.Set (Ident, NodeAddr) -> (Ident, NodeAddr) -> ExceptT Bool m Void
                 go visit safe (nm, n) = do
