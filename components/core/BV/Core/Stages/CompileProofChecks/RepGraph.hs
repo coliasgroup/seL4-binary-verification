@@ -889,12 +889,12 @@ addFuncM name inputs outputs success n_vc = do
 
 getContM :: MonadRepGraph m => Visit -> m Visit
 getContM visit = do
-    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at n % unwrapped % nodeConts
+    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at (visit.nodeId ^. expecting #_Addr) % unwrapped % nodeConts
     let p = case visit.nodeId of
             Addr addr | any (\restr -> restr.nodeAddr == addr) visit.restrs -> True
             _ -> False
     let [cont] = conts
     return $ Visit
         { nodeId = cont
-        , restrs = if p then fromJust (incrVCs visit.restrs visit.nodeAddr 1) else visit.restrs
+        , restrs = if p then fromJust (incrVCs visit.restrs (visit.nodeId ^. expecting #_Addr) 1) else visit.restrs
         }
