@@ -836,7 +836,6 @@ getMemCalls mem_sexpr = do
                         lift $ getMemCalls next
                     case r of
                         Nothing -> error $ "mem_calls fallthrough " ++ show (showSExprWithPlaceholders mem_sexpr)
-
   where
     isStore s = s `elem` (["store-word32", "store-word8", "store-word64"] :: [SExprWithPlaceholders])
 
