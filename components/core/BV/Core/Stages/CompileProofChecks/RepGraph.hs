@@ -937,8 +937,8 @@ getFuncPairingM n_vc n_vc2 = do
     getFuncPairingNoCheckM n_vc n_vc2 >>= \case
         Nothing -> return Nothing
         Just (p, p_n_vc) -> do
-            (lin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
-            (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
+            (lin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
+            (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
             l_mem_calls <- scanMemCalls lin
             r_mem_calls <- scanMemCalls rin
             (c, s) <- memCallsCompatible $ PairingOf l_mem_calls r_mem_calls
@@ -950,15 +950,15 @@ getFuncPairingM n_vc n_vc2 = do
 getFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m Expr
 getFuncAssertM n_vc n_vc2 = do
     (pair, p_n_vc) <- fromJust <$> getFuncPairingM n_vc n_vc2
-    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
-    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
-    lpc <- getPcM' p_n_vc.c Nothing
-    rpc <- getPcM' p_n_vc.asm Nothing
+    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
+    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
+    lpc <- getPcM' p_n_vc.asm Nothing
+    rpc <- getPcM' p_n_vc.c Nothing
     let envs = \case
-            PairingEqSideQuadrant C PairingEqDirectionIn -> lin
-            PairingEqSideQuadrant Asm PairingEqDirectionIn -> rin
-            PairingEqSideQuadrant C PairingEqDirectionOut -> lout
-            PairingEqSideQuadrant Asm PairingEqDirectionOut -> rout
+            PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
+            PairingEqSideQuadrant C PairingEqDirectionIn -> rin
+            PairingEqSideQuadrant Asm PairingEqDirectionOut -> lout
+            PairingEqSideQuadrant C PairingEqDirectionOut -> rout
     inp_eqs <- instEqsM pair.inEqs envs
     out_eqs <- instEqsM pair.outEqs envs
     let succ_imp = impliesE rsucc lsucc
@@ -974,12 +974,12 @@ addFuncAssertM n_vc n_vc2 = do
 
 memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
 memCallsCompatible p_mem_calls = do
-    case (p_mem_calls.c, p_mem_calls.asm) of
+    case (p_mem_calls.asm, p_mem_calls.c) of
         (Just l_mem_calls, Just r_mem_calls) -> do
             r_cast_calls <- fmap M.fromList $ fmap catMaybes $ for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
                 pair <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
-                let r_fun = pair.asm
-                r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag Asm r_fun)
+                let r_fun = pair.c
+                r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
                 let memOut = any (\arg -> arg.ty == memT) r_sig.output
                 return $
                     if memOut
