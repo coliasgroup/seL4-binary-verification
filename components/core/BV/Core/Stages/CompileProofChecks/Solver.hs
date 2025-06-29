@@ -56,7 +56,8 @@ import Control.Monad.State (MonadState, State, StateT (..), execStateT, get,
 import Control.Monad.Writer (MonadWriter, tell)
 import Data.Foldable (for_)
 import Data.List (intercalate, nub, sort, sortOn)
-import Data.Map (Map, (!), (!?))
+-- import Data.Map (Map, (!), (!?))
+import Data.Map (Map, (!?))
 import qualified Data.Map as M
 import Data.Maybe (isJust, isNothing)
 import Data.Sequence (Seq)
@@ -71,13 +72,16 @@ import Optics
 import Optics.State.Operators ((%=), (.=), (<<%=))
 import Text.Printf (printf)
 
+(!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
+(!) = findWithCallstack
+
 class MonadStructs m => MonadSolver m where
     liftSolver :: RWS SolverEnv SolverOutput SolverState a -> m a
 
 askLookupStructForSolver :: MonadSolver m => m (Ident -> Struct)
 askLookupStructForSolver = do
     structs <- liftSolver $ gview $ #structs
-    return $ (structs M.!)
+    return $ (findWithCallstack structs)
 
 instance MonadSolver m => MonadSolver (ReaderT r m) where
     liftSolver = lift . liftSolver

@@ -41,7 +41,7 @@ import BV.Core.Utils
 import BV.SMTLIB2 (GenericSExpr (Atom), unsafeAtom, viewAtom)
 import BV.SMTLIB2.SExpr (GenericSExpr (List), UncheckedAtom (..))
 import Control.Applicative (asum)
-import Control.DeepSeq (NFData)
+import Control.DeepSeq (NFData, deepseq)
 import Control.Monad (filterM, guard, join, replicateM, unless, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
@@ -58,7 +58,8 @@ import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
 import Data.List (inits, intercalate, isPrefixOf, nub, sort, tails)
 import Data.List.Split (splitOn)
-import Data.Map (Map, (!), (!?))
+-- import Data.Map (Map, (!), (!?))
+import Data.Map (Map, (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe)
 import Data.Sequence (Seq)
@@ -75,6 +76,9 @@ import Optics.State.Operators ((%=))
 import Text.Printf (printf)
 
 -- TODO cache more accross groups
+
+(!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
+(!) = findWithCallstack
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
