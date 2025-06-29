@@ -25,6 +25,7 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , askLookupStructForSolver
     , assertFactM
     , getDefM
+    , getDefOptM
     , initSolver
     , initSolverEnv
     , initSolverState
@@ -884,6 +885,9 @@ parseSymbol sexpr = do
 
 getDefM :: MonadSolver m => Name -> m S
 getDefM name = liftSolver $ use $ #defs % at name % unwrapped
+
+getDefOptM :: MonadSolver m => Name -> m (Maybe S)
+getDefOptM name = liftSolver $ use $ #defs % at name
 
 addSplitMemVarM :: MonadSolver m => S -> NameHint -> ExprType -> m SplitMem
 addSplitMemVarM addr nm ty@ExprTypeMem = do

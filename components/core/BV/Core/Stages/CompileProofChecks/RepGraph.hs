@@ -38,6 +38,8 @@ import BV.Core.Types.Extras (showSExprWithPlaceholders, uncheckedAtomS)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
+import BV.SMTLIB2 (GenericSExpr (Atom), viewAtom)
+import BV.SMTLIB2.SExpr (GenericSExpr (List), UncheckedAtom (..))
 import Control.Applicative (asum)
 import Control.DeepSeq (NFData)
 import Control.Monad (filterM, guard, replicateM, unless, when)
@@ -103,7 +105,7 @@ data RepGraphState
       { inductVarEnv :: Map EqHypInduct Name
       , nodePcEnvs :: Map VisitWithTag (Maybe (Expr, SMTEnv))
       , inpEnvs :: Map NodeId SMTEnv
-      , memCalls :: Map Name (Maybe MemCalls)
+      , memCalls :: Map SExprWithPlaceholders MemCalls
       , contractions :: Map SExprWithPlaceholders SMT
       , arcPcEnvs :: Map Visit (Map NodeId (Expr, SMTEnv))
       , extraProblemNames :: S.Set Ident
@@ -427,7 +429,7 @@ addVarMR :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
 addVarMR nameHint ty memCallsOpt = do
     r <- addVarRestrM nameHint ty
     when (ty == ExprTypeMem) $ do
-        liftRepGraph $ #memCalls %= M.insert r memCallsOpt
+        liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
     return r
 
 varRepRequest :: MonadRepGraph m => Ident -> ExprType -> VarRepRequestKind -> Visit -> SMTEnv -> m (Maybe SplitMem)
@@ -820,7 +822,30 @@ addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
 
 getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
 getMemCalls mem_sexpr = do
-    undefined
+    present <- liftRepGraph $ use $ #memCalls % at mem_sexpr
+    case present of
+        Just x -> return x
+        Nothing -> do
+            case mem_sexpr of
+                List [op, x, _, _] | isStore op -> getMemCalls x
+                List [op, _, x, y] | op == "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
+                _ -> do
+                    r <- runMaybeT $ do
+                        name <- hoistMaybe $ parseSymbol mem_sexpr
+                        next <- MaybeT $ getDefOptM (Name name)
+                        lift $ getMemCalls next
+                    case r of
+                        Nothing -> error $ "mem_calls fallthrough " ++ show (showSExprWithPlaceholders mem_sexpr)
+
+  where
+    isStore s = s `elem` (["store-word32", "store-word8", "store-word64"] :: [SExprWithPlaceholders])
+
+parseSymbol :: SExprWithPlaceholders -> Maybe String
+parseSymbol sexpr = do
+    Atom (AtomOrPlaceholderAtom atom) <- return sexpr
+    case viewAtom atom of
+        SymbolAtom s -> Just s
+        _ -> Nothing
 
 scanMemCalls :: MonadRepGraph m => SMTEnv -> m (Maybe MemCalls)
 scanMemCalls env = do
