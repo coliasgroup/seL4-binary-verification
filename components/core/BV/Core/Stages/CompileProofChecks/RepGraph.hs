@@ -38,11 +38,11 @@ import BV.Core.Types.Extras (showSExprWithPlaceholders, uncheckedAtomS)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
-import BV.SMTLIB2 (GenericSExpr (Atom), viewAtom, unsafeAtom)
+import BV.SMTLIB2 (GenericSExpr (Atom), unsafeAtom, viewAtom)
 import BV.SMTLIB2.SExpr (GenericSExpr (List), UncheckedAtom (..))
 import Control.Applicative (asum)
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, replicateM, unless, when, join)
+import Control.Monad (filterM, guard, join, replicateM, unless, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
@@ -60,7 +60,7 @@ import Data.List (inits, intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe, isJust)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)

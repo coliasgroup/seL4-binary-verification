@@ -20,10 +20,10 @@ module BV.Core.Logic
     , pvalidKindFromOp
     , sizeOfSelfContainedType
     , sizeOfType
-    , withStructs
-    , withoutStructs
     , strengthenHyp
     , weakenAssert
+    , withStructs
+    , withoutStructs
     ) where
 
 import BV.Core.Arch
@@ -39,6 +39,7 @@ import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT (runReaderT),
 import Control.Monad.Trans (lift)
 import Data.Foldable (fold)
 import Data.Foldable1 (Foldable1 (fold1))
+import Data.Function (applyWhen)
 import Data.Functor ((<&>))
 import Data.List (nub)
 import Data.Map (Map)
@@ -48,7 +49,6 @@ import qualified Data.Set as S
 import Data.Traversable (for)
 import Debug.Trace (trace)
 import GHC.Generics (Generic)
-import Data.Function (applyWhen)
 
 --
 
