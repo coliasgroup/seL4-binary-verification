@@ -4,6 +4,9 @@ set -eux -o pipefail
 
 here=$(dirname $0)
 
+top=$here/../..
+tmp=$top/tmp
+
 solvers=$here/solvers.yaml
 workers=$here/workers.yaml
 
@@ -11,7 +14,7 @@ workers=$here/workers.yaml
 # sd=small
 sd=focused
 
-d=tmp/test-target-dirs/$sd
+d=$tmp/test-target-dirs/$sd
 
 x=sel4-bv-cli
 
@@ -22,6 +25,7 @@ time $path \
     check \
     --solvers $solvers \
     --target-dir $d \
+    --mismatch-dir $tmp/mismatch/local-check \
     --ignore-function fastpath_call \
     --ignore-function fastpath_reply_recv \
     --ignore-function-early c_handle_syscall \
