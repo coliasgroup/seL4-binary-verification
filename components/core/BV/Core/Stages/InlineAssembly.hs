@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
@@ -50,10 +49,10 @@ addInlineAssemblySpecs progs =
             Nothing -> do
                 return fun
             Just (Left Unhandled) -> do
-                tell ([], [funName])
+                tell (S.empty, S.singleton funName)
                 return fun
             Just (Right (funBody, instFun)) -> do
-                tell ([instFun], [])
+                tell (S.singleton instFun, S.empty)
                 return $ fun & #body ?~ funBody
 
     explodeInst :: InstFunction -> (PairingOf Program, Pairings)

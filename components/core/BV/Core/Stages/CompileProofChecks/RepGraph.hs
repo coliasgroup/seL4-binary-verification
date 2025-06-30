@@ -18,9 +18,7 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , RepGraphEnv
     , RepGraphState
     , getInductVarM
-    , getNodePcEnvM
     , getNodePcEnvM'
-    , getPcM
     , getPcM'
     , initRepGraph
     , initRepGraphEnv

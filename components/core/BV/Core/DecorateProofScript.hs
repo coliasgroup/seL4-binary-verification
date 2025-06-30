@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module BV.Core.DecorateProofScript

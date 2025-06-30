@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-type-defaults #-}
-
 module BV.Core.Stages.Utils
     ( chooseFreshName
     ) where
@@ -11,7 +9,7 @@ chooseFreshName :: (String -> Bool) -> String -> String
 chooseFreshName isTaken n =
     if not (isTaken n)
     then n
-    else loop1 1 1
+    else loop1 1 (1 :: Integer)
   where
     fmt x = n ++ "." ++ show x
     loop1 x y =

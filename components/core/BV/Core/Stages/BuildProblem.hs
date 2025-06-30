@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-type-defaults #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module BV.Core.Stages.BuildProblem

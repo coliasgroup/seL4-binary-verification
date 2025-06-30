@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PartialTypeSignatures #-}
 
 module BV.Core.ExecuteSMTProofChecks
     ( OnlineSolverFailureInfo (..)
