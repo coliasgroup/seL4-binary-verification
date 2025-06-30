@@ -137,7 +137,6 @@ readStagesInputEither earlyAsmFunctionFilter rodataInputRanges targetDir = runEx
     stackBounds <- f targetDirFiles.stackBounds
     inlineScripts <- f targetDirFiles.inlineScripts
     proofs <- f targetDirFiles.proofs
-    -- compatSMTProofChecks <- f targetDirFiles.smtProofChecks
     return $ StagesInput
         { programs = PairingOf
             { c = cFunctions
@@ -149,8 +148,6 @@ readStagesInputEither earlyAsmFunctionFilter rodataInputRanges targetDir = runEx
         , inlineScripts
         , proofs
         , earlyAsmFunctionFilter
-        -- HACK
-        -- , compatSMTProofChecks
         }
   where
     f :: ReadBVFile c a => TargetDirFile a -> ExceptT ReadTargetDirFileException IO a

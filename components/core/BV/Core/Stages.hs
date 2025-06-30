@@ -2,8 +2,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
-
 module BV.Core.Stages
     ( AsmFunctionFilter
     , module BV.Core.Stages.BuildProblem
@@ -57,8 +55,6 @@ data StagesInput
       , inlineScripts :: InlineScripts
       , proofs :: Proofs ()
       , earlyAsmFunctionFilter :: IncludeExcludeFilter Ident
-        -- HACK
-        -- , compatSMTProofChecks :: CompatSMTProofChecks
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -199,14 +195,9 @@ stages input = StagesOutput
 
     compatProofChecks = toCompatProofChecks proofChecks
 
-    -- smtProofChecks'hack = liftCompatSMTProofChecks'hack input.compatSMTProofChecks
-
-    smtProofChecks'nohack = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         compileProofChecks input.programs.c.structs functionSigs pairings input.rodata (lookupOrigVarNameFor pairingId problem) problem
             <$> (proofChecks `atPairingId` pairingId)
-
-    -- smtProofChecks = smtProofChecks'hack
-    smtProofChecks = smtProofChecks'nohack
 
     compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)
 
@@ -218,10 +209,3 @@ stages input = StagesOutput
 
 asmFunNameToCFunName :: Ident -> Ident
 asmFunNameToCFunName = #unwrap %~ ("Kernel_C." ++)
-
---
-
-liftCompatSMTProofChecks'hack :: CompatSMTProofChecks -> SMTProofChecks String
-liftCompatSMTProofChecks'hack compatChecks = SMTProofChecks $ M.map f compatChecks.unwrap
-  where
-    f groups = ProofScript (ProofNodeWith (("" <$) <$> groups) ProofNodeLeaf)
