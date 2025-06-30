@@ -7,6 +7,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.Stages.CompileProofChecks.Solver
     ( MonadSolver (..)
@@ -44,36 +45,27 @@ import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.SMTLIB2.SExpr
 
-import BV.Core.Arch
 import BV.Core.Stages.Utils
 import Control.DeepSeq (NFData)
 import Control.Monad (join, unless, when)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader (ask), ReaderT (runReaderT))
-import Control.Monad.RWS (MonadRWS, MonadTrans (lift), RWS)
-import Control.Monad.State (MonadState, State, StateT (..), execStateT, get,
-                            modify)
-import Control.Monad.Writer (MonadWriter, tell)
+import Control.Monad.RWS (MonadTrans (lift), RWS, modify)
+import Control.Monad.State (MonadState, execStateT, get)
+import Control.Monad.Writer (tell)
 import Data.Foldable (for_)
-import Data.List (intercalate, nub, sort, sortOn)
--- import Data.Map (Map, (!), (!?))
+import Data.List (intercalate, nub, sortOn)
 import Data.Map (Map, (!?))
 import qualified Data.Map as M
-import Data.Maybe (isJust, isNothing)
 import Data.Sequence (Seq)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
 import Data.Traversable (for)
-import Debug.Trace (traceM, traceShowId)
 import GHC.Generics (Generic)
-import GHC.Stack (HasCallStack)
 import Optics
-import Optics.State.Operators ((%=), (.=), (<<%=))
+import Optics.State.Operators ((%=), (<<%=))
 import Text.Printf (printf)
-
-(!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
-(!) = findWithCallstack
 
 class MonadStructs m => MonadSolver m where
     liftSolver :: RWS SolverEnv SolverOutput SolverState a -> m a
@@ -750,7 +742,7 @@ addPValidsM = go False
                         let (_, pdataKind, p', pv') = pdata
                         impl_al <- impliesE pv' <$> alignValidIneqM typ p'
                         withoutEnv $ assertFactM impl_al
-                        for (sortOn snd (M.toAscList others)) $ \val@(valKey@(valPvTy, valName, valPvKind), valS) -> do
+                        for (sortOn snd (M.toAscList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
                             let kinds :: [PValidKind] = [valPvKind, pdataKind]
                             unless (PValidKindPWeakValid `elem` kinds && not (PValidKindPGlobalValid `elem` kinds)) $ do
                                 do
@@ -863,11 +855,11 @@ getImmBasisMems m = execStateT (go m) S.empty
     go m = case m of
         List (op:args) -> case () of
             _ | op == symbolS "ite" -> do
-                let [c, l, r] = args
+                let [_c, l, r] = args
                 go l
                 go r
             _ | op == symbolS "store-word32" || op == symbolS "store-word8" -> do
-                let [m', p, v] = args
+                let [m', _p, _v] = args
                 go m'
             _ -> error ""
         _ -> do

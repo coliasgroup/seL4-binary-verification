@@ -6,7 +6,8 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-type-defaults #-}
--- {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.Stages.CompileProofChecks.RepGraph
     ( ArgRenames
@@ -34,21 +35,21 @@ import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
 import BV.Core.Stages.Utils (chooseFreshName)
-import BV.Core.Types.Extras (showSExprWithPlaceholders, symbolS, uncheckedAtomS)
+import BV.Core.Types.Extras (showSExprWithPlaceholders, symbolS)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
-import BV.SMTLIB2 (GenericSExpr (Atom), unsafeAtom, viewAtom)
+import BV.SMTLIB2 (GenericSExpr (Atom), viewAtom)
 import BV.SMTLIB2.SExpr (GenericSExpr (List), UncheckedAtom (..))
 import Control.Applicative (asum)
-import Control.DeepSeq (NFData, deepseq, force)
+import Control.DeepSeq (NFData)
 import Control.Monad (filterM, guard, join, replicateM, unless, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
                           RWST (runRWST), asks, evalRWST)
-import Control.Monad.State (MonadState, StateT (runStateT), execStateT, modify)
+import Control.Monad.State (StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
@@ -56,29 +57,23 @@ import Control.Monad.Trans.Reader (ReaderT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
-import Data.List (inits, intercalate, isPrefixOf, nub, sort, tails)
+import Data.List (intercalate, isPrefixOf, nub, sort, tails)
 import Data.List.Split (splitOn)
--- import Data.Map (Map, (!), (!?))
-import Data.Map (Map, (!?))
+import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
-import Data.Vector.Internal.Check (HasCallStack)
 import Data.Void (Void)
-import Debug.Trace (traceM, traceShowId, traceShowM)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
 
 -- TODO cache more accross groups
-
-(!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
-(!) = findWithCallstack
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
@@ -189,8 +184,8 @@ loopHeadsR = liftRepGraph $ do
 
 loopBodyR :: MonadRepGraph m => NodeAddr -> m (S.Set NodeAddr)
 loopBodyR n = do
-    head <- fromJust <$> loopIdR n
-    loopData <- liftRepGraph $ gview $ #loopData % at head % unwrapped
+    hd <- fromJust <$> loopIdR n
+    loopData <- liftRepGraph $ gview $ #loopData % at hd % unwrapped
     let LoopHead body = loopData
     return body
 
@@ -575,7 +570,7 @@ getLoopPcEnvM split vcount = do
             let av nm typ = do
                     let nm2 = printf "%s_loop_at_%s" (nm :: String) (prettyNodeId (Addr split))
                     addVarMR nm2 typ mem_calls
-            (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prev_env $ \(nm, typ) v -> do
+            (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prev_env $ \(nm, typ) _v -> do
                 let check_const = case typ of
                         ExprTypeHtd -> True
                         ExprTypeDom -> True
@@ -630,7 +625,7 @@ specializeM visit split = do
 
 getArcPcEnvM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Expr, SMTEnv))
 getArcPcEnvM visit' n2 = do
-    (tag, vcountOpt) <- getTagVCount visit' Nothing
+    (_tag, vcountOpt) <- getTagVCount visit' Nothing
     case vcountOpt of
         Nothing -> return Nothing
         Just vcount -> do
@@ -709,10 +704,10 @@ emitNodeM n = do
                 return [(basicNode.next, pc, env')]
             NodeCond condNode -> do
                 let name = condName n
-                condName <- getFreshIdentMR name
-                let cond = varE boolT condName
+                freshName <- getFreshIdentMR name
+                let cond = varE boolT freshName
                 def <- withEnv env $ addLocalDefMR () () name (app_eqs condNode.expr)
-                let env' = M.insert (condName, boolT) def env
+                let env' = M.insert (freshName, boolT) def env
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, lpc, env'), (condNode.right, rpc, env')]
@@ -741,7 +736,7 @@ emitNodeM n = do
                             var <- lift $ addVarMR name typ mem_calls
                             modify $ M.insert (x, typ) (SMT $ nameS var)
                             tell [((y, typ2), (SMT $ nameS var))]
-                        for (zip callNode.output sig.output) $ \(Argument x typ, Argument y typ2) -> do
+                        for (zip callNode.output sig.output) $ \(Argument x typ, Argument y _typ2) -> do
                             env' <- get
                             z <- lift $ varRepRequest x typ VarRepRequestKindCall n env'
                             case z of
@@ -755,9 +750,9 @@ emitNodeM n = do
                 return $ [(callNode.next, pc, env')]
 
 loopBodyInnerLoops :: Problem -> NodeAddr -> Set NodeAddr -> [Set NodeAddr]
-loopBodyInnerLoops p head loop_body = sccs
+loopBodyInnerLoops p hd loop_body = sccs
   where
-    loop_set = S.delete head loop_body
+    loop_set = S.delete hd loop_body
     (g, toNodeAddr', _) = G.graphFromEdges [((), n, filter (`S.member` loop_set) (p ^.. #nodes % at n % unwrapped % nodeConts % #_Addr)) | n <- S.toList loop_body]
     toNodeAddr = view _2 . toNodeAddr'
     sccs = do
@@ -766,15 +761,15 @@ loopBodyInnerLoops p head loop_body = sccs
         return $ S.map toNodeAddr comp
 
 hasInnerLoopM :: MonadRepGraph m => NodeAddr -> m Bool
-hasInnerLoopM head = do
-    present <- liftRepGraph $ use $ #hasInnerLoop % at head
+hasInnerLoopM hd = do
+    present <- liftRepGraph $ use $ #hasInnerLoop % at hd
     case present of
         Just x -> return x
         Nothing -> do
             p <- liftRepGraph $ gview #problem
-            body <- loopBodyR head
-            let x = not $ null $ loopBodyInnerLoops p head body
-            liftRepGraph $ #hasInnerLoop %= M.insert head x
+            body <- loopBodyR hd
+            let x = not $ null $ loopBodyInnerLoops p hd body
+            liftRepGraph $ #hasInnerLoop %= M.insert hd x
             return x
 
 isSyntConstM :: forall m. MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
@@ -892,11 +887,6 @@ addLoopMemCallsM split mem_callsOpt = do
             then return $ Just mem_calls
             -- else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForOne 0 Nothing)) | fname <- S.toAscList fnames ]
             else return $ Just $ M.union new mem_calls
-  where
-    f x y = MemCallsForOne
-        { min = min x.min y.min
-        , max = liftA2 max x.max y.max
-        }
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
 mergeMemCalls mem_calls_x mem_calls_y =
@@ -967,7 +957,7 @@ getFuncPairingM n_vc n_vc2 = do
             -- traceShowM ("callz", l_mem_calls, r_mem_calls)
             -- traceShowM ("callxl", (.unwrap) . fst <$> M.keys lin)
             -- traceShowM ("callxr", (.unwrap) . fst <$> M.keys rin)
-            (c, s) <- memCallsCompatible $ PairingOf
+            (c, _s) <- memCallsCompatible $ PairingOf
                 { asm = l_mem_calls
                 , c = r_mem_calls
                 }
@@ -985,7 +975,7 @@ getFuncAssertM n_vc n_vc2 = do
     (pair, p_n_vc) <- fromJust <$> getFuncPairingM n_vc n_vc2
     (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
     (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
-    lpc <- getPcM' p_n_vc.asm Nothing
+    _lpc <- getPcM' p_n_vc.asm Nothing
     rpc <- getPcM' p_n_vc.c Nothing
     let envs = \case
             PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
