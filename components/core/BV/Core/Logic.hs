@@ -3,6 +3,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.Logic
     ( MonadStructs (..)
@@ -226,27 +227,29 @@ normArrayType = \case
     pvTy -> pvTy
 
 pvalidAssertion1 :: MonadStructs m => (PValidType, PValidKind, Expr, Expr) -> (PValidType, PValidKind, Expr, Expr) -> m Expr
-pvalidAssertion1 (typ, k, p, pv) (typ2, k2, p2, pv2) = do
-    let offs1 = p `minusE` p2
-    cond1 <- getSTypCondition offs1 typ typ2
-    let offs2 = p2 `minusE` p
-    cond2 <- getSTypCondition offs2 typ2 typ
-    out1 <- lessE <$> endAddr p typ <*> pure p2
-    out2 <- lessE <$> endAddr p2 typ2 <*> pure p
-    return $ (pv `andE` pv2) `impliesE` (foldr1 orE [cond1, cond2, out1, out2])
+pvalidAssertion1 (pvTy1, _pvKind1, p1, pv1) (pvTy2, _pvKind2, p2, pv2) = do
+    let offs1 = p1 `minusE` p2
+    cond1 <- getSTypCondition offs1 pvTy1 pvTy2
+    let offs2 = p2 `minusE` p1
+    cond2 <- getSTypCondition offs2 pvTy2 pvTy1
+    out1 <- lessE <$> endAddr p1 pvTy1 <*> pure p2
+    out2 <- lessE <$> endAddr p2 pvTy2 <*> pure p1
+    return $ (pv1 `andE` pv2) `impliesE` (foldr1 orE [cond1, cond2, out1, out2])
 
 getSTypCondition :: MonadStructs m =>  Expr -> PValidType -> PValidType -> m Expr
-getSTypCondition offs innerTy outerTy = getSTypConditionInner1
-    (pvalidTypeWithUnspecifiedStrength innerTy)
-    (pvalidTypeWithUnspecifiedStrength outerTy) <&> \case
+getSTypCondition offs innerTy outerTy = do
+    r <- getSTypConditionInner1
+        (pvalidTypeWithUnspecifiedStrength innerTy)
+        (pvalidTypeWithUnspecifiedStrength outerTy)
+    return $ case r of
         Nothing -> falseE
         Just f -> f offs
 
+-- TODO evaluate performance loss from not caching (see graph-refine)
 getSTypConditionInner1 :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
 getSTypConditionInner1 innerTy outerTy = do
     let innerTyNorm = normArrayType innerTy
     let outerTyNorm = normArrayType outerTy
-    -- TODO cache on (innerTyNorm, outerTyNorm)
     getSTypConditionInner2 innerTyNorm outerTyNorm
 
 arrayTypeSize :: MonadStructs m => PValidTypeWithStrength -> m Expr
@@ -256,51 +259,46 @@ arrayTypeSize (PValidTypeWithStrengthArray { ty, len }) = do
 
 getSTypConditionInner2 :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
 getSTypConditionInner2 innerPvTy outerPvTy = case (innerPvTy, outerPvTy) of
-    ( PValidTypeWithStrengthArray { ty = innerElTy }
-        , PValidTypeWithStrengthArray { strength = outerBound }
-        ) -> do
-            cond <- getSTypConditionInner1 (PValidTypeWithStrengthType innerElTy) outerPvTy
+    (PValidTypeWithStrengthArray { ty = innerElTy }, PValidTypeWithStrengthArray { strength = outerBound }) -> do
+            condOpt <- getSTypConditionInner1 (PValidTypeWithStrengthType innerElTy) outerPvTy
             innerSize <- arrayTypeSize innerPvTy
             outerSize <- arrayTypeSize outerPvTy
-            return $ case (outerBound, cond) of
-                (Just PArrayValidStrengthStrong, Just cond') -> Just $ \offs -> andE (cond' offs) (lessEqE (plusE innerSize offs) outerSize)
-                _ -> cond
-    _ | innerPvTy == outerPvTy -> do
-        return $ Just $ \offs -> eqE offs (machineWordE 0)
+            return $ case (outerBound, condOpt) of
+                (Just PArrayValidStrengthStrong, Just cond) ->
+                    Just $ \offs -> andE (cond offs) (lessEqE (plusE innerSize offs) outerSize)
+                _ -> condOpt
+    _ | innerPvTy == outerPvTy -> return $ Just $ \offs -> eqE offs (machineWordE 0)
     (_, PValidTypeWithStrengthType (ExprTypeStruct outerStructName)) -> do
         outerStruct <- lookupStruct outerStructName
-        conds <- catMaybes <$> (for (M.elems outerStruct.fields) (\field -> do
-            mf <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType field.ty)
-            return $ (, machineWordE field.offset) <$> mf
-            ))
-        case conds of
-            [] -> return Nothing
-            _ -> return $ Just $ \offs -> foldr1 orE
-                [ c (minusE offs offs2)
-                | (c, offs2) <- conds
+        conds <- fmap catMaybes $ for (M.elems outerStruct.fields) $ \field -> do
+            fOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType field.ty)
+            return $ (, machineWordE field.offset) <$> fOpt
+        return $ case conds of
+            [] -> Nothing
+            _ -> Just $ \offs -> foldr1 orE
+                [ c (minusE offs offs')
+                | (c, offs') <- conds
                 ]
     (_, PValidTypeWithStrengthArray { ty = outerElTy, len = outerLen, strength = outerBound }) -> do
-            cond <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType outerElTy)
+            condOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType outerElTy)
             outerElSize <- machineWordE <$> sizeOfType outerElTy
             let outerSize = timesE outerLen outerElSize
-            return $ case cond of
-                Just cond' -> Just $ case outerBound of
-                    Just PArrayValidStrengthStrong -> \offs -> andE (lessE offs outerSize) (cond' (modulusE offs outerElSize))
-                    _ -> \offs -> cond' (modulusE offs outerElSize)
-                _ -> Nothing
+            return $ condOpt <&> \cond -> case outerBound of
+                Just PArrayValidStrengthStrong -> \offs -> andE (lessE offs outerSize) (cond (modulusE offs outerElSize))
+                _ -> \offs -> cond (modulusE offs outerElSize)
     _ -> return Nothing
 
 pvalidAssertion2 :: MonadStructs m => (PValidType, PValidKind, Expr, Expr) -> (PValidType, PValidKind, Expr, Expr) -> m Expr
-pvalidAssertion2 (typ, k, p, pv) (typ2, k2, p2, pv2) = do
-    case (typ, typ2) of
+pvalidAssertion2 (pvTy1, _pvKind1, p1, pv1) (pvTy2, _pvKind2, p2, pv2) = do
+    case (pvTy1, pvTy2) of
         (PValidTypeArray {}, PValidTypeArray {}) -> return trueE
         _ -> do
-            let offs1 = p `minusE` p2
-            cond1 <- getSTypCondition offs1 typ typ2
-            let imp1 = impliesE (andE cond1 pv2) pv
-            let offs2 = p2 `minusE` p
-            cond2 <- getSTypCondition offs2 typ2 typ
-            let imp2 = impliesE (andE cond2 pv) pv2
+            let offs1 = p1 `minusE` p2
+            cond1 <- getSTypCondition offs1 pvTy1 pvTy2
+            let imp1 = impliesE (andE cond1 pv2) pv1
+            let offs2 = p2 `minusE` p1
+            cond2 <- getSTypCondition offs2 pvTy2 pvTy1
+            let imp2 = impliesE (andE cond2 pv1) pv2
             return $ imp1 `andE` imp2
 
 --
@@ -329,8 +327,8 @@ applyRelWrapper lhs rhs =
             let [lhsV, _, _] = argsL
                 [rhsV, _, _] = argsR
              in if lhsV.ty == ExprTypeRelWrapper
-                    then applyRelWrapper lhsV rhsV
-                    else eqE lhs rhs
+                then applyRelWrapper lhsV rhsV
+                else eqE lhs rhs
         _ -> error ""
   where
     ops = S.fromList [opL, opR]
@@ -340,6 +338,9 @@ applyRelWrapper lhs rhs =
 
 strengthenHyp :: Expr -> Expr
 strengthenHyp = strengthenHypInner 1
+
+weakenAssert :: Expr -> Expr
+weakenAssert = strengthenHypInner (-1)
 
 strengthenHypInner :: Integer -> Expr -> Expr
 strengthenHypInner = go
@@ -362,7 +363,7 @@ strengthenHypInner = go
                 -1 -> expr
             OpEquals | isBoolT (head args).ty ->
                 let [_l, r] = args
-                    args' = applyWhen (r `elem` ([trueE, falseE] :: [Expr])) reverse args
+                    args' = applyWhen (r `elem` [trueE, falseE]) reverse args
                     [l', r'] = args'
                 in if
                     | l' == trueE -> goWith r'
@@ -373,6 +374,3 @@ strengthenHypInner = go
       where
         goWith = go sign
         goAgainst = go (-sign)
-
-weakenAssert :: Expr -> Expr
-weakenAssert = strengthenHypInner (-1)
