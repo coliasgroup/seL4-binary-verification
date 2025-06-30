@@ -14,8 +14,8 @@ module BV.Core.Logic
     , alignValidIneqE
     , alignValidIneqM
     , applyRelWrapper
+    , askStruct
     , isNodeNoop
-    , lookupStruct
     , pvalidAssertion1
     , pvalidAssertion2
     , pvalidKindFromOp
@@ -57,8 +57,8 @@ instance MonadStructs m => MonadStructs (ReaderT r m) where
 instance MonadStructs m => MonadStructs (ExceptT e m) where
     askLookupStruct = lift askLookupStruct
 
-lookupStruct :: MonadStructs m => Ident -> m Struct
-lookupStruct name = ($ name) <$> askLookupStruct
+askStruct :: MonadStructs m => Ident -> m Struct
+askStruct name = ($ name) <$> askLookupStruct
 
 newtype WithoutStructs a
   = WithoutStructs { unwrap :: Identity a }
@@ -89,7 +89,7 @@ sizeOfType = \case
         let (bytes, 0) = bits `divMod` 8
         in return bytes
     ExprTypeArray { ty, len } -> (* len) <$> sizeOfType ty
-    ExprTypeStruct name -> (.size) <$> lookupStruct name
+    ExprTypeStruct name -> (.size) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
 
 sizeOfSelfContainedType :: ExprType -> Integer
@@ -99,7 +99,7 @@ alignOfType :: MonadStructs m => ExprType -> m Integer
 alignOfType ty = case ty of
     ExprTypeWord { } -> sizeOfType ty
     ExprTypeArray { ty = ty' } -> alignOfType ty'
-    ExprTypeStruct name -> (.align) <$> lookupStruct name
+    ExprTypeStruct name -> (.align) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
 
 alignOfSelfContainedType :: ExprType -> Integer
@@ -269,7 +269,7 @@ getSTypConditionInner2 innerPvTy outerPvTy = case (innerPvTy, outerPvTy) of
                 _ -> condOpt
     _ | innerPvTy == outerPvTy -> return $ Just $ \offs -> eqE offs (machineWordE 0)
     (_, PValidTypeWithStrengthType (ExprTypeStruct outerStructName)) -> do
-        outerStruct <- lookupStruct outerStructName
+        outerStruct <- askStruct outerStructName
         conds <- fmap catMaybes $ for (M.elems outerStruct.fields) $ \field -> do
             fOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType field.ty)
             return $ (, machineWordE field.offset) <$> fOpt
