@@ -4,10 +4,7 @@ module BV.Core.Stages.Utils
     ( chooseFreshName
     ) where
 
-import BV.Core.Types
 import BV.Core.Utils
-
-import qualified Data.Set as S
 
 -- Implementation matches graph_refine.syntax.fresh_name
 chooseFreshName :: (String -> Bool) -> String -> String
