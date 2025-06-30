@@ -725,15 +725,15 @@ emitNodeM n = do
                     x <- withEnv env $ smtExprM (app_eqs callArg)
                     return ((funArg.name, funArg.ty), x))
                 mem_calls' <- scanMemCalls ins
-                do
-                    for (M.toAscList ins) $ \((n, _), v) -> do
-                        case v of
-                            SMT s -> do
-                                traceM $ "    %%% " ++ n.unwrap ++ " " ++ showSExprWithPlaceholders s
-                            _ -> return ()
-                traceShowM $ ("mem_calls'", nodeCountName n, mem_calls')
+                -- do
+                --     for (M.toAscList ins) $ \((n, _), v) -> do
+                --         case v of
+                --             SMT s -> do
+                --                 traceM $ "    %%% " ++ n.unwrap ++ " " ++ showSExprWithPlaceholders s
+                --             _ -> return ()
+                -- traceShowM $ ("mem_calls'", nodeCountName n, mem_calls')
                 let mem_calls = addMemCall callNode.functionName $ mem_calls'
-                traceShowM $ ("mem_calls", nodeCountName n, mem_calls)
+                -- traceShowM $ ("mem_calls", nodeCountName n, mem_calls)
                 let m = do
                         for (zip callNode.output sig.output) $ \(Argument x typ, Argument y typ2) -> do
                             ensureM $ typ == typ2
@@ -839,7 +839,7 @@ getMemCalls mem_sexpr = do
     present <- liftRepGraph $ use $ #memCalls % at mem_sexpr
     case present of
         Just x -> do
-            traceShowM ("present", x)
+            -- traceShowM ("present", x)
             return x
         Nothing -> do
             case mem_sexpr of
@@ -868,7 +868,7 @@ scanMemCalls env = do
     let mem_vs = [ v | ((_nm, typ), v) <- M.toAscList env, typ == memT ]
     mem_calls <- for (catMaybes (map (preview #_SMT) mem_vs)) $ \v -> do
         getMemCalls v
-    traceShowM $ ("scanning", mem_calls)
+    -- traceShowM $ ("scanning", mem_calls)
     return $ case mem_calls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls mem_calls
@@ -1027,7 +1027,7 @@ memCallsCompatible p_mem_calls = do
                         y = case r_actual.max of
                                 Just n -> n < r_cast.min
                                 _ -> False
-                     in not x && not y
+                     in x || y
             let bad = any f (nub $ M.keys r_mem_calls ++ M.keys r_mem_calls)
             return $ if bad then (False, Just "foo") else (True, Nothing)
         _ -> return (True, Nothing)
