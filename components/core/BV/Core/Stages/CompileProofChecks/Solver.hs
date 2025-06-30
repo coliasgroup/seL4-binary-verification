@@ -40,12 +40,12 @@ module BV.Core.Stages.CompileProofChecks.Solver
     ) where
 
 import BV.Core.Logic
+import BV.Core.Stages.Utils
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.SMTLIB2.SExpr
 
-import BV.Core.Stages.Utils
 import Control.DeepSeq (NFData)
 import Control.Monad (join, unless, when)
 import Control.Monad.Except (ExceptT)

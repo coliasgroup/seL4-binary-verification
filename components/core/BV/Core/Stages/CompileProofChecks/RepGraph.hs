@@ -32,15 +32,15 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
 import BV.Core.Graph
 import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.Solver
-import BV.Core.Types
-
 import BV.Core.Stages.Utils (chooseFreshName)
+import BV.Core.Types
 import BV.Core.Types.Extras (showSExprWithPlaceholders, symbolS)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
 import BV.SMTLIB2 (GenericSExpr (Atom), viewAtom)
 import BV.SMTLIB2.SExpr (GenericSExpr (List), UncheckedAtom (..))
+
 import Control.Applicative (asum)
 import Control.DeepSeq (NFData)
 import Control.Monad (filterM, guard, join, replicateM, unless, when)
