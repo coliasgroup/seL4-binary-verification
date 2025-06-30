@@ -14,3 +14,7 @@ what happened to:
 - self.p.known_eqs
 - self.avail_hyps
 - self.used_hyps
+
+--
+
+`self.solv.add_pvalid_dom_assertions ()`
