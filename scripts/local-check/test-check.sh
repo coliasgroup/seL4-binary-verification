@@ -10,9 +10,9 @@ tmp=$top/tmp
 solvers=$here/solvers.yaml
 workers=$here/workers.yaml
 
-# sd=big
+sd=big
 # sd=small
-sd=focused
+# sd=focused
 
 d=$tmp/test-target-dirs/$sd
 
