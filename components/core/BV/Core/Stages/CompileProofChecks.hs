@@ -21,14 +21,10 @@ import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import BV.Core.Utils
-import Control.Monad.Except (runExceptT)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.RWS (RWS, runRWS)
-import Data.Function (applyWhen)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (isNothing)
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
@@ -43,9 +39,11 @@ compileProofCheckGroup :: Map Ident Struct -> FunctionSignatures -> Pairings -> 
 compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem group =
     SMTProofCheckGroup setup imps
   where
+    (imps, _, setup) = runRWS m.run env initState
     env = initEnv rodata cStructs functionSigs pairings argRenames problem
-    state = initState
-    (imps, _, setup) = runRWS (initM >> compileProofCheckGroupM group).run env state
+    m = do
+        initM
+        compileProofCheckGroupM group
 
 initM :: M ()
 initM = do
@@ -108,13 +106,6 @@ interpretGroupM group = do
         sexpr <- runReaderT (smtExprNoSplitM term) M.empty
         return $ SMTProofCheckImp check.meta sexpr
 
--- interpretCheckM :: ProofCheck a -> M (SMTProofCheckImp a)
--- interpretCheckM check = do
---     concl <- interpretHypM check.hyp
---     term <- interpretHypImpsM check.hyps concl
---     sexpr <- runReaderT (smtExprNoSplitM term) M.empty
---     return $ SMTProofCheckImp check.meta sexpr
-
 interpretHypImpsM :: [Hyp] -> Expr -> M Expr
 interpretHypImpsM hyps concl = do
     hyps' <- mapM interpretHypM hyps
@@ -126,9 +117,7 @@ interpretHypM = \case
         let f = \case
                 PcImpHypSideBool v -> return $ fromBoolE v
                 PcImpHypSidePc vt -> getPcM' vt.visit (Just vt.tag)
-        pc1 <- f hyp.lhs
-        pc2 <- f hyp.rhs
-        return $ impliesE pc1 pc2
+        impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
         (x, y) <- case eq.induct of
             Nothing -> return (eq.lhs.expr, eq.rhs.expr)
@@ -136,17 +125,17 @@ interpretHypM = \case
                 v <- getInductVarM induct
                 let x = substInduct eq.lhs.expr v
                 let y = substInduct eq.rhs.expr v
-                return $ (x, y)
-        x_pc_env <- getNodePcEnvM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
-        y_pc_env <- getNodePcEnvM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
-        case (x_pc_env, y_pc_env) of
-            (Just (_, xenv), Just (_, yenv)) -> do
-                eq' <- instEqWithEnvsM (x, xenv) (y, yenv)
+                return (x, y)
+        xPcEnv <- getNodePcEnvM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+        yPcEnv <- getNodePcEnvM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+        case (xPcEnv, yPcEnv) of
+            (Just (_, xEnv), Just (_, yEnv)) -> do
+                eq' <- instEqWithEnvsM (x, xEnv) (y, yEnv)
                 if ifAt
                     then do
-                        x_pc <- getPcM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
-                        y_pc <- getPcM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
-                        return $ nImpliesE [x_pc, y_pc] eq'
+                        xPc <- getPcM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+                        yPc <- getPcM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+                        return $ nImpliesE [xPc, yPc] eq'
                     else do
                         return eq'
             _ -> do
