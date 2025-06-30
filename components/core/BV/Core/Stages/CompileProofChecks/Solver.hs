@@ -67,6 +67,8 @@ import Optics
 import Optics.State.Operators ((%=), (<<%=))
 import Text.Printf (printf)
 
+{-# ANN module ("HLint: ignore" :: String) #-}
+
 class MonadStructs m => MonadSolver m where
     liftSolver :: RWS SolverEnv SolverOutput SolverState a -> m a
 

@@ -73,6 +73,8 @@ import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
 
+{-# ANN module ("HLint: ignore" :: String) #-}
+
 -- TODO cache more accross groups
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
