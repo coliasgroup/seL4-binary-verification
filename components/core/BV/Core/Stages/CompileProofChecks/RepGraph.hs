@@ -34,7 +34,7 @@ import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
 import BV.Core.Stages.Utils (chooseFreshName)
-import BV.Core.Types.Extras (showSExprWithPlaceholders, uncheckedAtomS, symbolS)
+import BV.Core.Types.Extras (showSExprWithPlaceholders, symbolS, uncheckedAtomS)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
@@ -400,7 +400,7 @@ getInductVarM induct = do
     return $ smtExprE word32T (SMT $ nameS vname)
 
 substInduct :: Expr -> Expr -> Expr
-substInduct expr inductVar = flip varSubstNotMust expr $ \ident ty ->
+substInduct expr inductVar = flip varSubst expr $ \ident ty ->
     if ident.unwrap == "%n" && ty == word32T
     then Just inductVar
     else Nothing
@@ -625,7 +625,7 @@ specializeM visit split = do
                 { nodeAddr
                 , visitCount
                 }
-            | (nodeAddr, visitCount) <- M.toAscList (M.insert split (fromSimpleVisitCountView n) vcount)
+            | (nodeAddr, visitCount) <- M.toAscList (M.insert split (fromSimpleVC n) vcount)
             ]
 
 getArcPcEnvM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Expr, SMTEnv))

@@ -135,7 +135,6 @@ instance ParseInLine Expr where
                 value <- either (fail . errorBundlePretty) (pure . ExprValueSMTExpr . SMT) r
                 ty <- parseInLine
                 return $ Expr { ty, value }
-            "SMTExpr" -> error "unimplemented"
             _ -> fail "invalid value"
       where
         typical :: (ParseInLine a) => (a -> ExprValue) -> Parser Expr

@@ -10,9 +10,7 @@ import Control.DeepSeq (NFData)
 import Data.Bits (shiftL)
 import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
-import Debug.Trace (traceShow)
 import GHC.Generics (Generic)
-import GHC.Stack (HasCallStack)
 import Optics
 
 boolT :: ExprType
@@ -70,7 +68,7 @@ isMemT = is #_ExprTypeMem
 
 --
 
-wordTBits :: HasCallStack => ExprType -> Integer
+wordTBits :: ExprType -> Integer
 wordTBits = view (expecting #_ExprTypeWord)
 
 --
@@ -227,15 +225,14 @@ varFromArgE arg = varE arg.ty arg.name
 wordVarE :: Integer -> Ident -> Expr
 wordVarE bits = varE (wordT bits)
 
-memAccE :: HasCallStack => ExprType -> Expr -> Expr -> Expr
+memAccE :: ExprType -> Expr -> Expr -> Expr
 memAccE ty addr mem =
-    -- traceShow mem .
     ensureType_ isMemT mem .
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
     ensure (isWordT ty) $
         Expr ty (opV OpMemAcc [mem, addr])
 
-memUpdE :: HasCallStack => Expr -> Expr -> Expr -> Expr
+memUpdE :: Expr -> Expr -> Expr -> Expr
 memUpdE addr mem v =
     ensureType_ isMemT mem .
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
@@ -257,7 +254,7 @@ stackWrapperE sp stack except =
 ensureType :: (ExprType -> Bool) -> Expr -> ExprType
 ensureType p expr = ensureType_ p expr expr.ty
 
-ensureType_ :: HasCallStack => (ExprType -> Bool) -> Expr -> a -> a
+ensureType_ :: (ExprType -> Bool) -> Expr -> a -> a
 ensureType_ p expr = ensure (p expr.ty)
 
 ensureTypesEqual :: Expr -> Expr -> ExprType

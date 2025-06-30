@@ -14,9 +14,6 @@ import Data.Text.Lazy.Builder (Builder, fromString, toLazyText)
 builderToString :: Builder -> String
 builderToString = TL.unpack . toLazyText
 
-showGenericSExpr :: (a -> String) -> GenericSExpr a -> String
-showGenericSExpr f sexpr = builderToString $ buildGenericSExpr (fromString . f) sexpr
-
 showSExpr :: SExpr -> String
 showSExpr = builderToString . buildSExpr
 
@@ -25,3 +22,6 @@ showUncheckedSExpr = builderToString . buildUncheckedSExpr
 
 showAtom :: Atom -> String
 showAtom = builderToString . buildAtom
+
+showGenericSExpr :: (a -> String) -> GenericSExpr a -> String
+showGenericSExpr f sexpr = builderToString $ buildGenericSExpr (fromString . f) sexpr

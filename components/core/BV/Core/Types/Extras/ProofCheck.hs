@@ -14,7 +14,7 @@ module BV.Core.Types.Extras.ProofCheck
     , eqSideH
     , eqWithIfAtH
     , fromRestrKindVC
-    , fromSimpleVisitCountView
+    , fromSimpleVC
     , hasZeroVC
     , incrVC
     , isEmptyVC
@@ -26,7 +26,7 @@ module BV.Core.Types.Extras.ProofCheck
     , pcImpH
     , pcTrivH
     , pcTrueH
-    , simpleVisitCountView
+    , simpleVC
     , tagV
     , trueIfAt
     , trueIfAt'
@@ -38,10 +38,8 @@ import BV.Core.Types.Extras.Expr
 
 import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
-import Data.Function ((&))
-import Data.Maybe (catMaybes)
 import GHC.Generics (Generic)
-import Optics ((%~))
+import Optics
 
 numberVC :: Integer -> VisitCount
 numberVC n = VisitCount
@@ -74,19 +72,19 @@ data SimpleVisitCountView
   | SimpleVisitCountViewOffset Integer
   deriving (Eq, Generic, NFData, Ord, Show)
 
-simpleVisitCountView :: VisitCount -> Maybe SimpleVisitCountView
-simpleVisitCountView = \case
+simpleVC :: VisitCount -> Maybe SimpleVisitCountView
+simpleVC = \case
     VisitCount { numbers = [n], offsets = [] } -> Just (SimpleVisitCountViewNumber n)
     VisitCount { numbers = [], offsets = [n] } -> Just (SimpleVisitCountViewOffset n)
     _ -> Nothing
 
-fromSimpleVisitCountView :: SimpleVisitCountView -> VisitCount
-fromSimpleVisitCountView = \case
-    SimpleVisitCountViewNumber n -> numberVC n
-    SimpleVisitCountViewOffset n -> offsetVC n
-
 enumerateSimpleVC :: VisitCount -> [SimpleVisitCountView]
 enumerateSimpleVC vc = map SimpleVisitCountViewNumber vc.numbers ++ map SimpleVisitCountViewOffset vc.offsets
+
+fromSimpleVC :: SimpleVisitCountView -> VisitCount
+fromSimpleVC = \case
+    SimpleVisitCountViewNumber n -> numberVC n
+    SimpleVisitCountViewOffset n -> offsetVC n
 
 fromRestrKindVC :: RestrProofNodeRangeKind -> Integer -> VisitCount
 fromRestrKindVC kind n = n & case kind of

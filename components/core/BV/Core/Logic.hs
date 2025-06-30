@@ -34,20 +34,15 @@ import BV.Core.Utils
 import Control.DeepSeq (NFData)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Identity (Identity (runIdentity))
-import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT (runReaderT),
-                             asks, runReader)
+import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT, runReader)
 import Control.Monad.Trans (lift)
-import Data.Foldable (fold)
-import Data.Foldable1 (Foldable1 (fold1))
 import Data.Function (applyWhen)
 import Data.Functor ((<&>))
 import Data.List (nub)
-import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import Data.Traversable (for)
-import Debug.Trace (trace)
 import GHC.Generics (Generic)
 
 --
@@ -109,6 +104,8 @@ alignOfType ty = case ty of
 alignOfSelfContainedType :: ExprType -> Integer
 alignOfSelfContainedType ty = withoutStructs $ alignOfType ty
 
+--
+
 isNodeNoop :: Node -> Bool
 isNodeNoop = \case
     NodeBasic (BasicNode { varUpdates }) -> null varUpdates
@@ -139,35 +136,34 @@ alignValidIneqE ty p =
         ]
 
 arraySizeIneqM :: MonadStructs m => ExprType -> Expr -> Expr -> m Expr
-arraySizeIneqM ty len p = do
-    -- align <- alignOfType ty
+arraySizeIneqM ty len _p = do
     elSize <- sizeOfType ty
-    -- let size = timesE (machineWordE elSize) len
-    let size_lim = (((2 :: Integer) ^ (32 :: Integer)) - 4) `div` elSize
-    return $ lessEqE len (machineWordE size_lim)
+    let limit = (((2 :: Integer) ^ (32 :: Integer)) - 4) `div` elSize
+    return $ lessEqE len (machineWordE limit)
 
 alignValidIneqM :: MonadStructs m => PValidType -> Expr -> m Expr
 alignValidIneqM pvTy p = do
-    (align, size, size_req) <- case pvTy of
+    (align, size, sizeReqs) <- case pvTy of
         PValidTypeType ty -> do
             align <- alignOfType ty
             size <- machineWordE <$> sizeOfType ty
-            let size_req = []
-            return (align, size, size_req)
+            return (align, size, [])
         PValidTypeArray { ty, len } -> do
             align <- alignOfType ty
             elSize <- machineWordE <$> sizeOfType ty
             let size = timesE elSize len
-            x <- arraySizeIneqM ty len p
-            let size_req = [x]
-            return (align, size, size_req)
-    let w0 = machineWordE 0
-    let conj = optionals (align > 1) [bitwiseAndE p (machineWordE (align - 1)) `eqE` w0] ++ size_req ++
-            [ notE (p `eqE` w0)
-            , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
-            ]
-    return $ ensure (align `elem` [1, 4, 8]) $
-        foldr1 andE conj
+            sizeReq <- arraySizeIneqM ty len p
+            return (align, size, [sizeReq])
+    ensureM $ align `elem` [1, 4, 8]
+    let conj =
+            optionals (align > 1) [bitwiseAndE p (machineWordE (align - 1)) `eqE` w0]
+                ++ sizeReqs
+                ++ [ notE (p `eqE` w0)
+                   , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
+                   ]
+    return $ foldr1 andE conj
+  where
+    w0 = machineWordE 0
 
 data PValidTypeWithStrength
   = PValidTypeWithStrengthArray

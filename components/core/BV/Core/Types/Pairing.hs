@@ -31,7 +31,6 @@ import qualified Data.Map as M
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import Optics (Lens', view)
-import BV.Core.Utils
 
 data PairingOf a
   = PairingOf
@@ -106,8 +105,7 @@ class AtPairingId a m | m -> a where
     atPairingId :: m -> PairingId -> a
 
 instance AtPairingId a (M.Map PairingId a) where
-    -- atPairingId = (M.!)
-    atPairingId = findWithCallstack
+    atPairingId = (M.!)
 
 data Pairing
   = Pairing

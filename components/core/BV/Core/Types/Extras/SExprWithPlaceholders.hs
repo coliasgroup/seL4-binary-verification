@@ -15,6 +15,25 @@ import Text.Printf (printf)
 -- TODO private
 type S = SExprWithPlaceholders
 
+--
+
+showSExprWithPlaceholders :: SExprWithPlaceholders -> String
+showSExprWithPlaceholders = showGenericSExpr showAtomOrPlaceholder
+
+showAtomOrPlaceholder :: AtomOrPlaceholder -> String
+showAtomOrPlaceholder = \case
+    AtomOrPlaceholderAtom atom -> showAtom atom
+    AtomOrPlaceholderPlaceholder placeholder -> showSExprPlaceholder placeholder
+
+showSExprPlaceholder :: SExprPlaceholder -> String
+showSExprPlaceholder placeholder = "{" <> inner <> "}"
+  where
+    inner = case placeholder of
+        SExprPlaceholderMemSort -> "MemSort"
+        SExprPlaceholderMemDomSort -> "MemDomSort"
+
+--
+
 listS :: [S] -> S
 listS = List
 
@@ -50,8 +69,8 @@ intWithS toNeg toAbs n = applyWhen (n /= nAbs) toNeg (toAbs nAbs)
 negateS :: S -> S
 negateS x = ["-", x]
 
-bvNegS :: S -> S
-bvNegS x = ["bvneg", x]
+bvnegS :: S -> S
+bvnegS x = ["bvneg", x]
 
 defineFunS :: String -> [(String, S)] -> S -> S -> S
 defineFunS name args ret body =
@@ -128,7 +147,7 @@ binS :: String -> S
 binS = atomS . binaryAtom
 
 intWithWidthS :: Integer -> Integer -> S
-intWithWidthS bits = intWithS bvNegS $ \nAbs ->
+intWithWidthS bits = intWithS bvnegS $ \nAbs ->
     ensure (bits > 0 && nAbs >= 0 && nAbs < 2^bits) $
         f (printf ("%0." ++ show cols ++ fmt) nAbs)
   where
@@ -172,20 +191,3 @@ matchPatternS :: Eq a => GenericSExpr a -> GenericSExpr a -> Bool
 matchPatternS (Atom p) (Atom x) = p == x
 matchPatternS (List ps) (List xs) = length ps <= length xs && and (zipWith matchPatternS ps xs)
 matchPatternS _ _ = False
-
---
-
-showSExprWithPlaceholders :: SExprWithPlaceholders -> String
-showSExprWithPlaceholders = showGenericSExpr showAtomOrPlaceholder
-
-showAtomOrPlaceholder :: AtomOrPlaceholder -> String
-showAtomOrPlaceholder = \case
-    AtomOrPlaceholderAtom atom -> showAtom atom
-    AtomOrPlaceholderPlaceholder placeholder -> showSExprPlaceholder placeholder
-
-showSExprPlaceholder :: SExprPlaceholder -> String
-showSExprPlaceholder placeholder = "{" <> inner <> "}"
-  where
-    inner = case placeholder of
-        SExprPlaceholderMemSort -> "MemSort"
-        SExprPlaceholderMemDomSort -> "MemDomSort"

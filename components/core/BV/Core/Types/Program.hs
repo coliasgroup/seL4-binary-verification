@@ -35,7 +35,6 @@ module BV.Core.Types.Program
     , renameVarsI
     , toListOfNamed
     , varSubst
-    , varSubstNotMust
     , walkExprs
     , walkExprsI
     , withNamed
@@ -49,6 +48,7 @@ import Control.Monad.Identity (Identity (Identity, runIdentity))
 import Data.Binary (Binary)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
 import Data.String (IsString (..))
 import GHC.Generics (Generic)
 import Optics
@@ -181,7 +181,7 @@ prettyNodeId :: NodeId -> String
 prettyNodeId = \case
     Ret -> "Ret"
     Err -> "Err"
-    Addr addr -> show addr.unwrap
+    Addr (NodeAddr addr) -> show addr
 
 data Node
   = NodeBasic BasicNode
@@ -396,15 +396,10 @@ walkExprs f expr = do
 walkExprsI :: (Expr -> Expr) -> Expr -> Expr
 walkExprsI f = runIdentity . walkExprs (Identity . f)
 
-varSubstNotMust :: (Ident -> ExprType -> Maybe Expr) -> Expr -> Expr
-varSubstNotMust f = walkExprsI $ \case
-        expr@(Expr ty (ExprValueVar ident)) -> case f ident ty of
-            Just expr' -> expr'
-            Nothing -> expr
+varSubst :: (Ident -> ExprType -> Maybe Expr) -> Expr -> Expr
+varSubst f = walkExprsI $ \case
+        expr@(Expr ty (ExprValueVar ident)) -> fromMaybe expr $ f ident ty
         expr -> expr
-
-varSubst :: (Ident -> ExprType -> Expr) -> Expr -> Expr
-varSubst f = varSubstNotMust $ \ident ty -> Just (f ident ty)
 
 class HasVarNames a where
     varNamesOf :: Traversal' a Ident

@@ -251,7 +251,7 @@ splitVisitVisits splitNode restrs visit = withTags splitNode.details <&> \detail
 
 splitVisitOneVisit :: WithTag SplitProofNodeDetails -> [Restr] -> VisitCount -> VisitWithTag
 splitVisitOneVisit detailsWithTag restrs visit = tagV detailsWithTag.tag $
-    let visit' = case fromJust (simpleVisitCountView visit) of
+    let visit' = case fromJust (simpleVC visit) of
             SimpleVisitCountViewOffset n -> offsetVC (n * detailsWithTag.value.step)
             SimpleVisitCountViewNumber n -> numberVC (detailsWithTag.value.seqStart + (n * detailsWithTag.value.step))
         restr' = Restr detailsWithTag.value.split visit'
@@ -298,7 +298,7 @@ splitHypsAtVisit splitNode restrs visit =
         expr -> expr
     inst expr = instEqAtVisit expr visit
     zsub = mksub (machineWordE 0)
-    lsub = mksub $ case fromJust (simpleVisitCountView visit) of
+    lsub = mksub $ case fromJust (simpleVC visit) of
         SimpleVisitCountViewNumber n -> machineWordE n
         SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
 
@@ -323,7 +323,7 @@ loopEqHypsAtVisit tag split eqs restrs visitNum useIfAt =
         Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
         expr -> expr
     zsub = mksub (machineWordE 0)
-    isub = mksub $ case fromJust (simpleVisitCountView visitNum) of
+    isub = mksub $ case fromJust (simpleVC visitNum) of
         SimpleVisitCountViewNumber n -> machineWordE n
         SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
 
@@ -332,7 +332,7 @@ instEqAtVisit expr visit = case expr.value of
     ExprValueOp OpEqSelectiveWrapper [_, xs, ys] ->
         let xs' = word32ListFromExpr xs
             ys' = word32ListFromExpr ys
-         in case fromJust (simpleVisitCountView visit) of
+         in case fromJust (simpleVC visit) of
                 SimpleVisitCountViewNumber n -> n `elem` xs'
                 SimpleVisitCountViewOffset n -> n `elem` ys'
     _ -> True

@@ -33,11 +33,6 @@ data ProblemSide
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance HasVarNames Problem where
-    varNamesOf =
-        (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
-            `adjoin` (#nodes % traversed % varNamesOf)
-
 data NodeBySource
   = NodeBySource
       { nodeSource :: NodeSource
@@ -64,3 +59,8 @@ newtype Problems
 
 instance AtPairingId Problem Problems where
     atPairingId = atPairingId . (.unwrap)
+
+instance HasVarNames Problem where
+    varNamesOf =
+        (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
+            `adjoin` (#nodes % traversed % varNamesOf)
