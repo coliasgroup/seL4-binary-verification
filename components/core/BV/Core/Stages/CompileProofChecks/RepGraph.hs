@@ -725,6 +725,7 @@ emitNodeM n = do
                     x <- withEnv env $ smtExprM (app_eqs callArg)
                     return ((funArg.name, funArg.ty), x))
                 mem_calls <- addMemCall callNode.functionName <$> scanMemCalls ins
+                traceShowM $ ("mem_calls", nodeCountName n, mem_calls)
                 let m = do
                         for (zip callNode.output sig.output) $ \(Argument x typ, Argument y typ2) -> do
                             ensureM $ typ == typ2
@@ -912,9 +913,11 @@ addFuncM name inputs outputs success n_vc = do
     (liftRepGraph $ gview $ #pairingsAccess % at name) >>= \case
         Nothing -> return ()
         Just pair -> do
+            traceShowM ("addFunc", name)
             group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pair)
             for_ group $ \n_vc2 -> do
                 x <- getFuncPairingM n_vc n_vc2
+                traceShowM ("ap", isJust x)
                 when (isJust x) $ do
                     addFuncAssertM n_vc n_vc2
             liftRepGraph $ #funcsByName %= M.insert pair (group ++ [n_vc])
@@ -925,12 +928,12 @@ getFuncPairingNoCheckM n_vc n_vc2 = do
     n2 <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc2.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
     pair <- liftRepGraph $ gview $ #pairingsAccess % at n % unwrapped
     p <- liftRepGraph $ gview $ #pairings % #unwrap % at pair % unwrapped
-    return $
-        if PairingOf n n2 == pair
-        then Just $ (p, PairingOf n_vc n_vc2)
-        else if PairingOf n2 n == pair
-        then Just $ (p, PairingOf n_vc2 n_vc)
-        else Nothing
+    id $
+        if PairingOf { asm = n, c = n2 } == pair
+        then traceShowM ("c 1") >> return (Just $ (p, PairingOf { asm = n_vc, c = n_vc2 }))
+        else if PairingOf { asm = n2, c = n } == pair
+        then traceShowM ("c 2") >> return (Just $ (p, PairingOf { asm = n_vc2, c = n_vc }))
+        else traceShowM ("c 3") >> return (Nothing)
 
 getFuncPairingM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairingM n_vc n_vc2 = do
@@ -941,12 +944,20 @@ getFuncPairingM n_vc n_vc2 = do
             (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
             l_mem_calls <- scanMemCalls lin
             r_mem_calls <- scanMemCalls rin
+            traceShowM ("calls", M.size <$> l_mem_calls, M.size <$> r_mem_calls)
+            traceShowM ("callz", l_mem_calls, r_mem_calls)
+            -- traceShowM ("callxl", (.unwrap) . fst <$> M.keys lin)
+            -- traceShowM ("callxr", (.unwrap) . fst <$> M.keys rin)
             (c, s) <- memCallsCompatible $ PairingOf
                 { asm = l_mem_calls
                 , c = r_mem_calls
                 }
+                -- { c = l_mem_calls
+                -- , asm = r_mem_calls
+                -- }
             unless c $ do
                 -- traceShowM ("skipping", s)
+                traceShowM "skip"
                 return ()
             return $ if c then Just (p, p_n_vc) else Nothing
 
