@@ -87,7 +87,7 @@ sizeOfType = \case
     ExprTypeWord { bits } ->
         let (bytes, 0) = bits `divMod` 8
         in return bytes
-    ExprTypeArray { ty, length } -> (* length) <$> sizeOfType ty
+    ExprTypeArray { ty, len } -> (* len) <$> sizeOfType ty
     ExprTypeStruct name -> (.size) <$> lookupStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
 
@@ -213,9 +213,9 @@ endAddr p pvTy = do
 
 normArrayType :: PValidTypeWithStrength -> PValidTypeWithStrength
 normArrayType = \case
-    PValidTypeWithStrengthType (ExprTypeArray { ty, length }) -> PValidTypeWithStrengthArray
+    PValidTypeWithStrengthType (ExprTypeArray { ty, len }) -> PValidTypeWithStrengthArray
         { ty
-        , len = machineWordE length
+        , len = machineWordE len
         , strength = Just PArrayValidStrengthStrong
         }
     PValidTypeWithStrengthArray { ty, len, strength = Nothing } -> PValidTypeWithStrengthArray

@@ -315,8 +315,8 @@ instance BuildInLine ExprType where
         ExprTypeToken -> "Token"
         ExprTypeRelWrapper -> "RelWrapper"
         ExprTypeWord { bits } -> "Word" <> putDec bits
-        ExprTypeWordArray { length, bits } -> "WordArray" <> putDec length <> putDec bits
-        ExprTypeArray { ty, length } -> "Array" <> put ty <> putDec length
+        ExprTypeWordArray { len, bits } -> "WordArray" <> putDec len <> putDec bits
+        ExprTypeArray { ty, len } -> "Array" <> put ty <> putDec len
         ExprTypeStruct ident -> "Struct" <> put ident
         ExprTypePtr ty -> "Ptr" <> put ty
 

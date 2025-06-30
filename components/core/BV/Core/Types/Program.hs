@@ -254,12 +254,12 @@ data ExprType
       { bits :: Integer
       }
   | ExprTypeWordArray
-      { length :: Integer
+      { len :: Integer
       , bits :: Integer
       }
   | ExprTypeArray
       { ty :: ExprType
-      , length :: Integer
+      , len :: Integer
       }
   | ExprTypeStruct Ident
   | ExprTypePtr ExprType

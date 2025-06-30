@@ -62,13 +62,13 @@ buildGenericSExprPretty f config sexpr = buildAt config initialSpacingCtx partia
         let built = toLazyText (f a)
          in BuiltAtom
                 { builder = fromLazyText built
-                , length = toInteger (TL.length built)
+                , len = toInteger (TL.length built)
                 }
 
 data BuiltAtom
   = BuiltAtom
       { builder :: Builder
-      , length :: Integer
+      , len :: Integer
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -130,5 +130,5 @@ buildInlineWithin delimsAt limit initNestLevel =
         reserve 1
         tell builder
     putAtom builtAtom = do
-        reserve builtAtom.length
+        reserve builtAtom.len
         tell builtAtom.builder

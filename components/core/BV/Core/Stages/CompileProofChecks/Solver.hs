@@ -181,8 +181,8 @@ typeName = go
         ExprTypeToken -> "Token"
         ExprTypeRelWrapper -> "RelWrapper"
         ExprTypeWord { bits } -> join ["Word", show bits]
-        ExprTypeWordArray { length, bits } -> join ["WordArray", show length, show bits]
-        ExprTypeArray { ty, length } -> join ["Array", go ty, show length]
+        ExprTypeWordArray { len, bits } -> join ["WordArray", show len, show bits]
+        ExprTypeArray { ty, len } -> join ["Array", go ty, show len]
         ExprTypeStruct ident -> join ["Struct", ident.unwrap]
         ExprTypePtr ty -> join ["Ptr", go ty]
 
@@ -588,7 +588,7 @@ isSMTTypeOmitted = \case
 smtType :: ExprType -> S
 smtType = \case
     ExprTypeWord bits -> bitVecS bits
-    ExprTypeWordArray { length, bits } -> ["Array", bitVecS length, bitVecS bits]
+    ExprTypeWordArray { len, bits } -> ["Array", bitVecS len, bitVecS bits]
     ExprTypeBool -> boolS
     ExprTypeMem -> memSortS
     ExprTypeDom -> memDomSortS
