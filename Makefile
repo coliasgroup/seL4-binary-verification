@@ -55,7 +55,7 @@ hlint: hpack
 
 .PHONY: nix
 nix:
-	nix-build -A package
+	nix-build -A sel4-bv
 
 .PHONY: enumerate-transitive-deps
 enumerate-transitive-deps: hpack

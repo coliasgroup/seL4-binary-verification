@@ -2,23 +2,15 @@
 , buildEnv
 , writeShellApplication
 
-, yices
-, bitwuzla
-
-, package
+, sel4-bv
+, driverSolvers
+, workerSolvers ? driverSolvers
 }:
 
 let
-  workerSolvers = [
-    yices
-    bitwuzla
-  ];
-
-  driverSolvers = workerSolvers;
-
   worker = writeShellApplication {
     name = "worker";
-    runtimeInputs = [ package ] ++ workerSolvers;
+    runtimeInputs = [ sel4-bv ] ++ workerSolvers;
     text = ''
       exec sel4-bv-cli "$@"
     '';
@@ -59,7 +51,7 @@ let
 
   driver = writeShellApplication {
     name = "driver";
-    runtimeInputs = [ package run-worker-over-ssh ] ++ driverSolvers;
+    runtimeInputs = [ sel4-bv run-worker-over-ssh ] ++ driverSolvers;
     text = ''
       exec sel4-bv-cli "$@"
     '';
