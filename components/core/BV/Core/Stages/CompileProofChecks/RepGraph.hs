@@ -932,11 +932,11 @@ addFuncM name inputs outputs success n_vc = do
     (liftRepGraph $ gview $ #pairingsAccess % at name) >>= \case
         Nothing -> return ()
         Just pair -> do
-            traceShowM ("addFunc", name)
+            -- traceShowM ("addFunc", name)
             group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pair)
             for_ group $ \n_vc2 -> do
                 x <- getFuncPairingM n_vc n_vc2
-                traceShowM ("ap", isJust x)
+                -- traceShowM ("ap", isJust x)
                 when (isJust x) $ do
                     addFuncAssertM n_vc n_vc2
             liftRepGraph $ #funcsByName %= M.insert pair (group ++ [n_vc])
@@ -949,10 +949,10 @@ getFuncPairingNoCheckM n_vc n_vc2 = do
     p <- liftRepGraph $ gview $ #pairings % #unwrap % at pair % unwrapped
     id $
         if PairingOf { asm = n, c = n2 } == pair
-        then traceShowM ("c 1") >> return (Just $ (p, PairingOf { asm = n_vc, c = n_vc2 }))
+        then return (Just $ (p, PairingOf { asm = n_vc, c = n_vc2 }))
         else if PairingOf { asm = n2, c = n } == pair
-        then traceShowM ("c 2") >> return (Just $ (p, PairingOf { asm = n_vc2, c = n_vc }))
-        else traceShowM ("c 3") >> return (Nothing)
+        then return (Just $ (p, PairingOf { asm = n_vc2, c = n_vc }))
+        else return (Nothing)
 
 getFuncPairingM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairingM n_vc n_vc2 = do
@@ -963,8 +963,8 @@ getFuncPairingM n_vc n_vc2 = do
             (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
             l_mem_calls <- scanMemCalls lin
             r_mem_calls <- scanMemCalls rin
-            traceShowM ("calls", M.size <$> l_mem_calls, M.size <$> r_mem_calls)
-            traceShowM ("callz", l_mem_calls, r_mem_calls)
+            -- traceShowM ("calls", M.size <$> l_mem_calls, M.size <$> r_mem_calls)
+            -- traceShowM ("callz", l_mem_calls, r_mem_calls)
             -- traceShowM ("callxl", (.unwrap) . fst <$> M.keys lin)
             -- traceShowM ("callxr", (.unwrap) . fst <$> M.keys rin)
             (c, s) <- memCallsCompatible $ PairingOf
@@ -976,7 +976,7 @@ getFuncPairingM n_vc n_vc2 = do
                 -- }
             unless c $ do
                 -- traceShowM ("skipping", s)
-                traceShowM "skip"
+                -- traceShowM "skip"
                 return ()
             return $ if c then Just (p, p_n_vc) else Nothing
 
@@ -1014,13 +1014,13 @@ memCallsCompatible p_mem_calls = do
                 let r_fun = pair.c
                 r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
                 let memOut = any (\arg -> arg.ty == memT) r_sig.output
-                traceShowM ("memOut", memOut)
+                -- traceShowM ("memOut", memOut)
                 return $
                     if memOut
                     then Just (r_fun, calls)
                     else Nothing
-            traceShowM ("r_cast_calls", r_cast_calls)
-            traceShowM ("r_mem_calls", r_mem_calls)
+            -- traceShowM ("r_cast_calls", r_cast_calls)
+            -- traceShowM ("r_mem_calls", r_mem_calls)
             let f fname =
                     let r_cast = fromMaybe zeroMemCallsForOne $ r_cast_calls !? fname
                         r_actual = fromMaybe zeroMemCallsForOne $ r_mem_calls !? fname
@@ -1032,8 +1032,8 @@ memCallsCompatible p_mem_calls = do
                                 _ -> False
                      in x || y
             let bad = any f (nub $ M.keys r_cast_calls ++ M.keys r_mem_calls)
-            if bad
-                then traceShowM ("not ok")
-                else traceShowM ("okok")
+            -- if bad
+            --     then traceShowM ("not ok")
+            --     else traceShowM ("okok")
             return $ if bad then (False, Just "foo") else (True, Nothing)
         _ -> return (True, Nothing)
