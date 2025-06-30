@@ -70,7 +70,7 @@ data State
 
 initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> ArgRenames -> Problem -> Env
 initEnv rodata cStructs functionSigs pairings argRenames problem = Env
-    { structs = initStructsEnv rodata cStructs problem
+    { structs = initStructsEnv rodata problem cStructs
     , solver = initSolverEnv rodata
     , repGraph = initRepGraphEnv functionSigs pairings argRenames problem
     }

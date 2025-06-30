@@ -156,7 +156,10 @@ send sexpr = liftSolver $ tell [sexpr]
 rodataPtrsM :: MonadReader SolverEnv m => m [(Expr, ExprType)]
 rodataPtrsM = do
     rodata <- gview #rodata
-    return $ rodataPtrsOf rodata
+    return
+        [ (machineWordE range.addr, globalWrapperT (structT structName))
+        | (structName, range) <- rodataStructNamesOf rodata
+        ]
 
 cheatMemDoms :: Bool
 cheatMemDoms = True

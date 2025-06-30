@@ -1,12 +1,9 @@
-{-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module BV.Core.Stages.CompileProofChecks.Structs
     ( globalWrapperT
     , initStructsEnv
-    , rodataPtrsOf
     ) where
 
 import BV.Core.Logic
@@ -20,18 +17,18 @@ import qualified Data.Map as M
 import Optics
 import Text.Printf (printf)
 
-initStructsEnv :: ROData -> Map Ident Struct -> Problem -> (Ident -> Struct)
-initStructsEnv rodata cStructs problem = (M.!) $ augmentStructs rodata cStructs problem
+initStructsEnv :: ROData -> Problem -> Map Ident Struct -> (Ident -> Struct)
+initStructsEnv rodata problem cStructs = (M.!) $ augmentStructs rodata problem cStructs
 
-augmentStructs :: ROData -> Map Ident Struct -> Problem -> Map Ident Struct
-augmentStructs rodata cStructs problem =
+augmentStructs :: ROData -> Problem -> Map Ident Struct -> Map Ident Struct
+augmentStructs rodata problem cStructs =
     nonGlobal <> global
   where
     rodataStructs = rodataStructsOf rodata
     rodataStructTypes = [ structT name | name <- M.keys rodataStructs ]
     nonGlobal = cStructs <> rodataStructs
     global = M.fromList
-        [ (globalWrapperStructName ty, globalWrapperStructWith nonGlobal ty)
+        [ (globalWrapperStructNameOf ty, globalWrapperStructUsing nonGlobal ty)
         | ty <- toWrap
         ]
     toWrap = pglobalValidsToWrap <> rodataStructTypes
@@ -43,15 +40,15 @@ augmentStructs rodata cStructs problem =
              in Just ty
         _ -> Nothing
 
-globalWrapperStructName :: ExprType -> Ident
-globalWrapperStructName ty = Ident $ printf "Global (%s)" (typeName ty)
+globalWrapperStructNameOf :: ExprType -> Ident
+globalWrapperStructNameOf ty = Ident $ printf "Global (%s)" (nameOfType ty)
 
-globalWrapperStructWith :: Map Ident Struct -> ExprType -> Struct
-globalWrapperStructWith structs ty = Struct
+globalWrapperStructUsing :: Map Ident Struct -> ExprType -> Struct
+globalWrapperStructUsing structs ty = Struct
     { size = withStructs (structs !@) $ sizeOfType ty
     , align = withStructs (structs !@) $ alignOfType ty
-    , fields =
-        [ ( "v"
+    , fields = M.fromList
+        [ ( Ident "v"
           , StructField
                 { ty
                 , offset = 0
@@ -60,9 +57,8 @@ globalWrapperStructWith structs ty = Struct
         ]
     }
 
-
-typeName :: ExprType -> String
-typeName = go
+nameOfType :: ExprType -> String
+nameOfType = go
   where
     join = intercalate " "
     go a = case a of
@@ -81,13 +77,5 @@ typeName = go
         ExprTypeStruct ident -> join ["Struct", ident.unwrap]
         ExprTypePtr ty -> join ["Ptr", go ty]
 
---
-
 globalWrapperT :: ExprType -> ExprType
-globalWrapperT = structT . globalWrapperStructName
-
-rodataPtrsOf :: ROData -> [(Expr, ExprType)]
-rodataPtrsOf rodata =
-    [ (machineWordE range.addr, globalWrapperT (structT structName))
-    | (structName, range) <- rodataStructNamesOf rodata
-    ]
+globalWrapperT = structT . globalWrapperStructNameOf
