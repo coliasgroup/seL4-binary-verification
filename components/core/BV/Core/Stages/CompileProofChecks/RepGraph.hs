@@ -34,7 +34,7 @@ import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
 
 import BV.Core.Stages.Utils (chooseFreshName)
-import BV.Core.Types.Extras (showSExprWithPlaceholders, uncheckedAtomS)
+import BV.Core.Types.Extras (showSExprWithPlaceholders, uncheckedAtomS, symbolS)
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.ProofCheck
 import BV.Core.Utils
@@ -724,7 +724,15 @@ emitNodeM n = do
                 ins <- M.fromList <$> (for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
                     x <- withEnv env $ smtExprM (app_eqs callArg)
                     return ((funArg.name, funArg.ty), x))
-                mem_calls <- addMemCall callNode.functionName <$> scanMemCalls ins
+                mem_calls' <- scanMemCalls ins
+                do
+                    for (M.toAscList ins) $ \((n, _), v) -> do
+                        case v of
+                            SMT s -> do
+                                traceM $ "    %%% " ++ n.unwrap ++ " " ++ showSExprWithPlaceholders s
+                            _ -> return ()
+                traceShowM $ ("mem_calls'", nodeCountName n, mem_calls')
+                let mem_calls = addMemCall callNode.functionName $ mem_calls'
                 traceShowM $ ("mem_calls", nodeCountName n, mem_calls)
                 let m = do
                         for (zip callNode.output sig.output) $ \(Argument x typ, Argument y typ2) -> do
@@ -830,11 +838,13 @@ getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
 getMemCalls mem_sexpr = do
     present <- liftRepGraph $ use $ #memCalls % at mem_sexpr
     case present of
-        Just x -> return x
+        Just x -> do
+            traceShowM ("present", x)
+            return x
         Nothing -> do
             case mem_sexpr of
                 List [op, x, _, _] | isStore op -> getMemCalls x
-                List [op, _, x, y] | op == "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
+                List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
                 _ -> do
                     r <- runMaybeT $ do
                         name <- hoistMaybe $ parseSymbol mem_sexpr
@@ -844,7 +854,7 @@ getMemCalls mem_sexpr = do
                         Just x -> return x
                         Nothing -> error $ "mem_calls fallthrough " ++ show (showSExprWithPlaceholders mem_sexpr)
   where
-    isStore s = s `elem` (["store-word32", "store-word8", "store-word64"] :: [SExprWithPlaceholders])
+    isStore s = s `elem` ([symbolS "store-word32", symbolS "store-word8", symbolS "store-word64"] :: [SExprWithPlaceholders])
 
 parseSymbol :: SExprWithPlaceholders -> Maybe String
 parseSymbol sexpr = do
@@ -858,6 +868,7 @@ scanMemCalls env = do
     let mem_vs = [ v | ((_nm, typ), v) <- M.toAscList env, typ == memT ]
     mem_calls <- for (catMaybes (map (preview #_SMT) mem_vs)) $ \v -> do
         getMemCalls v
+    traceShowM $ ("scanning", mem_calls)
     return $ case mem_calls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls mem_calls
@@ -873,9 +884,14 @@ addLoopMemCallsM split mem_callsOpt = do
                 return $ case node of
                     NodeCall callNode -> Just callNode.functionName
                     _ -> Nothing)
+            let new = M.fromList $ flip map (S.toList fnames) $ \fname -> (fname,) $
+                    case M.lookup fname mem_calls of
+                        Just x -> x & #max .~ Nothing
+                        Nothing -> MemCallsForOne 0 Nothing
             if S.null fnames
             then return $ Just mem_calls
-            else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForOne 0 Nothing)) | fname <- S.toAscList fnames ]
+            -- else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForOne 0 Nothing)) | fname <- S.toAscList fnames ]
+            else return $ Just $ M.union new mem_calls
   where
     f x y = MemCallsForOne
         { min = min x.min y.min
@@ -886,7 +902,10 @@ mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
 mergeMemCalls mem_calls_x mem_calls_y =
     if mem_calls_x == mem_calls_y
     then mem_calls_x
-    else M.unionWith f mem_calls_x mem_calls_y
+    else M.fromList $
+        [ (k, f (fromMaybe zeroMemCallsForOne $ M.lookup k mem_calls_x) (fromMaybe zeroMemCallsForOne $ M.lookup k mem_calls_y))
+        | k <- S.toList $ S.union (M.keysSet mem_calls_x) (M.keysSet mem_calls_y)
+        ]
   where
     f x y = MemCallsForOne
         { min = min x.min y.min
