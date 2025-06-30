@@ -81,6 +81,7 @@ library core
       BV.Core.Stages.CompileProofChecks.Grouping
       BV.Core.Stages.CompileProofChecks.RepGraph
       BV.Core.Stages.CompileProofChecks.Solver
+      BV.Core.Stages.CompileProofChecks.Structs
       BV.Core.Stages.EnumerateProofChecks
       BV.Core.Stages.Fixup
       BV.Core.Stages.FormulatePairing

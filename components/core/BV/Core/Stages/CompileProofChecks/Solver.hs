@@ -23,7 +23,6 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , addSplitMemVarM
     , addVarM
     , addVarRestrM
-    , askLookupStructForSolver
     , assertFactM
     , getDefM
     , getDefOptM
@@ -40,6 +39,7 @@ module BV.Core.Stages.CompileProofChecks.Solver
     ) where
 
 import BV.Core.Logic
+import BV.Core.Stages.CompileProofChecks.Structs
 import BV.Core.Stages.Utils
 import BV.Core.Types
 import BV.Core.Types.Extras
@@ -54,7 +54,7 @@ import Control.Monad.RWS (MonadTrans (lift), RWS, modify)
 import Control.Monad.State (MonadState, execStateT, get)
 import Control.Monad.Writer (tell)
 import Data.Foldable (for_)
-import Data.List (intercalate, nub, sortOn)
+import Data.List (nub, sortOn)
 import Data.Map (Map, (!?))
 import qualified Data.Map as M
 import Data.Sequence (Seq)
@@ -72,11 +72,6 @@ import Text.Printf (printf)
 class MonadStructs m => MonadSolver m where
     liftSolver :: RWS SolverEnv SolverOutput SolverState a -> m a
 
-askLookupStructForSolver :: MonadSolver m => m (Ident -> Struct)
-askLookupStructForSolver = do
-    structs <- liftSolver $ gview $ #structs
-    return $ (findWithCallstack structs)
-
 instance MonadSolver m => MonadSolver (ReaderT r m) where
     liftSolver = lift . liftSolver
 
@@ -86,7 +81,6 @@ instance MonadSolver m => MonadSolver (ExceptT e m) where
 data SolverEnv
   = SolverEnv
       { rodata :: ROData
-      , structs :: Map Ident Struct
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -127,10 +121,9 @@ instance IsString Name where
 nameS :: Name -> S
 nameS name = symbolS name.unwrap
 
-initSolverEnv :: ROData -> Map Ident Struct -> Problem -> SolverEnv
-initSolverEnv rodata cStructs problem = SolverEnv
+initSolverEnv :: ROData -> SolverEnv
+initSolverEnv rodata = SolverEnv
     { rodata
-    , structs = augmentStructs rodata cStructs problem
     }
 
 initSolverState :: SolverState
@@ -160,101 +153,10 @@ initSolver = do
 send :: MonadSolver m => SExprWithPlaceholders -> m ()
 send sexpr = liftSolver $ tell [sexpr]
 
-typeName :: ExprType -> String
-typeName = go
-  where
-    join = intercalate " "
-    go a = case a of
-        ExprTypeBool -> "Bool"
-        ExprTypeMem -> "Mem"
-        ExprTypeDom -> "Dom"
-        ExprTypeHtd -> "HTD"
-        ExprTypePms -> "PMS"
-        ExprTypeUnit -> "UNIT"
-        ExprTypeType -> "Type"
-        ExprTypeToken -> "Token"
-        ExprTypeRelWrapper -> "RelWrapper"
-        ExprTypeWord { bits } -> join ["Word", show bits]
-        ExprTypeWordArray { len, bits } -> join ["WordArray", show len, show bits]
-        ExprTypeArray { ty, len } -> join ["Array", go ty, show len]
-        ExprTypeStruct ident -> join ["Struct", ident.unwrap]
-        ExprTypePtr ty -> join ["Ptr", go ty]
-
-globalWrapperStructName :: ExprType -> Ident
-globalWrapperStructName ty = Ident $ printf "Global (%s)" (typeName ty)
-
-globalWrapperStructWith :: Map Ident Struct -> ExprType -> Struct
-globalWrapperStructWith structs ty = Struct
-    { size = withStructs (structs !@) $ sizeOfType ty
-    , align = withStructs (structs !@) $ alignOfType ty
-    , fields =
-        [ ( "v"
-          , StructField
-                { ty
-                , offset = 0
-                }
-          )
-        ]
-    }
-
-globalWrapperT :: ExprType -> ExprType
-globalWrapperT = structT . globalWrapperStructName
-
-rodataStructNames :: ROData -> [Ident]
-rodataStructNames rodata =
-    [ Ident $ case rodata.ranges of
-            [_] -> "rodata_struct"
-            _ -> printf "rodata_struct_%d" i
-    | (i :: Integer, _) <- zip [1..] rodata.ranges
-    ]
-
-rodataPtrsWith :: ROData -> [(Expr, ExprType)]
-rodataPtrsWith rodata =
-    [ (machineWordE range.addr, globalWrapperT (structT structName))
-    | (structName, range) <- zip (rodataStructNames rodata) rodata.ranges
-    ]
-
 rodataPtrsM :: MonadReader SolverEnv m => m [(Expr, ExprType)]
 rodataPtrsM = do
     rodata <- gview #rodata
-    return $ rodataPtrsWith rodata
-
-rodataStructsWith :: ROData -> Map Ident Struct
-rodataStructsWith rodata =
-    M.fromList
-        [ let struct = Struct
-                { size = range.size
-                , align = 1
-                , fields = M.empty
-                }
-           in (structName, struct)
-        | (structName, range) <- zip (rodataStructNames rodata) rodata.ranges
-        ]
-
--- rodataStructs :: MonadReader SolverEnv m => m (Map Ident Struct)
--- rodataStructs = do
---     rodata <- gview $ #rodata
---     return $ rodataStructsWith rodata
-
-augmentStructs :: ROData -> Map Ident Struct -> Problem -> Map Ident Struct
-augmentStructs rodata cStructs problem =
-    nonGlobal <> global
-  where
-    rodataStructs = rodataStructsWith rodata
-    rodataStructTypes = [ structT name | name <- M.keys rodataStructs ]
-    nonGlobal = cStructs <> rodataStructs
-    global = M.fromList
-        [ (globalWrapperStructName ty, globalWrapperStructWith nonGlobal ty)
-        | ty <- toWrap
-        ]
-    toWrap = pglobalValidsToWrap <> rodataStructTypes
-    pglobalValidsToWrap = problem.nodes ^.. folded % traverseTopLevelLevelExprs % foldExprs % afolding isPGlobalValid
-    isPGlobalValid expr = case expr.value of
-        ExprValueOp OpPGlobalValid args ->
-            let [_, tyExpr, _] = args
-                Expr { ty = ExprTypeType, value = ExprValueType ty } = tyExpr
-             in Just ty
-        _ -> Nothing
+    return $ rodataPtrsOf rodata
 
 cheatMemDoms :: Bool
 cheatMemDoms = True

@@ -15,6 +15,7 @@ import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.Grouping
 import BV.Core.Stages.CompileProofChecks.RepGraph
 import BV.Core.Stages.CompileProofChecks.Solver
+import BV.Core.Stages.CompileProofChecks.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
 
@@ -54,7 +55,8 @@ newtype M a
 
 data Env
   = Env
-      { solver :: SolverEnv
+      { structs :: Ident -> Struct
+      , solver :: SolverEnv
       , repGraph :: RepGraphEnv
       }
   deriving (Generic)
@@ -68,7 +70,8 @@ data State
 
 initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> ArgRenames -> Problem -> Env
 initEnv rodata cStructs functionSigs pairings argRenames problem = Env
-    { solver = initSolverEnv rodata cStructs problem
+    { structs = initStructsEnv rodata cStructs problem
+    , solver = initSolverEnv rodata
     , repGraph = initRepGraphEnv functionSigs pairings argRenames problem
     }
 
@@ -79,7 +82,7 @@ initState = State
     }
 
 instance MonadStructs M where
-    askLookupStruct = askLookupStructForSolver
+    askLookupStruct = M $ gview #structs
 
 instance MonadSolver M where
     liftSolver m = M . zoom #solver . magnify #solver $ m
