@@ -4,7 +4,7 @@
 }:
 
 let
-  ghcVersion = "9101";
+  ghcVersion = "9102";
 
   ghc = pkgs.haskell.compiler."ghc${ghcVersion}";
 

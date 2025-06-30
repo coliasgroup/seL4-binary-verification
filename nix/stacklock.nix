@@ -24,7 +24,7 @@ in
 stacklock2nix {
   stackYaml = ../stack.yaml;
 
-  baseHaskellPkgSet = haskell.packages.ghc9101;
+  baseHaskellPkgSet = haskell.packages.ghc9102;
 
   additionalHaskellPkgSetOverrides =
     let
@@ -35,8 +35,6 @@ stacklock2nix {
           src = localSrc (attrs.src);
         });
         # external
-        prettyprinter = dontCheck hprev.prettyprinter;
-        lifted-base = dontCheck hprev.lifted-base;
         distributed-process-simplelocalnet = dontCheck hprev.distributed-process-simplelocalnet;
         temporary = dontCheck hprev.temporary;
         call-stack = dontCheck hprev.call-stack;
@@ -50,10 +48,10 @@ stacklock2nix {
 
   all-cabal-hashes =
     let
-      rev = "0098485f1eae78cadeed99695bfa6499593dfd46";
+      rev = "7e7c6724706b140016f949457fde4d26e629705c";
     in
       fetchurl {
         url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/${rev}.tar.gz";
-        sha256 = "sha256-DR2Guk9H8ldW2HQhCoZFPlzYdzuA00NS3bGKhaWuQT8=";
+        sha256 = "sha256-uVob2kuwWPDRLqLxKwfZhPGwQ8IcQhXiSp9PyDBmuZg=";
       };
 }

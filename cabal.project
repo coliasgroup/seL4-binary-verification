@@ -1,6 +1,6 @@
 packages: .
-with-compiler: ghc-9.10.1
+with-compiler: ghc-9.10.2
 
 multi-repl: True
 
-import: https://www.stackage.org/nightly-2025-04-15/cabal.config
+import: https://www.stackage.org/nightly-2025-06-29/cabal.config
