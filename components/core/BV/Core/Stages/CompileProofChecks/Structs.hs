@@ -60,7 +60,6 @@ globalWrapperStructUsing structs ty = Struct
 nameOfType :: ExprType -> String
 nameOfType = go
   where
-    join = intercalate " "
     go a = case a of
         ExprTypeBool -> "Bool"
         ExprTypeMem -> "Mem"
@@ -71,11 +70,11 @@ nameOfType = go
         ExprTypeType -> "Type"
         ExprTypeToken -> "Token"
         ExprTypeRelWrapper -> "RelWrapper"
-        ExprTypeWord { bits } -> join ["Word", show bits]
-        ExprTypeWordArray { len, bits } -> join ["WordArray", show len, show bits]
-        ExprTypeArray { ty, len } -> join ["Array", go ty, show len]
-        ExprTypeStruct ident -> join ["Struct", ident.unwrap]
-        ExprTypePtr ty -> join ["Ptr", go ty]
+        ExprTypeWord { bits } -> unwords ["Word", show bits]
+        ExprTypeWordArray { len, bits } -> unwords ["WordArray", show len, show bits]
+        ExprTypeArray { ty, len } -> unwords ["Array", go ty, show len]
+        ExprTypeStruct ident -> unwords ["Struct", ident.unwrap]
+        ExprTypePtr ty -> unwords ["Ptr", go ty]
 
 globalWrapperT :: ExprType -> ExprType
 globalWrapperT = structT . globalWrapperStructNameOf
