@@ -1,6 +1,6 @@
 cabal-version: 3.0
 
--- This file has been generated from package.yaml by hpack version 0.36.1.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -36,9 +36,6 @@ library concrete-syntax
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
@@ -63,7 +60,7 @@ library concrete-syntax
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library core
   visibility: public
@@ -114,9 +111,6 @@ library core
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -140,7 +134,7 @@ library core
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library logging
   visibility: public
@@ -162,9 +156,6 @@ library logging
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
@@ -188,7 +179,7 @@ library logging
     , transformers-base
     , unliftio-core
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library network-transport-static
   visibility: public
@@ -205,9 +196,6 @@ library network-transport-static
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -228,7 +216,7 @@ library network-transport-static
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library smtlib2
   visibility: public
@@ -251,9 +239,6 @@ library smtlib2
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -274,7 +259,7 @@ library smtlib2
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library smtlib2-process
   visibility: public
@@ -288,9 +273,6 @@ library smtlib2-process
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -313,7 +295,7 @@ library smtlib2-process
     , transformers-base
     , unliftio-core
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library system
   visibility: public
@@ -333,9 +315,6 @@ library system
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -370,7 +349,7 @@ library system
     , transformers-base
     , unliftio-core
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library system-core
   visibility: public
@@ -395,9 +374,6 @@ library system-core
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -427,7 +403,7 @@ library system-core
     , transformers-base
     , unliftio-core
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library system-utils
   visibility: public
@@ -443,9 +419,6 @@ library system-utils
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -465,7 +438,7 @@ library system-utils
     , transformers-base
     , unliftio-core
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library target-dir
   visibility: public
@@ -479,9 +452,6 @@ library target-dir
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
@@ -503,7 +473,7 @@ library target-dir
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 library test-utils
   exposed-modules:
@@ -516,9 +486,6 @@ library test-utils
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       async
@@ -541,7 +508,7 @@ library test-utils
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 executable profiling-scratch
   main-is: Main.hs
@@ -553,9 +520,6 @@ executable profiling-scratch
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       async
@@ -584,7 +548,7 @@ executable profiling-scratch
     , transformers-base
     , vector
     , zlib
-  default-language: GHC2021
+  default-language: GHC2024
 
 executable remote-scratch
   main-is: Main.hs
@@ -599,9 +563,6 @@ executable remote-scratch
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       async
@@ -631,7 +592,7 @@ executable remote-scratch
     , unix
     , unliftio-core
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 executable sel4-bv-cli
   main-is: BV/CLI/Main.hs
@@ -652,9 +613,6 @@ executable sel4-bv-cli
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is BV.CLI.Main
   build-depends:
       aeson
@@ -699,7 +657,7 @@ executable sel4-bv-cli
     , unliftio-core
     , vector
     , yaml
-  default-language: GHC2021
+  default-language: GHC2024
 
 test-suite concrete-syntax-test
   type: exitcode-stdio-1.0
@@ -712,9 +670,6 @@ test-suite concrete-syntax-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       Glob
@@ -744,7 +699,7 @@ test-suite concrete-syntax-test
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 test-suite core-test
   type: exitcode-stdio-1.0
@@ -757,9 +712,6 @@ test-suite core-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       async
@@ -787,7 +739,7 @@ test-suite core-test
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 test-suite logging-test
   type: exitcode-stdio-1.0
@@ -800,9 +752,6 @@ test-suite logging-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       aeson
@@ -827,7 +776,7 @@ test-suite logging-test
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 test-suite smtlib2-test
   type: exitcode-stdio-1.0
@@ -840,9 +789,6 @@ test-suite smtlib2-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       Glob
@@ -870,7 +816,7 @@ test-suite smtlib2-test
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024
 
 test-suite system-test
   type: exitcode-stdio-1.0
@@ -883,9 +829,6 @@ test-suite system-test
       NoFieldSelectors
       OverloadedLabels
       OverloadedRecordDot
-      DerivingStrategies
-      GeneralizedNewtypeDeriving
-      LambdaCase
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       async
@@ -905,4 +848,4 @@ test-suite system-test
     , transformers
     , transformers-base
     , vector
-  default-language: GHC2021
+  default-language: GHC2024

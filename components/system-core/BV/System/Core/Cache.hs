@@ -123,10 +123,11 @@ augmentCacheContextWithLogging ctx =
                         logTrace "done"
         }
 
-makeAugmentCacheContextWithMutualExclusion :: (MonadUnliftIO m, MonadLoggerWithContext m) => IO (CacheContext m -> CacheContext m)
+makeAugmentCacheContextWithMutualExclusion :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m) => IO (CacheContext m -> CacheContext m)
 makeAugmentCacheContextWithMutualExclusion = do
     sem <- newQSem 1
-    let withLock m = withRunInIO $ \run -> bracket_ (waitQSem sem) (signalQSem sem) (run m)
+    let withLock :: m a -> m a
+        withLock m = withRunInIO $ \run -> bracket_ (waitQSem sem) (signalQSem sem) (run m)
     return $ \ctx -> CacheContext
         { queryCache = \check -> withLock $ ctx.queryCache check
         , updateCache = \result check -> withLock $ ctx.updateCache result check

@@ -171,7 +171,8 @@ withBackend config f = withRunInIO $ \run -> do
 solverBackendFromServerProcesses :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => LocalNode -> Available -> m (SolverBackend m)
 solverBackendFromServerProcesses node availableInit = do
     availableVar <- liftIO $ newTVarIO availableInit
-    let withServerThread f = withRunInIO $ \run -> bracket
+    let withServerThread :: (ProcessId -> m a) -> m a
+        withServerThread f = withRunInIO $ \run -> bracket
             (atomically (stateTVar availableVar takeAvailable))
             (atomically . modifyTVar' availableVar . returnAvailable)
             (\(_prio, pid) -> run (f pid))

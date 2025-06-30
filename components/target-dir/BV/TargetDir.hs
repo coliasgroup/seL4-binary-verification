@@ -153,6 +153,7 @@ readStagesInputEither earlyAsmFunctionFilter rodataInputRanges targetDir = runEx
         -- , compatSMTProofChecks
         }
   where
+    f :: ReadBVFile c a => TargetDirFile a -> ExceptT ReadTargetDirFileException IO a
     f file = ExceptT $ readTargetDirFileEither targetDir file
 
 readStagesInput :: AsmFunctionFilter -> RODataInputRanges -> TargetDir -> IO StagesInput

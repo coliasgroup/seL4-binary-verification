@@ -8,7 +8,7 @@ author: Nick Spinale (Colias Group, LLC)
 maintainer: Nick Spinale <nick@nickspinale.com>
 copyright: Copyright (c) 2025 Colias Group, LLC
 
-language: GHC2021
+language: GHC2024
 
 default-extensions:
   - FunctionalDependencies
@@ -17,10 +17,6 @@ default-extensions:
   - NoFieldSelectors
   - OverloadedLabels
   - OverloadedRecordDot
-  # GHC2024
-  - DerivingStrategies
-  - GeneralizedNewtypeDeriving
-  - LambdaCase
 
 ghc-options:
   - -Wall
