@@ -1014,10 +1014,13 @@ memCallsCompatible p_mem_calls = do
                 let r_fun = pair.c
                 r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
                 let memOut = any (\arg -> arg.ty == memT) r_sig.output
+                traceShowM ("memOut", memOut)
                 return $
                     if memOut
                     then Just (r_fun, calls)
                     else Nothing
+            traceShowM ("r_cast_calls", r_cast_calls)
+            traceShowM ("r_mem_calls", r_mem_calls)
             let f fname =
                     let r_cast = fromMaybe zeroMemCallsForOne $ r_cast_calls !? fname
                         r_actual = fromMaybe zeroMemCallsForOne $ r_mem_calls !? fname
@@ -1028,6 +1031,9 @@ memCallsCompatible p_mem_calls = do
                                 Just n -> n < r_cast.min
                                 _ -> False
                      in x || y
-            let bad = any f (nub $ M.keys r_mem_calls ++ M.keys r_mem_calls)
+            let bad = any f (nub $ M.keys r_cast_calls ++ M.keys r_mem_calls)
+            if bad
+                then traceShowM ("not ok")
+                else traceShowM ("okok")
             return $ if bad then (False, Just "foo") else (True, Nothing)
         _ -> return (True, Nothing)
