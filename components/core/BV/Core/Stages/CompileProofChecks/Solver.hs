@@ -6,7 +6,6 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-type-defaults #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.Stages.CompileProofChecks.Solver
@@ -757,7 +756,7 @@ getStackEqImplies split st_top other = do
     return $ impliesS cond (eqS st_top rhs)
 
 getImmBasisMems :: MonadSolver m => S -> m (Set S)
-getImmBasisMems m = execStateT (go m) S.empty
+getImmBasisMems mTop = execStateT (go mTop) S.empty
   where
     go m = case m of
         List (op:args) -> case () of

@@ -11,7 +11,6 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
 
-import Data.List (intercalate)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Optics
