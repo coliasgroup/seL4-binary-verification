@@ -12,7 +12,6 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
 import qualified Data.Set as S
-import Debug.Trace (trace, traceShowId)
 import GHC.Generics (Generic)
 import Optics
 
@@ -23,7 +22,7 @@ proofCheckGroups = toList . proofCheckGroupsWithKeys
 
 proofCheckGroupsWithKeys :: [ProofCheck a] -> Map CheckGroupKey (ProofCheckGroup a)
 proofCheckGroupsWithKeys checks = M.unionsWith (<>)
-    [ M.singleton (compatOrdKey (groupKeyOf check)) [check]
+    [ M.singleton (compatKey (groupKey check)) [check]
     | check <- checks
     ]
 
@@ -32,11 +31,11 @@ newtype CheckGroupKey
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-groupKeyOf :: ProofCheck a -> Set VisitWithTag
-groupKeyOf check = S.fromList (check ^.. checkVisits)
+groupKey :: ProofCheck a -> Set VisitWithTag
+groupKey check = S.fromList (check ^.. checkVisits)
 
-compatOrdKey :: Set VisitWithTag -> CheckGroupKey
-compatOrdKey visits = CheckGroupKey $ sort
+compatKey :: Set VisitWithTag -> CheckGroupKey
+compatKey visits = CheckGroupKey $ sort
     [ ((prettyNodeId visit.nodeId, map compatRestr visit.restrs), prettyTag tag)
     | VisitWithTag visit tag <- S.toList visits
     ]
