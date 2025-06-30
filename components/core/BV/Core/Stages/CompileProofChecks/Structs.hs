@@ -27,7 +27,7 @@ augmentStructs :: ROData -> Map Ident Struct -> Problem -> Map Ident Struct
 augmentStructs rodata cStructs problem =
     nonGlobal <> global
   where
-    rodataStructs = rodataStructsWith rodata
+    rodataStructs = rodataStructsOf rodata
     rodataStructTypes = [ structT name | name <- M.keys rodataStructs ]
     nonGlobal = cStructs <> rodataStructs
     global = M.fromList
@@ -60,25 +60,6 @@ globalWrapperStructWith structs ty = Struct
         ]
     }
 
-rodataStructsWith :: ROData -> Map Ident Struct
-rodataStructsWith rodata =
-    M.fromList
-        [ let struct = Struct
-                { size = range.size
-                , align = 1
-                , fields = M.empty
-                }
-           in (structName, struct)
-        | (structName, range) <- zip (rodataStructNames rodata) rodata.ranges
-        ]
-
-rodataStructNames :: ROData -> [Ident]
-rodataStructNames rodata =
-    [ Ident $ case rodata.ranges of
-            [_] -> "rodata_struct"
-            _ -> printf "rodata_struct_%d" i
-    | (i :: Integer, _) <- zip [1..] rodata.ranges
-    ]
 
 typeName :: ExprType -> String
 typeName = go
@@ -108,5 +89,5 @@ globalWrapperT = structT . globalWrapperStructName
 rodataPtrsOf :: ROData -> [(Expr, ExprType)]
 rodataPtrsOf rodata =
     [ (machineWordE range.addr, globalWrapperT (structT structName))
-    | (structName, range) <- zip (rodataStructNames rodata) rodata.ranges
+    | (structName, range) <- rodataStructNamesOf rodata
     ]
