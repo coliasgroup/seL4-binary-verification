@@ -234,7 +234,7 @@ pvalidAssertion1 (pvTy1, _pvKind1, p1, pv1) (pvTy2, _pvKind2, p2, pv2) = do
     cond2 <- getSTypCondition offs2 pvTy2 pvTy1
     out1 <- lessE <$> endAddr p1 pvTy1 <*> pure p2
     out2 <- lessE <$> endAddr p2 pvTy2 <*> pure p1
-    return $ (pv1 `andE` pv2) `impliesE` (foldr1 orE [cond1, cond2, out1, out2])
+    return $ (pv1 `andE` pv2) `impliesE` foldr1 orE [cond1, cond2, out1, out2]
 
 getSTypCondition :: MonadStructs m =>  Expr -> PValidType -> PValidType -> m Expr
 getSTypCondition offs innerTy outerTy = do
@@ -311,7 +311,7 @@ applyRelWrapper lhs rhs =
                 sp2:st2:rest2 = argsR
                 excepts = nub $ rest1 ++ rest2
                 f st0 = foldl (\st p -> memUpdE p st (word32E 0)) st0 excepts
-             in boolE $ ExprValueOp OpStackEquals [sp1, (f st1), sp2, (f st2)]
+             in boolE $ ExprValueOp OpStackEquals [sp1, f st1, sp2, f st2]
         _ | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
             let [[addr, val]] =
                     [ args

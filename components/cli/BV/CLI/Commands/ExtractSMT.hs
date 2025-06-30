@@ -38,9 +38,9 @@ runExtractSMT opts = do
     let r = parseOnly (parsePattern <* endOfInput) (T.pack opts.match)
     patternPrefix <- case r of
         Left err -> liftIO . die $ "failed to parse pattern: " ++ err
-        Right pattern -> return pattern
-    let pattern = patternPrefix ++ patternSuffix
-    let preparedPattern = preparePattern pattern
+        Right pat -> return pat
+    let pat = patternPrefix ++ patternSuffix
+    let preparedPattern = preparePattern pat
     runConduit $
         C.stdin
         .| conduitParser (logEntryParserFor opts.format)
@@ -83,8 +83,8 @@ matches preparedPattern ctx =
     preparedCtx = reverse ctx
 
 entryMatches :: PatternEntry -> LogContextEntry -> Bool
-entryMatches (leftAnchor, pattern, rightAnchor) (LogContextEntry entry) =
-    f pattern entry
+entryMatches (leftAnchor, pat, rightAnchor) (LogContextEntry entry) =
+    f pat entry
   where
     f = case (leftAnchor, rightAnchor) of
         (True, True) -> (==)

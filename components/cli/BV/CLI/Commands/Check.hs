@@ -193,14 +193,14 @@ getCheckFilter opts = CheckFilter
     , groups = case opts.includeGroups of
         [] -> const True
         include -> \groupFingerprint -> or
-            [ matchCheckGroupFingerprint pattern groupFingerprint
-            | pattern <- include
+            [ matchCheckGroupFingerprint pat groupFingerprint
+            | pat <- include
             ]
     , checks = case opts.includeChecks of
         [] -> const True
         include -> \checkFingerprint -> or
-            [ matchCheckFingerprint pattern checkFingerprint
-            | pattern <- include
+            [ matchCheckFingerprint pat checkFingerprint
+            | pat <- include
             ]
     }
 

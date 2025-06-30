@@ -146,7 +146,7 @@ normalizeRanges ranges = reverse $ go [] ranges
   where
     go xs [] = xs
     go [] (y:ys) = go [y] ys
-    go ((x@(startX, endX)):xs) (y@(startY, endY):ys) =
+    go (x@(startX, endX):xs) (y@(startY, endY):ys) =
         if endX < startY
         then go (y:x:xs) ys
         else go ((startX, endY):ys) ys

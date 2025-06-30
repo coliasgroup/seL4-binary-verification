@@ -106,7 +106,7 @@ serverThread :: Checks -> LoggingWithContextT Process ()
 serverThread checks = do
     selfPid <- lift getSelfPid
     withPushLogContext (show selfPid) $ do
-        run <- mapLoggingWithContextT liftIO $ askRunInIO
+        run <- mapLoggingWithContextT liftIO askRunInIO
         forever $ do
             (req, src) <- lift expect
             handle <- lift $ A.async $ A.task $ do

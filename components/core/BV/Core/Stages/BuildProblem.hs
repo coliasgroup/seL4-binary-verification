@@ -140,7 +140,7 @@ nodeWithMetaAt nodeAddr =
 
 reserveNodeAddr :: State NodeMapBuilder NodeAddr
 reserveNodeAddr = do
-    addr <- maybe 0 ((+ 1) . fst) . M.lookupMax <$> gets (.nodes)
+    addr <- gets $ maybe 0 ((+ 1) . fst) . M.lookupMax . (.nodes)
     modify $ #nodes % at addr ?~ Nothing
     return addr
 
