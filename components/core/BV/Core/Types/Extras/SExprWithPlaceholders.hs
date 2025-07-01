@@ -187,6 +187,13 @@ labelS label x = ["!", x, keywordS "named", symbolS label]
 
 --
 
+parseSymbolS :: S -> Maybe String
+parseSymbolS sexpr = do
+    Atom (AtomOrPlaceholderAtom atom) <- return sexpr
+    case viewAtom atom of
+        SymbolAtom s -> Just s
+        _ -> Nothing
+
 matchPatternS :: Eq a => GenericSExpr a -> GenericSExpr a -> Bool
 matchPatternS (Atom p) (Atom x) = p == x
 matchPatternS (List ps) (List xs) = length ps <= length xs && and (zipWith matchPatternS ps xs)

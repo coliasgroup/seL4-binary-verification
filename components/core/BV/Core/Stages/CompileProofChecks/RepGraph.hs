@@ -34,8 +34,7 @@ import BV.Core.Stages.Utils (chooseFreshName)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
-import BV.SMTLIB2 (GenericSExpr (Atom), viewAtom)
-import BV.SMTLIB2.SExpr (GenericSExpr (List), UncheckedAtom (..))
+import BV.SMTLIB2.SExpr (GenericSExpr (List))
 
 import Control.Applicative (asum)
 import Control.DeepSeq (NFData)
@@ -801,7 +800,7 @@ getMemCalls mem_sexpr = do
                 List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
                 _ -> do
                     r <- runMaybeT $ do
-                        name <- hoistMaybe $ parseSymbol mem_sexpr
+                        name <- hoistMaybe $ parseSymbolS mem_sexpr
                         next <- MaybeT $ getDefOptM (Name name)
                         lift $ getMemCalls next
                     case r of
@@ -809,13 +808,6 @@ getMemCalls mem_sexpr = do
                         Nothing -> error $ "mem_calls fallthrough " ++ show (showSExprWithPlaceholders mem_sexpr)
   where
     isStore s = s `elem` ([symbolS "store-word32", symbolS "store-word8", symbolS "store-word64"] :: [SExprWithPlaceholders])
-
-parseSymbol :: SExprWithPlaceholders -> Maybe String
-parseSymbol sexpr = do
-    Atom (AtomOrPlaceholderAtom atom) <- return sexpr
-    case viewAtom atom of
-        SymbolAtom s -> Just s
-        _ -> Nothing
 
 scanMemCalls :: MonadRepGraph m => SMTEnv -> m (Maybe MemCalls)
 scanMemCalls env = do

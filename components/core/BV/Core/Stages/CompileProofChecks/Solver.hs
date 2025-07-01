@@ -46,11 +46,11 @@ import BV.Core.Utils
 import BV.SMTLIB2.SExpr
 
 import Control.DeepSeq (NFData)
-import Control.Monad (join, unless, when)
+import Control.Monad (join, unless, when, (>=>))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader (ask), ReaderT (runReaderT))
 import Control.Monad.RWS (MonadTrans (lift), RWS, modify)
-import Control.Monad.State (MonadState, execStateT, get)
+import Control.Monad.State (execStateT, get)
 import Control.Monad.Writer (tell)
 import Data.Foldable (for_)
 import Data.List (nub, sortOn)
@@ -143,6 +143,16 @@ send sexpr = liftSolver $ tell [sexpr]
 
 --
 
+initSolver :: MonadSolver m => m ()
+initSolver = do
+    addRODataDefM
+
+finalizeSolver :: MonadSolver m => m ()
+finalizeSolver = do
+    addPValidDomAssertionsM
+
+--
+
 type SMTEnv = Map (Ident, ExprType) SMT
 
 withEnv :: SMTEnv -> ReaderT SMTEnv m a -> m a
@@ -166,15 +176,20 @@ instance IsString Name where
 nameS :: Name -> S
 nameS name = symbolS name.unwrap
 
---
-
-initSolver :: MonadSolver m => m ()
-initSolver = do
-    addRODataDefM
-
-finalizeSolver :: MonadSolver m => m ()
-finalizeSolver = do
-    addPValidDomAssertionsM
+takeFreshName :: MonadSolver m => NameHint -> m Name
+takeFreshName =
+    return . sanitize
+        >=> takeFreshNameIn #externalNames
+        >=> takeFreshNameIn #namesUsed
+        >=> return . Name
+  where
+    sanitize = map $ \c -> if c `elem` ("'#\"" :: String) then '_' else c
+    takeFreshNameIn l = liftSolver . zoom l . takeFreshNameHere
+    takeFreshNameHere hint = do
+        taken <- get
+        let name = chooseFreshName (flip S.member taken . Name) hint
+        modify $ S.insert (Name name)
+        return name
 
 --
 
@@ -185,6 +200,199 @@ askRODataPtrs = do
         [ (machineWordE range.addr, globalWrapperT (structT structName))
         | (structName, range) <- rodataStructNamesOf rodata
         ]
+
+--
+
+opS :: Op -> S
+opS x = case x of
+    OpPlus -> "bvadd"
+    OpMinus -> "bvsub"
+    OpTimes -> "bvmul"
+    OpModulus -> "bvurem"
+    OpDividedBy -> "bvudiv"
+    OpBWAnd -> "bvand"
+    OpBWOr -> "bvor"
+    OpBWXOR -> "bvxor"
+    OpAnd -> "and"
+    OpOr -> "or"
+    OpImplies -> "=>"
+    OpEquals -> "="
+    OpLess -> "bvult"
+    OpLessEquals -> "bvule"
+    OpSignedLess -> "bvslt"
+    OpSignedLessEquals -> "bvsle"
+    OpShiftLeft -> "bvshl"
+    OpShiftRight -> "bvlshr"
+    OpSignedShiftRight -> "bvashr"
+    OpNot -> "not"
+    OpBWNot -> "bvnot"
+    OpTrue -> "true"
+    OpFalse -> "false"
+    OpUnspecifiedPrecond -> "unspecified-precond"
+    OpIfThenElse -> "ite"
+    OpMemDom -> "mem-dom"
+    OpROData -> "rodata"
+    OpImpliesROData -> "implies-rodata"
+    OpTokenWordsAccess -> "select"
+    OpTokenWordsUpdate -> "store"
+    OpWordArrayAccess -> "select"
+    OpWordArrayUpdate -> "store"
+
+--
+
+tokenSmtType :: ExprType
+tokenSmtType = wordT 64
+
+getDefM :: MonadSolver m => Name -> m S
+getDefM name = liftSolver $ use $ #defs % at name % unwrapped
+
+getDefOptM :: MonadSolver m => Name -> m (Maybe S)
+getDefOptM name = liftSolver $ use $ #defs % at name
+
+addDefEitherM :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m (Either Name SplitMem)
+addDefEitherM nameHint val = do
+    smt <- smtExprM val
+    case smt of
+        SMTSplitMem splitMem -> do
+            let add nm typ smt' = do
+                    let nameHint' = nameHint ++ "_" ++ nm
+                    x <- addDefM nameHint' (smtExprE typ (SMT smt'))
+                    return $ x ^. expecting #_SMT
+            split' <- add "split" machineWordT splitMem.split
+            top' <- add "top" val.ty splitMem.top
+            bot' <- add "bot" val.ty splitMem.bottom
+            return $ Right $ SplitMem
+                { split = split'
+                , top = top'
+                , bottom = bot'
+                }
+        SMT smt' -> do
+            name <- takeFreshName nameHint
+            if isSMTTypeOmitted val.ty
+            then do
+                return $ Left name
+            else do
+                -- case val.value of
+                --     ExprValueVar _ -> error ""
+                --     _ -> return ()
+                let ty = smtType val.ty
+                send $ defineFunS name.unwrap [] ty smt'
+                liftSolver $ #defs %= M.insert name smt'
+                when (typeRepresentable val.ty) $ do
+                    liftSolver $ #modelVars %= S.insert name
+                return $ Left $ name
+
+addDefM :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m SMT
+addDefM nameHint val = do
+    addDefEitherM nameHint val <&> \case
+        Left name -> SMT $ nameS name
+        Right splitMem -> SMTSplitMem splitMem
+
+addDefNoSplitM :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m Name
+addDefNoSplitM nameHint val = do
+    addDefEitherM nameHint val <&> view (expecting #_Left)
+
+typeRepresentable :: ExprType -> Bool
+typeRepresentable = \case
+    ExprTypeWord _ -> True
+    ExprTypeBool -> True
+    ExprTypeToken -> True
+    _ -> False
+
+isSMTTypeOmitted :: ExprType -> Bool
+isSMTTypeOmitted = \case
+    ExprTypeHtd -> True
+    ExprTypePms -> True
+    _ -> False
+
+smtType :: ExprType -> S
+smtType = \case
+    ExprTypeWord bits -> bitVecS bits
+    ExprTypeWordArray { len, bits } -> ["Array", bitVecS len, bitVecS bits]
+    ExprTypeBool -> boolS
+    ExprTypeMem -> memSortS
+    ExprTypeDom -> memDomSortS
+    ExprTypeToken -> smtType tokenSmtType
+
+addVarM :: MonadSolver m => NameHint -> ExprType -> m Name
+addVarM nameHint ty = do
+    name <- takeFreshName nameHint
+    unless (isSMTTypeOmitted ty) $ do
+        let ty' = smtType ty
+        send $ declareFunS name.unwrap [] ty'
+        when (typeRepresentable ty) $ do
+            liftSolver $ #modelVars %= S.insert name
+    return $ name
+
+addVarRestrM :: MonadSolver m => NameHint -> ExprType -> m Name
+addVarRestrM = addVarM
+
+assertFactSmtM :: MonadSolver m => S -> m ()
+assertFactSmtM fact = do
+    send $ assertS fact
+
+assertFactM :: MonadSolver m => Expr -> ReaderT SMTEnv m ()
+assertFactM fact = do
+    fact' <- smtExprNoSplitM fact
+    send $ assertS fact'
+
+noteModelExprM :: MonadSolver m => S -> ExprType -> m ()
+noteModelExprM sexpr ty = do
+    seen <- liftSolver $ use $ #modelExprs % to (S.member sexpr)
+    unless seen $ do
+        let s = take 20 $ filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders sexpr)
+        let smtExpr = smtExprE ty (SMT sexpr)
+        flip runReaderT M.empty $ addDefM ("query_" ++ s) smtExpr
+        liftSolver $ #modelExprs %= S.insert sexpr
+
+maybeNoteModelExprM :: MonadSolver m => S -> ExprType -> [Expr] -> m ()
+maybeNoteModelExprM sexpr typ subexprs = do
+    when (typeRepresentable typ && not (all typeRepresentable (map (.ty) subexprs))) $ do
+        noteModelExprM sexpr typ
+
+notePtrM :: MonadSolver m => S -> m Name
+notePtrM p_s = do
+    liftSolver (use (#ptrs % at p_s)) >>= \case
+        Just p -> do
+            return p
+        Nothing -> do
+            p <- withoutEnv $ addDefNoSplitM "ptr" (smtExprE machineWordT (SMT p_s))
+            liftSolver $ #ptrs %= M.insert p_s p
+            return p
+
+noteMemDomM :: MonadSolver m => S -> S -> S -> m ()
+noteMemDomM p d md = liftSolver $ do
+    #doms %= S.insert (p, d, md)
+
+cacheLargeExprM :: MonadSolver m => S -> NameHint -> ExprType -> m S
+cacheLargeExprM s nameHint typ = do
+    liftSolver (use (#cachedExprs % at s)) >>= \case
+        Just name -> do
+            return $ nameS name
+        Nothing -> do
+            if length (showSExprWithPlaceholders s) < 80
+            then do
+                return s
+            else do
+                name <- withoutEnv $ addDefNoSplitM nameHint (smtExprE typ (SMT s))
+                liftSolver $ do
+                    #cachedExprs %= M.insert s name
+                    #cachedExprNames %= S.insert name
+                return $ nameS name
+
+getTokenM :: MonadSolver m => String -> m SMT
+getTokenM string = do
+    present <- liftSolver $ use $ #tokenTokens % to (M.member string)
+    unless present $ do
+        n_x <- liftSolver $ use $ #tokenTokens % to M.size
+        n_y <- liftSolver $ use $ #tokenVals % to M.size
+        let n = n_x + n_y + 1
+        v <- withoutEnv $ addDefNoSplitM ("token_" ++ string) (numE tokenSmtType (toInteger n))
+        liftSolver $ do
+            #tokenTokens %= M.insert string (nameS v)
+            k <- use $ #defs % at v % unwrapped
+            #tokenVals %= M.insert k string
+    liftSolver $ use $ #tokenTokens % at string % unwrapped % to SMT
 
 --
 
@@ -435,106 +643,10 @@ smtIfThenElse cond x y =
             , bottom = s
             }
 
-smtNameM :: MonadSolver m => NameHint -> m Name
-smtNameM baseName = do
-    let sanitizedBaseName = baseName & map (\c -> if c `elem` ("'#\"" :: String) then '_' else c)
-    postExt <- liftSolver $ zoom #externalNames $ getFreshName sanitizedBaseName
-    postUsed <- liftSolver $ zoom #namesUsed $ getFreshName postExt.unwrap
-    let name = postUsed
-    return name
-  where
-    getFreshName :: MonadState (Set Name) n => NameHint -> n Name
-    getFreshName hint = do
-        taken <- get
-        let name = Name $ chooseFreshName (flip S.member taken . Name) hint
-        modify $ S.insert name
-        return name
-
-addDefEitherM :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m (Either Name SplitMem)
-addDefEitherM nameHint val = do
-    smt <- smtExprM val
-    case smt of
-        SMTSplitMem splitMem -> do
-            let add nm typ smt' = do
-                    let nameHint' = nameHint ++ "_" ++ nm
-                    x <- addDefM nameHint' (smtExprE typ (SMT smt'))
-                    return $ x ^. expecting #_SMT
-            split' <- add "split" machineWordT splitMem.split
-            top' <- add "top" val.ty splitMem.top
-            bot' <- add "bot" val.ty splitMem.bottom
-            return $ Right $ SplitMem
-                { split = split'
-                , top = top'
-                , bottom = bot'
-                }
-        SMT smt' -> do
-            name <- smtNameM nameHint
-            if isSMTTypeOmitted val.ty
-            then do
-                return $ Left name
-            else do
-                -- case val.value of
-                --     ExprValueVar _ -> error ""
-                --     _ -> return ()
-                let ty = smtType val.ty
-                send $ defineFunS name.unwrap [] ty smt'
-                liftSolver $ #defs %= M.insert name smt'
-                when (typeRepresentable val.ty) $ do
-                    liftSolver $ #modelVars %= S.insert name
-                return $ Left $ name
-
-addDefM :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m SMT
-addDefM nameHint val = do
-    addDefEitherM nameHint val <&> \case
-        Left name -> SMT $ nameS name
-        Right splitMem -> SMTSplitMem splitMem
-
-addDefNoSplitM :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m Name
-addDefNoSplitM nameHint val = do
-    addDefEitherM nameHint val <&> view (expecting #_Left)
-
-typeRepresentable :: ExprType -> Bool
-typeRepresentable = \case
-    ExprTypeWord _ -> True
-    ExprTypeBool -> True
-    ExprTypeToken -> True
-    _ -> False
-
-isSMTTypeOmitted :: ExprType -> Bool
-isSMTTypeOmitted = \case
-    ExprTypeHtd -> True
-    ExprTypePms -> True
-    _ -> False
-
-smtType :: ExprType -> S
-smtType = \case
-    ExprTypeWord bits -> bitVecS bits
-    ExprTypeWordArray { len, bits } -> ["Array", bitVecS len, bitVecS bits]
-    ExprTypeBool -> boolS
-    ExprTypeMem -> memSortS
-    ExprTypeDom -> memDomSortS
-    ExprTypeToken -> smtType tokenSmtType
-
-tokenSmtType :: ExprType
-tokenSmtType = wordT 64
-
-addVarM :: MonadSolver m => NameHint -> ExprType -> m Name
-addVarM nameHint ty = do
-    name <- smtNameM nameHint
-    unless (isSMTTypeOmitted ty) $ do
-        let ty' = smtType ty
-        send $ declareFunS name.unwrap [] ty'
-        when (typeRepresentable ty) $ do
-            liftSolver $ #modelVars %= S.insert name
-    return $ name
-
-addVarRestrM :: MonadSolver m => NameHint -> ExprType -> m Name
-addVarRestrM = addVarM
-
 addRODataDefM :: MonadSolver m => m ()
 addRODataDefM = do
-    roName <- smtNameM "rodata"
-    impRoName <- smtNameM "implies-rodata"
+    roName <- takeFreshName "rodata"
+    impRoName <- takeFreshName "implies-rodata"
     ensureM $ roName.unwrap == "rodata"
     ensureM $ impRoName.unwrap == "implies-rodata"
     rodataPtrs <- askRODataPtrs
@@ -589,50 +701,6 @@ smtNum num bits = intWithWidthS bits num
 -- smtNumTy = \case
 --     ExprTypeWord bits -> intWithWidth bits
 
-assertFactSmtM :: MonadSolver m => S -> m ()
-assertFactSmtM fact = do
-    send $ assertS fact
-
-assertFactM :: MonadSolver m => Expr -> ReaderT SMTEnv m ()
-assertFactM fact = do
-    fact' <- smtExprNoSplitM fact
-    send $ assertS fact'
-
-noteModelExprM :: MonadSolver m => S -> ExprType -> m ()
-noteModelExprM sexpr ty = do
-    seen <- liftSolver $ use $ #modelExprs % to (S.member sexpr)
-    unless seen $ do
-        let s = take 20 $ filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders sexpr)
-        let smtExpr = smtExprE ty (SMT sexpr)
-        flip runReaderT M.empty $ addDefM ("query_" ++ s) smtExpr
-        liftSolver $ #modelExprs %= S.insert sexpr
-
-cacheLargeExprM :: MonadSolver m => S -> NameHint -> ExprType -> m S
-cacheLargeExprM s nameHint typ = do
-    liftSolver (use (#cachedExprs % at s)) >>= \case
-        Just name -> do
-            return $ nameS name
-        Nothing -> do
-            if length (showSExprWithPlaceholders s) < 80
-            then do
-                return s
-            else do
-                name <- withoutEnv $ addDefNoSplitM nameHint (smtExprE typ (SMT s))
-                liftSolver $ do
-                    #cachedExprs %= M.insert s name
-                    #cachedExprNames %= S.insert name
-                return $ nameS name
-
-notePtrM :: MonadSolver m => S -> m Name
-notePtrM p_s = do
-    liftSolver (use (#ptrs % at p_s)) >>= \case
-        Just p -> do
-            return p
-        Nothing -> do
-            p <- withoutEnv $ addDefNoSplitM "ptr" (smtExprE machineWordT (SMT p_s))
-            liftSolver $ #ptrs %= M.insert p_s p
-            return p
-
 
 addPValidsM :: MonadSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValidsM = go False
@@ -679,66 +747,7 @@ addPValidsM = go False
                         return $ nameS var
     smtify (typ, p, kind) var = (typ, kind, smtExprE machineWordT (SMT $ nameS p), smtExprE boolT (SMT var))
 
-getTokenM :: MonadSolver m => String -> m SMT
-getTokenM string = do
-    present <- liftSolver $ use $ #tokenTokens % to (M.member string)
-    unless present $ do
-        n_x <- liftSolver $ use $ #tokenTokens % to M.size
-        n_y <- liftSolver $ use $ #tokenVals % to M.size
-        let n = n_x + n_y + 1
-        v <- withoutEnv $ addDefNoSplitM ("token_" ++ string) (numE tokenSmtType (toInteger n))
-        liftSolver $ do
-            #tokenTokens %= M.insert string (nameS v)
-            k <- use $ #defs % at v % unwrapped
-            #tokenVals %= M.insert k string
-    liftSolver $ use $ #tokenTokens % at string % unwrapped % to SMT
-
-noteMemDomM :: MonadSolver m => S -> S -> S -> m ()
-noteMemDomM p d md = liftSolver $ do
-    #doms %= S.insert (p, d, md)
-
 --
-
-opS :: Op -> S
-opS x = case x of
-    OpPlus -> "bvadd"
-    OpMinus -> "bvsub"
-    OpTimes -> "bvmul"
-    OpModulus -> "bvurem"
-    OpDividedBy -> "bvudiv"
-    OpBWAnd -> "bvand"
-    OpBWOr -> "bvor"
-    OpBWXOR -> "bvxor"
-    OpAnd -> "and"
-    OpOr -> "or"
-    OpImplies -> "=>"
-    OpEquals -> "="
-    OpLess -> "bvult"
-    OpLessEquals -> "bvule"
-    OpSignedLess -> "bvslt"
-    OpSignedLessEquals -> "bvsle"
-    OpShiftLeft -> "bvshl"
-    OpShiftRight -> "bvlshr"
-    OpSignedShiftRight -> "bvashr"
-    OpNot -> "not"
-    OpBWNot -> "bvnot"
-    OpTrue -> "true"
-    OpFalse -> "false"
-    OpUnspecifiedPrecond -> "unspecified-precond"
-    OpIfThenElse -> "ite"
-    OpMemDom -> "mem-dom"
-    OpROData -> "rodata"
-    OpImpliesROData -> "implies-rodata"
-    OpTokenWordsAccess -> "select"
-    OpTokenWordsUpdate -> "store"
-    OpWordArrayAccess -> "select"
-    OpWordArrayUpdate -> "store"
-    _ -> error $ "xxx " ++ show x
-
-maybeNoteModelExprM :: MonadSolver m => S -> ExprType -> [Expr] -> m ()
-maybeNoteModelExprM sexpr typ subexprs = do
-    when (typeRepresentable typ && not (all typeRepresentable (map (.ty) subexprs))) $ do
-        noteModelExprM sexpr typ
 
 addImpliesStackEqM :: MonadSolver m => Expr -> Expr -> Expr -> ReaderT SMTEnv m S
 addImpliesStackEqM sp s1 s2 = do
@@ -786,7 +795,7 @@ getImmBasisMems mTop = execStateT (go mTop) S.empty
                 go m'
             _ -> error ""
         _ -> do
-            let Just sym = parseSymbol m
+            let Just sym = parseSymbolS m
             isCached <- lift $ liftSolver $ use $ #cachedExprNames % to (S.member (Name sym))
             if isCached
                 then do
@@ -794,19 +803,6 @@ getImmBasisMems mTop = execStateT (go mTop) S.empty
                     go def
                 else do
                     modify $ S.insert m
-
-parseSymbol :: S -> Maybe String
-parseSymbol sexpr = do
-    Atom (AtomOrPlaceholderAtom atom) <- return sexpr
-    case viewAtom atom of
-        SymbolAtom s -> Just s
-        _ -> Nothing
-
-getDefM :: MonadSolver m => Name -> m S
-getDefM name = liftSolver $ use $ #defs % at name % unwrapped
-
-getDefOptM :: MonadSolver m => Name -> m (Maybe S)
-getDefOptM name = liftSolver $ use $ #defs % at name
 
 addSplitMemVarM :: MonadSolver m => S -> NameHint -> ExprType -> m SplitMem
 addSplitMemVarM addr nm ty@ExprTypeMem = do
