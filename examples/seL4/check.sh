@@ -4,10 +4,10 @@ set -eu -o pipefail
 
 here=$(dirname $0)
 top=$here/../..
-tmp=$top/tmp
+top_tmp=$top/tmp
 
-our_tmp=$here/tmp
-mkdir -p $our_tmp
+tmp=$here/tmp
+mkdir -p $tmp
 
 exe="cabal run sel4-bv-cli --"
 # exe=$(nix-build -A distrib)/bin/driver
@@ -20,7 +20,7 @@ workers_arg="-j8"
 size=small
 # size=focused
 
-target_dir=$tmp/test-target-dirs/$size
+target_dir=$top_tmp/test-target-dirs/$size
 
 time $exe \
     check \
@@ -34,9 +34,9 @@ time $exe \
     --rodata-symbol avail_p_regs \
     $workers_arg \
     --solvers $here/solvers.yaml \
-    --file-log $our_tmp/log.txt \
+    --sqlite-cache $tmp/cache.sqlite \
+    --file-log $tmp/log.txt \
     --file-log-level debug \
-    --sqlite-cache $our_tmp/cache.sqlite \
     "$@"
 
     # some other options:
