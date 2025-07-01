@@ -42,14 +42,8 @@ enumerateProofChecks argRenames pairing problem proofScript =
         , problem
         , argRenames
         , nodeGraph
-        , nodeTag =
-            let c = S.fromList $ reachableFrom nodeGraph problem.sides.c.entryPoint ^.. folded % #_Addr
-             in \addr -> if addr `S.member` c then C else Asm
-        , loopData =
-            let heads = loopHeads nodeGraph [problem.sides.c.entryPoint, problem.sides.asm.entryPoint]
-             in M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
-                    [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
-                        if member == loopHead then Nothing else Just (member, LoopMember loopHead))
+        , nodeTag = nodeTagOf problem nodeGraph
+        , loopData = createLoopDataMap problem nodeGraph
         }
 
 data Context
@@ -63,24 +57,11 @@ data Context
       }
   deriving (Generic)
 
-data LoopData
-  = LoopHead (Set NodeAddr)
-  | LoopMember NodeAddr
-  deriving (Eq, Generic, Ord, Show)
-
 loopIdM :: NodeAddr -> Reader Context (Maybe NodeAddr)
-loopIdM addr = do
-    loopData <- gview $ #loopData % at addr
-    return (loopData <&> \case
-        LoopHead _ -> addr
-        LoopMember addr' -> addr')
+loopIdM addr = loopIdOf addr <$> gview #loopData
 
 loopHeadsM :: Reader Context [NodeAddr]
-loopHeadsM = do
-    loopData <- gview #loopData
-    return (mapMaybe (\(k, v) -> case v of
-        LoopHead _ -> Just k
-        LoopMember _ -> Nothing) (M.toList loopData))
+loopHeadsM = loopHeadsOf <$> gview #loopData
 
 --
 

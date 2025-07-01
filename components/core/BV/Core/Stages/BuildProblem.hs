@@ -89,7 +89,7 @@ forceSimpleLoopReturns = do
             -- TODO ugly
             makeNodeGraph . map (\(k, v) -> (k, v.node)). mapMaybe (\(k, v) -> (k,) <$> v) . M.toAscList <$> use #nodes
         preds <- gets computePreds
-        forM_ (loopHeads nodeGraph (toList entryPoints)) $ \(loopHead, scc) -> do
+        forM_ (loopHeadsFrom nodeGraph (toList entryPoints)) $ \(loopHead, scc) -> do
             let rets = filter (`S.member` scc) (S.toAscList (preds ! loopHead))
             retsIsSimple <- do
                 case rets of

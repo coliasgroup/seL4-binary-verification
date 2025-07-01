@@ -125,11 +125,6 @@ data FunctionSignature
 
 type FunctionSignatures = WithTag Ident -> FunctionSignature
 
-data LoopData
-  = LoopHead (Set NodeAddr)
-  | LoopMember NodeAddr
-  deriving (Eq, Generic, Ord, Show)
-
 initRepGraphEnv :: FunctionSignatures -> Pairings -> ArgRenames -> Problem -> RepGraphEnv
 initRepGraphEnv functionSigs pairings argRenames problem =
     RepGraphEnv
@@ -140,33 +135,16 @@ initRepGraphEnv functionSigs pairings argRenames problem =
         , problem
         -- , nodeGraph = makeNodeGraph (map (_2 %~ view #node) (M.toAscList problem.nodes))
         , nodeGraph
-        , nodeTag =
-            let c = S.fromList $ reachableFrom nodeGraph problem.sides.c.entryPoint ^.. folded % #_Addr
-             in \addr -> if addr `S.member` c then C else Asm
-        , loopData =
-            let heads = loopHeads nodeGraph [problem.sides.c.entryPoint, problem.sides.asm.entryPoint]
-             in M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
-                    [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
-                        if member == loopHead then Nothing else Just (member, LoopMember loopHead))
-        , preds =
-            let defaults = map (, []) $ [Ret, Err] ++ map Addr (M.keys problem.nodes)
-             in M.fromListWith (<>) $ concat $ [defaults] ++
-                    [ [ (cont, S.singleton nodeAddr)
-                    | cont <- node ^.. nodeConts
-                    ]
-                    | (nodeAddr, node) <- M.toAscList problem.nodes
-                    ]
+        , nodeTag = nodeTagOf problem nodeGraph
+        , loopData = createLoopDataMap problem nodeGraph
+        , preds = predsOf problem
         , problemNames = S.fromList $ toListOf varNamesOfProblem problem
         }
   where
     nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
 
 loopIdR :: MonadRepGraph m => NodeAddr -> m (Maybe NodeAddr)
-loopIdR addr = liftRepGraph $ do
-    loopData <- gview $ #loopData % at addr
-    return (loopData <&> \case
-        LoopHead _ -> addr
-        LoopMember addr' -> addr')
+loopIdR addr = liftRepGraph $ loopIdOf addr <$> gview #loopData
 
 loopIdR' :: MonadRepGraph m => NodeId -> m (Maybe NodeAddr)
 loopIdR' = \case
@@ -174,18 +152,10 @@ loopIdR' = \case
     _ -> return Nothing
 
 loopHeadsR :: MonadRepGraph m => m [NodeAddr]
-loopHeadsR = liftRepGraph $ do
-    loopData <- gview #loopData
-    return (mapMaybe (\(k, v) -> case v of
-        LoopHead _ -> Just k
-        LoopMember _ -> Nothing) (M.toList loopData))
+loopHeadsR = liftRepGraph $ loopHeadsOf <$> gview #loopData
 
 loopBodyR :: MonadRepGraph m => NodeAddr -> m (S.Set NodeAddr)
-loopBodyR n = do
-    hd <- fromJust <$> loopIdR n
-    loopData <- liftRepGraph $ gview $ #loopData % at hd % unwrapped
-    let LoopHead body = loopData
-    return body
+loopBodyR n = liftRepGraph $ loopBodyOf n <$> gview #loopData
 
 nodeTagR :: MonadRepGraph m => NodeAddr -> m Tag
 nodeTagR n = liftRepGraph $ do

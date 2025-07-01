@@ -1,11 +1,18 @@
 module BV.Core.Graph
-    ( NodeGraph (..)
+    ( LoopData (..)
+    , LoopDataMap
+    , NodeGraph (..)
     , NodeGraphEdges
+    , createLoopDataMap
     , isReachableFrom
-    , loopHeads
+    , loopBodyOf
+    , loopHeadsFrom
+    , loopHeadsOf
+    , loopIdOf
     , makeNodeGraph
     , makeNodeGraphEdges
     , makeNodeGraphFromEdges
+    , nodeTagOf
     , reachableFrom
     ) where
 
@@ -17,7 +24,8 @@ import Data.Foldable (toList)
 import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
 import Data.List (find)
-import Data.Maybe (fromJust)
+import qualified Data.Map as M
+import Data.Maybe (fromJust, mapMaybe)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
@@ -59,8 +67,8 @@ reachableFrom g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeId
 isReachableFrom :: NodeGraph -> NodeId -> NodeId -> Bool
 isReachableFrom g from to_ = G.path g.graph (fromJust (g.nodeIdMapRev from)) (fromJust (g.nodeIdMapRev to_))
 
-loopHeads :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
-loopHeads g entryPoints =
+loopHeadsFrom :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
+loopHeadsFrom g entryPoints =
     [ (toNodeAddr (findHead comp), S.map toNodeAddr comp)
     | comp <- sccs
     ]
@@ -75,3 +83,36 @@ loopHeads g entryPoints =
       where
         entryPointsAsVertices = map (fromJust . g.nodeIdMapRev) entryPoints
         inOrder = foldMap toList $ G.dfs g.graph entryPointsAsVertices
+
+nodeTagOf :: Problem -> NodeGraph -> NodeAddr -> Tag
+nodeTagOf problem nodeGraph = \addr -> if addr `S.member` c then C else Asm
+  where
+    c = S.fromList $ reachableFrom nodeGraph problem.sides.c.entryPoint ^.. folded % #_Addr
+
+type LoopDataMap = M.Map NodeAddr LoopData
+
+data LoopData
+  = LoopHead (S.Set NodeAddr)
+  | LoopMember NodeAddr
+  deriving (Eq, Generic, Ord, Show)
+
+createLoopDataMap :: Problem -> NodeGraph -> LoopDataMap
+createLoopDataMap problem nodeGraph =
+    M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
+        [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
+            if member == loopHead then Nothing else Just (member, LoopMember loopHead))
+  where
+    heads = loopHeadsFrom nodeGraph [problem.sides.c.entryPoint, problem.sides.asm.entryPoint]
+
+loopHeadsOf :: LoopDataMap -> [NodeAddr]
+loopHeadsOf loopDataMap = flip mapMaybe (M.toList loopDataMap) $ \(k, v) -> case v of
+        LoopHead _ -> Just k
+        LoopMember _ -> Nothing
+
+loopIdOf :: NodeAddr -> LoopDataMap -> Maybe NodeAddr
+loopIdOf addr loopDataMap = M.lookup addr loopDataMap <&> \case
+    LoopHead _ -> addr
+    LoopMember addr' -> addr'
+
+loopBodyOf :: NodeAddr -> LoopDataMap -> S.Set NodeAddr
+loopBodyOf n loopDataMap = loopDataMap ^. expectingAt (fromJust (loopIdOf n loopDataMap)) % expecting #_LoopHead
