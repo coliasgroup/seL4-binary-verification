@@ -64,3 +64,13 @@ enumerate-transitive-deps: hpack
 .PHONY: i
 i: hpack
 	cabal repl --enable-multi-repl
+
+# # #
+
+.PHONY: test-stages-with-reference
+test-stages-with-reference: hpack
+	cabal test core-test --test-option=--pattern=stages-with-reference
+
+.PHONY: test-just-focused
+test-just-focused: hpack
+	cabal test core-test --test-option=--pattern=just-focused

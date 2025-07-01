@@ -23,7 +23,8 @@ tests :: TestTree
 tests = testGroup "Tests"
     [ testCase "trivial" $ return ()
     -- , testCase "stages" testStages
-    , testCase "stages-with-reference" testStagesWithChecking
+    , testCase "stages-with-reference" testStagesWithReferenceDefault
+    , testCase "just-focused" $ testStagesWithReference testSeL4TargetDirFocused
     ]
 
 testStages :: IO ()
@@ -37,8 +38,8 @@ testStages = do
         testSeL4TargetDirSmall
         -- testSeL4TargetDirFocused
 
-testStagesWithChecking :: IO ()
-testStagesWithChecking = do
+testStagesWithReference :: TargetDir -> IO ()
+testStagesWithReference referenceTargetDir = do
     input <- seL4DefaultReadStagesInput referenceTargetDir
     runStderrLoggingT $ evalStages ctx input
     return ()
@@ -49,7 +50,6 @@ testStagesWithChecking = do
         , referenceTargetDir = Just referenceTargetDir
         , mismatchDumpDir = Just $ tmpDir </> "mismatch"
         }
-    referenceTargetDir =
-        -- testSeL4TargetDirBig
-        testSeL4TargetDirSmall
-        -- testSeL4TargetDirFocused
+
+testStagesWithReferenceDefault :: IO ()
+testStagesWithReferenceDefault = testStagesWithReference testSeL4TargetDirSmall
