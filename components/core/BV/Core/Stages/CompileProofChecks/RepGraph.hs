@@ -156,7 +156,7 @@ initRepGraphEnv functionSigs pairings argRenames problem =
                     ]
                     | (nodeAddr, node) <- M.toAscList problem.nodes
                     ]
-        , problemNames = S.fromList $ toListOf varNamesOf problem
+        , problemNames = S.fromList $ toListOf varNamesOfProblem problem
         }
   where
     nodeGraph = makeNodeGraph (M.toAscList problem.nodes)

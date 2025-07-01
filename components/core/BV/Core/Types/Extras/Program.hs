@@ -1,43 +1,17 @@
 module BV.Core.Types.Extras.Program
-    ( Argument (..)
-    , BasicNode (..)
-    , CallNode (..)
-    , CondNode (..)
-    , ConstGlobal (..)
-    , Expr (..)
-    , ExprType (..)
-    , ExprValue (..)
-    , FoldExprs (..)
-    , Function (..)
-    , FunctionBody (..)
+    ( FoldExprs (..)
     , HasVarDecls (..)
     , HasVarNames (..)
-    , Ident (..)
-    , Named (..)
-    , Node (..)
-    , NodeAddr (..)
-    , NodeId (..)
-    , NodeMap
-    , Op (..)
-    , Program (..)
-    , SMT (..)
-    , SplitMem (..)
-    , Struct (..)
-    , StructField (..)
     , TraverseTopLevelExprs (..)
     , VarUpdate (..)
-    , fromListOfNamed
     , nodeConts
-    , prettyNodeId
     , programFromFunctions
     , renameVars
     , renameVarsI
-    , toListOfNamed
     , trivialNode
     , varSubst
     , walkExprs
     , walkExprsI
-    , withNamed
     ) where
 
 import BV.Core.Types
@@ -158,11 +132,3 @@ nodeConts = castOptic $
     (#_NodeBasic % #next)
         `adjoin`(#_NodeCond % (#left `adjoin` #right))
         `adjoin` (#_NodeCall % #next)
-
---
-
--- TODO move
-instance HasVarNames Problem where
-    varNamesOf =
-        (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
-            `adjoin` (#nodes % traversed % varNamesOf)
