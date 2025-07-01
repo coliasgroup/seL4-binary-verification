@@ -15,7 +15,7 @@ module BV.Core.Types.Extras.Program
     , trivialNode
     , varSubst
     , walkExprs
-    , walkExprsI
+    , walkExprs
     ) where
 
 import BV.Core.Types
@@ -65,18 +65,18 @@ instance FoldExprs VarUpdate where
 instance FoldExprs Expr where
     foldExprs = simple `summing` (#value % #_ExprValueOp % _2 % folded % foldExprs)
 
-walkExprs :: Monad m => (Expr -> m Expr) -> Expr -> m Expr
-walkExprs f expr = do
+walkExprsM :: Monad m => (Expr -> m Expr) -> Expr -> m Expr
+walkExprsM f expr = do
     expr' <- f expr
     flip (traverseOf #value) expr' $ \case
-        ExprValueOp op args -> ExprValueOp op <$> traverse (walkExprs f) args
+        ExprValueOp op args -> ExprValueOp op <$> traverse (walkExprsM f) args
         v -> return v
 
-walkExprsI :: (Expr -> Expr) -> Expr -> Expr
-walkExprsI f = runIdentity . walkExprs (Identity . f)
+walkExprs :: (Expr -> Expr) -> Expr -> Expr
+walkExprs f = runIdentity . walkExprsM (Identity . f)
 
 varSubst :: (Ident -> ExprType -> Maybe Expr) -> Expr -> Expr
-varSubst f = walkExprsI $ \case
+varSubst f = walkExprs $ \case
         expr@(Expr ty (ExprValueVar ident)) -> fromMaybe expr $ f ident ty
         expr -> expr
 

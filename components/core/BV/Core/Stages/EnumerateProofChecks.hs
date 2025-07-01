@@ -260,7 +260,7 @@ splitHypsAtVisit splitNode restrs visit =
   where
     visits = splitVisitVisits splitNode restrs visit
     starts = splitVisitVisits splitNode restrs (numberVC 0)
-    mksub v = walkExprsI $ \case
+    mksub v = walkExprs $ \case
         Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
         expr -> expr
     inst expr = instEqAtVisit expr visit
@@ -286,7 +286,7 @@ loopEqHypsAtVisit tag split eqs restrs visitNum useIfAt =
     details = SplitProofNodeDetails split 0 1 eqs
     visit = splitVisitOneVisit (WithTag tag details) restrs visitNum
     start = splitVisitOneVisit (WithTag tag details) restrs (numberVC 0)
-    mksub v = walkExprsI $ \case
+    mksub v = walkExprs $ \case
         Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
         expr -> expr
     zsub = mksub (machineWordE 0)

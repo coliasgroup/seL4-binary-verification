@@ -38,4 +38,4 @@ compilePValidAlignExprs = walkFunctionExprs f
 walkFunctionExprs :: (Expr -> Expr) -> Program -> Program
 walkFunctionExprs f =
     #functions % traversed % #body % traversed % #nodes % traversed % traverseTopLevelLevelExprs
-        %~ walkExprsI f
+        %~ walkExprs f
