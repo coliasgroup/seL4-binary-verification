@@ -41,7 +41,6 @@ enumerateProofChecks argRenames pairing problem proofScript =
         { pairing
         , problem
         , argRenames
-        -- , nodeGraph = makeNodeGraph (map (_2 %~ view #node) (M.toAscList problem.nodes))
         , nodeGraph
         , nodeTag =
             let c = S.fromList . mapMaybe (preview #_Addr) $ reachableFrom nodeGraph problem.sides.c.entryPoint
