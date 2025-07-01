@@ -18,11 +18,11 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , SolverState
     , addDefM
     , addDefNoSplitM
-    , addPValidDomAssertionsM
     , addSplitMemVarM
     , addVarM
     , addVarRestrM
     , assertFactM
+    , finalizeSolver
     , getDefM
     , getDefOptM
     , initSolver
@@ -68,6 +68,14 @@ import Text.Printf (printf)
 
 {-# ANN module ("HLint: ignore" :: String) #-}
 
+--
+
+-- TODO
+cheatMemDoms :: Bool
+cheatMemDoms = True
+
+--
+
 class MonadStructs m => MonadSolver m where
     liftSolver :: RWS SolverEnv SolverOutput SolverState a -> m a
 
@@ -96,7 +104,6 @@ data SolverState
       , modelVars :: Set Name
       , cachedExprs :: Map S Name
       , cachedExprNames :: Set Name
-        --   , ptrs :: Map SMT SMT
       , ptrs :: Map S Name
       , pvalids :: Map S (Map (PValidType, Name, PValidKind) S)
       , tokenTokens :: Map String S
@@ -106,19 +113,6 @@ data SolverState
       , stackEqsImpliesStackEq :: Map (Expr, Expr, Expr) Name
       }
   deriving (Eq, Generic, NFData, Ord, Show)
-
-type NameHint = String
-
-newtype Name
-  = Name { unwrap :: String }
-  deriving (Eq, Generic, Ord, Show)
-  deriving newtype (NFData)
-
-instance IsString Name where
-    fromString = Name
-
-nameS :: Name -> S
-nameS name = symbolS name.unwrap
 
 initSolverEnv :: ROData -> SolverEnv
 initSolverEnv rodata = SolverEnv
@@ -145,12 +139,47 @@ initSolverState = SolverState
     , stackEqsImpliesStackEq = mempty
     }
 
+--
+
+send :: MonadSolver m => SExprWithPlaceholders -> m ()
+send sexpr = liftSolver $ tell [sexpr]
+
+--
+
+type SMTEnv = Map (Ident, ExprType) SMT
+
+withEnv :: SMTEnv -> ReaderT SMTEnv m a -> m a
+withEnv = flip runReaderT
+
+withoutEnv :: ReaderT SMTEnv m a -> m a
+withoutEnv = flip runReaderT mempty
+
+--
+
+type NameHint = String
+
+newtype Name
+  = Name { unwrap :: String }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
+
+instance IsString Name where
+    fromString = Name
+
+nameS :: Name -> S
+nameS name = symbolS name.unwrap
+
+--
+
 initSolver :: MonadSolver m => m ()
 initSolver = do
     addRODataDefM
 
-send :: MonadSolver m => SExprWithPlaceholders -> m ()
-send sexpr = liftSolver $ tell [sexpr]
+finalizeSolver :: MonadSolver m => m ()
+finalizeSolver = do
+    addPValidDomAssertionsM
+
+--
 
 rodataPtrsM :: MonadReader SolverEnv m => m [(Expr, ExprType)]
 rodataPtrsM = do
@@ -159,11 +188,6 @@ rodataPtrsM = do
         [ (machineWordE range.addr, globalWrapperT (structT structName))
         | (structName, range) <- rodataStructNamesOf rodata
         ]
-
-cheatMemDoms :: Bool
-cheatMemDoms = True
-
-type SMTEnv = Map (Ident, ExprType) SMT
 
 toSmtExprM :: MonadSolver m => Expr -> ReaderT SMTEnv m Expr
 toSmtExprM expr = case expr.ty of
@@ -600,12 +624,6 @@ cacheLargeExprM s nameHint typ = do
                     #cachedExprNames %= S.insert name
                 return $ nameS name
 
-withEnv :: SMTEnv -> ReaderT SMTEnv m a -> m a
-withEnv = flip runReaderT
-
-withoutEnv :: ReaderT SMTEnv m a -> m a
-withoutEnv = flip runReaderT mempty
-
 notePtrM :: MonadSolver m => S -> m Name
 notePtrM p_s = do
     liftSolver (use (#ptrs % at p_s)) >>= \case
@@ -804,7 +822,9 @@ addSplitMemVarM addr nm ty@ExprTypeMem = do
 
 -- TODO
 addPValidDomAssertionsM :: MonadSolver m => m ()
-addPValidDomAssertionsM = return ()
+addPValidDomAssertionsM = do
+    ensureM cheatMemDoms
+    return ()
 
 mergeEnvs :: MonadSolver m => [(Expr, SMTEnv)] -> m SMTEnv
 mergeEnvs envs = do

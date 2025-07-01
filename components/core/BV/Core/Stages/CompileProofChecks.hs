@@ -35,7 +35,9 @@ compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem 
     m = do
         initSolver
         initRepGraph
-        compileProofCheckGroupM group
+        imps' <- interpretGroup group
+        finalizeSolver
+        return imps'
 
 newtype M a
   = M { run :: RWS Env SolverOutput State a }
@@ -57,6 +59,15 @@ data State
       }
   deriving (Generic)
 
+instance MonadStructs M where
+    askLookupStruct = M $ gview #structs
+
+instance MonadSolver M where
+    liftSolver m = M . zoom #solver . magnify #solver $ m
+
+instance MonadRepGraph M where
+    liftRepGraph m = M . zoom #repGraph . magnify #repGraph $ m
+
 initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> ArgRenames -> Problem -> Env
 initEnv rodata cStructs functionSigs pairings argRenames problem = Env
     { structs = initStructsEnv rodata problem cStructs
@@ -70,35 +81,17 @@ initState = State
     , repGraph = initRepGraphState
     }
 
-instance MonadStructs M where
-    askLookupStruct = M $ gview #structs
-
-instance MonadSolver M where
-    liftSolver m = M . zoom #solver . magnify #solver $ m
-
-instance MonadRepGraph M where
-    liftRepGraph m = M . zoom #repGraph . magnify #repGraph $ m
-
-compileProofCheckGroupM :: ProofCheckGroup a -> M [SMTProofCheckImp a]
-compileProofCheckGroupM group = do
-    imps <- interpretGroup group
-    addPValidDomAssertionsM
-    return imps
+--
 
 interpretGroup :: ProofCheckGroup a -> M [SMTProofCheckImp a]
 interpretGroup group = do
     hyps <- for group $ \check -> do
         concl <- interpretHyp check.hyp
-        term <- interpretHypImps check.hyps concl
-        return (check, term)
+        hyps <- mapM interpretHyp check.hyps
+        return (check, strengthenHyp (nImpliesE hyps concl))
     for hyps $ \(check, term) -> do
         sexpr <- runReaderT (smtExprNoSplitM term) M.empty
         return $ SMTProofCheckImp check.meta sexpr
-
-interpretHypImps :: [Hyp] -> Expr -> M Expr
-interpretHypImps hyps concl = do
-    hyps' <- mapM interpretHyp hyps
-    return $ strengthenHyp (nImpliesE hyps' concl)
 
 interpretHyp :: Hyp -> M Expr
 interpretHyp = \case
