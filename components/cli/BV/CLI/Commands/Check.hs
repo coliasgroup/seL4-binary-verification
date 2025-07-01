@@ -63,40 +63,46 @@ runCheck opts = do
         earlyAsmFunctionFilter
         rodataInputRanges
         (TargetDir opts.inputTargetDir)
-    runChecks <- case opts.workers of
-        Nothing -> do
-            maxNumConcurrentSolvers <- fromIntegral <$> getMaxNumConcurrentSolvers opts
-            let backendConfig = LocalConfig
-                    { numJobs = maxNumConcurrentSolvers
-                    }
-            return $ runLocal backendConfig
-        Just workersConfigPath -> do
-            workersConfig <- readWorkersConfig workersConfigPath
-            return $ \solversConfig checks -> do
-                withRunInIO $ \run -> do
-                    withDriverPeers (workerCommandsFromWorkersConfig workersConfig) $ \peers stderrs -> do
-                        -- TODO ensure all worker stderr is logged in case of driver crash with some kind of flush on exception
-                        withLinkedAsync (run (handleStderrs stderrs)) $ \_ -> do
-                            withStaticTransport driverAddr peers $ \transport -> run $ do
-                                let backendConfig = DistribConfig
-                                        { transport
-                                        , workers = distribWorkerConfigsFromWorkersConfig workersConfig
-                                        , stagesInput = input
-                                        }
-                                runDistrib backendConfig solversConfig checks
-    solverList <- readSolverList opts.solvers
-    let solversConfig = getSolversConfig opts solverList
-    withCacheCtx <- getWithCacheCtx opts
-    checks <- filterChecks checkFilter <$> evalStages evalStagesCtx input
-    report <- withCacheCtx $ runCacheT $ do
-        runChecks solversConfig checks
-    let (success, displayedReport) = displayReport report
-    liftIO $ putStr displayedReport
-    case opts.reportFile of
-        Just reportFile -> liftIO $ writeFile reportFile displayedReport
-        Nothing -> return ()
-    unless success $ do
-        liftIO exitFailure
+    let evalChecks = filterChecks checkFilter <$> evalStages evalStagesCtx input
+    if opts.justCompareChecks
+    then do
+        evalChecks
+        liftIO $ putStrLn "Success"
+    else do
+        runChecks <- case opts.workers of
+            Nothing -> do
+                maxNumConcurrentSolvers <- fromIntegral <$> getMaxNumConcurrentSolvers opts
+                let backendConfig = LocalConfig
+                        { numJobs = maxNumConcurrentSolvers
+                        }
+                return $ runLocal backendConfig
+            Just workersConfigPath -> do
+                workersConfig <- readWorkersConfig workersConfigPath
+                return $ \solversConfig checks -> do
+                    withRunInIO $ \run -> do
+                        withDriverPeers (workerCommandsFromWorkersConfig workersConfig) $ \peers stderrs -> do
+                            -- TODO ensure all worker stderr is logged in case of driver crash with some kind of flush on exception
+                            withLinkedAsync (run (handleStderrs stderrs)) $ \_ -> do
+                                withStaticTransport driverAddr peers $ \transport -> run $ do
+                                    let backendConfig = DistribConfig
+                                            { transport
+                                            , workers = distribWorkerConfigsFromWorkersConfig workersConfig
+                                            , stagesInput = input
+                                            }
+                                    runDistrib backendConfig solversConfig checks
+        solverList <- readSolverList opts.solvers
+        let solversConfig = getSolversConfig opts solverList
+        withCacheCtx <- getWithCacheCtx opts
+        checks <- evalChecks
+        report <- withCacheCtx $ runCacheT $ do
+            runChecks solversConfig checks
+        let (success, displayedReport) = displayReport report
+        liftIO $ putStr displayedReport
+        case opts.reportFile of
+            Just reportFile -> liftIO $ writeFile reportFile displayedReport
+            Nothing -> return ()
+        unless success $ do
+            liftIO exitFailure
 
 getMaxNumConcurrentSolvers :: (MonadIO m, MonadLogger m) => CheckOpts -> m Int
 getMaxNumConcurrentSolvers opts = do

@@ -127,6 +127,7 @@ data CheckOpts
       , includeGroups :: [CheckGroupFingerprintPattern]
       , includeChecks :: [CheckFingerprintPattern]
       , reportFile :: Maybe FilePath
+      , justCompareChecks :: Bool
       }
   deriving (Generic, Show)
 
@@ -402,6 +403,7 @@ checkOptsParser = do
         , metavar "DIRECTORY"
         , action "directory"
         ]
+    justCompareChecks <- switch (long "just-compare-checks" <> help "Just compare checks to reference")
     pure $ CheckOpts
         { maxNumConcurrentSolvers
         , solvers
@@ -421,6 +423,7 @@ checkOptsParser = do
         , includeGroups
         , includeChecks
         , reportFile
+        , justCompareChecks
         }
 
 defaultOnlineSolverTimeout :: SolverTimeout
