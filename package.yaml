@@ -252,43 +252,6 @@ executables:
       - pretty-simple
     ghc-options: *exe-ghc-options
 
-  profiling-scratch:
-    source-dirs: components/scratch/profiling-scratch
-    main: Main
-    dependencies:
-      - sel4-bv:core
-      - sel4-bv:concrete-syntax
-      - sel4-bv:system-utils
-      - sel4-bv:system-core
-      - sel4-bv:system
-      - sel4-bv:target-dir
-      - sel4-bv:test-utils
-      # external
-      - zlib
-      - binary
-      - monad-logger
-      - filepath
-    ghc-options: *exe-ghc-options
-
-  remote-scratch:
-    source-dirs: components/scratch/remote-scratch
-    main: Main
-    dependencies:
-      - sel4-bv:logging
-      - sel4-bv:network-transport-static
-      # external
-      - unix
-      - network
-      - process
-      - unliftio-core
-      - monad-logger
-      - optparse-applicative
-      - network-transport
-      - network-transport-tcp
-      - distributed-process
-      - distributed-process-simplelocalnet
-    ghc-options: *exe-ghc-options
-
 tests:
 
   smtlib2-test:
