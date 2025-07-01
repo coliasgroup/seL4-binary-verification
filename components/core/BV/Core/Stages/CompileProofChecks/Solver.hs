@@ -18,7 +18,7 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , SolverState
     , addDef
     , addDefNoSplit
-    , addSplitMemVarM
+    , addSplitMemVar
     , addVar
     , addVarRestr
     , assertFact
@@ -139,17 +139,17 @@ initSolverState = SolverState
 --
 
 send :: MonadSolver m => SExprWithPlaceholders -> m ()
-send sexpr = liftSolver $ tell [sexpr]
+send s = liftSolver $ tell [s]
 
 --
 
 initSolver :: MonadSolver m => m ()
 initSolver = do
-    addRODataDefM
+    addRODataDef
 
 finalizeSolver :: MonadSolver m => m ()
 finalizeSolver = do
-    addPValidDomAssertionsM
+    addPValidDomAssertions
 
 --
 
@@ -247,21 +247,20 @@ tryGetDef :: MonadSolver m => Name -> m (Maybe S)
 tryGetDef name = liftSolver $ use $ #defs % at name
 
 addDefInner :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m (Either Name SplitMem)
-addDefInner nameHint val = smtExprM val >>= \case
+addDefInner nameHint expr = smtExprM expr >>= \case
     SMT s -> Left <$> do
         name <- takeFreshName nameHint
-        unless (isTypeOmitted val.ty) $ do
+        unless (isTypeOmitted ty) $ do
             -- TODO
-            -- case val.value of
-            --     ExprValueVar _ -> error ""
-            --     _ -> return ()
+            -- ensureM $ isn't #_ExprValueVar expr.value
             send $ defineFunS name.unwrap [] (typeToSMT ty) s
             liftSolver $ #defs %= M.insert name s
             when (isTypeRepresentable ty) $ do
                 liftSolver $ #modelVars %= S.insert name
         return name
     SMTSplitMem splitMem -> Right <$> do
-        let add nm typ smt = nameS <$> addDefNoSplit (nameHint ++ "_" ++ nm) (smtExprE typ (SMT smt))
+        let add suffix ty' s = nameS <$>
+                addDefNoSplit (nameHint ++ "_" ++ suffix) (smtExprE ty' (SMT s))
         split <- add "split" machineWordT splitMem.split
         top <- add "top" ty splitMem.top
         bottom <- add "bot" ty splitMem.bottom
@@ -271,7 +270,7 @@ addDefInner nameHint val = smtExprM val >>= \case
             , bottom
             }
   where
-    ty = val.ty
+    ty = expr.ty
 
 addDef :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m SMT
 addDef nameHint val =
@@ -341,15 +340,15 @@ withMapSlot l k m = do
             return v
 
 noteModelExpr :: MonadSolver m => S -> ExprType -> m ()
-noteModelExpr sexpr ty = withSetSlot #modelExprs sexpr $ do
-    let sanitized = take 20 $ filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders sexpr)
-    withoutEnv $ addDef ("query_" ++ sanitized) (smtExprE ty (SMT sexpr))
+noteModelExpr s ty = withSetSlot #modelExprs s $ do
+    let sanitized = take 20 $ filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders s)
+    withoutEnv $ addDef ("query_" ++ sanitized) (smtExprE ty (SMT s))
     return ()
 
 maybeNoteModelExpr :: MonadSolver m => S -> ExprType -> [Expr] -> m ()
-maybeNoteModelExpr sexpr typ subexprs =
-    when (isTypeRepresentable typ && not (all isTypeRepresentable (map (.ty) subexprs))) $ do
-        noteModelExpr sexpr typ
+maybeNoteModelExpr s ty subexprs =
+    when (isTypeRepresentable ty && not (all isTypeRepresentable (map (.ty) subexprs))) $ do
+        noteModelExpr s ty
 
 notePtr :: MonadSolver m => S -> m Name
 notePtr p_s = withMapSlot #ptrs p_s $
@@ -359,7 +358,7 @@ noteMemDom :: MonadSolver m => S -> S -> S -> m ()
 noteMemDom p d md = liftSolver $ #doms %= S.insert (p, d, md)
 
 cacheLargeExpr :: MonadSolver m => S -> NameHint -> ExprType -> m S
-cacheLargeExpr s nameHint typ =
+cacheLargeExpr s nameHint ty =
     liftSolver (use (#cachedExprs % at s)) >>= \case
         Just name -> return $ nameS name
         Nothing ->
@@ -367,7 +366,7 @@ cacheLargeExpr s nameHint typ =
             then do
                 return s
             else do
-                name <- withoutEnv $ addDefNoSplit nameHint (smtExprE typ (SMT s))
+                name <- withoutEnv $ addDefNoSplit nameHint (smtExprE ty (SMT s))
                 liftSolver $ do
                     #cachedExprs %= M.insert s name
                     #cachedExprNames %= S.insert name
@@ -426,6 +425,91 @@ foldAssocBalanced f = go
                      in f (go lhs) (go rhs)
                 else
                     foldr1 f xs
+
+addRODataDef :: MonadSolver m => m ()
+addRODataDef = do
+    roName <- takeFreshName "rodata"
+    impRoName <- takeFreshName "implies-rodata"
+    ensureM $ roName.unwrap == "rodata"
+    ensureM $ impRoName.unwrap == "implies-rodata"
+    rodataPtrs <- askRODataPtrs
+    (roDef, impRoDef) <- case rodataPtrs of
+        [] -> do
+            return (trueS, trueS)
+        _ -> do
+            roWitness <- addVar "rodata-witness" word32T
+            roWitnessVal <- addVar "rodata-witness-val" word32T
+            ensureM $ roWitness.unwrap == "rodata-witness"
+            ensureM $ roWitnessVal.unwrap == "rodata-witness-val"
+            rodata <- liftSolver $ gview #rodata
+            let eqs =
+                    [ eqS ["load-word32", "m", p] v
+                    | (p, v) <-
+                        [ (machineWordS p, machineWordS v)
+                        | (p, v) <- M.toAscList rodata.rodata
+                        ] ++
+                        [ (symbolS roWitness.unwrap, symbolS roWitnessVal.unwrap)
+                        ]
+                    ]
+            assertSMTFact $ orNS
+                [ andS
+                    (bvuleS (machineWordS range.addr) (symbolS roWitness.unwrap))
+                    (bvuleS (symbolS roWitness.unwrap) (machineWordS (range.addr + range.size - 1)))
+                | range <- rodata.ranges
+                ]
+            assertSMTFact $ eqS
+                (symbolS roWitness.unwrap `bvandS` machineWordS 3)
+                (machineWordS 0)
+            return (andNS eqs, last eqs)
+    send $ defineFunS
+        roName.unwrap
+        [("m", typeToSMT ExprTypeMem)]
+        boolS
+        roDef
+    send $ defineFunS
+        impRoName.unwrap
+        [("m", typeToSMT ExprTypeMem)]
+        boolS
+        impRoDef
+
+-- TODO
+addPValidDomAssertions :: MonadSolver m => m ()
+addPValidDomAssertions = do
+    ensureM cheatMemDoms
+    return ()
+
+addSplitMemVar :: MonadSolver m => S -> NameHint -> ExprType -> m SplitMem
+addSplitMemVar split nameHint ty@ExprTypeMem = do
+    bottom <- nameS <$> addVar (nameHint ++ "_bot") ty
+    top <- nameS <$> addVar (nameHint ++ "_top") ty
+    liftSolver $ #stackEqsStackEqImpliesCheck %= M.insert top Nothing
+    return $ SplitMem
+        { split
+        , top
+        , bottom
+        }
+
+mergeEnvsPcs :: MonadSolver m => [(Expr, SMTEnv)] -> m (Expr, SMTEnv, Bool)
+mergeEnvsPcs unfilteredPcEnvs = do
+    let pcEnvs = filter (\(pc, _) -> pc /= falseE) unfilteredPcEnvs
+    let pc = case pcEnvs of
+            [] -> falseE
+            _ -> foldAssocBalanced orE (nub (map fst pcEnvs))
+    env <- mergeEnvs pcEnvs
+    return (pc, env, length pcEnvs > 1)
+
+data CompatSMTComparisonKey
+  = SMTComparisonKeySMT String
+  | SMTComparisonKeySplitMem String String String
+  deriving (Eq, Generic, Ord, Show)
+
+compatSMTComparisonKey :: SMT -> CompatSMTComparisonKey
+compatSMTComparisonKey = \case
+    SMT s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
+    SMTSplitMem s -> SMTComparisonKeySplitMem
+        (showSExprWithPlaceholders s.split)
+        (showSExprWithPlaceholders s.top)
+        (showSExprWithPlaceholders s.bottom)
 
 --
 
@@ -642,60 +726,6 @@ smtIfThenElse cond x y =
             , bottom = s
             }
 
-addRODataDefM :: MonadSolver m => m ()
-addRODataDefM = do
-    roName <- takeFreshName "rodata"
-    impRoName <- takeFreshName "implies-rodata"
-    ensureM $ roName.unwrap == "rodata"
-    ensureM $ impRoName.unwrap == "implies-rodata"
-    rodataPtrs <- askRODataPtrs
-    (roDef, impRoDef) <- case rodataPtrs of
-        [] -> do
-            return $ (trueS, trueS)
-        _ -> do
-            roWitness <- addVar "rodata-witness" word32T
-            roWitnessVal <- addVar "rodata-witness-val" word32T
-            ensureM $ roWitness.unwrap == "rodata-witness"
-            ensureM $ roWitnessVal.unwrap == "rodata-witness-val"
-            rodata <- liftSolver $ gview #rodata
-            let eq_vs =
-                    [ (smtNum p 32, smtNum v 32)
-                    | (p, v) <- M.toList rodata.rodata
-                    ] ++
-                    [ (symbolS roWitness.unwrap, symbolS roWitnessVal.unwrap)
-                    ]
-            let eqs =
-                    [ eqS ["load-word32", "m", p] v
-                    | (p, v) <- eq_vs
-                    ]
-            let ro_def = andNS eqs
-            let ro_ineqs =
-                    [ bvuleS (smtNum range.addr 32) (symbolS roWitness.unwrap)
-                        `andS` bvuleS (symbolS roWitness.unwrap) (smtNum (range.addr + range.size - 1) 32)
-                    | range <- rodata.ranges
-                    ]
-            let assns :: [S] =
-                    [ orNS ro_ineqs
-                    , bvandS (symbolS roWitness.unwrap) (machineWordS 3) `eqS` machineWordS 0
-                    ]
-            for assns $ \assn -> do
-                assertSMTFact assn
-            let imp_ro_def = last eqs
-            return $ (ro_def, imp_ro_def)
-    send $ defineFunS
-        roName.unwrap
-        [("m", typeToSMT ExprTypeMem)]
-        boolS
-        roDef
-    send $ defineFunS
-        impRoName.unwrap
-        [("m", typeToSMT ExprTypeMem)]
-        boolS
-        impRoDef
-
-smtNum :: Integer -> Integer -> S
-smtNum num bits = intWithWidthS bits num
-
 addPValidsM :: MonadSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValidsM = go False
   where
@@ -798,23 +828,6 @@ getImmBasisMems mTop = execStateT (go mTop) S.empty
                 else do
                     modify $ S.insert m
 
-addSplitMemVarM :: MonadSolver m => S -> NameHint -> ExprType -> m SplitMem
-addSplitMemVarM addr nm ty@ExprTypeMem = do
-    bot_mem <- addVar (nm ++ "_bot") ty
-    top_mem <- addVar (nm ++ "_top") ty
-    liftSolver $ #stackEqsStackEqImpliesCheck %= M.insert (nameS top_mem) Nothing
-    return $ SplitMem
-        { split = addr
-        , top = nameS top_mem
-        , bottom = nameS bot_mem
-        }
-
--- TODO
-addPValidDomAssertionsM :: MonadSolver m => m ()
-addPValidDomAssertionsM = do
-    ensureM cheatMemDoms
-    return ()
-
 mergeEnvs :: MonadSolver m => [(Expr, SMTEnv)] -> m SMTEnv
 mergeEnvs envs = do
     var_envs' <- fmap join $ for envs $ \(pc, env) -> do
@@ -834,25 +847,4 @@ mergeEnvs envs = do
                             _ -> orNS pc_strs
                      in smtIfThenElse pc_str v2 v
              in foldl g v' its
-    return $ fmap (f . sortOn (smtComparisonKey . fst) . M.toAscList) var_envs
-
-data SMTComparisonKey
-  = SMTComparisonKeySMT String
-  | SMTComparisonKeySplitMem String String String
-  deriving (Eq, Generic, Ord, Show)
-
-smtComparisonKey :: SMT -> SMTComparisonKey
-smtComparisonKey = \case
-    SMT s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
-    SMTSplitMem s -> SMTComparisonKeySplitMem (showSExprWithPlaceholders s.split) (showSExprWithPlaceholders s.top) (showSExprWithPlaceholders s.bottom)
-
-mergeEnvsPcs :: MonadSolver m => [(Expr, SMTEnv)] -> m (Expr, SMTEnv, Bool)
-mergeEnvsPcs pc_envs' = do
-    let pc_envs = flip filter pc_envs' $ \(pc, _) -> pc /= falseE
-    let path_cond = case pc_envs of
-            [] -> falseE
-            _ ->
-                let pcs = nub $ map fst pc_envs
-                 in foldAssocBalanced orE pcs
-    env <- mergeEnvs pc_envs
-    return $ (path_cond, env, length pc_envs > 1)
+    return $ fmap (f . sortOn (compatSMTComparisonKey . fst) . M.toAscList) var_envs

@@ -106,8 +106,8 @@ createLoopDataMap problem nodeGraph =
 
 loopHeadsOf :: LoopDataMap -> [NodeAddr]
 loopHeadsOf loopDataMap = flip mapMaybe (M.toList loopDataMap) $ \(k, v) -> case v of
-        LoopHead _ -> Just k
-        LoopMember _ -> Nothing
+    LoopHead _ -> Just k
+    LoopMember _ -> Nothing
 
 loopIdOf :: NodeAddr -> LoopDataMap -> Maybe NodeAddr
 loopIdOf addr loopDataMap = M.lookup addr loopDataMap <&> \case

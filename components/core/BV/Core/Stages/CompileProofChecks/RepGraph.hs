@@ -403,7 +403,7 @@ varRepRequest nm typ kind n_vc env = runMaybeT $ do
     addr_s <- lift $ withEnv env $ smtExprM addr
     let countName = nodeCountName n_vc
     let name = printf "%s_for_%s" nm.unwrap countName
-    lift $ addSplitMemVarM (addr_s ^. expecting #_SMT) name typ
+    lift $ addSplitMemVar (addr_s ^. expecting #_SMT) name typ
 
 data VarRepRequestKind
   = VarRepRequestKindCall
