@@ -314,19 +314,17 @@ word32ListFromExpr = go
 
 splitLoopHyps :: SplitProofNode () -> [Restr] -> Bool -> [Hyp]
 splitLoopHyps splitNode restrs exit =
-    hyps'
+    [lEnter] ++ optionals exit [lExit] ++
+        [ hyp
+        | offs <- [ offsetVC i | i <- [0..n-1] ]
+        , (hyp, _) <- splitHypsAtVisit splitNode restrs offs
+        ]
   where
     n = splitNode.n
     visits = splitVisitVisits splitNode restrs (offsetVC (n - 1))
     conts = splitVisitVisits splitNode restrs (offsetVC n)
     lEnter = pcTrueH visits.asm
     lExit = pcFalseH conts.asm
-    hyps = [lEnter] ++ optionals exit [lExit]
-    hyps' = hyps ++
-        [ hyp
-        | offs <- [ offsetVC i | i <- [0..n-1] ]
-        , (hyp, _) <- splitHypsAtVisit splitNode restrs offs
-        ]
 
 singleRevInductChecksM :: [Restr] -> [Hyp] -> SingleRevInductProofNode () -> Reader Context NodeProofChecks
 singleRevInductChecksM restrs hyps node = do
