@@ -15,7 +15,7 @@ module BV.Core.Types.Extras.Program
     , trivialNode
     , varSubst
     , walkExprs
-    , walkExprs
+    , walkExprsM
     ) where
 
 import BV.Core.Types

@@ -81,27 +81,27 @@ instance MonadRepGraph M where
 
 compileProofCheckGroupM :: ProofCheckGroup a -> M [SMTProofCheckImp a]
 compileProofCheckGroupM group = do
-    imps <- interpretGroupM group
+    imps <- interpretGroup group
     addPValidDomAssertionsM
     return imps
 
-interpretGroupM :: ProofCheckGroup a -> M [SMTProofCheckImp a]
-interpretGroupM group = do
+interpretGroup :: ProofCheckGroup a -> M [SMTProofCheckImp a]
+interpretGroup group = do
     hyps <- for group $ \check -> do
-        concl <- interpretHypM check.hyp
-        term <- interpretHypImpsM check.hyps concl
+        concl <- interpretHyp check.hyp
+        term <- interpretHypImps check.hyps concl
         return (check, term)
     for hyps $ \(check, term) -> do
         sexpr <- runReaderT (smtExprNoSplitM term) M.empty
         return $ SMTProofCheckImp check.meta sexpr
 
-interpretHypImpsM :: [Hyp] -> Expr -> M Expr
-interpretHypImpsM hyps concl = do
-    hyps' <- mapM interpretHypM hyps
+interpretHypImps :: [Hyp] -> Expr -> M Expr
+interpretHypImps hyps concl = do
+    hyps' <- mapM interpretHyp hyps
     return $ strengthenHyp (nImpliesE hyps' concl)
 
-interpretHypM :: Hyp -> M Expr
-interpretHypM = \case
+interpretHyp :: Hyp -> M Expr
+interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case
                 PcImpHypSideBool v -> return $ fromBoolE v
