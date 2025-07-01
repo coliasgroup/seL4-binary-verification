@@ -9,7 +9,7 @@ steps:
       break_enums: true
   # - simple_align: {}
   - imports:
-    #   align: global
+      # align: global
       align: none
       pad_module_names: false
   - language_pragmas:
