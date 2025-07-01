@@ -204,7 +204,7 @@ addInputEnvsM = do
 mkInpEnv :: MonadRepGraph m => NodeId -> [Argument] -> m SMTEnv
 mkInpEnv n args = flip execStateT M.empty $ do
     for_ args $ \arg -> do
-        x <- lift $ addVarMR (arg.name.unwrap ++ "_init") arg.ty (Just M.empty)
+        x <- lift $ addVarR (arg.name.unwrap ++ "_init") arg.ty (Just M.empty)
         modify $ M.insert (arg.name, arg.ty) (SMT $ nameS x)
     for_ args $ \arg -> do
         env <- get
@@ -347,7 +347,7 @@ getInductVarM induct = do
     vname <- liftRepGraph (use (#inductVarEnv % at induct)) >>= \case
         Just vname -> return vname
         Nothing -> do
-            vname <- addVarM (printf "induct_i_%d_%d" induct.a induct.b) word32T
+            vname <- addVar (printf "induct_i_%d_%d" induct.a induct.b) word32T
             liftRepGraph $ #inductVarEnv %= M.insert induct (vname)
             return vname
     return $ smtExprE word32T (SMT $ nameS vname)
@@ -388,9 +388,9 @@ zeroMemCallsForOne = MemCallsForOne
     , max = Just 0
     }
 
-addVarMR :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
-addVarMR nameHint ty memCallsOpt = do
-    r <- addVarRestrM nameHint ty
+addVarR :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
+addVarR nameHint ty memCallsOpt = do
+    r <- addVarRestr nameHint ty
     when (ty == ExprTypeMem) $ do
         liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
     return r
@@ -527,7 +527,7 @@ getLoopPcEnvM split vcount = do
             mem_calls <- scanMemCalls prev_env >>= addLoopMemCallsM split
             let av nm typ = do
                     let nm2 = printf "%s_loop_at_%s" (nm :: String) (prettyNodeId (Addr split))
-                    addVarMR nm2 typ mem_calls
+                    addVarR nm2 typ mem_calls
             (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prev_env $ \(nm, typ) _v -> do
                 let check_const = case typ of
                         ExprTypeHtd -> True
@@ -671,7 +671,7 @@ emitNodeM n = do
                 return [(condNode.left, lpc, env'), (condNode.right, rpc, env')]
             NodeCall callNode -> do
                 let nm = successName callNode.functionName n
-                success' <- addVarM nm boolT
+                success' <- addVar nm boolT
                 let success = smtExprE boolT $ SMT $ nameS success'
                 sig <- liftRepGraph $ gview $ #functionSigs % to ($ (WithTag tag callNode.functionName))
                 ins <- M.fromList <$> (for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
@@ -691,7 +691,7 @@ emitNodeM n = do
                         for (zip callNode.output sig.output) $ \(Argument x typ, Argument y typ2) -> do
                             ensureM $ typ == typ2
                             let name = localName x n
-                            var <- lift $ addVarMR name typ mem_calls
+                            var <- lift $ addVarR name typ mem_calls
                             modify $ M.insert (x, typ) (SMT $ nameS var)
                             tell [((y, typ2), (SMT $ nameS var))]
                         for (zip callNode.output sig.output) $ \(Argument x typ, Argument y _typ2) -> do
@@ -944,7 +944,7 @@ instEqsM eqs envs = for eqs $ \eq -> instEqWithEnvsM (eq.lhs.expr, envs eq.lhs.q
 addFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m ()
 addFuncAssertM n_vc n_vc2 = do
     imp <- weakenAssert <$> getFuncAssertM n_vc n_vc2
-    withoutEnv $ assertFactM imp
+    withoutEnv $ assertFact imp
 
 memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
 memCallsCompatible p_mem_calls = do
