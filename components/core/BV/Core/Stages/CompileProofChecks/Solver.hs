@@ -646,7 +646,7 @@ addPValidsM = go False
                         others <- liftSolver $ #pvalids % at htd_s % unwrapped <<%= M.insert (typ, p, kind) (nameS var)
                         let pdata = smtify (typ, p, kind) (nameS var)
                         let (_, pdataKind, p', pv') = pdata
-                        impl_al <- impliesE pv' <$> alignValidIneqM typ p'
+                        impl_al <- impliesE pv' <$> alignValidIneq typ p'
                         withoutEnv $ assertFactM impl_al
                         for (sortOn snd (M.toAscList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
                             let kinds :: [PValidKind] = [valPvKind, pdataKind]

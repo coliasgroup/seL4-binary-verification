@@ -9,17 +9,14 @@ module BV.Core.Logic
     ( MonadStructs (..)
     , PValidKind (..)
     , PValidType (..)
-    , alignOfSelfContainedType
     , alignOfType
-    , alignValidIneqE
-    , alignValidIneqM
+    , alignValidIneq
     , applyRelWrapper
     , askStruct
     , isNodeNoop
     , pvalidAssertion1
     , pvalidAssertion2
     , pvalidKindFromOp
-    , sizeOfSelfContainedType
     , sizeOfType
     , strengthenHyp
     , weakenAssert
@@ -92,26 +89,12 @@ sizeOfType = \case
     ExprTypeStruct name -> (.size) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
 
-sizeOfSelfContainedType :: ExprType -> Integer
-sizeOfSelfContainedType ty = withoutStructs $ sizeOfType ty
-
 alignOfType :: MonadStructs m => ExprType -> m Integer
 alignOfType ty = case ty of
     ExprTypeWord { } -> sizeOfType ty
     ExprTypeArray { ty = ty' } -> alignOfType ty'
     ExprTypeStruct name -> (.align) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
-
-alignOfSelfContainedType :: ExprType -> Integer
-alignOfSelfContainedType ty = withoutStructs $ alignOfType ty
-
---
-
-isNodeNoop :: Node -> Bool
-isNodeNoop = \case
-    NodeBasic (BasicNode { varUpdates }) -> null varUpdates
-    NodeCond (CondNode { left, right }) -> left == right
-    NodeCall (CallNode {}) -> False
 
 --
 
@@ -123,27 +106,45 @@ data PValidType
   | PValidTypeType ExprType
   deriving (Eq, Generic, NFData, Ord, Show)
 
-alignValidIneqE :: ExprType -> Expr -> Expr
-alignValidIneqE ty p =
-    ensure (align `elem` [1, 4, 8]) $
-        foldr1 andE conj
-  where
-    size = machineWordE (sizeOfSelfContainedType ty)
-    align = alignOfSelfContainedType ty
-    w0 = machineWordE 0
-    conj = optionals (align > 1) [bitwiseAndE p (machineWordE (align - 1)) `eqE` w0] ++
-        [ notE (p `eqE` w0)
-        , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
-        ]
+data PValidKind
+  = PValidKindPArrayValid
+  | PValidKindPGlobalValid
+  | PValidKindPValid
+  | PValidKindPWeakValid
+  deriving (Eq, Generic, NFData, Ord, Show)
 
-arraySizeIneqM :: MonadStructs m => ExprType -> Expr -> Expr -> m Expr
-arraySizeIneqM ty len _p = do
-    elSize <- sizeOfType ty
-    let limit = (((2 :: Integer) ^ (32 :: Integer)) - 4) `div` elSize
-    return $ lessEqE len (machineWordE limit)
+data PValidTypeWithStrength
+  = PValidTypeWithStrengthArray
+      { ty :: ExprType
+      , len :: Expr
+      , strength :: Maybe PArrayValidStrength
+      }
+  | PValidTypeWithStrengthType ExprType
+  deriving (Eq, Generic, NFData, Ord, Show)
 
-alignValidIneqM :: MonadStructs m => PValidType -> Expr -> m Expr
-alignValidIneqM pvTy p = do
+data PArrayValidStrength
+  = PArrayValidStrengthStrong
+  | PArrayValidStrengthWeak
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+pvalidKindFromOp :: Op -> PValidKind
+pvalidKindFromOp = \case
+    OpPValid -> PValidKindPValid
+    OpPGlobalValid -> PValidKindPGlobalValid
+    OpPArrayValid -> PValidKindPArrayValid
+    OpPWeakValid -> PValidKindPWeakValid
+
+pvalidTypeWithUnspecifiedStrength :: PValidType -> PValidTypeWithStrength
+pvalidTypeWithUnspecifiedStrength = \case
+    PValidTypeType ty -> PValidTypeWithStrengthType ty
+    PValidTypeArray { ty, len } -> PValidTypeWithStrengthArray
+        { ty
+        , len
+        , strength = Nothing
+        }
+
+alignValidIneq :: MonadStructs m => PValidType -> Expr -> m Expr
+alignValidIneq pvTy p = do
     (align, size, sizeReqs) <- case pvTy of
         PValidTypeType ty -> do
             align <- alignOfType ty
@@ -153,7 +154,7 @@ alignValidIneqM pvTy p = do
             align <- alignOfType ty
             elSize <- machineWordE <$> sizeOfType ty
             let size = timesE elSize len
-            sizeReq <- arraySizeIneqM ty len p
+            sizeReq <- arraySizeIneq ty len p
             return (align, size, [sizeReq])
     ensureM $ align `elem` [1, 4, 8]
     let conj =
@@ -166,49 +167,18 @@ alignValidIneqM pvTy p = do
   where
     w0 = machineWordE 0
 
-data PValidTypeWithStrength
-  = PValidTypeWithStrengthArray
-      { ty :: ExprType
-      , len :: Expr
-      , strength :: Maybe PArrayValidStrength
-      }
-  | PValidTypeWithStrengthType ExprType
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-pvalidTypeWithUnspecifiedStrength :: PValidType -> PValidTypeWithStrength
-pvalidTypeWithUnspecifiedStrength = \case
-    PValidTypeType ty -> PValidTypeWithStrengthType ty
-    PValidTypeArray { ty, len } -> PValidTypeWithStrengthArray
-        { ty
-        , len
-        , strength = Nothing
-        }
-
-data PArrayValidStrength
-  = PArrayValidStrengthStrong
-  | PArrayValidStrengthWeak
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-data PValidKind
-  = PValidKindPArrayValid
-  | PValidKindPGlobalValid
-  | PValidKindPValid
-  | PValidKindPWeakValid
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-pvalidKindFromOp :: Op -> PValidKind
-pvalidKindFromOp = \case
-    OpPValid -> PValidKindPValid
-    OpPGlobalValid -> PValidKindPGlobalValid
-    OpPArrayValid -> PValidKindPArrayValid
-    OpPWeakValid -> PValidKindPWeakValid
+arraySizeIneq :: MonadStructs m => ExprType -> Expr -> Expr -> m Expr
+arraySizeIneq ty len _p = do
+    elSize <- sizeOfType ty
+    let limit = (((2 :: Integer) ^ (32 :: Integer)) - 4) `div` elSize
+    return $ lessEqE len (machineWordE limit)
 
 endAddr :: MonadStructs m => Expr -> PValidType -> m Expr
 endAddr p pvTy = do
     size <- case pvTy of
         PValidTypeArray { ty, len } -> do
-            elemSize <- sizeOfType ty
-            return $ machineWordE elemSize `timesE` len
+            elSize <- sizeOfType ty
+            return $ machineWordE elSize `timesE` len
         PValidTypeType ty -> machineWordE <$> sizeOfType ty
     return $ p `plusE` (size `minusE` machineWordE 1)
 
@@ -237,20 +207,20 @@ pvalidAssertion1 (pvTy1, _pvKind1, p1, pv1) (pvTy2, _pvKind2, p2, pv2) = do
     return $ (pv1 `andE` pv2) `impliesE` foldr1 orE [cond1, cond2, out1, out2]
 
 getSTypCondition :: MonadStructs m =>  Expr -> PValidType -> PValidType -> m Expr
-getSTypCondition offs innerTy outerTy = do
-    r <- getSTypConditionInner1
+getSTypCondition offs innerTy outerTy =
+    getSTypConditionInner1
         (pvalidTypeWithUnspecifiedStrength innerTy)
         (pvalidTypeWithUnspecifiedStrength outerTy)
-    return $ case r of
-        Nothing -> falseE
-        Just f -> f offs
+            <&> \case
+                Nothing -> falseE
+                Just f -> f offs
 
 -- TODO evaluate performance loss from not caching (see graph-refine)
 getSTypConditionInner1 :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
-getSTypConditionInner1 innerTy outerTy = do
-    let innerTyNorm = normArrayType innerTy
-    let outerTyNorm = normArrayType outerTy
-    getSTypConditionInner2 innerTyNorm outerTyNorm
+getSTypConditionInner1 innerTy outerTy =
+    getSTypConditionInner2
+        (normArrayType innerTy)
+        (normArrayType outerTy)
 
 arrayTypeSize :: MonadStructs m => PValidTypeWithStrength -> m Expr
 arrayTypeSize (PValidTypeWithStrengthArray { ty, len }) = do
@@ -336,11 +306,7 @@ applyRelWrapper lhs rhs =
     (opL, argsL) = destructOp lhs
     (opR, argsR) = destructOp rhs
 
-strengthenHyp :: Expr -> Expr
-strengthenHyp = strengthenHypInner 1
-
-weakenAssert :: Expr -> Expr
-weakenAssert = strengthenHypInner (-1)
+--
 
 strengthenHypInner :: Integer -> Expr -> Expr
 strengthenHypInner = go
@@ -362,9 +328,8 @@ strengthenHypInner = go
                 1 -> boolE (ExprValueOp OpImpliesROData args)
                 -1 -> expr
             OpEquals | isBoolT (head args).ty ->
-                let [_l, r] = args
-                    args' = applyWhen (r `elem` [trueE, falseE]) reverse args
-                    [l', r'] = args'
+                let [_, r] = args
+                    [l', r'] = applyWhen (r `elem` [trueE, falseE]) reverse args
                 in if
                     | l' == trueE -> goWith r'
                     | l' == falseE -> goWith (notE r')
@@ -374,3 +339,17 @@ strengthenHypInner = go
       where
         goWith = go sign
         goAgainst = go (-sign)
+
+strengthenHyp :: Expr -> Expr
+strengthenHyp = strengthenHypInner 1
+
+weakenAssert :: Expr -> Expr
+weakenAssert = strengthenHypInner (-1)
+
+--
+
+isNodeNoop :: Node -> Bool
+isNodeNoop = \case
+    NodeBasic (BasicNode { varUpdates }) -> null varUpdates
+    NodeCond (CondNode { left, right }) -> left == right
+    NodeCall (CallNode {}) -> False
