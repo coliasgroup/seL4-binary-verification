@@ -250,37 +250,29 @@ getDefOptM :: MonadSolver m => Name -> m (Maybe S)
 getDefOptM name = liftSolver $ use $ #defs % at name
 
 addDefEitherM :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m (Either Name SplitMem)
-addDefEitherM nameHint val = do
-    smt <- smtExprM val
-    case smt of
-        SMTSplitMem splitMem -> do
-            let add nm typ smt' = do
-                    let nameHint' = nameHint ++ "_" ++ nm
-                    x <- addDefM nameHint' (smtExprE typ (SMT smt'))
-                    return $ x ^. expecting #_SMT
-            split' <- add "split" machineWordT splitMem.split
-            top' <- add "top" val.ty splitMem.top
-            bot' <- add "bot" val.ty splitMem.bottom
-            return $ Right $ SplitMem
-                { split = split'
-                , top = top'
-                , bottom = bot'
-                }
-        SMT smt' -> do
-            name <- takeFreshName nameHint
-            if isSMTTypeOmitted val.ty
-            then do
-                return $ Left name
-            else do
-                -- case val.value of
-                --     ExprValueVar _ -> error ""
-                --     _ -> return ()
-                let ty = smtType val.ty
-                send $ defineFunS name.unwrap [] ty smt'
-                liftSolver $ #defs %= M.insert name smt'
-                when (typeRepresentable val.ty) $ do
-                    liftSolver $ #modelVars %= S.insert name
-                return $ Left $ name
+addDefEitherM nameHint val = smtExprM val >>= \case
+    SMT smt -> Left <$> do
+        name <- takeFreshName nameHint
+        unless (isSMTTypeOmitted val.ty) $ do
+            -- TODO
+            -- case val.value of
+            --     ExprValueVar _ -> error ""
+            --     _ -> return ()
+            send $ defineFunS name.unwrap [] (smtType val.ty) smt
+            liftSolver $ #defs %= M.insert name smt
+            when (typeRepresentable val.ty) $ do
+                liftSolver $ #modelVars %= S.insert name
+        return name
+    SMTSplitMem splitMem -> Right <$> do
+        let add nm typ smt = nameS <$> addDefNoSplitM (nameHint ++ "_" ++ nm) (smtExprE typ (SMT smt))
+        split <- add "split" machineWordT splitMem.split
+        top <- add "top" val.ty splitMem.top
+        bottom <- add "bot" val.ty splitMem.bottom
+        return $ SplitMem
+            { split
+            , top
+            , bottom
+            }
 
 addDefM :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m SMT
 addDefM nameHint val = do
