@@ -16,7 +16,7 @@ import Control.Monad.Reader (Reader, runReader)
 import Data.Function (applyWhen, on)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, mapMaybe)
+import Data.Maybe (catMaybes, fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
 import Data.Set (Set)
 import qualified Data.Set as S
