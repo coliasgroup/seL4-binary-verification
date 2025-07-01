@@ -7,12 +7,12 @@ module BV.Core.Utils
     , ensure
     , ensureM
     , expecting
+    , expectingAt
     , expectingIx
     , expecting_
     , findWithCallstack
     , is
     , optionals
-    , tryLast
     , unwrapped
     , whileM
     , (!@)
@@ -25,7 +25,6 @@ import Data.Either (fromRight)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
-import Data.Monoid (Last (Last, getLast))
 import Data.Set (Set)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -35,7 +34,7 @@ import Optics
 ensure :: HasCallStack => Bool -> a -> a
 ensure p = applyWhen (not p) (error "ensure failed")
 
-ensureM :: (Applicative f, HasCallStack) => Bool -> f ()
+ensureM :: HasCallStack => Applicative f => Bool -> f ()
 ensureM p = ensure p $ pure ()
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
@@ -53,9 +52,6 @@ adjacently = liftIso simple
 optionals :: Monoid m => Bool -> m -> m
 optionals p m = if p then m else mempty
 
-tryLast :: [a] -> Maybe a
-tryLast = getLast . foldMap (Last . Just)
-
 whileM :: Monad m => m Bool -> m () -> m ()
 whileM cond body = go
   where
@@ -71,19 +67,22 @@ unwrapped = expecting _Just
 expectingIx :: HasCallStack => (Ixed m, IxKind m ~ An_AffineTraversal) => Index m -> Lens' m (IxValue m)
 expectingIx i = expecting (ix i)
 
-expecting :: (Is k An_AffineTraversal, HasCallStack) => Optic k is s t a b -> Lens s t a b
+expectingAt :: HasCallStack => At m => Index m -> Lens' m (IxValue m)
+expectingAt i = at i % unwrapped
+
+expecting :: HasCallStack => Is k An_AffineTraversal => Optic k is s t a b -> Lens s t a b
 expecting optic = withAffineTraversal optic $ \match update ->
     lens
         (fromRight (error "!isRight") . match)
         update
 
-expecting_ :: (Is k An_AffineFold, HasCallStack) => Optic' k is s a -> Getter s a
+expecting_ :: HasCallStack => Is k An_AffineFold => Optic' k is s a -> Getter s a
 expecting_ optic = to (fromJust . preview optic)
 
 is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
 is k s = isJust (preview k s)
 
-findWithCallstack :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
+findWithCallstack :: HasCallStack => (Show k, Ord k) => M.Map k a -> k -> a
 findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present: " ++ show k)
 
 (!@) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a

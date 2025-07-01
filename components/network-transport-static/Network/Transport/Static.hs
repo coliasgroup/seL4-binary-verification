@@ -363,19 +363,19 @@ mkSubmitMessage_ peerAddr msg = void <$> mkSubmitMessage peerAddr msg
 zoomOr :: (Zoom m n s t, Is k An_AffineTraversal) => n c -> Optic' k is t s -> m c -> n c
 zoomOr fallback o m = zoomMaybe o m >>= maybe fallback return
 
-zoomOrThrow :: (Zoom m n s t, MonadThrow n, Is k An_AffineTraversal, HasCallStack) => String -> Optic' k is t s -> m c -> n c
+zoomOrThrow :: HasCallStack => (Zoom m n s t, MonadThrow n, Is k An_AffineTraversal) => String -> Optic' k is t s -> m c -> n c
 zoomOrThrow err = zoomOr (throwString err)
 
 zoomCasesOr :: Monad m => m a -> [m (Maybe a)] -> m a
 zoomCasesOr fallback cases = runMaybeT (asum (map MaybeT cases)) >>= maybe fallback return
 
-zoomCasesOrThrow :: (Monad m, MonadThrow m, HasCallStack) => [m (Maybe a)] -> m a
+zoomCasesOrThrow :: HasCallStack => (Monad m, MonadThrow m) => [m (Maybe a)] -> m a
 zoomCasesOrThrow = zoomCasesOr (throwString "non-exhaustive zoomC cases")
 
 unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just
 
-expecting :: (Is k An_AffineTraversal, HasCallStack) => Optic k is s t a b -> Lens s t a b
+expecting :: HasCallStack => Is k An_AffineTraversal => Optic k is s t a b -> Lens s t a b
 expecting optic = withAffineTraversal optic $ \match -> lens (fromRight (error "!isRight") . match)
 
 unimplemented :: MonadThrow m => String -> m a

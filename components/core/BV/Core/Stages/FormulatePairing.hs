@@ -12,11 +12,10 @@ module BV.Core.Stages.FormulatePairing
 
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils
 
-import Data.Functor ((<&>))
 import Data.List (partition)
 import Data.Maybe (fromJust, mapMaybe, maybeToList)
+import Optics
 
 formulatePairing :: Expr -> [Argument] -> [Argument] -> Pairing
 formulatePairing minStackSize inputC outputC = Pairing { inEqs, outEqs }
@@ -72,7 +71,7 @@ formulatePairing minStackSize inputC outputC = Pairing { inEqs, outEqs }
                     [ alignedE 2 (r 0)
                     , stackPointer `lessEqE` r 0
                     ] ++
-                    maybeToList (tryLast initSaveSeq <&> \(_, addr) ->
+                    maybeToList (lastOf folded initSaveSeq <&> \(_, addr) ->
                         r 0 `lessEqE` fromJust addr) ++
                     concat (maybeToList (lastArgAddr <&> \lastArgAddr' ->
                         [ lastArgAddr' `lessE` fromJust addr | (_, addr) <- take 1 initSaveSeq ]))
@@ -105,7 +104,7 @@ formulatePairing minStackSize inputC outputC = Pairing { inEqs, outEqs }
             , cOut (rodataE (varFromArgE omemC')) === cOut trueE
             ]
 
-    outerAddr = tryLast (take (length varArgsC) argSeq) >>= snd
+    outerAddr = lastOf folded (take (length varArgsC) argSeq) >>= snd
 
     argEqs =
         [ asmIn asm === cIn (castCToAsmE asm.ty (varFromArgE c))
