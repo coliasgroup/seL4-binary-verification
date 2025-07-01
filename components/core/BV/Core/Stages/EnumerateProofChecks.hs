@@ -1,8 +1,3 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Redundant flip" #-}
-{-# HLINT ignore "Use :" #-}
-
 module BV.Core.Stages.EnumerateProofChecks
     ( enumerateProofChecks
     ) where

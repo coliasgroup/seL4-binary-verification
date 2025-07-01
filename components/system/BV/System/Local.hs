@@ -1,7 +1,4 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Redundant flip" #-}
 
 module BV.System.Local
     ( LocalConfig (..)

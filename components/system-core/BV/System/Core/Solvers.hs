@@ -1,7 +1,3 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Redundant flip" #-}
-
 module BV.System.Core.Solvers
     ( OfflineSolverBackend
     , OfflineSolverCommandName

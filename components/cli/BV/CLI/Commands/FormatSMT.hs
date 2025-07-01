@@ -1,9 +1,6 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Redundant flip" #-}
-
 module BV.CLI.Commands.FormatSMT
     ( formatSMTC
     , runFormatSMT
