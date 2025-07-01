@@ -56,7 +56,6 @@ import Data.Foldable (for_)
 import Data.List (nub, sortOn)
 import Data.Map (Map, (!?))
 import qualified Data.Map as M
-import Data.Sequence (Seq)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
@@ -96,21 +95,20 @@ type SolverOutput = [SExprWithPlaceholders]
 data SolverState
   = SolverState
       { namesUsed :: Set Name
-      , namesUsedOrder :: Seq Name
       , externalNames :: Set Name
-      , modelExprs :: Set SExprWithPlaceholders
-      , smtDerivedOps :: Map (Op, Integer) String
-      , defs :: Map Name S
-      , modelVars :: Set Name
+      , pvalids :: Map S (Map (PValidType, Name, PValidKind) S)
+      , ptrs :: Map S Name
       , cachedExprs :: Map S Name
       , cachedExprNames :: Set Name
-      , ptrs :: Map S Name
-      , pvalids :: Map S (Map (PValidType, Name, PValidKind) S)
-      , tokenTokens :: Map String S
-      , tokenVals :: Map S String
+      , defs :: Map Name S
       , doms :: Set (S, S, S)
+      , modelVars :: Set Name
+      , modelExprs :: Set SExprWithPlaceholders
       , stackEqsStackEqImpliesCheck :: Map S (Maybe S)
       , stackEqsImpliesStackEq :: Map (Expr, Expr, Expr) Name
+      , tokenTokens :: Map String S
+      , tokenVals :: Map S String
+      , smtDerivedOps :: Map (Op, Integer) String
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -121,22 +119,21 @@ initSolverEnv rodata = SolverEnv
 
 initSolverState :: SolverState
 initSolverState = SolverState
-    { namesUsed = mempty
-    , namesUsedOrder = mempty
-    , externalNames = mempty
-    , modelExprs = mempty
-    , smtDerivedOps = mempty
-    , defs = mempty
-    , modelVars = mempty
-    , cachedExprs = mempty
-    , cachedExprNames = mempty
-    , ptrs = mempty
-    , pvalids = mempty
-    , tokenTokens = mempty
-    , tokenVals = mempty
-    , doms = mempty
-    , stackEqsStackEqImpliesCheck = mempty
-    , stackEqsImpliesStackEq = mempty
+    { namesUsed = S.empty
+    , externalNames = S.empty
+    , pvalids = M.empty
+    , ptrs = M.empty
+    , cachedExprs = M.empty
+    , cachedExprNames = S.empty
+    , defs = M.empty
+    , doms = S.empty
+    , modelVars = S.empty
+    , modelExprs = S.empty
+    , stackEqsStackEqImpliesCheck = M.empty
+    , stackEqsImpliesStackEq = M.empty
+    , tokenTokens = M.empty
+    , tokenVals = M.empty
+    , smtDerivedOps = M.empty
     }
 
 --
@@ -181,13 +178,15 @@ finalizeSolver = do
 
 --
 
-rodataPtrsM :: MonadReader SolverEnv m => m [(Expr, ExprType)]
-rodataPtrsM = do
-    rodata <- gview #rodata
+askRODataPtrs :: MonadSolver m => m [(Expr, ExprType)]
+askRODataPtrs = do
+    rodata <- liftSolver $ gview #rodata
     return
         [ (machineWordE range.addr, globalWrapperT (structT structName))
         | (structName, range) <- rodataStructNamesOf rodata
         ]
+
+--
 
 toSmtExprM :: MonadSolver m => Expr -> ReaderT SMTEnv m Expr
 toSmtExprM expr = case expr.ty of
@@ -538,7 +537,7 @@ addRODataDefM = do
     impRoName <- smtNameM "implies-rodata"
     ensureM $ roName.unwrap == "rodata"
     ensureM $ impRoName.unwrap == "implies-rodata"
-    rodataPtrs <- liftSolver rodataPtrsM
+    rodataPtrs <- askRODataPtrs
     (roDef, impRoDef) <- case rodataPtrs of
         [] -> do
             return $ (trueS, trueS)
@@ -648,7 +647,7 @@ addPValidsM = go False
             _ -> do
                 alreadyIn <- liftSolver $ use $ #pvalids % to (M.member htd_s)
                 when (not alreadyIn && not recursion) $ do
-                    rodataPtrs <- liftSolver rodataPtrsM
+                    rodataPtrs <- askRODataPtrs
                     for_ rodataPtrs $ \(r_addr, r_typ) -> do
                         r_addr_s <- withoutEnv $ smtExprNoSplitM r_addr
                         var <- go True htd_s (PValidTypeType r_typ) r_addr_s PValidKindPGlobalValid
