@@ -106,7 +106,7 @@ data SolverState
       , modelExprs :: Set SExprWithPlaceholders
       , stackEqsStackEqImpliesCheck :: Map S (Maybe S)
       , stackEqsImpliesStackEq :: Map (Expr, Expr, Expr) Name
-      , tokenTokens :: Map String S
+      , tokenTokens :: Map String Name
       , tokenVals :: Map S String
       , smtDerivedOps :: Map (Op, Integer) String
       }
@@ -374,18 +374,14 @@ cacheLargeExprM s nameHint typ =
                 return $ nameS name
 
 getTokenM :: MonadSolver m => String -> m SMT
-getTokenM string = do
-    present <- liftSolver $ use $ #tokenTokens % to (M.member string)
-    unless present $ do
-        n_x <- liftSolver $ use $ #tokenTokens % to M.size
-        n_y <- liftSolver $ use $ #tokenVals % to M.size
-        let n = n_x + n_y + 1
-        v <- withoutEnv $ addDefNoSplit ("token_" ++ string) (numE tokenSmtType (toInteger n))
-        liftSolver $ do
-            #tokenTokens %= M.insert string (nameS v)
-            k <- use $ #defs % at v % unwrapped
-            #tokenVals %= M.insert k string
-    liftSolver $ use $ #tokenTokens % at string % unwrapped % to SMT
+getTokenM string = fmap (SMT . nameS) $ withMapSlot #tokenTokens string $ do
+    n <- liftSolver $ (+)
+        <$> use (#tokenTokens % to M.size)
+        <*> use (#tokenVals % to M.size)
+    k <- withoutEnv $ addDefNoSplit ("token_" ++ string) (numE tokenSmtType (toInteger (n + 1)))
+    v <- getDef k
+    liftSolver $ #tokenVals %= M.insert v string
+    return k
 
 getSMTDerivedOpM :: MonadSolver m => Op -> Integer -> m S
 getSMTDerivedOpM op n = do
@@ -687,11 +683,6 @@ addRODataDefM = do
 
 smtNum :: Integer -> Integer -> S
 smtNum num bits = intWithWidthS bits num
-
--- smtNumTy :: ExprType -> S
--- smtNumTy = \case
---     ExprTypeWord bits -> intWithWidth bits
-
 
 addPValidsM :: MonadSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValidsM = go False
