@@ -75,8 +75,6 @@ import Text.Printf (printf)
 
 type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
 
-type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident
-
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: (forall n. RepGraphContext n => n a) -> m a
 

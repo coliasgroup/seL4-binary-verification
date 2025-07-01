@@ -38,7 +38,7 @@ import Data.Foldable (fold)
 import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
-import Data.Maybe (fromJust, isJust)
+import Data.Maybe (isJust)
 import GHC.Generics (Generic)
 import Optics
 
@@ -176,27 +176,17 @@ stages input = StagesOutput
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
 
-    lookupOrigVarNameFor pairingId problem quadrant mangledName =
-        fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
-      where
-        fun = lookupFunction (pairingSideWithTag quadrant.tag pairingId)
-        origArgs = case quadrant.direction of
-            PairingEqDirectionIn -> fun.input
-            PairingEqDirectionOut -> fun.output
-        probSide = pairingSide quadrant.tag problem.sides
-        mangledArgs = case quadrant.direction of
-            PairingEqDirectionIn -> probSide.input
-            PairingEqDirectionOut -> probSide.output
+    lookupOrigVarNameFor = argRenamesOf lookupFunction
 
     proofChecks' = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings `atPairingId` pairingId
             proofScript = input.proofs `atPairingId` pairingId
-         in enumerateProofChecks (lookupOrigVarNameFor pairingId problem) pairing problem proofScript
+         in enumerateProofChecks (lookupOrigVarNameFor problem) pairing problem proofScript
 
     compatProofChecks = toCompatProofChecks proofChecks
 
     smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
-        compileProofChecks input.programs.c.structs functionSigs pairings input.rodata (lookupOrigVarNameFor pairingId problem) problem
+        compileProofChecks input.programs.c.structs functionSigs pairings input.rodata (lookupOrigVarNameFor problem) problem
             <$> (proofChecks `atPairingId` pairingId)
 
     compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)

@@ -25,17 +25,12 @@ import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
 
-type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident
-
 type NodeProofChecks = [ProofCheck ProofCheckDescription]
 
 enumerateProofChecks :: ArgRenames -> Pairing -> Problem -> ProofScript () -> ProofScript NodeProofChecks
 enumerateProofChecks argRenames pairing problem proofScript =
     ProofScript $ runReader m context
   where
-    m = do
-        hyps <- initPointHypsM
-        proofChecksRecM [] hyps proofScript.root
     nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
     context = Context
         { pairing
@@ -45,6 +40,9 @@ enumerateProofChecks argRenames pairing problem proofScript =
         , nodeTag = nodeTagOf problem nodeGraph
         , loopData = createLoopDataMap problem nodeGraph
         }
+    m = do
+        hyps <- initPointHypsM
+        proofChecksRecM [] hyps proofScript.root
 
 data Context
   = Context
@@ -56,12 +54,6 @@ data Context
       , nodeGraph :: NodeGraph
       }
   deriving (Generic)
-
-loopIdM :: NodeAddr -> Reader Context (Maybe NodeAddr)
-loopIdM addr = loopIdOf addr <$> gview #loopData
-
-loopHeadsM :: Reader Context [NodeAddr]
-loopHeadsM = loopHeadsOf <$> gview #loopData
 
 --
 
@@ -157,8 +149,8 @@ restrOthersM restrs n = do
 loopsToSplitM :: [Restr] -> Reader Context [NodeAddr]
 loopsToSplitM restrs = do
     loopHeadsWithSplit <- fmap (S.fromList . catMaybes) . for restrs $ \restr -> do
-        loopIdM restr.nodeAddr
-    loopHeads_ <- S.fromList <$> loopHeadsM
+        loopIdOf restr.nodeAddr <$> gview #loopData
+    loopHeads_ <- S.fromList . loopHeadsOf <$> gview #loopData
     let remLoopHeadsInit = loopHeads_ `S.difference` loopHeadsWithSplit
     g <- gview #nodeGraph
     nodeTag <- gview #nodeTag

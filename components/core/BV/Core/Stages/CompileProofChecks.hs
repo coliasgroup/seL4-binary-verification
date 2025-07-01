@@ -33,13 +33,9 @@ compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem 
     (imps, _, setup) = runRWS m.run env initState
     env = initEnv rodata cStructs functionSigs pairings argRenames problem
     m = do
-        initM
+        initSolver
+        initRepGraph
         compileProofCheckGroupM group
-
-initM :: M ()
-initM = do
-    initSolver
-    initRepGraph
 
 newtype M a
   = M { run :: RWS Env SolverOutput State a }
