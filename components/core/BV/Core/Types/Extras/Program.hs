@@ -1,5 +1,8 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.Extras.Program
     ( FoldExprs (..)
+    , FunctionSignature (..)
     , HasVarDecls (..)
     , HasVarNames (..)
     , TraverseTopLevelExprs (..)
@@ -8,6 +11,7 @@ module BV.Core.Types.Extras.Program
     , programFromFunctions
     , renameVars
     , renameVarsI
+    , signatureOfFunction
     , trivialNode
     , varSubst
     , walkExprs
@@ -17,9 +21,11 @@ module BV.Core.Types.Extras.Program
 import BV.Core.Types
 import BV.Core.Utils
 
+import Control.DeepSeq (NFData)
 import Control.Monad.Identity (Identity (Identity, runIdentity))
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
+import GHC.Generics (Generic)
 import Optics
 
 --
@@ -132,3 +138,18 @@ nodeConts = castOptic $
     (#_NodeBasic % #next)
         `adjoin`(#_NodeCond % (#left `adjoin` #right))
         `adjoin` (#_NodeCall % #next)
+
+--
+
+data FunctionSignature
+  = FunctionSignature
+      { input :: [Argument]
+      , output :: [Argument]
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+signatureOfFunction :: Function -> FunctionSignature
+signatureOfFunction fun = FunctionSignature
+    { input = fun.input
+    , output = fun.output
+    }

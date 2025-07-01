@@ -147,12 +147,7 @@ stages input = StagesOutput
 
     lookupFunction (WithTag tag funName) = (pairingSide tag finalPrograms).functions ! funName
 
-    functionSigs = sig . lookupFunction
-      where
-        sig fun = FunctionSignature
-            { input = fun.input
-            , output = fun.output
-            }
+    functionSigs = signatureOfFunction . lookupFunction
 
     -- TODO
     -- By doing this we lose laziness, and it's probably overkill anyways (reduces eval from ~8s -> ~4s)
@@ -162,7 +157,9 @@ stages input = StagesOutput
 
     problems' = Problems . M.fromList $ do
         pairingId <- normalFunctionPairingIds
-        let namedFuns = (\funName prog -> Named funName (prog.functions ! funName)) <$> pairingId <*> finalPrograms
+        let namedFuns =
+                let f funName prog = Named funName (prog.functions ! funName)
+                 in f <$> pairingId <*> finalPrograms
         guard $ isJust namedFuns.c.value.body
         guard $ isJust namedFuns.asm.value.body
         let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
@@ -186,8 +183,14 @@ stages input = StagesOutput
     compatProofChecks = toCompatProofChecks proofChecks
 
     smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
-        compileProofChecks input.programs.c.structs functionSigs pairings input.rodata (lookupOrigVarNameFor problem) problem
-            <$> (proofChecks `atPairingId` pairingId)
+        compileProofChecks
+            input.programs.c.structs
+            functionSigs
+            pairings
+            input.rodata
+            (lookupOrigVarNameFor problem)
+            problem
+                <$> (proofChecks `atPairingId` pairingId)
 
     compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)
 

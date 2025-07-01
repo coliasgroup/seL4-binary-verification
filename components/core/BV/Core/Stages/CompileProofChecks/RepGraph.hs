@@ -114,13 +114,6 @@ data RepGraphState
 
 -- type KnownEqsValue = ()
 
-data FunctionSignature
-  = FunctionSignature
-      { input :: [Argument]
-      , output :: [Argument]
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
 type FunctionSignatures = WithTag Ident -> FunctionSignature
 
 initRepGraphEnv :: FunctionSignatures -> Pairings -> ArgRenames -> Problem -> RepGraphEnv
