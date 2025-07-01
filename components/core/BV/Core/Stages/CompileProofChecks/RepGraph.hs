@@ -446,7 +446,7 @@ contractM name n_vc val typ = do
         Just x -> return x
         Nothing -> do
             let name' = localNameBefore name n_vc
-            name'' <- withoutEnv $ addDefM name' (smtExprE typ (SMT val))
+            name'' <- withoutEnv $ addDef name' (smtExprE typ (SMT val))
             liftRepGraph $ #contractions %= M.insert val name''
             return name''
 
@@ -508,7 +508,7 @@ getNodePcEnvRawM visitWithTag = do
                             pc' <- case pc.value of
                                 ExprValueSMTExpr _ -> return pc
                                 _ -> do
-                                    name <- withEnv env $ addDefM (pathCondName visitWithTag) pc
+                                    name <- withEnv env $ addDef (pathCondName visitWithTag) pc
                                     return $ smtExprE boolT name
                             env' <- flip M.traverseWithKey env $ \(nm, typ) v -> do
                                 case v of
@@ -622,7 +622,7 @@ postEmitNodeHooksM visit = do
             _ -> error "unexpected"
 
 addLocalDefMR :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT SMTEnv m SMT
-addLocalDefMR _ _ = addDefM
+addLocalDefMR _ _ = addDef
 
 getFreshIdentMR :: MonadRepGraph m => NameHint -> m Ident
 getFreshIdentMR hint = do
@@ -801,7 +801,7 @@ getMemCalls mem_sexpr = do
                 _ -> do
                     r <- runMaybeT $ do
                         name <- hoistMaybe $ parseSymbolS mem_sexpr
-                        next <- MaybeT $ getDefOptM (Name name)
+                        next <- MaybeT $ tryGetDef (Name name)
                         lift $ getMemCalls next
                     case r of
                         Just x -> return x
