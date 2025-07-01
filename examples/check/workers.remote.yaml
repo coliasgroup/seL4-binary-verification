@@ -1,0 +1,32 @@
+workers:
+  local:
+    local: true
+    num_jobs: 4
+    priority: -1
+  r1:
+    command: [
+      "run-worker-over-ssh",
+      "r1-host",
+      "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
+      "-C",
+      "--",
+    ]
+    num_jobs: 15
+  r2:
+    command: [
+      "run-worker-over-ssh",
+      "r2-host",
+      "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
+      "-C",
+      "--",
+    ]
+    num_jobs: 15
+  r3:
+    command: [
+      "run-worker-over-ssh",
+      "r3-host",
+      "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
+      "-C",
+      "--",
+    ]
+    num_jobs: 15
