@@ -15,7 +15,6 @@ import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
-import Optics
 
 data Problem
   = Problem
@@ -59,8 +58,3 @@ newtype Problems
 
 instance AtPairingId Problem Problems where
     atPairingId = atPairingId . (.unwrap)
-
-instance HasVarNames Problem where
-    varNamesOf =
-        (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
-            `adjoin` (#nodes % traversed % varNamesOf)

@@ -10,6 +10,7 @@ module BV.Core.Graph
     ) where
 
 import BV.Core.Types
+import BV.Core.Types.Extras
 import BV.Core.Utils
 
 import Data.Foldable (toList)

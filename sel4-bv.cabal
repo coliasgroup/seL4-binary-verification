@@ -92,6 +92,8 @@ library core
       BV.Core.Types.Extras
       BV.Core.Types.Extras.Expr
       BV.Core.Types.Extras.Pairing
+      BV.Core.Types.Extras.Problem
+      BV.Core.Types.Extras.Program
       BV.Core.Types.Extras.ProofCheck
       BV.Core.Types.Extras.SExprWithPlaceholders
       BV.Core.Types.ObjDump

@@ -32,9 +32,7 @@ import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Stages.Utils (chooseFreshName)
 import BV.Core.Types
-import BV.Core.Types.Extras (showSExprWithPlaceholders, symbolS)
-import BV.Core.Types.Extras.Expr
-import BV.Core.Types.Extras.ProofCheck
+import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.SMTLIB2 (GenericSExpr (Atom), viewAtom)
 import BV.SMTLIB2.SExpr (GenericSExpr (List), UncheckedAtom (..))
@@ -143,7 +141,7 @@ initRepGraphEnv functionSigs pairings argRenames problem =
         -- , nodeGraph = makeNodeGraph (map (_2 %~ view #node) (M.toAscList problem.nodes))
         , nodeGraph
         , nodeTag =
-            let c = S.fromList . mapMaybe (preview #_Addr) $ reachableFrom nodeGraph problem.sides.c.entryPoint
+            let c = S.fromList $ reachableFrom nodeGraph problem.sides.c.entryPoint ^.. folded % #_Addr
              in \addr -> if addr `S.member` c then C else Asm
         , loopData =
             let heads = loopHeads nodeGraph [problem.sides.c.entryPoint, problem.sides.asm.entryPoint]

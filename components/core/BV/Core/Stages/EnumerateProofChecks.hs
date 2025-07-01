@@ -43,7 +43,7 @@ enumerateProofChecks argRenames pairing problem proofScript =
         , argRenames
         , nodeGraph
         , nodeTag =
-            let c = S.fromList . mapMaybe (preview #_Addr) $ reachableFrom nodeGraph problem.sides.c.entryPoint
+            let c = S.fromList $ reachableFrom nodeGraph problem.sides.c.entryPoint ^.. folded % #_Addr
              in \addr -> if addr `S.member` c then C else Asm
         , loopData =
             let heads = loopHeads nodeGraph [problem.sides.c.entryPoint, problem.sides.asm.entryPoint]

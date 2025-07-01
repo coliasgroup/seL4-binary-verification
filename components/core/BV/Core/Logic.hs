@@ -26,7 +26,7 @@ module BV.Core.Logic
 
 import BV.Core.Arch
 import BV.Core.Types
-import BV.Core.Types.Extras.Expr
+import BV.Core.Types.Extras
 import BV.Core.Utils
 
 import Control.DeepSeq (NFData)
