@@ -52,4 +52,7 @@ testStagesWithReference referenceTargetDir = do
         }
 
 testStagesWithReferenceDefault :: IO ()
-testStagesWithReferenceDefault = testStagesWithReference testSeL4TargetDirSmall
+testStagesWithReferenceDefault = testStagesWithReference
+    -- testSeL4TargetDirBig
+    testSeL4TargetDirSmall
+    -- testSeL4TargetDirFocused
