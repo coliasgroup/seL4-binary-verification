@@ -66,8 +66,6 @@ import Optics
 import Optics.State.Operators ((%=), (<<%=))
 import Text.Printf (printf)
 
-{-# ANN module ("HLint: ignore" :: String) #-}
-
 --
 
 -- TODO
@@ -334,9 +332,7 @@ assertFact :: MonadSolver m => Expr -> ReaderT ExprEnv m ()
 assertFact = smtExprNotSplitM >=> assertSMTFact
 
 unlessJust :: Monad m => Maybe a -> m a -> m a
-unlessJust opt m = case opt of
-    Just x -> return x
-    Nothing -> m
+unlessJust opt m = maybe m return opt
 
 withSetSlot :: (MonadSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
 withSetSlot l k m = do
@@ -360,7 +356,7 @@ noteModelExpr s ty = withSetSlot #modelExprs s $ do
 
 maybeNoteModelExpr :: MonadSolver m => S -> ExprType -> [Expr] -> m ()
 maybeNoteModelExpr s ty subexprs =
-    when (isTypeRepresentable ty && not (all isTypeRepresentable (map (.ty) subexprs))) $ do
+    when (isTypeRepresentable ty && not (all (isTypeRepresentable . (.ty)) subexprs)) $ do
         noteModelExpr s ty
 
 notePtr :: MonadSolver m => S -> m Name
@@ -635,7 +631,7 @@ smtExprM expr = do
                 args' <- traverse smtExprM args
                 let [NotSplit sp1, st1, NotSplit sp2, st2] = args'
                 if sp1 == sp2 && st1 == st2
-                    then return $ NotSplit $ trueS
+                    then return $ NotSplit trueS
                     else do
                         let Split st2SplitMem = st2
                         eq <- getStackEqImplies st2SplitMem.split st2SplitMem.top st1
@@ -678,7 +674,7 @@ smtExprM expr = do
         ExprValueVar var -> do
             let envKey = (var, expr.ty)
             let err = error $ "env miss: " ++ show envKey
-            fromMaybe err <$> asks (M.lookup envKey)
+            asks $ fromMaybe err . M.lookup envKey
         ExprValueSMTExpr s -> do
             return s
         ExprValueToken tok -> do
@@ -829,9 +825,9 @@ addPValidsM = go False
                     let pdata = smtify (pvTy, ptrName, pvKind) (nameS var)
                     let (_, pdataPvKind, pdataPtr, pdataPv) = pdata
                     withoutEnv . assertFact . impliesE pdataPv =<< alignValidIneq pvTy pdataPtr
-                    for (sortOn snd (M.toAscList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
+                    for_ (sortOn snd (M.toAscList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
                         let kinds :: [PValidKind] = [valPvKind, pdataPvKind]
-                        unless (PValidKindPWeakValid `elem` kinds && not (PValidKindPGlobalValid `elem` kinds)) $ do
+                        unless (PValidKindPWeakValid `elem` kinds && PValidKindPGlobalValid `notElem` kinds) $ do
                             let applyAssertion f =
                                     f pdata (uncurry smtify val)
                                         >>= withoutEnv . smtExprNotSplitM
