@@ -12,6 +12,7 @@ module BV.Core.Types.Program
     , Function (..)
     , FunctionBody (..)
     , Ident (..)
+    , MaybeSplit (..)
     , Named (..)
     , Node (..)
     , NodeAddr (..)
@@ -19,7 +20,6 @@ module BV.Core.Types.Program
     , NodeMap
     , Op (..)
     , Program (..)
-    , SMT (..)
     , SplitMem (..)
     , Struct (..)
     , StructField (..)
@@ -260,7 +260,7 @@ data ExprValue
   | ExprValueType ExprType
   | ExprValueSymbol Ident
   | ExprValueToken Ident
-  | ExprValueSMTExpr SMT
+  | ExprValueSMTExpr MaybeSplit
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary ExprValue where
@@ -328,12 +328,12 @@ data Op
 
 instance Binary Op where
 
-data SMT
-  = SMT SExprWithPlaceholders
-  | SMTSplitMem SplitMem
+data MaybeSplit
+  = NotSplit SExprWithPlaceholders
+  | Split SplitMem
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary SMT where
+instance Binary MaybeSplit where
 
 data SplitMem
   = SplitMem

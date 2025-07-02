@@ -101,7 +101,7 @@ data RepGraphState
       , nodePcEnvs :: Map VisitWithTag (Maybe (Expr, SMTEnv))
       , inpEnvs :: Map NodeId SMTEnv
       , memCalls :: Map SExprWithPlaceholders MemCalls
-      , contractions :: Map SExprWithPlaceholders SMT
+      , contractions :: Map SExprWithPlaceholders MaybeSplit
       , arcPcEnvs :: Map Visit (Map NodeId (Expr, SMTEnv))
       , extraProblemNames :: S.Set Ident
       , hasInnerLoop :: M.Map NodeAddr Bool
@@ -205,14 +205,14 @@ mkInpEnv :: MonadRepGraph m => NodeId -> [Argument] -> m SMTEnv
 mkInpEnv n args = flip execStateT M.empty $ do
     for_ args $ \arg -> do
         x <- lift $ addVarR (arg.name.unwrap ++ "_init") arg.ty (Just M.empty)
-        modify $ M.insert (arg.name, arg.ty) (SMT $ nameS x)
+        modify $ M.insert (arg.name, arg.ty) (NotSplit $ nameS x)
     for_ args $ \arg -> do
         env <- get
         z <- lift $ varRepRequest arg.name arg.ty VarRepRequestKindInit (Visit { nodeId = n, restrs = []}) env
         case z of
             Nothing -> return ()
             Just z' -> do
-                modify $ M.insert (arg.name, arg.ty) (SMTSplitMem z')
+                modify $ M.insert (arg.name, arg.ty) (Split z')
 
 type MonadRepGraphE m = (MonadRepGraph m, MonadError TooGeneral m)
 
@@ -350,7 +350,7 @@ getInductVarM induct = do
             vname <- addVar (printf "induct_i_%d_%d" induct.a induct.b) word32T
             liftRepGraph $ #inductVarEnv %= M.insert induct (vname)
             return vname
-    return $ smtExprE word32T (SMT $ nameS vname)
+    return $ smtExprE word32T (NotSplit $ nameS vname)
 
 substInduct :: Expr -> Expr -> Expr
 substInduct expr inductVar = flip varSubst expr $ \ident ty ->
@@ -403,7 +403,7 @@ varRepRequest nm typ kind n_vc env = runMaybeT $ do
     addr_s <- lift $ withEnv env $ smtExprM addr
     let countName = nodeCountName n_vc
     let name = printf "%s_for_%s" nm.unwrap countName
-    lift $ addSplitMemVar (addr_s ^. expecting #_SMT) name typ
+    lift $ addSplitMemVar (addr_s ^. expecting #_NotSplit) name typ
 
 data VarRepRequestKind
   = VarRepRequestKindCall
@@ -440,13 +440,13 @@ visitCountName = \case
     showNumber = show
     showOffset n = "i+" ++ show n
 
-contractM :: MonadRepGraph m => Ident -> Visit -> SExprWithPlaceholders -> ExprType -> m SMT
+contractM :: MonadRepGraph m => Ident -> Visit -> SExprWithPlaceholders -> ExprType -> m MaybeSplit
 contractM name n_vc val typ = do
     liftRepGraph (use $ #contractions % at val) >>= \case
         Just x -> return x
         Nothing -> do
             let name' = localNameBefore name n_vc
-            name'' <- withoutEnv $ addDef name' (smtExprE typ (SMT val))
+            name'' <- withoutEnv $ addDef name' (smtExprE typ (NotSplit val))
             liftRepGraph $ #contractions %= M.insert val name''
             return name''
 
@@ -512,7 +512,7 @@ getNodePcEnvRawM visitWithTag = do
                                     return $ smtExprE boolT name
                             env' <- flip M.traverseWithKey env $ \(nm, typ) v -> do
                                 case v of
-                                    SMT v' | length (showSExprWithPlaceholders v') > 80 -> contractM nm visitWithTag.visit v' typ
+                                    NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contractM nm visitWithTag.visit v' typ
                                     _ -> return v
                             return $ Just (pc', env')
 
@@ -539,14 +539,14 @@ getLoopPcEnvM split vcount = do
                         modify $ S.insert (nm, typ)
                         return $ prev_env ! (nm, typ)
                     else do
-                        SMT . nameS <$> lift (av (nm.unwrap ++ "_after") typ)
+                        NotSplit . nameS <$> lift (av (nm.unwrap ++ "_after") typ)
             env' <- flip M.traverseWithKey env $ \(nm, typ) v -> do
                 if S.member (nm, typ) consts
                     then return v
                     else do
                         z <- varRepRequest nm typ VarRepRequestKindLoop (Visit (Addr split) vcount) env
-                        return $ fromMaybe v (SMTSplitMem <$> z)
-            pc <- smtExprE boolT . SMT . nameS <$> av "pc_of" boolT
+                        return $ fromMaybe v (Split <$> z)
+            pc <- smtExprE boolT . NotSplit . nameS <$> av "pc_of" boolT
             return $ Just (pc, env')
 
 getArcPcEnvsM :: MonadRepGraph m => NodeAddr -> Visit -> m [Maybe (Expr, SMTEnv)]
@@ -621,7 +621,7 @@ postEmitNodeHooksM visit = do
             [] -> return ()
             _ -> error "unexpected"
 
-addLocalDefMR :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT SMTEnv m SMT
+addLocalDefMR :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT SMTEnv m MaybeSplit
 addLocalDefMR _ _ = addDef
 
 getFreshIdentMR :: MonadRepGraph m => NameHint -> m Ident
@@ -672,7 +672,7 @@ emitNodeM n = do
             NodeCall callNode -> do
                 let nm = successName callNode.functionName n
                 success' <- addVar nm boolT
-                let success = smtExprE boolT $ SMT $ nameS success'
+                let success = smtExprE boolT $ NotSplit $ nameS success'
                 sig <- liftRepGraph $ gview $ #functionSigs % to ($ (WithTag tag callNode.functionName))
                 ins <- M.fromList <$> (for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
                     x <- withEnv env $ smtExprM (app_eqs callArg)
@@ -692,16 +692,16 @@ emitNodeM n = do
                             ensureM $ typ == typ2
                             let name = localName x n
                             var <- lift $ addVarR name typ mem_calls
-                            modify $ M.insert (x, typ) (SMT $ nameS var)
-                            tell [((y, typ2), (SMT $ nameS var))]
+                            modify $ M.insert (x, typ) (NotSplit $ nameS var)
+                            tell [((y, typ2), (NotSplit $ nameS var))]
                         for (zip callNode.output sig.output) $ \(Argument x typ, Argument y _typ2) -> do
                             env' <- get
                             z <- lift $ varRepRequest x typ VarRepRequestKindCall n env'
                             case z of
                                 Nothing -> return ()
                                 Just z' -> do
-                                    modify $ M.insert (x, typ) (SMTSplitMem z')
-                                    tell [((y, typ), (SMTSplitMem z'))]
+                                    modify $ M.insert (x, typ) (Split z')
+                                    tell [((y, typ), (Split z'))]
                 (_, env', outs') <- runRWST m () env
                 let outs = M.fromList outs'
                 addFuncM callNode.functionName ins outs success n
@@ -812,7 +812,7 @@ getMemCalls mem_sexpr = do
 scanMemCalls :: MonadRepGraph m => SMTEnv -> m (Maybe MemCalls)
 scanMemCalls env = do
     let mem_vs = [ v | ((_nm, typ), v) <- M.toAscList env, typ == memT ]
-    mem_calls <- for (catMaybes (map (preview #_SMT) mem_vs)) $ \v -> do
+    mem_calls <- for (catMaybes (map (preview #_NotSplit) mem_vs)) $ \v -> do
         getMemCalls v
     -- traceShowM $ ("scanning", mem_calls)
     return $ case mem_calls of

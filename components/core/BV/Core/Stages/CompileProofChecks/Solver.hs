@@ -153,7 +153,7 @@ finalizeSolver = do
 
 --
 
-type SMTEnv = Map (Ident, ExprType) SMT
+type SMTEnv = Map (Ident, ExprType) MaybeSplit
 
 withEnv :: SMTEnv -> ReaderT SMTEnv m a -> m a
 withEnv = flip runReaderT
@@ -248,7 +248,7 @@ tryGetDef name = liftSolver $ use $ #defs % at name
 
 addDefInner :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m (Either Name SplitMem)
 addDefInner nameHint expr = smtExprM expr >>= \case
-    SMT s -> Left <$> do
+    NotSplit s -> Left <$> do
         name <- takeFreshName nameHint
         unless (isTypeOmitted ty) $ do
             -- TODO
@@ -258,9 +258,9 @@ addDefInner nameHint expr = smtExprM expr >>= \case
             when (isTypeRepresentable ty) $ do
                 liftSolver $ #modelVars %= S.insert name
         return name
-    SMTSplitMem splitMem -> Right <$> do
+    Split splitMem -> Right <$> do
         let add suffix ty' s = nameS <$>
-                addDefNoSplit (nameHint ++ "_" ++ suffix) (smtExprE ty' (SMT s))
+                addDefNoSplit (nameHint ++ "_" ++ suffix) (smtExprE ty' (NotSplit s))
         split <- add "split" machineWordT splitMem.split
         top <- add "top" ty splitMem.top
         bottom <- add "bot" ty splitMem.bottom
@@ -272,9 +272,9 @@ addDefInner nameHint expr = smtExprM expr >>= \case
   where
     ty = expr.ty
 
-addDef :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m SMT
+addDef :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m MaybeSplit
 addDef nameHint val =
-    either (SMT . nameS) SMTSplitMem <$> addDefInner nameHint val
+    either (NotSplit . nameS) Split <$> addDefInner nameHint val
 
 addDefNoSplit :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m Name
 addDefNoSplit nameHint val =
@@ -342,7 +342,7 @@ withMapSlot l k m = do
 noteModelExpr :: MonadSolver m => S -> ExprType -> m ()
 noteModelExpr s ty = withSetSlot #modelExprs s $ do
     let sanitized = take 20 $ filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders s)
-    withoutEnv $ addDef ("query_" ++ sanitized) (smtExprE ty (SMT s))
+    withoutEnv $ addDef ("query_" ++ sanitized) (smtExprE ty (NotSplit s))
     return ()
 
 maybeNoteModelExpr :: MonadSolver m => S -> ExprType -> [Expr] -> m ()
@@ -352,7 +352,7 @@ maybeNoteModelExpr s ty subexprs =
 
 notePtr :: MonadSolver m => S -> m Name
 notePtr p_s = withMapSlot #ptrs p_s $
-    withoutEnv $ addDefNoSplit "ptr" (smtExprE machineWordT (SMT p_s))
+    withoutEnv $ addDefNoSplit "ptr" (smtExprE machineWordT (NotSplit p_s))
 
 noteMemDom :: MonadSolver m => S -> S -> S -> m ()
 noteMemDom p d md = liftSolver $ #doms %= S.insert (p, d, md)
@@ -366,14 +366,14 @@ cacheLargeExpr s nameHint ty =
             then do
                 return s
             else do
-                name <- withoutEnv $ addDefNoSplit nameHint (smtExprE ty (SMT s))
+                name <- withoutEnv $ addDefNoSplit nameHint (smtExprE ty (NotSplit s))
                 liftSolver $ do
                     #cachedExprs %= M.insert s name
                     #cachedExprNames %= S.insert name
                 return $ nameS name
 
-getToken :: MonadSolver m => String -> m SMT
-getToken string = fmap (SMT . nameS) $ withMapSlot #tokenTokens string $ do
+getToken :: MonadSolver m => String -> m MaybeSplit
+getToken string = fmap (NotSplit . nameS) $ withMapSlot #tokenTokens string $ do
     n <- liftSolver $ (+)
         <$> use (#tokenTokens % to M.size)
         <*> use (#tokenVals % to M.size)
@@ -506,10 +506,10 @@ data CompatSMTComparisonKey
   deriving (Eq, Generic, Ord, Show)
 
 -- TODO move to RepGraph
-compatSMTComparisonKey :: SMT -> CompatSMTComparisonKey
+compatSMTComparisonKey :: MaybeSplit -> CompatSMTComparisonKey
 compatSMTComparisonKey = \case
-    SMT s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
-    SMTSplitMem s -> SMTComparisonKeySplitMem
+    NotSplit s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
+    Split s -> SMTComparisonKeySplitMem
         (showSExprWithPlaceholders s.split)
         (showSExprWithPlaceholders s.top)
         (showSExprWithPlaceholders s.bottom)
@@ -549,9 +549,9 @@ toSmtExprM expr = case expr.ty of
         return $ smtExprE expr.ty s
 
 smtExprNoSplitM :: MonadSolver m => Expr -> ReaderT SMTEnv m S
-smtExprNoSplitM expr = view (expecting #_SMT) <$> smtExprM expr
+smtExprNoSplitM expr = view (expecting #_NotSplit) <$> smtExprM expr
 
-smtExprM :: MonadSolver m => Expr -> ReaderT SMTEnv m SMT
+smtExprM :: MonadSolver m => Expr -> ReaderT SMTEnv m MaybeSplit
 smtExprM expr = do
     case expr.value of
         ExprValueOp op args -> case op of
@@ -560,7 +560,7 @@ smtExprM expr = do
                     let ExprTypeWord bitsExpr = expr.ty
                     let ExprTypeWord bitsV = v.ty
                     ex <- smtExprNoSplitM v
-                    return . SMT $ if
+                    return . NotSplit $ if
                         | bitsExpr == bitsV -> ex
                         | bitsExpr < bitsV -> [["_", "extract", intS (bitsExpr - 1), intS 0], ex]
                         | otherwise ->
@@ -574,7 +574,7 @@ smtExprM expr = do
                     let [v] = args
                     v' <- smtExprNoSplitM v
                     op' <- lift $ getDerivedOp op (expr.ty ^. expecting #_ExprTypeWord)
-                    return . SMT $ [op', v']
+                    return . NotSplit $ [op', v']
             _ | op == OpCountTrailingZeroes -> do
                     let [v] = args
                     smtExprM $ clzE (wordReverseE v)
@@ -595,17 +595,17 @@ smtExprM expr = do
                         _ -> typ
                 let pvTy = f typ'
                 let (ExprValueVar htdName) = htd.value
-                htd_s <- gview $ at (htdName, htd.ty) % unwrapped % expecting #_SMT
+                htd_s <- gview $ at (htdName, htd.ty) % unwrapped % expecting #_NotSplit
                 p_s <- smtExprNoSplitM p
                 var <- lift $ addPValidsM htd_s pvTy p_s (pvalidKindFromOp op)
-                return $ SMT var
+                return $ NotSplit var
             OpMemDom -> do
                 let [p, dom] = args
                 p' <- smtExprNoSplitM p
                 dom' <- smtExprNoSplitM dom
                 let md = [opS op, p', dom']
                 noteMemDom p' dom' md
-                return $ SMT $ if cheatMemDoms
+                return $ NotSplit $ if cheatMemDoms
                     then trueS
                     else md
             OpMemUpdate -> do
@@ -620,22 +620,22 @@ smtExprM expr = do
                 ensureM $ isWordT expr.ty
                 m_s <- smtExprM m
                 p_s <- smtExprNoSplitM p
-                SMT <$> smtExprMemAccM m_s p_s expr.ty
+                NotSplit <$> smtExprMemAccM m_s p_s expr.ty
             OpStackEqualsImplies -> do
                 args' <- mapM smtExprM args
-                let [SMT sp1, st1, SMT sp2, st2] = args'
+                let [NotSplit sp1, st1, NotSplit sp2, st2] = args'
                 if sp1 == sp2 && st1 == st2
-                    then return $ SMT $ trueS
+                    then return $ NotSplit $ trueS
                     else do
-                        let SMTSplitMem st2SplitMem = st2
+                        let Split st2SplitMem = st2
                         eq <- getStackEqImplies st2SplitMem.split st2SplitMem.top st1
-                        return $ SMT $ andS (eqS sp1 sp2) eq
+                        return $ NotSplit $ andS (eqS sp1 sp2) eq
             OpImpliesStackEquals -> do
                 let [sp1, st1, sp2, st2] = args
                 eq <- addImpliesStackEqM sp1 st1 st2
                 sp1' <- smtExprNoSplitM sp1
                 sp2' <- smtExprNoSplitM sp2
-                return $ SMT $ andS (eqS sp1' sp2') eq
+                return $ NotSplit $ andS (eqS sp1' sp2') eq
             _ | op == OpIfThenElse -> do
                     let [cond, x, y] = args
                     cond' <- smtExprNoSplitM cond
@@ -643,18 +643,18 @@ smtExprM expr = do
                     y' <- smtExprM y
                     return $ smtIfThenElse cond' x' y'
             OpHTDUpdate -> do
-                lift $ SMT . nameS <$> addVar "update_htd" expr.ty
+                lift $ NotSplit . nameS <$> addVar "update_htd" expr.ty
             OpEquals | (head args).ty == ExprTypeMem -> do
                 args' <- for args smtExprNoSplitM
                 let [x, y] = args'
                 let s = ["mem-eq", x, y]
                 noteModelExpr s boolT
-                return $ SMT s
+                return $ NotSplit s
             OpEquals | (head args).ty == word32T -> do
                 args' <- for args smtExprNoSplitM
                 let [x, y] = args'
                 let s = ["word32-eq", x, y]
-                return $ SMT s
+                return $ NotSplit s
             _ -> do
                 args' <- for args smtExprNoSplitM
                 let op' = opS op
@@ -662,9 +662,9 @@ smtExprM expr = do
                         [] -> op'
                         _ -> List $ [op'] ++ args'
                 lift $ maybeNoteModelExpr s expr.ty args
-                return $ SMT s
+                return $ NotSplit s
         ExprValueNum n -> do
-            return . SMT $ intWithWidthS (wordTBits expr.ty) n
+            return . NotSplit $ intWithWidthS (wordTBits expr.ty) n
         ExprValueVar var -> do
             let envKey = (var, expr.ty)
             env <- ask
@@ -676,46 +676,46 @@ smtExprM expr = do
         ExprValueToken tok -> do
             getToken tok.unwrap
 
-smtExprMemupdM :: MonadSolver m => SMT -> S -> S -> ExprType -> m SMT
+smtExprMemupdM :: MonadSolver m => MaybeSplit -> S -> S -> ExprType -> m MaybeSplit
 smtExprMemupdM mSplit p v (typ@(ExprTypeWord bits)) = do
     case mSplit of
-        SMTSplitMem splitMem -> do
+        Split splitMem -> do
             p' <- cacheLargeExpr p "memupd_pointer" word32T
             v' <- cacheLargeExpr v "memupd_val" typ
             top <- cacheLargeExpr splitMem.top "split_mem_top" memT
-            top_upd <- smtExprMemupdM (SMT top) p' v' typ
+            top_upd <- smtExprMemupdM (NotSplit top) p' v' typ
             bot <- cacheLargeExpr splitMem.bottom "split_mem_bot" memT
-            bot_upd <- smtExprMemupdM (SMT bot) p' v' typ
-            return $ SMTSplitMem $ SplitMem
+            bot_upd <- smtExprMemupdM (NotSplit bot) p' v' typ
+            return $ Split $ SplitMem
                 { split = splitMem.split
-                , top = iteS (bvuleS splitMem.split p') (top_upd ^. expecting #_SMT) top
-                , bottom = iteS (bvuleS splitMem.split p') bot (bot_upd ^. expecting #_SMT)
+                , top = iteS (bvuleS splitMem.split p') (top_upd ^. expecting #_NotSplit) top
+                , bottom = iteS (bvuleS splitMem.split p') bot (bot_upd ^. expecting #_NotSplit)
                 }
-        SMT m -> case bits of
+        NotSplit m -> case bits of
             8 -> do
                 p' <- cacheLargeExpr p "memupd_pointer" word32T
                 let p_align = bvandS p' (hexS "fffffffd")
                 noteModelExpr p_align word32T
                 noteModelExpr (loadWord32S m p_align) word32T
-                return $ SMT $ storeWord8S m p' v
+                return $ NotSplit $ storeWord8S m p' v
             32 -> do
                 noteModelExpr (loadWord32S m p) typ
                 noteModelExpr p word32T
-                return $ SMT $ storeWord32S m p v
+                return $ NotSplit $ storeWord32S m p v
             64 -> do
                 noteModelExpr (loadWord64S m p) typ
                 noteModelExpr p word32T
-                return $ SMT $ storeWord64S m p v
+                return $ NotSplit $ storeWord64S m p v
 
-smtExprMemAccM :: MonadSolver m => SMT -> S -> ExprType -> m S
+smtExprMemAccM :: MonadSolver m => MaybeSplit -> S -> ExprType -> m S
 smtExprMemAccM mSplit p (typ@(ExprTypeWord bits)) = do
     case mSplit of
-        SMTSplitMem splitMem -> do
+        Split splitMem -> do
             p' <- cacheLargeExpr p "memacc_pointer" word32T
-            top_acc <- smtExprMemAccM (SMT splitMem.top) p' typ
-            bot_acc <- smtExprMemAccM (SMT splitMem.bottom) p' typ
+            top_acc <- smtExprMemAccM (NotSplit splitMem.top) p' typ
+            bot_acc <- smtExprMemAccM (NotSplit splitMem.bottom) p' typ
             return $ iteS (bvuleS splitMem.split p') top_acc bot_acc
-        SMT m -> do
+        NotSplit m -> do
             let s = case bits of
                     8 -> loadWord8S m p
                     32 -> loadWord32S m p
@@ -725,10 +725,10 @@ smtExprMemAccM mSplit p (typ@(ExprTypeWord bits)) = do
             return s
 
 
-smtIfThenElse :: S -> SMT -> SMT -> SMT
+smtIfThenElse :: S -> MaybeSplit -> MaybeSplit -> MaybeSplit
 smtIfThenElse cond x y =
     case (x, y) of
-        (SMT x', SMT y') -> SMT $ iteS cond x' y'
+        (NotSplit x', NotSplit y') -> NotSplit $ iteS cond x' y'
         _ ->
             let splitMemX = toSplitMem x
                 splitMemY = toSplitMem y
@@ -736,15 +736,15 @@ smtIfThenElse cond x y =
                     if splitMemX.split == splitMemY.split
                     then splitMemX.split
                     else iteS cond splitMemX.split splitMemY.split
-             in SMTSplitMem $ SplitMem
+             in Split $ SplitMem
                     { split
                     , top = iteS cond splitMemX.top splitMemY.top
                     , bottom = iteS cond splitMemX.bottom splitMemY.bottom
                     }
   where
     toSplitMem = \case
-        SMTSplitMem splitMem -> splitMem
-        SMT s -> SplitMem
+        Split splitMem -> splitMem
+        NotSplit s -> SplitMem
             { split = machineWordS 0
             , top = s
             , bottom = s
@@ -793,7 +793,7 @@ addPValidsM = go False
                                     ass_s <- withoutEnv $ smtExprNoSplitM ass
                                     assertSMTFact ass_s
                         return $ nameS var
-    smtify (typ, p, kind) var = (typ, kind, smtExprE machineWordT (SMT $ nameS p), smtExprE boolT (SMT var))
+    smtify (typ, p, kind) var = (typ, kind, smtExprE machineWordT (NotSplit $ nameS p), smtExprE boolT (NotSplit var))
 
 --
 
@@ -807,17 +807,17 @@ addImpliesStackEqM sp s1 s2 = do
             assertSMTFact (eqS (bvandS (nameS addr) (hexS "00000003")) (hexS "00000000"))
             sp_smt <- smtExprNoSplitM sp
             assertSMTFact (bvuleS sp_smt (nameS addr))
-            let ptr = smtExprE word32T (SMT (nameS addr))
+            let ptr = smtExprE word32T (NotSplit (nameS addr))
             let eq = eqE (memAccE word32T ptr s1) (memAccE word32T ptr s2)
             stack_eq <- addDefNoSplit "stack-eq" eq
             liftSolver $ #stackEqsImpliesStackEq %= M.insert k stack_eq
             return (nameS stack_eq)
 
-getStackEqImplies :: MonadSolver m => S -> S -> SMT -> ReaderT SMTEnv m S
+getStackEqImplies :: MonadSolver m => S -> S -> MaybeSplit -> ReaderT SMTEnv m S
 getStackEqImplies split st_top other = do
     let (rhs, cond) = case other of
-            SMTSplitMem splitMem -> (splitMem.top, bvuleS splitMem.split split)
-            SMT other' -> (other', trueS)
+            Split splitMem -> (splitMem.top, bvuleS splitMem.split split)
+            NotSplit other' -> (other', trueS)
     noteModelExpr (eqS st_top rhs) boolT
     mems <- lift $ getImmBasisMems st_top
     let [st_top_base] = S.toList mems

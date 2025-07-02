@@ -88,7 +88,7 @@ fromBoolE v = if v then trueE else falseE
 numE :: ExprType -> Integer -> Expr
 numE ty n = ensure (isWordT ty) $ Expr ty (numV n)
 
-smtExprE :: ExprType -> SMT -> Expr
+smtExprE :: ExprType -> MaybeSplit -> Expr
 smtExprE ty smt = Expr ty (ExprValueSMTExpr smt)
 
 --
