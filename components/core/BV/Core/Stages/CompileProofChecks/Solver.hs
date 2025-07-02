@@ -248,11 +248,38 @@ opS x = case x of
 
 --
 
+unlessJust :: Monad m => Maybe a -> m a -> m a
+unlessJust opt m = maybe m return opt
+
+withSetSlot :: (MonadSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
+withSetSlot l k m = do
+    seen <- liftSolver $ use $ l % to (S.member k)
+    unless seen m
+    liftSolver $ l %= S.insert k
+
+withMapSlot :: (MonadSolver m, Ord k) => Lens' SolverState (M.Map k v) -> k -> m v -> m v
+withMapSlot l k m = do
+    opt <- liftSolver (use (l % at k))
+    unlessJust opt $ do
+        v <- m
+        liftSolver $ l %= M.insert k v
+        return v
+
+--
+
 getDef :: MonadSolver m => Name -> m S
 getDef name = liftSolver $ use $ #defs % at name % unwrapped
 
 tryGetDef :: MonadSolver m => Name -> m (Maybe S)
 tryGetDef name = liftSolver $ use $ #defs % at name
+
+addDef :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
+addDef nameHint val =
+    either (NotSplit . nameS) Split <$> addDefInner nameHint val
+
+addDefNotSplit :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m Name
+addDefNotSplit nameHint val =
+    view (expecting #_Left) <$> addDefInner nameHint val
 
 addDefInner :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m (Either Name SplitMem)
 addDefInner nameHint expr = smtExprM expr >>= \case
@@ -280,14 +307,6 @@ addDefInner nameHint expr = smtExprM expr >>= \case
   where
     ty = expr.ty
 
-addDef :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
-addDef nameHint val =
-    either (NotSplit . nameS) Split <$> addDefInner nameHint val
-
-addDefNotSplit :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m Name
-addDefNotSplit nameHint val =
-    view (expecting #_Left) <$> addDefInner nameHint val
-
 isTypeRepresentable :: ExprType -> Bool
 isTypeRepresentable = \case
     ExprTypeWord _ -> True
@@ -301,9 +320,6 @@ isTypeOmitted = \case
     ExprTypePms -> True
     _ -> False
 
-compiledTokenType :: ExprType
-compiledTokenType = wordT 64
-
 typeToSMT :: ExprType -> S
 typeToSMT = \case
     ExprTypeWord bits -> bitVecS bits
@@ -312,6 +328,9 @@ typeToSMT = \case
     ExprTypeMem -> memSortS
     ExprTypeDom -> memDomSortS
     ExprTypeToken -> typeToSMT compiledTokenType
+
+compiledTokenType :: ExprType
+compiledTokenType = wordT 64
 
 addVar :: MonadSolver m => NameHint -> ExprType -> m Name
 addVar nameHint ty = do
@@ -330,23 +349,6 @@ assertSMTFact = send . assertS
 
 assertFact :: MonadSolver m => Expr -> ReaderT ExprEnv m ()
 assertFact = smtExprNotSplitM >=> assertSMTFact
-
-unlessJust :: Monad m => Maybe a -> m a -> m a
-unlessJust opt m = maybe m return opt
-
-withSetSlot :: (MonadSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
-withSetSlot l k m = do
-    seen <- liftSolver $ use $ l % to (S.member k)
-    unless seen m
-    liftSolver $ l %= S.insert k
-
-withMapSlot :: (MonadSolver m, Ord k) => Lens' SolverState (M.Map k v) -> k -> m v -> m v
-withMapSlot l k m = do
-    opt <- liftSolver (use (l % at k))
-    unlessJust opt $ do
-        v <- m
-        liftSolver $ l %= M.insert k v
-        return v
 
 noteModelExpr :: MonadSolver m => S -> ExprType -> m ()
 noteModelExpr s ty = withSetSlot #modelExprs s $ do
@@ -391,49 +393,7 @@ getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokenTokens ident $ do
     liftSolver $ #tokenVals %= M.insert v ident
     return k
 
-getDerivedOp :: MonadSolver m => Op -> Integer -> m S
-getDerivedOp op n = do
-    fname <- withMapSlot #smtDerivedOps (op, n) $ do
-        let fname = case op of
-                OpCountLeadingZeroes -> printf "bvclz_%d" n
-                OpWordReverse -> printf "bvrev_%d" n
-        body <- case n of
-                1 -> return $ case op of
-                        OpCountLeadingZeroes -> iteS ("x" `eqS` binS "0") (binS "1") (binS "0")
-                        OpWordReverse -> "x"
-                _ -> do
-                    let m = n `div` 2
-                    topOp <- getDerivedOp op (n - m)
-                    botOp <- getDerivedOp op m
-                    let top = [ixS "extract" [intS (n - 1), intS m], "x"]
-                        bot = [ixS "extract" [intS (m - 1), intS 0], "x"]
-                        topApp = [topOp, top]
-                        botApp = [botOp, bot]
-                        topAppX = [ixS "zero_extend" [intS m], topApp]
-                        botAppX = [ixS "zero_extend" [intS (n - m)], botApp]
-                    return $ case op of
-                            OpCountLeadingZeroes ->
-                                iteS
-                                    (top `eqS` intWithWidthS (n - m) 0)
-                                    (bvaddS botAppX (intWithWidthS n m))
-                                    topAppX
-                            OpWordReverse ->
-                                concatS botApp topApp
-        send $ defineFunS fname [("x", bitVecS n)] (bitVecS n) body
-        return fname
-    return $ symbolS fname
-
-foldAssocBalanced :: (a -> a -> a) -> [a] -> a
-foldAssocBalanced f = go
-  where
-    go xs =
-        let n = length xs
-          in if n >= 4
-                then
-                    let (lhs, rhs) = splitAt (n `div` 2) xs
-                     in f (go lhs) (go rhs)
-                else
-                    foldr1 f xs
+--
 
 addRODataDef :: MonadSolver m => m ()
 addRODataDef = do
@@ -487,6 +447,8 @@ addPValidDomAssertions = do
     ensureM cheatMemDoms
     return ()
 
+--
+
 addSplitMemVar :: MonadSolver m => S -> NameHint -> ExprType -> m SplitMem
 addSplitMemVar split nameHint ty@ExprTypeMem = do
     bottom <- nameS <$> addVar (nameHint ++ "_bot") ty
@@ -497,6 +459,8 @@ addSplitMemVar split nameHint ty@ExprTypeMem = do
         , top
         , bottom
         }
+
+--
 
 -- TODO
 -- type PcEnv = (Expr, ExprEnv)
@@ -511,20 +475,17 @@ mergeEnvsPcs unfilteredPcEnvs = do
     env <- mergeEnvs pcEnvs
     return (pc, env, length pcEnvs > 1)
 
--- TODO move to RepGraph
-data CompatSMTComparisonKey
-  = SMTComparisonKeySMT String
-  | SMTComparisonKeySplitMem String String String
-  deriving (Eq, Generic, Ord, Show)
-
--- TODO move to RepGraph
-compatSMTComparisonKey :: MaybeSplit -> CompatSMTComparisonKey
-compatSMTComparisonKey = \case
-    NotSplit s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
-    Split s -> SMTComparisonKeySplitMem
-        (showSExprWithPlaceholders s.split)
-        (showSExprWithPlaceholders s.top)
-        (showSExprWithPlaceholders s.bottom)
+foldAssocBalanced :: (a -> a -> a) -> [a] -> a
+foldAssocBalanced f = go
+  where
+    go xs =
+        let n = length xs
+          in if n >= 4
+                then
+                    let (lhs, rhs) = splitAt (n `div` 2) xs
+                     in f (go lhs) (go rhs)
+                else
+                    foldr1 f xs
 
 -- TODO move to RepGraph
 mergeEnvs :: MonadSolver m => [(Expr, ExprEnv)] -> m ExprEnv
@@ -546,6 +507,21 @@ mergeEnvs envs = do
     orCompat = \case
         [x] -> x
         xs -> orNS xs
+
+-- TODO move to RepGraph
+data CompatSMTComparisonKey
+  = SMTComparisonKeySMT String
+  | SMTComparisonKeySplitMem String String String
+  deriving (Eq, Generic, Ord, Show)
+
+-- TODO move to RepGraph
+compatSMTComparisonKey :: MaybeSplit -> CompatSMTComparisonKey
+compatSMTComparisonKey = \case
+    NotSplit s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
+    Split s -> SMTComparisonKeySplitMem
+        (showSExprWithPlaceholders s.split)
+        (showSExprWithPlaceholders s.top)
+        (showSExprWithPlaceholders s.bottom)
 
 --
 
@@ -680,6 +656,62 @@ smtExprM expr = do
         ExprValueToken tok -> do
             getToken tok
 
+smtIfThenElse :: S -> MaybeSplit -> MaybeSplit -> MaybeSplit
+smtIfThenElse cond x y =
+    case (x, y) of
+        (NotSplit x', NotSplit y') -> NotSplit $ iteS cond x' y'
+        _ ->
+            let xSplit = trivSplit x
+                ySplit = trivSplit y
+             in Split $ SplitMem
+                    { split =
+                        if xSplit.split == ySplit.split
+                        then xSplit.split
+                        else iteS cond xSplit.split ySplit.split
+                    , top = iteS cond xSplit.top ySplit.top
+                    , bottom = iteS cond xSplit.bottom ySplit.bottom
+                    }
+  where
+    trivSplit = \case
+        Split splitMem -> splitMem
+        NotSplit s -> SplitMem
+            { split = machineWordS 0
+            , top = s
+            , bottom = s
+            }
+
+getDerivedOp :: MonadSolver m => Op -> Integer -> m S
+getDerivedOp op n = do
+    fname <- withMapSlot #smtDerivedOps (op, n) $ do
+        let fname = case op of
+                OpCountLeadingZeroes -> printf "bvclz_%d" n
+                OpWordReverse -> printf "bvrev_%d" n
+        body <- case n of
+                1 -> return $ case op of
+                        OpCountLeadingZeroes -> iteS ("x" `eqS` binS "0") (binS "1") (binS "0")
+                        OpWordReverse -> "x"
+                _ -> do
+                    let m = n `div` 2
+                    topOp <- getDerivedOp op (n - m)
+                    botOp <- getDerivedOp op m
+                    let top = [ixS "extract" [intS (n - 1), intS m], "x"]
+                        bot = [ixS "extract" [intS (m - 1), intS 0], "x"]
+                        topApp = [topOp, top]
+                        botApp = [botOp, bot]
+                        topAppX = [ixS "zero_extend" [intS m], topApp]
+                        botAppX = [ixS "zero_extend" [intS (n - m)], botApp]
+                    return $ case op of
+                            OpCountLeadingZeroes ->
+                                iteS
+                                    (top `eqS` intWithWidthS (n - m) 0)
+                                    (bvaddS botAppX (intWithWidthS n m))
+                                    topAppX
+                            OpWordReverse ->
+                                concatS botApp topApp
+        send $ defineFunS fname [("x", bitVecS n)] (bitVecS n) body
+        return fname
+    return $ symbolS fname
+
 smtExprMemupdM :: MonadSolver m => MaybeSplit -> S -> S -> ExprType -> m MaybeSplit
 smtExprMemupdM mMaybeSplit p v ty@(ExprTypeWord bits) = do
     case mMaybeSplit of
@@ -730,30 +762,6 @@ smtExprMemAccM mMaybeSplit p ty@(ExprTypeWord bits) = do
             noteModelExpr s ty
             return s
 
-smtIfThenElse :: S -> MaybeSplit -> MaybeSplit -> MaybeSplit
-smtIfThenElse cond x y =
-    case (x, y) of
-        (NotSplit x', NotSplit y') -> NotSplit $ iteS cond x' y'
-        _ ->
-            let xSplit = trivSplit x
-                ySplit = trivSplit y
-             in Split $ SplitMem
-                    { split =
-                        if xSplit.split == ySplit.split
-                        then xSplit.split
-                        else iteS cond xSplit.split ySplit.split
-                    , top = iteS cond xSplit.top ySplit.top
-                    , bottom = iteS cond xSplit.bottom ySplit.bottom
-                    }
-  where
-    trivSplit = \case
-        Split splitMem -> splitMem
-        NotSplit s -> SplitMem
-            { split = machineWordS 0
-            , top = s
-            , bottom = s
-            }
-
 addImpliesStackEqM :: MonadSolver m => Expr -> Expr -> Expr -> ReaderT ExprEnv m S
 addImpliesStackEqM sp s1 s2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (sp, s1, s2) $ do
     addr <- addVar "stack-eq-witness" word32T
@@ -795,8 +803,6 @@ getImmBasisMems = flip execStateT S.empty . go
             if isCached
                 then getDef (Name sym) >>= go
                 else modify $ S.insert m
-
---
 
 addPValidsM :: MonadSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValidsM = go False
