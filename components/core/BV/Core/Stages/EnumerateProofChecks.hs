@@ -144,7 +144,7 @@ restrOthersM restrs n = do
 loopsToSplitM :: [Restr] -> Reader Context [NodeAddr]
 loopsToSplitM restrs = do
     loopHeadsWithSplit <- fmap (S.fromList . catMaybes) . for restrs $ \restr -> do
-        loopIdOf restr.nodeAddr <$> gview #loopData
+        loopHeadOf restr.nodeAddr <$> gview #loopData
     loopHeads_ <- S.fromList . loopHeadsOf <$> gview #loopData
     let remLoopHeadsInit = loopHeads_ `S.difference` loopHeadsWithSplit
     g <- gview #nodeGraph

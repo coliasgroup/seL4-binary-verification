@@ -98,7 +98,7 @@ interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case
                 PcImpHypSideBool v -> return $ fromBoolE v
-                PcImpHypSidePc vt -> getPcM' vt.visit (Just vt.tag)
+                PcImpHypSidePc vt -> getPc vt.visit (Just vt.tag)
         impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
         (x, y) <- case eq.induct of
@@ -108,15 +108,15 @@ interpretHyp = \case
                 let x = substInduct eq.lhs.expr v
                 let y = substInduct eq.rhs.expr v
                 return (x, y)
-        xPcEnv <- getNodePcEnvM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
-        yPcEnv <- getNodePcEnvM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+        xPcEnv <- getNodePcEnv eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+        yPcEnv <- getNodePcEnv eq.rhs.visit.visit (Just eq.rhs.visit.tag)
         case (xPcEnv, yPcEnv) of
             (Just (_, xEnv), Just (_, yEnv)) -> do
                 eq' <- instEqWithEnvsM (x, xEnv) (y, yEnv)
                 if ifAt
                     then do
-                        xPc <- getPcM' eq.lhs.visit.visit (Just eq.lhs.visit.tag)
-                        yPc <- getPcM' eq.rhs.visit.visit (Just eq.rhs.visit.tag)
+                        xPc <- getPc eq.lhs.visit.visit (Just eq.lhs.visit.tag)
+                        yPc <- getPc eq.rhs.visit.visit (Just eq.rhs.visit.tag)
                         return $ nImpliesE [xPc, yPc] eq'
                     else do
                         return eq'
