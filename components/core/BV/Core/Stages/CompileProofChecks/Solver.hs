@@ -46,7 +46,7 @@ import BV.Core.Utils
 import BV.SMTLIB2.SExpr
 
 import Control.DeepSeq (NFData)
-import Control.Monad (join, unless, when, (>=>))
+import Control.Monad (unless, when, (>=>))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader (ask), ReaderT (runReaderT))
 import Control.Monad.RWS (MonadTrans (lift), RWS, modify)
@@ -489,6 +489,7 @@ addSplitMemVar split nameHint ty@ExprTypeMem = do
         , bottom
         }
 
+-- TODO move to RepGraph
 mergeEnvsPcs :: MonadSolver m => [(Expr, SMTEnv)] -> m (Expr, SMTEnv, Bool)
 mergeEnvsPcs unfilteredPcEnvs = do
     let pcEnvs = filter (\(pc, _) -> pc /= falseE) unfilteredPcEnvs
@@ -498,11 +499,13 @@ mergeEnvsPcs unfilteredPcEnvs = do
     env <- mergeEnvs pcEnvs
     return (pc, env, length pcEnvs > 1)
 
+-- TODO move to RepGraph
 data CompatSMTComparisonKey
   = SMTComparisonKeySMT String
   | SMTComparisonKeySplitMem String String String
   deriving (Eq, Generic, Ord, Show)
 
+-- TODO move to RepGraph
 compatSMTComparisonKey :: SMT -> CompatSMTComparisonKey
 compatSMTComparisonKey = \case
     SMT s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
@@ -510,6 +513,27 @@ compatSMTComparisonKey = \case
         (showSExprWithPlaceholders s.split)
         (showSExprWithPlaceholders s.top)
         (showSExprWithPlaceholders s.bottom)
+
+-- TODO move to RepGraph
+mergeEnvs :: MonadSolver m => [(Expr, SMTEnv)] -> m SMTEnv
+mergeEnvs envs = do
+    varEnvs <-
+        fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty . concat)
+            $ for envs $ \(pc, env) -> do
+                pc' <- withEnv env $ smtExprNoSplitM pc
+                return $
+                    [ M.singleton var (M.singleton val ([pc'] :: [S]))
+                    | (var, val) <- M.toAscList env
+                    ]
+    let flattenVal valsByPc =
+            let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
+                f accVal (val, pcs) = smtIfThenElse (orCompat pcs) val accVal
+             in foldl f lastVal valsByPcInit
+    return $ fmap (flattenVal . sortOn (compatSMTComparisonKey . fst) . M.toAscList) varEnvs
+  where
+    orCompat = \case
+        [x] -> x
+        xs -> orNS xs
 
 --
 
@@ -827,24 +851,3 @@ getImmBasisMems mTop = execStateT (go mTop) S.empty
                     go def
                 else do
                     modify $ S.insert m
-
-mergeEnvs :: MonadSolver m => [(Expr, SMTEnv)] -> m SMTEnv
-mergeEnvs envs = do
-    var_envs' <- fmap join $ for envs $ \(pc, env) -> do
-        pc_str <- withEnv env $ smtExprM pc
-        return $
-            [ M.singleton var (M.singleton s ([pc_str] :: [SMT]))
-            | (var, s) <- M.toAscList env
-            ]
-    let var_envs = foldr (M.unionWith (M.unionWith (<>))) M.empty var_envs'
-    let f :: [(SMT, [SMT])] -> SMT
-        f itsx =
-            let Just (its, (v', _)) = unsnoc itsx
-                g v (v2, pc_strs'') =
-                    let pc_strs = fmap (^. expecting #_SMT) pc_strs''
-                        pc_str = case pc_strs of
-                            [pc_str'] -> pc_str'
-                            _ -> orNS pc_strs
-                     in smtIfThenElse pc_str v2 v
-             in foldl g v' its
-    return $ fmap (f . sortOn (compatSMTComparisonKey . fst) . M.toAscList) var_envs
