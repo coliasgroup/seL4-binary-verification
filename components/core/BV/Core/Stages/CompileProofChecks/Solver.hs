@@ -9,10 +9,10 @@
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.Stages.CompileProofChecks.Solver
-    ( MonadSolver (..)
+    ( ExprEnv
+    , MonadSolver (..)
     , Name (..)
     , NameHint
-    , SMTEnv
     , SolverEnv
     , SolverOutput
     , SolverState
@@ -153,12 +153,12 @@ finalizeSolver = do
 
 --
 
-type SMTEnv = Map (Ident, ExprType) MaybeSplit
+type ExprEnv = Map (Ident, ExprType) MaybeSplit
 
-withEnv :: SMTEnv -> ReaderT SMTEnv m a -> m a
+withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
 withEnv = flip runReaderT
 
-withoutEnv :: ReaderT SMTEnv m a -> m a
+withoutEnv :: ReaderT ExprEnv m a -> m a
 withoutEnv = flip runReaderT mempty
 
 --
@@ -246,7 +246,7 @@ getDef name = liftSolver $ use $ #defs % at name % unwrapped
 tryGetDef :: MonadSolver m => Name -> m (Maybe S)
 tryGetDef name = liftSolver $ use $ #defs % at name
 
-addDefInner :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m (Either Name SplitMem)
+addDefInner :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m (Either Name SplitMem)
 addDefInner nameHint expr = smtExprM expr >>= \case
     NotSplit s -> Left <$> do
         name <- takeFreshName nameHint
@@ -272,11 +272,11 @@ addDefInner nameHint expr = smtExprM expr >>= \case
   where
     ty = expr.ty
 
-addDef :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m MaybeSplit
+addDef :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
 addDef nameHint val =
     either (NotSplit . nameS) Split <$> addDefInner nameHint val
 
-addDefNotSplit :: MonadSolver m => NameHint -> Expr -> ReaderT SMTEnv m Name
+addDefNotSplit :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m Name
 addDefNotSplit nameHint val =
     view (expecting #_Left) <$> addDefInner nameHint val
 
@@ -320,7 +320,7 @@ addVarRestr = addVar
 assertSMTFact :: MonadSolver m => S -> m ()
 assertSMTFact = send . assertS
 
-assertFact :: MonadSolver m => Expr -> ReaderT SMTEnv m ()
+assertFact :: MonadSolver m => Expr -> ReaderT ExprEnv m ()
 assertFact = smtExprNotSplitM >=> assertSMTFact
 
 withSetSlot :: (MonadSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
@@ -490,7 +490,7 @@ addSplitMemVar split nameHint ty@ExprTypeMem = do
         }
 
 -- TODO move to RepGraph
-mergeEnvsPcs :: MonadSolver m => [(Expr, SMTEnv)] -> m (Expr, SMTEnv, Bool)
+mergeEnvsPcs :: MonadSolver m => [(Expr, ExprEnv)] -> m (Expr, ExprEnv, Bool)
 mergeEnvsPcs unfilteredPcEnvs = do
     let pcEnvs = filter (\(pc, _) -> pc /= falseE) unfilteredPcEnvs
     let pc = case pcEnvs of
@@ -515,7 +515,7 @@ compatSMTComparisonKey = \case
         (showSExprWithPlaceholders s.bottom)
 
 -- TODO move to RepGraph
-mergeEnvs :: MonadSolver m => [(Expr, SMTEnv)] -> m SMTEnv
+mergeEnvs :: MonadSolver m => [(Expr, ExprEnv)] -> m ExprEnv
 mergeEnvs envs = do
     varEnvs <-
         fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty . concat)
@@ -537,7 +537,7 @@ mergeEnvs envs = do
 
 --
 
-toSmtExprM :: MonadSolver m => Expr -> ReaderT SMTEnv m Expr
+toSmtExprM :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
 toSmtExprM expr = case expr.ty of
     ExprTypeRelWrapper -> case expr.value of
         ExprValueOp op args -> do
@@ -548,10 +548,10 @@ toSmtExprM expr = case expr.ty of
         s <- smtExprM expr
         return $ smtExprE expr.ty s
 
-smtExprNotSplitM :: MonadSolver m => Expr -> ReaderT SMTEnv m S
+smtExprNotSplitM :: MonadSolver m => Expr -> ReaderT ExprEnv m S
 smtExprNotSplitM expr = view (expecting #_NotSplit) <$> smtExprM expr
 
-smtExprM :: MonadSolver m => Expr -> ReaderT SMTEnv m MaybeSplit
+smtExprM :: MonadSolver m => Expr -> ReaderT ExprEnv m MaybeSplit
 smtExprM expr = do
     case expr.value of
         ExprValueOp op args -> case op of
@@ -797,7 +797,7 @@ addPValidsM = go False
 
 --
 
-addImpliesStackEqM :: MonadSolver m => Expr -> Expr -> Expr -> ReaderT SMTEnv m S
+addImpliesStackEqM :: MonadSolver m => Expr -> Expr -> Expr -> ReaderT ExprEnv m S
 addImpliesStackEqM sp s1 s2 = do
     let k = (sp, s1, s2)
     lift (liftSolver (use (#stackEqsImpliesStackEq % at k))) >>= \case
@@ -813,7 +813,7 @@ addImpliesStackEqM sp s1 s2 = do
             liftSolver $ #stackEqsImpliesStackEq %= M.insert k stack_eq
             return (nameS stack_eq)
 
-getStackEqImplies :: MonadSolver m => S -> S -> MaybeSplit -> ReaderT SMTEnv m S
+getStackEqImplies :: MonadSolver m => S -> S -> MaybeSplit -> ReaderT ExprEnv m S
 getStackEqImplies split st_top other = do
     let (rhs, cond) = case other of
             Split splitMem -> (splitMem.top, bvuleS splitMem.split split)
