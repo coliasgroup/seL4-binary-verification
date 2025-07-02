@@ -90,7 +90,7 @@ interpretGroup group = do
         hyps <- mapM interpretHyp check.hyps
         return (check, strengthenHyp (nImpliesE hyps concl))
     for hyps $ \(check, term) -> do
-        sexpr <- runReaderT (smtExprNotSplitM term) M.empty
+        sexpr <- runReaderT (convertExprNoSplit term) M.empty
         return $ SMTProofCheckImp check.meta sexpr
 
 interpretHyp :: Hyp -> M Expr

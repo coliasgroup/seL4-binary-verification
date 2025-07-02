@@ -230,13 +230,13 @@ getPcM visit tag = do
     pc_env <- getNodePcEnvM visit tag
     case pc_env of
         Nothing -> return falseE
-        Just (pc, env) -> withEnv env $ toSmtExprM pc
+        Just (pc, env) -> withEnv env $ convertInnerExpr pc
 
 toSmtExprRM :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
 toSmtExprRM expr visit tag = do
     pc_env <- getNodePcEnvM visit tag
     let Just (_pc, env) = pc_env
-    withEnv env $ toSmtExprM expr
+    withEnv env $ convertInnerExpr expr
 
 getNodePcEnvM' :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, ExprEnv))
 getNodePcEnvM' visit tag = view (expecting _Right) <$> runExceptT (getNodePcEnvM visit tag)
@@ -361,9 +361,9 @@ substInduct expr inductVar = flip varSubst expr $ \ident ty ->
 toSmtExprUnderOpM :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
 toSmtExprUnderOpM expr = case expr.value of
     ExprValueOp op args -> do
-        args' <- mapM toSmtExprM args
+        args' <- mapM convertInnerExpr args
         return $ expr & #value .~ ExprValueOp op args'
-    _ -> toSmtExprM expr
+    _ -> convertInnerExpr expr
 
 instEqWithEnvsM :: MonadSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
 instEqWithEnvsM (x, env1) (y, env2) = do
@@ -400,7 +400,7 @@ varRepRequest nm typ kind n_vc env = runMaybeT $ do
     let hook = asmStackRepHook
     let n = n_vc.nodeId ^. expecting #_Addr
     addr <- MaybeT $ hook nm typ kind n
-    addr_s <- lift $ withEnv env $ smtExprM addr
+    addr_s <- lift $ withEnv env $ convertExpr addr
     let countName = nodeCountName n_vc
     let name = printf "%s_for_%s" nm.unwrap countName
     lift $ addSplitMemVar (addr_s ^. expecting #_NotSplit) name typ
@@ -501,7 +501,7 @@ getNodePcEnvRawM visitWithTag = do
                             pc_envs' <- case visitWithTag.visit.nodeId of
                                 Err -> do
                                     for pc_envs $ \(pc, env) -> do
-                                        pc' <- withEnv env $ toSmtExprM pc
+                                        pc' <- withEnv env $ convertInnerExpr pc
                                         return $ (pc', M.empty)
                                 _ -> return pc_envs
                             (pc, env, _large) <- mergeEnvsPcs pc_envs'
@@ -675,7 +675,7 @@ emitNodeM n = do
                 let success = smtExprE boolT $ NotSplit $ nameS success'
                 sig <- liftRepGraph $ gview $ #functionSigs % to ($ (WithTag tag callNode.functionName))
                 ins <- M.fromList <$> (for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
-                    x <- withEnv env $ smtExprM (app_eqs callArg)
+                    x <- withEnv env $ convertExpr (app_eqs callArg)
                     return ((funArg.name, funArg.ty), x))
                 mem_calls' <- scanMemCalls ins
                 -- do
