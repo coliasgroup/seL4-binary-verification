@@ -35,6 +35,7 @@ import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT, runReader)
 import Control.Monad.State (StateT)
 import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Maybe (MaybeT)
 import Data.Function (applyWhen)
 import Data.Functor ((<&>))
 import Data.List (nub)
@@ -53,6 +54,9 @@ instance MonadStructs m => MonadStructs (ReaderT r m) where
     askLookupStruct = lift askLookupStruct
 
 instance MonadStructs m => MonadStructs (StateT s m) where
+    askLookupStruct = lift askLookupStruct
+
+instance MonadStructs m => MonadStructs (MaybeT m) where
     askLookupStruct = lift askLookupStruct
 
 instance MonadStructs m => MonadStructs (ExceptT e m) where

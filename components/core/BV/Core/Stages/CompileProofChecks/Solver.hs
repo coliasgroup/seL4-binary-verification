@@ -20,7 +20,7 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , addDefNotSplit
     , addSplitMemVar
     , addVar
-    , addVarRestr
+    , addVarXRestr
     , assertFact
     , convertExpr
     , convertExprNoSplit
@@ -51,6 +51,7 @@ import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (ReaderT (runReaderT), asks)
 import Control.Monad.RWS (MonadTrans (lift), RWS, modify)
 import Control.Monad.State (StateT, execStateT, get)
+import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Writer (tell)
 import Data.Foldable (for_)
 import Data.List (nub, sortOn)
@@ -81,6 +82,9 @@ instance MonadSolver m => MonadSolver (ReaderT r m) where
     liftSolver = lift . liftSolver
 
 instance MonadSolver m => MonadSolver (StateT s m) where
+    liftSolver = lift . liftSolver
+
+instance MonadSolver m => MonadSolver (MaybeT m) where
     liftSolver = lift . liftSolver
 
 instance MonadSolver m => MonadSolver (ExceptT e m) where
@@ -201,6 +205,22 @@ takeFreshName =
 
 --
 
+withSetSlot :: (MonadSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
+withSetSlot l k m = do
+    seen <- liftSolver $ use $ l % to (S.member k)
+    unless seen m
+    liftSolver $ l %= S.insert k
+
+withMapSlot :: (MonadSolver m, Ord k) => Lens' SolverState (M.Map k v) -> k -> m v -> m v
+withMapSlot l k m = do
+    opt <- liftSolver (use (l % at k))
+    whenNothing opt $ do
+        v <- m
+        liftSolver $ l %= M.insert k v
+        return v
+
+--
+
 askRODataPtrs :: MonadSolver m => m [(Expr, ExprType)]
 askRODataPtrs = do
     rodata <- liftSolver $ gview #rodata
@@ -245,25 +265,6 @@ opS x = case x of
     OpTokenWordsUpdate -> "store"
     OpWordArrayAccess -> "select"
     OpWordArrayUpdate -> "store"
-
---
-
-unlessJust :: Monad m => Maybe a -> m a -> m a
-unlessJust opt m = maybe m return opt
-
-withSetSlot :: (MonadSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
-withSetSlot l k m = do
-    seen <- liftSolver $ use $ l % to (S.member k)
-    unless seen m
-    liftSolver $ l %= S.insert k
-
-withMapSlot :: (MonadSolver m, Ord k) => Lens' SolverState (M.Map k v) -> k -> m v -> m v
-withMapSlot l k m = do
-    opt <- liftSolver (use (l % at k))
-    unlessJust opt $ do
-        v <- m
-        liftSolver $ l %= M.insert k v
-        return v
 
 --
 
@@ -341,8 +342,8 @@ addVar nameHint ty = do
             liftSolver $ #modelVars %= S.insert name
     return name
 
-addVarRestr :: MonadSolver m => NameHint -> ExprType -> m Name
-addVarRestr = addVar
+addVarXRestr :: MonadSolver m => NameHint -> ExprType -> m Name
+addVarXRestr = addVar
 
 assertSMTFact :: MonadSolver m => S -> m ()
 assertSMTFact = send . assertS
@@ -824,7 +825,7 @@ addPValids = go False
                         assertSMTFact var
                 ptrName <- notePtr ptr
                 opt <- liftSolver $ preuse $ #pvalids % at htd % #_Just % at (pvTy, ptrName, pvKind) % #_Just
-                unlessJust opt $ do
+                whenNothing opt $ do
                     var <- addVar "pvalid" boolT
                     liftSolver $ #pvalids %= M.insertWith (<>) htd mempty
                     others <- liftSolver $

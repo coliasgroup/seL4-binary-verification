@@ -14,6 +14,8 @@ module BV.Core.Utils
     , is
     , optionals
     , unwrapped
+    , whenJust
+    , whenNothing
     , whileM
     , (!@)
     ) where
@@ -61,6 +63,12 @@ whileM cond body = go
             body
             go
 
+whenNothing :: Monad m => Maybe a -> m a -> m a
+whenNothing opt m = maybe m return opt
+
+whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
+whenJust opt f = maybe (return ()) f opt
+
 unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just
 
@@ -90,8 +98,6 @@ findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present:
 
 -- (!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
 -- (!) = findWithCallstack
-
---
 
 data IncludeExcludeFilter a
   = IncludeExcludeFilter

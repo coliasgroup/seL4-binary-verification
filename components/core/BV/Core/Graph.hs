@@ -6,9 +6,9 @@ module BV.Core.Graph
     , createLoopDataMap
     , isReachableFrom
     , loopBodyOf
+    , loopHeadOf
     , loopHeadsFrom
     , loopHeadsOf
-    , loopIdOf
     , makeNodeGraph
     , makeNodeGraphEdges
     , makeNodeGraphFromEdges
@@ -109,10 +109,11 @@ loopHeadsOf loopDataMap = flip mapMaybe (M.toList loopDataMap) $ \(k, v) -> case
     LoopHead _ -> Just k
     LoopMember _ -> Nothing
 
-loopIdOf :: NodeAddr -> LoopDataMap -> Maybe NodeAddr
-loopIdOf addr loopDataMap = M.lookup addr loopDataMap <&> \case
+loopHeadOf :: NodeAddr -> LoopDataMap -> Maybe NodeAddr
+loopHeadOf addr loopDataMap = M.lookup addr loopDataMap <&> \case
     LoopHead _ -> addr
     LoopMember addr' -> addr'
 
 loopBodyOf :: NodeAddr -> LoopDataMap -> S.Set NodeAddr
-loopBodyOf n loopDataMap = loopDataMap ^. expectingAt (fromJust (loopIdOf n loopDataMap)) % expecting #_LoopHead
+loopBodyOf n loopDataMap =
+    loopDataMap ^. expectingAt (fromJust (loopHeadOf n loopDataMap)) % expecting #_LoopHead
