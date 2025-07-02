@@ -333,6 +333,11 @@ assertSMTFact = send . assertS
 assertFact :: MonadSolver m => Expr -> ReaderT ExprEnv m ()
 assertFact = smtExprNotSplitM >=> assertSMTFact
 
+unlessJust :: Monad m => Maybe a -> m a -> m a
+unlessJust opt m = case opt of
+    Just x -> return x
+    Nothing -> m
+
 withSetSlot :: (MonadSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
 withSetSlot l k m = do
     seen <- liftSolver $ use $ l % to (S.member k)
@@ -341,13 +346,11 @@ withSetSlot l k m = do
 
 withMapSlot :: (MonadSolver m, Ord k) => Lens' SolverState (M.Map k v) -> k -> m v -> m v
 withMapSlot l k m = do
-    liftSolver (use (l % at k)) >>= \case
-        Just v -> do
-            return v
-        Nothing -> do
-            v <- m
-            liftSolver $ l %= M.insert k v
-            return v
+    opt <- liftSolver (use (l % at k))
+    unlessJust opt $ do
+        v <- m
+        liftSolver $ l %= M.insert k v
+        return v
 
 noteModelExpr :: MonadSolver m => S -> ExprType -> m ()
 noteModelExpr s ty = withSetSlot #modelExprs s $ do
@@ -802,43 +805,38 @@ getImmBasisMems = flip execStateT S.empty . go
 addPValidsM :: MonadSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValidsM = go False
   where
-    go recursion htd_s typ p_s kind = do
-        case htd_s of
-            List [kw, cond, l, r] | kw == symbolS "ite" -> do
-                l' <- addPValidsM l typ p_s kind
-                r' <- addPValidsM r typ p_s kind
-                return $ iteS cond l' r'
+    go recursion htd pvTy ptr pvKind = do
+        case htd of
+            List [op, cond, l, r] | op == symbolS "ite" -> do
+                iteS cond
+                    <$> addPValidsM l pvTy ptr pvKind
+                    <*> addPValidsM r pvTy ptr pvKind
             _ -> do
-                alreadyIn <- liftSolver $ use $ #pvalids % to (M.member htd_s)
-                when (not alreadyIn && not recursion) $ do
+                present <- liftSolver $ use $ #pvalids % to (M.member htd)
+                when (not present && not recursion) $ do
                     rodataPtrs <- askRODataPtrs
-                    for_ rodataPtrs $ \(r_addr, r_typ) -> do
-                        r_addr_s <- withoutEnv $ smtExprNotSplitM r_addr
-                        var <- go True htd_s (PValidTypeType r_typ) r_addr_s PValidKindPGlobalValid
+                    for_ rodataPtrs $ \(rAddr, rTy) -> do
+                        rAddr' <- withoutEnv $ smtExprNotSplitM rAddr
+                        var <- go True htd (PValidTypeType rTy) rAddr' PValidKindPGlobalValid
                         assertSMTFact var
-                p <- notePtr p_s
-                present <- liftSolver $ preuse $ #pvalids % at htd_s % #_Just % at (typ, p, kind) % #_Just
-                case present of
-                    Just x -> do
-                        return x
-                    Nothing -> do
-                        var <- addVar "pvalid" boolT
-                        liftSolver $ #pvalids %= M.insertWith (<>) htd_s mempty
-                        others <- liftSolver $ #pvalids % at htd_s % unwrapped <<%= M.insert (typ, p, kind) (nameS var)
-                        let pdata = smtify (typ, p, kind) (nameS var)
-                        let (_, pdataKind, p', pv') = pdata
-                        impl_al <- impliesE pv' <$> alignValidIneq typ p'
-                        withoutEnv $ assertFact impl_al
-                        for (sortOn snd (M.toAscList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
-                            let kinds :: [PValidKind] = [valPvKind, pdataKind]
-                            unless (PValidKindPWeakValid `elem` kinds && not (PValidKindPGlobalValid `elem` kinds)) $ do
-                                do
-                                    ass <- pvalidAssertion1 pdata (uncurry smtify val)
-                                    ass_s <- withoutEnv $ smtExprNotSplitM ass
-                                    assertSMTFact ass_s
-                                do
-                                    ass <- pvalidAssertion2 pdata (uncurry smtify val)
-                                    ass_s <- withoutEnv $ smtExprNotSplitM ass
-                                    assertSMTFact ass_s
-                        return $ nameS var
-    smtify (typ, p, kind) var = (typ, kind, smtExprE machineWordT (NotSplit $ nameS p), smtExprE boolT (NotSplit var))
+                ptrName <- notePtr ptr
+                opt <- liftSolver $ preuse $ #pvalids % at htd % #_Just % at (pvTy, ptrName, pvKind) % #_Just
+                unlessJust opt $ do
+                    var <- addVar "pvalid" boolT
+                    liftSolver $ #pvalids %= M.insertWith (<>) htd mempty
+                    others <- liftSolver $
+                        #pvalids % at htd % unwrapped <<%= M.insert (pvTy, ptrName, pvKind) (nameS var)
+                    let pdata = smtify (pvTy, ptrName, pvKind) (nameS var)
+                    let (_, pdataPvKind, pdataPtr, pdataPv) = pdata
+                    withoutEnv . assertFact . impliesE pdataPv =<< alignValidIneq pvTy pdataPtr
+                    for (sortOn snd (M.toAscList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
+                        let kinds :: [PValidKind] = [valPvKind, pdataPvKind]
+                        unless (PValidKindPWeakValid `elem` kinds && not (PValidKindPGlobalValid `elem` kinds)) $ do
+                            let applyAssertion f =
+                                    f pdata (uncurry smtify val)
+                                        >>= withoutEnv . smtExprNotSplitM
+                                        >>= assertSMTFact
+                            applyAssertion pvalidAssertion1
+                            applyAssertion pvalidAssertion2
+                    return $ nameS var
+    smtify (ty, p, kind) var = (ty, kind, smtExprE machineWordT (NotSplit (nameS p)), smtExprE boolT (NotSplit var))
