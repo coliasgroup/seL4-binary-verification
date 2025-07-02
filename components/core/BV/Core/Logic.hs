@@ -33,6 +33,7 @@ import Control.DeepSeq (NFData)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT, runReader)
+import Control.Monad.State (StateT)
 import Control.Monad.Trans (lift)
 import Data.Function (applyWhen)
 import Data.Functor ((<&>))
@@ -49,6 +50,9 @@ class Monad m => MonadStructs m where
     askLookupStruct :: m (Ident -> Struct)
 
 instance MonadStructs m => MonadStructs (ReaderT r m) where
+    askLookupStruct = lift askLookupStruct
+
+instance MonadStructs m => MonadStructs (StateT s m) where
     askLookupStruct = lift askLookupStruct
 
 instance MonadStructs m => MonadStructs (ExceptT e m) where

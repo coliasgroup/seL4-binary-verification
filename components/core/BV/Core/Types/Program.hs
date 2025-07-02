@@ -25,12 +25,14 @@ module BV.Core.Types.Program
     , StructField (..)
     , VarUpdate (..)
     , fromListOfNamed
+    , fromNotSplit
     , prettyNodeId
     , toListOfNamed
     , withNamed
     ) where
 
 import BV.Core.Types.SExprWithPlaceholders (SExprWithPlaceholders)
+import BV.Core.Utils (expecting)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
@@ -38,6 +40,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.String (IsString (..))
 import GHC.Generics (Generic)
+import Optics (view)
 
 newtype Ident
   = Ident { unwrap :: String }
@@ -334,6 +337,9 @@ data MaybeSplit
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary MaybeSplit where
+
+fromNotSplit :: MaybeSplit -> SExprWithPlaceholders
+fromNotSplit = view $ expecting #_NotSplit
 
 data SplitMem
   = SplitMem
