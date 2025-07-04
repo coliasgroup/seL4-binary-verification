@@ -518,7 +518,7 @@ getMemCalls sexpr = do
 
 scanMemCalls :: MonadRepGraph m => ExprEnv -> m (Maybe MemCalls)
 scanMemCalls env = do
-    let mem_vs = [ v | ((_nm, typ), v) <- M.toAscList env, typ == memT ]
+    let mem_vs = [ v | ((_nm, ty), v) <- M.toAscList env, ty == memT ]
     mem_calls <- for (catMaybes (map (preview #_NotSplit) mem_vs)) $ \v -> do
         getMemCalls v
     return $ case mem_calls of
