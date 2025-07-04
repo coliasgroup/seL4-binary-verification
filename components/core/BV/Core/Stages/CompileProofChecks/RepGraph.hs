@@ -288,8 +288,8 @@ tryGetPc visit tag = tryGetNodePcEnv visit tag >>= \case
     Nothing -> return falseE
     Just (pc, env) -> withEnv env $ convertInnerExpr pc
 
-toSmtExprRM :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
-toSmtExprRM expr visit tag = do
+convertInnerExprWithPcEnv :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
+convertInnerExprWithPcEnv expr visit tag = do
     pcEnv <- tryGetNodePcEnv visit tag
     let Just (_pc, env) = pcEnv
     withEnv env $ convertInnerExpr expr
@@ -646,7 +646,7 @@ postEmitNodeHooksM visit = do
         node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
         let accs = toListOf (foldExprs % getMemAccess) node
         upd_ps <- catMaybes <$> (for accs $ \acc -> case acc.kind of
-            MemOpKindUpdate -> Just <$> toSmtExprRM acc.addr visit Nothing
+            MemOpKindUpdate -> Just <$> convertInnerExprWithPcEnv acc.addr visit Nothing
             _ -> return Nothing)
         case upd_ps of
             [] -> return ()
