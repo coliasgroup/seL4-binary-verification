@@ -234,8 +234,8 @@ loopBodyInnerLoops p loopHead loopBody =
         | n <- S.toList loopBody
         ]
 
-getFreshIdentMR :: MonadRepGraph m => NameHint -> m Ident
-getFreshIdentMR nameHint = do
+getFreshIdent :: MonadRepGraph m => NameHint -> m Ident
+getFreshIdent nameHint = do
     problemNames <- liftRepGraph $ gview #problemNames
     extraProblemNames <- liftRepGraph $ use #extraProblemNames
     let taken n = S.member n problemNames || S.member n extraProblemNames
@@ -684,7 +684,7 @@ emitNodeM n = do
                 return [(basicNode.next, pc, env')]
             NodeCond condNode -> do
                 let name = condName n
-                freshName <- getFreshIdentMR name
+                freshName <- getFreshIdent name
                 let cond = varE boolT freshName
                 def <- withEnv env $ addLocalDefMR () () name (app_eqs condNode.expr)
                 let env' = M.insert (freshName, boolT) def env
