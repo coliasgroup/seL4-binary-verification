@@ -373,19 +373,19 @@ substInduct expr inductVar = varSubst f expr
 
 instEqWithEnvs :: MonadSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
 instEqWithEnvs (x, xenv) (y, yenv) = do
-    x' <- withEnv xenv $ toSmtExprUnderOpM x
-    y' <- withEnv yenv $ toSmtExprUnderOpM y
+    x' <- withEnv xenv $ convertUnderOp x
+    y' <- withEnv yenv $ convertUnderOp y
     let f = case x'.ty of
             ExprTypeRelWrapper -> applyRelWrapper
             _ -> eqE
     return $ f x' y'
-
-toSmtExprUnderOpM :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
-toSmtExprUnderOpM expr = case expr.value of
-    ExprValueOp op args -> do
-        args' <- traverse convertInnerExpr args
-        return $ Expr expr.ty $ ExprValueOp op args'
-    _ -> convertInnerExpr expr
+  where
+    convertUnderOp :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
+    convertUnderOp expr = case expr.value of
+        ExprValueOp op args -> do
+            args' <- traverse convertInnerExpr args
+            return $ Expr expr.ty $ ExprValueOp op args'
+        _ -> convertInnerExpr expr
 
 askCont :: MonadRepGraph m => Visit -> m Visit
 askCont visit = do
