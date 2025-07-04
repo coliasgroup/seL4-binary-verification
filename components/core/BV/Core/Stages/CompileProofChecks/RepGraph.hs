@@ -12,7 +12,6 @@
 module BV.Core.Stages.CompileProofChecks.RepGraph
     ( FunctionSignatures
     , MonadRepGraph (..)
-    , RepGraphContext
     , RepGraphEnv
     , RepGraphState
     , getInductVarM
