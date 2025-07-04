@@ -12,16 +12,15 @@
 module BV.Core.Stages.CompileProofChecks.RepGraph
     ( FunctionSignatures
     , MonadRepGraph (..)
-    , RepGraphContext
     , RepGraphEnv
     , RepGraphState
-    , getInductVarM
+    , getInductVar
     , getNodePcEnv
     , getPc
     , initRepGraph
     , initRepGraphEnv
     , initRepGraphState
-    , instEqWithEnvsM
+    , instEqWithEnvs
     , substInduct
     ) where
 
@@ -50,7 +49,7 @@ import Control.Monad.Trans.Reader (ReaderT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
-import Data.List (intercalate, isPrefixOf, nub, sort, tails)
+import Data.List (intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
@@ -164,7 +163,7 @@ initRepGraphState = RepGraphState
 
 initRepGraph :: MonadRepGraph m => m ()
 initRepGraph = do
-    addInputEnvsM
+    addInputEnvs
 
 --
 
@@ -235,8 +234,8 @@ loopBodyInnerLoops p loopHead loopBody =
         | n <- S.toList loopBody
         ]
 
-getFreshIdentMR :: MonadRepGraph m => NameHint -> m Ident
-getFreshIdentMR nameHint = do
+getFreshIdent :: MonadRepGraph m => NameHint -> m Ident
+getFreshIdent nameHint = do
     problemNames <- liftRepGraph $ gview #problemNames
     extraProblemNames <- liftRepGraph $ use #extraProblemNames
     let taken n = S.member n problemNames || S.member n extraProblemNames
@@ -246,8 +245,8 @@ getFreshIdentMR nameHint = do
 
 --
 
-addInputEnvsM :: MonadRepGraph m => m ()
-addInputEnvsM = do
+addInputEnvs :: MonadRepGraph m => m ()
+addInputEnvs = do
     p <- liftRepGraph $ gview #problem
     f p.sides.asm
     f p.sides.c
@@ -268,7 +267,7 @@ addInputEnvsM = do
                         VarRepRequestKindInit
                         (Visit { nodeId = side.entryPoint, restrs = []})
                         env
-                    whenJust opt $ \splitMem -> modify $ M.insert (arg.name, arg.ty) (Split splitMem)
+                    whenJust_ opt $ \splitMem -> modify $ M.insert (arg.name, arg.ty) (Split splitMem)
         env <- execStateT m M.empty
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
 
@@ -289,18 +288,14 @@ tryGetPc visit tag = tryGetNodePcEnv visit tag >>= \case
     Nothing -> return falseE
     Just (pc, env) -> withEnv env $ convertInnerExpr pc
 
-toSmtExprRM :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
-toSmtExprRM expr visit tag = do
+convertInnerExprWithPcEnv :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
+convertInnerExprWithPcEnv expr visit tag = do
     pcEnv <- tryGetNodePcEnv visit tag
     let Just (_pc, env) = pcEnv
     withEnv env $ convertInnerExpr expr
 
 getNodePcEnv :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, ExprEnv))
 getNodePcEnv visit tag = view (expecting _Right) <$> runExceptT (tryGetNodePcEnv visit tag)
-
--- TODO
-applyKnownEqsPcEnvM :: Monad m => VisitWithTag -> (Expr, ExprEnv) -> m (Expr, ExprEnv)
-applyKnownEqsPcEnvM _ = return
 
 tryGetNodePcEnv :: MonadRepGraphE m => Visit -> Maybe Tag -> m (Maybe (Expr, ExprEnv))
 tryGetNodePcEnv visit tag' = do
@@ -316,7 +311,7 @@ tryGetNodePcEnv visit tag' = do
                 }
         MaybeT $ withMapSlot #nodePcEnvs vt $ do
             warmPcEnvCacheM vt
-            getNodePcEnvRawM vt >>= mapM (applyKnownEqsPcEnvM vt)
+            getNodePcEnvRawM vt
 
 localNameBefore :: Ident -> Visit -> NameHint
 localNameBefore s vis = printf "%s_v_at_%s" s.unwrap (nodeCountName vis)
@@ -359,6 +354,241 @@ visitCountName (VisitCount { numbers, offsets }) =
   where
     showNumber = show
     showOffset n = "i+" ++ show n
+
+getInductVar :: MonadRepGraph m => EqHypInduct -> m Expr
+getInductVar induct =
+    fmap (smtExprE word32T . NotSplit . nameS)
+        $ withMapSlot #inductVarEnv induct $
+            addVar (printf "induct_i_%d_%d" induct.a induct.b) word32T
+
+substInduct :: Expr -> Expr -> Expr
+substInduct expr inductVar = varSubst f expr
+  where
+    f (Ident "%n") (ExprTypeWord 32) = Just inductVar
+    f _ _ = Nothing
+
+instEqWithEnvs :: MonadSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
+instEqWithEnvs (x, xenv) (y, yenv) = do
+    x' <- withEnv xenv $ convertUnderOp x
+    y' <- withEnv yenv $ convertUnderOp y
+    let f = case x'.ty of
+            ExprTypeRelWrapper -> applyRelWrapper
+            _ -> eqE
+    return $ f x' y'
+  where
+    convertUnderOp :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
+    convertUnderOp expr = case expr.value of
+        ExprValueOp op args -> do
+            args' <- traverse convertInnerExpr args
+            return $ Expr expr.ty $ ExprValueOp op args'
+        _ -> convertInnerExpr expr
+
+askCont :: MonadRepGraph m => Visit -> m Visit
+askCont visit = do
+    let nodeAddr = visit.nodeId ^. expecting #_Addr
+    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at nodeAddr % unwrapped % nodeConts
+    let [cont] = conts
+    let p = any (\restr -> restr.nodeAddr == nodeAddr) visit.restrs
+    return $ Visit
+        { nodeId = cont
+        , restrs = if p then fromJust (incrVCs visit.restrs nodeAddr 1) else visit.restrs
+        }
+
+addFunc :: MonadRepGraphE m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
+addFunc name inputs outputs success visit = do
+    liftRepGraph $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
+    pairingIdOpt <- liftRepGraph $ gview $ #pairingsAccess % at name
+    whenJust_ pairingIdOpt $ \pairingId -> do
+        group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
+        for_ group $ \visit2 -> do
+            ok <- isJust <$> getFuncPairing visit visit2
+            when ok $ do
+                addFuncAssert visit visit2
+        liftRepGraph $ #funcsByName %= M.insert pairingId (group ++ [visit])
+
+getFuncPairingNoCheck :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairingNoCheck visit visit2 = do
+    let askFnName v = liftRepGraph $ gview $
+            #problem % #nodes % at (v.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
+    fname <- askFnName visit
+    fname2 <- askFnName visit2
+    pairingId <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
+    p <- liftRepGraph $ gview $ #pairings % #unwrap % at pairingId % unwrapped
+    return $ (p ,) <$> if
+        | pairingId == PairingOf { asm = fname, c = fname2 } -> Just $ PairingOf { asm = visit, c = visit2 }
+        | pairingId == PairingOf { asm = fname2, c = fname } -> Just $ PairingOf { asm = visit2, c = visit }
+        | otherwise -> Nothing
+
+getFuncPairing :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairing visit visit2 = do
+    opt <- getFuncPairingNoCheck visit visit2
+    whenJustThen opt $ \(p, visits) -> do
+        (lin, _, _) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
+        (rin, _, _) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
+        lcalls <- scanMemCalls lin
+        rcalls <- scanMemCalls rin
+        (compatible, _s) <- memCallsCompatible $ PairingOf
+            { asm = lcalls
+            , c = rcalls
+            }
+        -- unless compatible $ do
+        --     warn _s
+        return $ if compatible then Just (p, visits) else Nothing
+
+getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
+getFuncAssert visit visit2 = do
+    (pairing, visits) <- fromJust <$> getFuncPairing visit visit2
+    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
+    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
+    _lpc <- getPc visits.asm Nothing
+    rpc <- getPc visits.c Nothing
+    let envs = \case
+            PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
+            PairingEqSideQuadrant C PairingEqDirectionIn -> rin
+            PairingEqSideQuadrant Asm PairingEqDirectionOut -> lout
+            PairingEqSideQuadrant C PairingEqDirectionOut -> rout
+    inEqs <- instEqs pairing.inEqs envs
+    outEqs <- instEqs pairing.outEqs envs
+    let succImp = impliesE rsucc lsucc
+    return $ impliesE
+        (foldr1 andE (inEqs ++ [rpc]))
+        (foldr1 andE (outEqs ++ [succImp]))
+  where
+    instEqs :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
+    instEqs eqs envs = for eqs $ \eq ->
+        instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
+
+addFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m ()
+addFuncAssert visit visit2 = do
+    imp <- weakenAssert <$> getFuncAssert visit visit2
+    withoutEnv $ assertFact imp
+
+-- TODO
+addLocalDef :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
+addLocalDef _ _ = addDef
+
+addVarRestrWithMemCalls :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
+addVarRestrWithMemCalls nameHint ty memCallsOpt = do
+    r <- addVarRestr nameHint ty
+    when (isMemT ty) $ do
+        liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
+    return r
+
+type MemCalls = Map Ident MemCallsForFunction
+
+data MemCallsForFunction
+  = MemCallsForFunction
+      { min :: Integer
+      , max :: Maybe Integer
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+zeroMemCallsForFunction :: MemCallsForFunction
+zeroMemCallsForFunction = MemCallsForFunction
+    { min = 0
+    , max = Just 0
+    }
+
+addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
+addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
+    let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
+     in f $ fromMaybe zeroMemCallsForFunction slot
+
+getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
+getMemCalls sexpr = do
+    memCallsOpt <- liftRepGraph $ use $ #memCalls % at sexpr
+    whenNothing memCallsOpt $ do
+        case sexpr of
+            List [op, x, _, _] | isStore op -> getMemCalls x
+            List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
+            _ -> do
+                r <- runMaybeT $ do
+                    name <- hoistMaybe $ parseSymbolS sexpr
+                    next <- MaybeT $ tryGetDef $ Name name
+                    getMemCalls next
+                whenNothing r $ do
+                    error $ "getMemCalls fallthrough: " ++ show (showSExprWithPlaceholders sexpr)
+  where
+    isStore s = s `elem`
+        ([ symbolS "store-word8"
+         , symbolS "store-word32"
+         , symbolS "store-word64"
+         ] :: [SExprWithPlaceholders])
+
+scanMemCalls :: MonadRepGraph m => ExprEnv -> m (Maybe MemCalls)
+scanMemCalls env = do
+    let vals = [ v | ((_, ty), v) <- M.toAscList env, ty == memT ]
+    memCalls <- traverse getMemCalls (vals ^.. folded % #_NotSplit)
+    return $ case memCalls of
+        [] -> Nothing
+        _ -> Just $ foldr1 mergeMemCalls memCalls
+
+addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
+addLoopMemCallsM split = traverse $ \memCalls -> do
+    loopBody <- askLoopBody split
+    fnames <- fmap (S.fromList . catMaybes) $ for (S.toAscList loopBody) $ \n -> do
+        node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+        return $ case node of
+            NodeCall callNode -> Just callNode.functionName
+            _ -> Nothing
+    let newMemCalls = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
+                Just x -> x & #max .~ Nothing
+                Nothing -> MemCallsForFunction 0 Nothing
+    return $ M.union newMemCalls memCalls
+
+mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
+mergeMemCalls xcalls ycalls =
+    if xcalls == ycalls
+    then xcalls
+    else
+        let ks = S.union (M.keysSet xcalls) (M.keysSet ycalls)
+         in flip M.fromSet ks $ \k -> f
+                (fromMaybe zeroMemCallsForFunction (M.lookup k xcalls))
+                (fromMaybe zeroMemCallsForFunction (M.lookup k ycalls))
+  where
+    f x y = MemCallsForFunction
+        { min = min x.min y.min
+        , max = liftA2 max x.max y.max
+        }
+
+memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
+memCallsCompatible = \case
+    PairingOf { asm = Just lcalls, c = Just rcalls } -> do
+        rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
+            pairingId <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
+            let rfname = pairingId.c
+            rsig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C rfname)
+            return $
+                if any (\arg -> arg.ty == memT) rsig.output
+                then Just (rfname, calls)
+                else Nothing
+        let isIncompat fname =
+                let rcast = fromMaybe zeroMemCallsForFunction $ rcastcalls !? fname
+                    ractual = fromMaybe zeroMemCallsForFunction $ rcalls !? fname
+                    x = case rcast.max of
+                            Just n -> n < ractual.min
+                            _ -> False
+                    y = case ractual.max of
+                            Just n -> n < rcast.min
+                            _ -> False
+                    in x || y
+        let incompat = any isIncompat $ S.toList $ M.keysSet rcastcalls <> M.keysSet rcalls
+        return $ if incompat then (False, error "unimplemented") else (True, Nothing)
+    _ -> return (True, Nothing)
+
+contract :: MonadRepGraph m => Ident -> Visit -> SExprWithPlaceholders -> ExprType -> m MaybeSplit
+contract name visit sexpr ty = withMapSlot #contractions sexpr $ do
+    let name' = localNameBefore name visit
+    withoutEnv $ addDef name' (smtExprE ty (NotSplit sexpr))
+
+specialize :: Visit -> NodeAddr -> [[Restr]]
+specialize visit split = ensure (isOptionsVC vc)
+    [ fromMapVC $ M.insert split (fromSimpleVC n) m
+    | n <- enumerateSimpleVC vc
+    ]
+  where
+    m = toMapVC visit.restrs
+    vc = m ! split
 
 --
 
@@ -412,59 +642,6 @@ getTagVCount visit mtag = do
                         throwError $ TooGeneral { split }
             return (tag, Just [ Restr x y | (x, y) <- vcount ])
 
-getInductVarM :: MonadRepGraph m => EqHypInduct -> m Expr
-getInductVarM induct = do
-    vname <- liftRepGraph (use (#inductVarEnv % at induct)) >>= \case
-        Just vname -> return vname
-        Nothing -> do
-            vname <- addVar (printf "induct_i_%d_%d" induct.a induct.b) word32T
-            liftRepGraph $ #inductVarEnv %= M.insert induct (vname)
-            return vname
-    return $ smtExprE word32T (NotSplit $ nameS vname)
-
-substInduct :: Expr -> Expr -> Expr
-substInduct expr inductVar = flip varSubst expr $ \ident ty ->
-    if ident.unwrap == "%n" && ty == word32T
-    then Just inductVar
-    else Nothing
-
-toSmtExprUnderOpM :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
-toSmtExprUnderOpM expr = case expr.value of
-    ExprValueOp op args -> do
-        args' <- mapM convertInnerExpr args
-        return $ expr & #value .~ ExprValueOp op args'
-    _ -> convertInnerExpr expr
-
-instEqWithEnvsM :: MonadSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
-instEqWithEnvsM (x, env1) (y, env2) = do
-    x' <- withEnv env1 $ toSmtExprUnderOpM x
-    y' <- withEnv env2 $ toSmtExprUnderOpM y
-    return $ case x'.ty of
-        ExprTypeRelWrapper -> applyRelWrapper x' y'
-        _ -> eqE x' y'
-
-type MemCalls = Map Ident MemCallsForOne
-
-data MemCallsForOne
-  = MemCallsForOne
-      { min :: Integer
-      , max :: Maybe Integer
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-zeroMemCallsForOne :: MemCallsForOne
-zeroMemCallsForOne = MemCallsForOne
-    { min = 0
-    , max = Just 0
-    }
-
-addVarRestrWithMemCalls :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
-addVarRestrWithMemCalls nameHint ty memCallsOpt = do
-    r <- addVarXRestr nameHint ty
-    when (ty == ExprTypeMem) $ do
-        liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
-    return r
-
 varRepRequest :: MonadRepGraph m => Ident -> ExprType -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
 varRepRequest nm typ kind n_vc env = runMaybeT $ do
     let hook = asmStackRepHook
@@ -493,16 +670,6 @@ asmStackRepHook nm typ kind n = runMaybeT $ do
         { tag
         , direction = PairingEqDirectionIn
         }) (Ident "r13"))
-
-contractM :: MonadRepGraph m => Ident -> Visit -> SExprWithPlaceholders -> ExprType -> m MaybeSplit
-contractM name n_vc val typ = do
-    liftRepGraph (use $ #contractions % at val) >>= \case
-        Just x -> return x
-        Nothing -> do
-            let name' = localNameBefore name n_vc
-            name'' <- withoutEnv $ addDef name' (smtExprE typ (NotSplit val))
-            liftRepGraph $ #contractions %= M.insert val name''
-            return name''
 
 getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, ExprEnv))
 getNodePcEnvRawM visitWithTag = do
@@ -540,7 +707,7 @@ getNodePcEnvRawM visitWithTag = do
                                     return $ smtExprE boolT name
                             env' <- flip M.traverseWithKey env $ \(nm, typ) v -> do
                                 case v of
-                                    NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contractM nm visitWithTag.visit v' typ
+                                    NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contract nm visitWithTag.visit v' typ
                                     _ -> return v
                             return $ Just (pc', env')
 
@@ -586,28 +753,14 @@ getArcPcEnvsM n n_vc2 = do
     case r of
         Right x -> return x
         Left (TooGeneral { split }) -> do
-            specs <- specializeM n_vc2 split
-            let specs' =
+            let specs =
                     [ Visit
                         { nodeId = n_vc2.nodeId
                         , restrs = spec
                         }
-                    | spec <- specs
+                    | spec <- specialize n_vc2 split
                     ]
-            concat <$> (for specs' $ \spec -> getArcPcEnvsM n spec)
-
-specializeM :: MonadRepGraph m => Visit -> NodeAddr -> m [[Restr]]
-specializeM visit split = do
-    let vcount = M.fromList $ [ (r.nodeAddr, r.visitCount) | r <- visit.restrs ]
-    ensureM $ isOptionsVC $ vcount ! split
-    for (enumerateSimpleVC (vcount ! split)) $ \n -> do
-        return
-            [ Restr
-                { nodeAddr
-                , visitCount
-                }
-            | (nodeAddr, visitCount) <- M.toAscList (M.insert split (fromSimpleVC n) vcount)
-            ]
+            concat <$> (for specs $ \spec -> getArcPcEnvsM n spec)
 
 getArcPcEnvM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Expr, ExprEnv))
 getArcPcEnvM visit' n2 = do
@@ -643,14 +796,11 @@ postEmitNodeHooksM visit = do
         node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
         let accs = toListOf (foldExprs % getMemAccess) node
         upd_ps <- catMaybes <$> (for accs $ \acc -> case acc.kind of
-            MemOpKindUpdate -> Just <$> toSmtExprRM acc.addr visit Nothing
+            MemOpKindUpdate -> Just <$> convertInnerExprWithPcEnv acc.addr visit Nothing
             _ -> return Nothing)
         case upd_ps of
             [] -> return ()
             _ -> error "unexpected"
-
-addLocalDefMR :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
-addLocalDefMR _ _ = addDef
 
 emitNodeM :: MonadRepGraphE m => Visit -> m [(NodeId, Expr, ExprEnv)]
 emitNodeM n = do
@@ -674,16 +824,16 @@ emitNodeM n = do
                         _ -> do
                             name <- return $ localName upd.varName n
                             let v = app_eqs upd.expr
-                            vname <- withEnv env $ addLocalDefMR () () name v
+                            vname <- withEnv env $ addLocalDef () () name v
                             return vname
                     return (k, val)
                 let env' = M.union (M.fromList upds) env
                 return [(basicNode.next, pc, env')]
             NodeCond condNode -> do
                 let name = condName n
-                freshName <- getFreshIdentMR name
+                freshName <- getFreshIdent name
                 let cond = varE boolT freshName
-                def <- withEnv env $ addLocalDefMR () () name (app_eqs condNode.expr)
+                def <- withEnv env $ addLocalDef () () name (app_eqs condNode.expr)
                 let env' = M.insert (freshName, boolT) def env
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
@@ -715,7 +865,7 @@ emitNodeM n = do
                                     tell [((y, typ), (Split z'))]
                 (_, env', outs') <- runRWST m () env
                 let outs = M.fromList outs'
-                addFuncM callNode.functionName ins outs success n
+                addFunc callNode.functionName ins outs success n
                 return $ [(callNode.next, pc, env')]
 
 isSyntConstM :: forall m. MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
@@ -769,182 +919,3 @@ isSyntConstM orig_nm typ split = do
 
             runExceptT (go (mempty) (S.singleton (orig_nm, split)) (orig_nm, split)) >>= \case
                 Left r -> return r
-
-addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
-addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
-    let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
-     in fromMaybe zeroMemCallsForOne slot & f
-
-getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
-getMemCalls mem_sexpr = do
-    present <- liftRepGraph $ use $ #memCalls % at mem_sexpr
-    case present of
-        Just x -> do
-            return x
-        Nothing -> do
-            case mem_sexpr of
-                List [op, x, _, _] | isStore op -> getMemCalls x
-                List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
-                _ -> do
-                    r <- runMaybeT $ do
-                        name <- hoistMaybe $ parseSymbolS mem_sexpr
-                        next <- MaybeT $ tryGetDef (Name name)
-                        lift $ getMemCalls next
-                    case r of
-                        Just x -> return x
-                        Nothing -> error $ "mem_calls fallthrough " ++ show (showSExprWithPlaceholders mem_sexpr)
-  where
-    isStore s = s `elem` ([symbolS "store-word32", symbolS "store-word8", symbolS "store-word64"] :: [SExprWithPlaceholders])
-
-scanMemCalls :: MonadRepGraph m => ExprEnv -> m (Maybe MemCalls)
-scanMemCalls env = do
-    let mem_vs = [ v | ((_nm, typ), v) <- M.toAscList env, typ == memT ]
-    mem_calls <- for (catMaybes (map (preview #_NotSplit) mem_vs)) $ \v -> do
-        getMemCalls v
-    return $ case mem_calls of
-        [] -> Nothing
-        _ -> Just $ foldr1 mergeMemCalls mem_calls
-
-addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
-addLoopMemCallsM split mem_callsOpt = do
-    case mem_callsOpt of
-        Nothing -> return Nothing
-        Just mem_calls -> do
-            loopBody <- askLoopBody split
-            fnames <- S.fromList . catMaybes <$> (for (S.toAscList loopBody) $ \n -> do
-                node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
-                return $ case node of
-                    NodeCall callNode -> Just callNode.functionName
-                    _ -> Nothing)
-            let new = M.fromList $ flip map (S.toList fnames) $ \fname -> (fname,) $
-                    case M.lookup fname mem_calls of
-                        Just x -> x & #max .~ Nothing
-                        Nothing -> MemCallsForOne 0 Nothing
-            if S.null fnames
-            then return $ Just mem_calls
-            -- else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForOne 0 Nothing)) | fname <- S.toAscList fnames ]
-            else return $ Just $ M.union new mem_calls
-
-mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
-mergeMemCalls mem_calls_x mem_calls_y =
-    if mem_calls_x == mem_calls_y
-    then mem_calls_x
-    else M.fromList $
-        [ (k, f (fromMaybe zeroMemCallsForOne $ M.lookup k mem_calls_x) (fromMaybe zeroMemCallsForOne $ M.lookup k mem_calls_y))
-        | k <- S.toList $ S.union (M.keysSet mem_calls_x) (M.keysSet mem_calls_y)
-        ]
-  where
-    f x y = MemCallsForOne
-        { min = min x.min y.min
-        , max = liftA2 max x.max y.max
-        }
-
-getContM :: MonadRepGraph m => Visit -> m Visit
-getContM visit = do
-    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at (visit.nodeId ^. expecting #_Addr) % unwrapped % nodeConts
-    let p = case visit.nodeId of
-            Addr addr | any (\restr -> restr.nodeAddr == addr) visit.restrs -> True
-            _ -> False
-    let [cont] = conts
-    return $ Visit
-        { nodeId = cont
-        , restrs = if p then fromJust (incrVCs visit.restrs (visit.nodeId ^. expecting #_Addr) 1) else visit.restrs
-        }
-
-addFuncM :: MonadRepGraphE m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
-addFuncM name inputs outputs success n_vc = do
-    present <- liftRepGraph $ use $ #funcs % to (M.member n_vc)
-    ensureM $ not present
-    liftRepGraph $ #funcs %= M.insert n_vc (inputs, outputs, success)
-    (liftRepGraph $ gview $ #pairingsAccess % at name) >>= \case
-        Nothing -> return ()
-        Just pair -> do
-            group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pair)
-            for_ group $ \n_vc2 -> do
-                x <- getFuncPairingM n_vc n_vc2
-                when (isJust x) $ do
-                    addFuncAssertM n_vc n_vc2
-            liftRepGraph $ #funcsByName %= M.insert pair (group ++ [n_vc])
-
-getFuncPairingNoCheckM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairingNoCheckM n_vc n_vc2 = do
-    n <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
-    n2 <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc2.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
-    pair <- liftRepGraph $ gview $ #pairingsAccess % at n % unwrapped
-    p <- liftRepGraph $ gview $ #pairings % #unwrap % at pair % unwrapped
-    id $
-        if PairingOf { asm = n, c = n2 } == pair
-        then return (Just $ (p, PairingOf { asm = n_vc, c = n_vc2 }))
-        else if PairingOf { asm = n2, c = n } == pair
-        then return (Just $ (p, PairingOf { asm = n_vc2, c = n_vc }))
-        else return (Nothing)
-
-getFuncPairingM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairingM n_vc n_vc2 = do
-    getFuncPairingNoCheckM n_vc n_vc2 >>= \case
-        Nothing -> return Nothing
-        Just (p, p_n_vc) -> do
-            (lin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
-            (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
-            l_mem_calls <- scanMemCalls lin
-            r_mem_calls <- scanMemCalls rin
-            (c, _s) <- memCallsCompatible $ PairingOf
-                { asm = l_mem_calls
-                , c = r_mem_calls
-                }
-            unless c $ do
-                -- traceShowM ("skipping", s)
-                return ()
-            return $ if c then Just (p, p_n_vc) else Nothing
-
-getFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m Expr
-getFuncAssertM n_vc n_vc2 = do
-    (pair, p_n_vc) <- fromJust <$> getFuncPairingM n_vc n_vc2
-    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
-    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
-    _lpc <- getPc p_n_vc.asm Nothing
-    rpc <- getPc p_n_vc.c Nothing
-    let envs = \case
-            PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
-            PairingEqSideQuadrant C PairingEqDirectionIn -> rin
-            PairingEqSideQuadrant Asm PairingEqDirectionOut -> lout
-            PairingEqSideQuadrant C PairingEqDirectionOut -> rout
-    inp_eqs <- instEqsM pair.inEqs envs
-    out_eqs <- instEqsM pair.outEqs envs
-    let succ_imp = impliesE rsucc lsucc
-    return $ impliesE (foldr1 andE (inp_eqs ++ [rpc])) (foldr1 andE (out_eqs ++ [succ_imp]))
-
-instEqsM :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
-instEqsM eqs envs = for eqs $ \eq -> instEqWithEnvsM (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
-
-addFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m ()
-addFuncAssertM n_vc n_vc2 = do
-    imp <- weakenAssert <$> getFuncAssertM n_vc n_vc2
-    withoutEnv $ assertFact imp
-
-memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
-memCallsCompatible p_mem_calls = do
-    case (p_mem_calls.asm, p_mem_calls.c) of
-        (Just l_mem_calls, Just r_mem_calls) -> do
-            r_cast_calls <- fmap M.fromList $ fmap catMaybes $ for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
-                pair <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
-                let r_fun = pair.c
-                r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
-                let memOut = any (\arg -> arg.ty == memT) r_sig.output
-                return $
-                    if memOut
-                    then Just (r_fun, calls)
-                    else Nothing
-            let f fname =
-                    let r_cast = fromMaybe zeroMemCallsForOne $ r_cast_calls !? fname
-                        r_actual = fromMaybe zeroMemCallsForOne $ r_mem_calls !? fname
-                        x = case r_cast.max of
-                                Just n -> n < r_actual.min
-                                _ -> False
-                        y = case r_actual.max of
-                                Just n -> n < r_cast.min
-                                _ -> False
-                     in x || y
-            let bad = any f (nub $ M.keys r_cast_calls ++ M.keys r_mem_calls)
-            return $ if bad then (False, Just "foo") else (True, Nothing)
-        _ -> return (True, Nothing)

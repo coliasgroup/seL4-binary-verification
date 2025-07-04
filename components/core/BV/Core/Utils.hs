@@ -14,7 +14,8 @@ module BV.Core.Utils
     , is
     , optionals
     , unwrapped
-    , whenJust
+    , whenJustThen
+    , whenJust_
     , whenNothing
     , whileM
     , (!@)
@@ -22,8 +23,10 @@ module BV.Core.Utils
 
 import Control.DeepSeq (NFData)
 import Control.Monad (when)
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT), hoistMaybe)
 import Data.Binary (Binary)
 import Data.Either (fromRight)
+import Data.Foldable (for_)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
@@ -66,8 +69,11 @@ whileM cond body = go
 whenNothing :: Monad m => Maybe a -> m a -> m a
 whenNothing opt m = maybe m return opt
 
-whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
-whenJust opt f = maybe (return ()) f opt
+whenJust_ :: Monad m => Maybe a -> (a -> m ()) -> m ()
+whenJust_ = for_
+
+whenJustThen :: Monad m => Maybe a -> (a -> m (Maybe b)) -> m (Maybe b)
+whenJustThen opt f = runMaybeT $ hoistMaybe opt >>= MaybeT . f
 
 unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just

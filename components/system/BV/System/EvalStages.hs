@@ -59,15 +59,15 @@ evalStages ctx input = do
     output = stages input
     register :: forall a c. (Eq a, NFData a, ReadBVFile c a, WriteBVFile c a) => (a -> a -> a) -> TargetDirFile a -> a -> m ()
     register f file actual = applyWhen ctx.force (deepseq actual) $ do
-        whenJust ctx.dumpTargetDir $ \dumpTargetDir -> do
+        whenJust_ ctx.dumpTargetDir $ \dumpTargetDir -> do
             logInfo $ "Dumping " ++ file.relativePath
             liftIO $ writeTargetDirFile dumpTargetDir file actual
-        whenJust ctx.referenceTargetDir $ \referenceTargetDir -> do
+        whenJust_ ctx.referenceTargetDir $ \referenceTargetDir -> do
             expected <- liftIO $ readTargetDirFile referenceTargetDir file
             let actual' = f expected actual
             when (maybeForce actual' /= maybeForce expected) $ do
                 logError $ "Intermediate artifact mismatch for " ++ file.relativePath
-                whenJust ctx.mismatchDumpDir $ \mismatchDumpDir -> do
+                whenJust_ ctx.mismatchDumpDir $ \mismatchDumpDir -> do
                     let d = mismatchDumpDir </> file.relativePath
                     logInfo $ "Writing mismatch to " ++ d
                     liftIO $ do
@@ -80,4 +80,4 @@ evalStages ctx input = do
     filterFunctions expected actual = actual & #functions %~ M.filterWithKey (\k _v -> k `M.member` expected.functions)
     filterProblems expected actual = actual & #unwrap %~ M.filterWithKey (\k _v -> k `M.member` expected.unwrap)
     noop _expected actual = actual
-    whenJust m f = maybe (return ()) f m
+    whenJust_ m f = maybe (return ()) f m
