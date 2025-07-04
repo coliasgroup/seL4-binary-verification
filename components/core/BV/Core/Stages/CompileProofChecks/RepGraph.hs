@@ -389,14 +389,13 @@ toSmtExprUnderOpM expr = case expr.value of
 
 askCont :: MonadRepGraph m => Visit -> m Visit
 askCont visit = do
-    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at (visit.nodeId ^. expecting #_Addr) % unwrapped % nodeConts
-    let p = case visit.nodeId of
-            Addr addr | any (\restr -> restr.nodeAddr == addr) visit.restrs -> True
-            _ -> False
+    let nodeAddr = visit.nodeId ^. expecting #_Addr
+    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at nodeAddr % unwrapped % nodeConts
     let [cont] = conts
+    let p = any (\restr -> restr.nodeAddr == nodeAddr) visit.restrs
     return $ Visit
         { nodeId = cont
-        , restrs = if p then fromJust (incrVCs visit.restrs (visit.nodeId ^. expecting #_Addr) 1) else visit.restrs
+        , restrs = if p then fromJust (incrVCs visit.restrs nodeAddr 1) else visit.restrs
         }
 
 --
