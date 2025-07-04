@@ -565,7 +565,7 @@ memCallsCompatible = \case
                 if any (\arg -> arg.ty == memT) rsig.output
                 then Just (rfname, calls)
                 else Nothing
-        let f fname =
+        let isIncompat fname =
                 let rcast = fromMaybe zeroMemCallsForFunction $ rcastcalls !? fname
                     ractual = fromMaybe zeroMemCallsForFunction $ rcalls !? fname
                     x = case rcast.max of
@@ -575,8 +575,8 @@ memCallsCompatible = \case
                             Just n -> n < rcast.min
                             _ -> False
                     in x || y
-        let bad = any f $ S.toList $ M.keysSet rcastcalls <> M.keysSet rcalls
-        return $ if bad then (False, error "unimplemented") else (True, Nothing)
+        let incompat = any isIncompat $ S.toList $ M.keysSet rcastcalls <> M.keysSet rcalls
+        return $ if incompat then (False, error "unimplemented") else (True, Nothing)
     _ -> return (True, Nothing)
 
 --
