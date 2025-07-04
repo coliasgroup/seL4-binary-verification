@@ -394,20 +394,20 @@ askCont visit = do
         , restrs = if p then fromJust (incrVCs visit.restrs nodeAddr 1) else visit.restrs
         }
 
-addFuncM :: MonadRepGraphE m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
-addFuncM name inputs outputs success visit = do
+addFunc :: MonadRepGraphE m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
+addFunc name inputs outputs success visit = do
     liftRepGraph $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
     pairingIdOpt <- liftRepGraph $ gview $ #pairingsAccess % at name
     whenJust pairingIdOpt $ \pairingId -> do
         group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
         for_ group $ \visit2 -> do
-            ok <- isJust <$> getFuncPairingM visit visit2
+            ok <- isJust <$> getFuncPairing visit visit2
             when ok $ do
                 addFuncAssert visit visit2
         liftRepGraph $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
-getFuncPairingNoCheckM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairingNoCheckM n_vc n_vc2 = do
+getFuncPairingNoCheck :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairingNoCheck n_vc n_vc2 = do
     let askFnName v = liftRepGraph $ gview $
             #problem % #nodes % at (v.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
     n <- askFnName n_vc
@@ -419,9 +419,9 @@ getFuncPairingNoCheckM n_vc n_vc2 = do
         | PairingOf { asm = n2, c = n } == pair -> Just $ (p, PairingOf { asm = n_vc2, c = n_vc })
         | otherwise -> Nothing
 
-getFuncPairingM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairingM n_vc n_vc2 = do
-    getFuncPairingNoCheckM n_vc n_vc2 >>= \case
+getFuncPairing :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairing n_vc n_vc2 = do
+    getFuncPairingNoCheck n_vc n_vc2 >>= \case
         Nothing -> return Nothing
         Just (p, p_n_vc) -> do
             (lin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
@@ -439,7 +439,7 @@ getFuncPairingM n_vc n_vc2 = do
 
 getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
 getFuncAssert visit visit2 = do
-    (pairing, visits) <- fromJust <$> getFuncPairingM visit visit2
+    (pairing, visits) <- fromJust <$> getFuncPairing visit visit2
     (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
     (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
     _lpc <- getPc visits.asm Nothing
@@ -789,7 +789,7 @@ emitNodeM n = do
                                     tell [((y, typ), (Split z'))]
                 (_, env', outs') <- runRWST m () env
                 let outs = M.fromList outs'
-                addFuncM callNode.functionName ins outs success n
+                addFunc callNode.functionName ins outs success n
                 return $ [(callNode.next, pc, env')]
 
 isSyntConstM :: forall m. MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
