@@ -14,13 +14,13 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , MonadRepGraph (..)
     , RepGraphEnv
     , RepGraphState
-    , getInductVarM
+    , getInductVar
     , getNodePcEnv
     , getPc
     , initRepGraph
     , initRepGraphEnv
     , initRepGraphState
-    , instEqWithEnvsM
+    , instEqWithEnvs
     , substInduct
     ) where
 
@@ -359,6 +359,34 @@ visitCountName (VisitCount { numbers, offsets }) =
     showNumber = show
     showOffset n = "i+" ++ show n
 
+getInductVar :: MonadRepGraph m => EqHypInduct -> m Expr
+getInductVar induct =
+    fmap (smtExprE word32T . NotSplit . nameS)
+        $ withMapSlot #inductVarEnv induct $
+            addVar (printf "induct_i_%d_%d" induct.a induct.b) word32T
+
+substInduct :: Expr -> Expr -> Expr
+substInduct expr inductVar = varSubst f expr
+  where
+    f (Ident "%n") (ExprTypeWord 32) = Just inductVar
+    f _ _ = Nothing
+
+instEqWithEnvs :: MonadSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
+instEqWithEnvs (x, xenv) (y, yenv) = do
+    x' <- withEnv xenv $ toSmtExprUnderOpM x
+    y' <- withEnv yenv $ toSmtExprUnderOpM y
+    let f = case x'.ty of
+            ExprTypeRelWrapper -> applyRelWrapper
+            _ -> eqE
+    return $ f x' y'
+
+toSmtExprUnderOpM :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
+toSmtExprUnderOpM expr = case expr.value of
+    ExprValueOp op args -> do
+        args' <- traverse convertInnerExpr args
+        return $ Expr expr.ty $ ExprValueOp op args'
+    _ -> convertInnerExpr expr
+
 --
 
 warmPcEnvCacheM :: MonadRepGraph m => VisitWithTag -> m ()
@@ -410,37 +438,6 @@ getTagVCount visit mtag = do
                     when (maybeloopId' == Just loopId && isOptionsVC visits) $ do
                         throwError $ TooGeneral { split }
             return (tag, Just [ Restr x y | (x, y) <- vcount ])
-
-getInductVarM :: MonadRepGraph m => EqHypInduct -> m Expr
-getInductVarM induct = do
-    vname <- liftRepGraph (use (#inductVarEnv % at induct)) >>= \case
-        Just vname -> return vname
-        Nothing -> do
-            vname <- addVar (printf "induct_i_%d_%d" induct.a induct.b) word32T
-            liftRepGraph $ #inductVarEnv %= M.insert induct (vname)
-            return vname
-    return $ smtExprE word32T (NotSplit $ nameS vname)
-
-substInduct :: Expr -> Expr -> Expr
-substInduct expr inductVar = flip varSubst expr $ \ident ty ->
-    if ident.unwrap == "%n" && ty == word32T
-    then Just inductVar
-    else Nothing
-
-toSmtExprUnderOpM :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
-toSmtExprUnderOpM expr = case expr.value of
-    ExprValueOp op args -> do
-        args' <- mapM convertInnerExpr args
-        return $ expr & #value .~ ExprValueOp op args'
-    _ -> convertInnerExpr expr
-
-instEqWithEnvsM :: MonadSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
-instEqWithEnvsM (x, env1) (y, env2) = do
-    x' <- withEnv env1 $ toSmtExprUnderOpM x
-    y' <- withEnv env2 $ toSmtExprUnderOpM y
-    return $ case x'.ty of
-        ExprTypeRelWrapper -> applyRelWrapper x' y'
-        _ -> eqE x' y'
 
 type MemCalls = Map Ident MemCallsForOne
 
@@ -914,7 +911,7 @@ getFuncAssertM n_vc n_vc2 = do
     return $ impliesE (foldr1 andE (inp_eqs ++ [rpc])) (foldr1 andE (out_eqs ++ [succ_imp]))
 
 instEqsM :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
-instEqsM eqs envs = for eqs $ \eq -> instEqWithEnvsM (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
+instEqsM eqs envs = for eqs $ \eq -> instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
 
 addFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m ()
 addFuncAssertM n_vc n_vc2 = do

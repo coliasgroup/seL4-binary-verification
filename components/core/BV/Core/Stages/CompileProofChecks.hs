@@ -104,7 +104,7 @@ interpretHyp = \case
         (x, y) <- case eq.induct of
             Nothing -> return (eq.lhs.expr, eq.rhs.expr)
             Just induct -> do
-                v <- getInductVarM induct
+                v <- getInductVar induct
                 let x = substInduct eq.lhs.expr v
                 let y = substInduct eq.rhs.expr v
                 return (x, y)
@@ -112,7 +112,7 @@ interpretHyp = \case
         yPcEnv <- getNodePcEnv eq.rhs.visit.visit (Just eq.rhs.visit.tag)
         case (xPcEnv, yPcEnv) of
             (Just (_, xEnv), Just (_, yEnv)) -> do
-                eq' <- instEqWithEnvsM (x, xEnv) (y, yEnv)
+                eq' <- instEqWithEnvs (x, xEnv) (y, yEnv)
                 if ifAt
                     then do
                         xPc <- getPc eq.lhs.visit.visit (Just eq.lhs.visit.tag)
