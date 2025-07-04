@@ -497,8 +497,8 @@ addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
 
 getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
 getMemCalls sexpr = do
-    callsOpt <- liftRepGraph $ use $ #memCalls % at sexpr
-    whenNothing callsOpt $ do
+    memCallsOpt <- liftRepGraph $ use $ #memCalls % at sexpr
+    whenNothing memCallsOpt $ do
         case sexpr of
             List [op, x, _, _] | isStore op -> getMemCalls x
             List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
@@ -519,30 +519,29 @@ getMemCalls sexpr = do
 scanMemCalls :: MonadRepGraph m => ExprEnv -> m (Maybe MemCalls)
 scanMemCalls env = do
     let vals = [ v | ((_, ty), v) <- M.toAscList env, ty == memT ]
-    calls <- traverse getMemCalls (vals ^.. folded % #_NotSplit)
-    return $ case calls of
+    memCalls <- traverse getMemCalls (vals ^.. folded % #_NotSplit)
+    return $ case memCalls of
         [] -> Nothing
-        _ -> Just $ foldr1 mergeMemCalls calls
+        _ -> Just $ foldr1 mergeMemCalls memCalls
 
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
-addLoopMemCallsM split mem_callsOpt = do
-    case mem_callsOpt of
-        Nothing -> return Nothing
-        Just mem_calls -> do
-            loopBody <- askLoopBody split
-            fnames <- S.fromList . catMaybes <$> (for (S.toAscList loopBody) $ \n -> do
-                node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
-                return $ case node of
-                    NodeCall callNode -> Just callNode.functionName
-                    _ -> Nothing)
-            let new = M.fromList $ flip map (S.toList fnames) $ \fname -> (fname,) $
-                    case M.lookup fname mem_calls of
-                        Just x -> x & #max .~ Nothing
-                        Nothing -> MemCallsForFunction 0 Nothing
-            if S.null fnames
-            then return $ Just mem_calls
-            -- else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForFunction 0 Nothing)) | fname <- S.toAscList fnames ]
-            else return $ Just $ M.union new mem_calls
+addLoopMemCallsM split memCallsOpt = case memCallsOpt of
+    Nothing -> return Nothing
+    Just memCalls -> do
+        loopBody <- askLoopBody split
+        fnames <- S.fromList . catMaybes <$> (for (S.toAscList loopBody) $ \n -> do
+            node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+            return $ case node of
+                NodeCall callNode -> Just callNode.functionName
+                _ -> Nothing)
+        let new = M.fromList $ flip map (S.toList fnames) $ \fname -> (fname,) $
+                case M.lookup fname memCalls of
+                    Just x -> x & #max .~ Nothing
+                    Nothing -> MemCallsForFunction 0 Nothing
+        if S.null fnames
+        then return $ Just memCalls
+        -- else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForFunction 0 Nothing)) | fname <- S.toAscList fnames ]
+        else return $ Just $ M.union new memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
 mergeMemCalls mem_calls_x mem_calls_y =
