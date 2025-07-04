@@ -399,12 +399,12 @@ addFuncM name inputs outputs success visit = do
     liftRepGraph $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
     pairingIdOpt <- liftRepGraph $ gview $ #pairingsAccess % at name
     whenJust pairingIdOpt $ \pairingId -> do
-            group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
-            for_ group $ \visit2 -> do
-                ok <- isJust <$> getFuncPairingM visit visit2
-                when ok $ do
-                    addFuncAssert visit visit2
-            liftRepGraph $ #funcsByName %= M.insert pairingId (group ++ [visit])
+        group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
+        for_ group $ \visit2 -> do
+            ok <- isJust <$> getFuncPairingM visit visit2
+            when ok $ do
+                addFuncAssert visit visit2
+        liftRepGraph $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
 getFuncPairingNoCheckM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairingNoCheckM n_vc n_vc2 = do
