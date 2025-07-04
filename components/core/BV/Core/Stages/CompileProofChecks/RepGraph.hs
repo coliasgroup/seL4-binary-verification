@@ -297,10 +297,6 @@ toSmtExprRM expr visit tag = do
 getNodePcEnv :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, ExprEnv))
 getNodePcEnv visit tag = view (expecting _Right) <$> runExceptT (tryGetNodePcEnv visit tag)
 
--- TODO
-applyKnownEqsPcEnvM :: Monad m => VisitWithTag -> (Expr, ExprEnv) -> m (Expr, ExprEnv)
-applyKnownEqsPcEnvM _ = return
-
 tryGetNodePcEnv :: MonadRepGraphE m => Visit -> Maybe Tag -> m (Maybe (Expr, ExprEnv))
 tryGetNodePcEnv visit tag' = do
     (tag, restrsOpt) <- getTagVCount visit tag'
@@ -315,7 +311,7 @@ tryGetNodePcEnv visit tag' = do
                 }
         MaybeT $ withMapSlot #nodePcEnvs vt $ do
             warmPcEnvCacheM vt
-            getNodePcEnvRawM vt >>= mapM (applyKnownEqsPcEnvM vt)
+            getNodePcEnvRawM vt
 
 localNameBefore :: Ident -> Visit -> NameHint
 localNameBefore s vis = printf "%s_v_at_%s" s.unwrap (nodeCountName vis)
