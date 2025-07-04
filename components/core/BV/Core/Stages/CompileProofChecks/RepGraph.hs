@@ -496,25 +496,25 @@ addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
      in f $ fromMaybe zeroMemCallsForFunction slot
 
 getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
-getMemCalls mem_sexpr = do
-    present <- liftRepGraph $ use $ #memCalls % at mem_sexpr
-    case present of
-        Just x -> do
-            return x
-        Nothing -> do
-            case mem_sexpr of
-                List [op, x, _, _] | isStore op -> getMemCalls x
-                List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
-                _ -> do
-                    r <- runMaybeT $ do
-                        name <- hoistMaybe $ parseSymbolS mem_sexpr
-                        next <- MaybeT $ tryGetDef (Name name)
-                        lift $ getMemCalls next
-                    case r of
-                        Just x -> return x
-                        Nothing -> error $ "mem_calls fallthrough " ++ show (showSExprWithPlaceholders mem_sexpr)
+getMemCalls sexpr = do
+    calls <- liftRepGraph $ use $ #memCalls % at sexpr
+    whenNothing calls $ do
+        case sexpr of
+            List [op, x, _, _] | isStore op -> getMemCalls x
+            List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
+            _ -> do
+                r <- runMaybeT $ do
+                    name <- hoistMaybe $ parseSymbolS sexpr
+                    next <- MaybeT $ tryGetDef $ Name name
+                    getMemCalls next
+                whenNothing r $ do
+                    error $ "getMemCalls fallthrough: " ++ show (showSExprWithPlaceholders sexpr)
   where
-    isStore s = s `elem` ([symbolS "store-word32", symbolS "store-word8", symbolS "store-word64"] :: [SExprWithPlaceholders])
+    isStore s = s `elem`
+        ([ symbolS "store-word8"
+         , symbolS "store-word32"
+         , symbolS "store-word64"
+         ] :: [SExprWithPlaceholders])
 
 scanMemCalls :: MonadRepGraph m => ExprEnv -> m (Maybe MemCalls)
 scanMemCalls env = do
