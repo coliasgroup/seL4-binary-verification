@@ -57,7 +57,7 @@ import Data.Foldable (for_)
 import Data.List (nub, sortOn)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, fromJust)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
@@ -272,7 +272,7 @@ opS x = case x of
 --
 
 getDef :: MonadSolver m => Name -> m S
-getDef name = liftSolver $ use $ #defs % at name % unwrapped
+getDef name = fromJust <$> tryGetDef name
 
 tryGetDef :: MonadSolver m => Name -> m (Maybe S)
 tryGetDef name = liftSolver $ use $ #defs % at name
