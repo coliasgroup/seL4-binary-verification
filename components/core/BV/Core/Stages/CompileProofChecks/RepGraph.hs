@@ -396,18 +396,15 @@ askCont visit = do
 
 addFuncM :: MonadRepGraphE m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
 addFuncM name inputs outputs success visit = do
-    present <- liftRepGraph $ use $ #funcs % to (M.member visit)
-    ensureM $ not present
-    liftRepGraph $ #funcs %= M.insert visit (inputs, outputs, success)
-    (liftRepGraph $ gview $ #pairingsAccess % at name) >>= \case
-        Nothing -> return ()
-        Just pair -> do
-            group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pair)
+    liftRepGraph $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
+    pairingIdOpt <- liftRepGraph $ gview $ #pairingsAccess % at name
+    whenJust pairingIdOpt $ \pairingId -> do
+            group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
             for_ group $ \visit2 -> do
                 x <- getFuncPairingM visit visit2
                 when (isJust x) $ do
                     addFuncAssert visit visit2
-            liftRepGraph $ #funcsByName %= M.insert pair (group ++ [visit])
+            liftRepGraph $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
 getFuncPairingNoCheckM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairingNoCheckM n_vc n_vc2 = do
