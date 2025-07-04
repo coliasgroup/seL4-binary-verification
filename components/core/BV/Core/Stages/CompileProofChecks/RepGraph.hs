@@ -460,7 +460,7 @@ zeroMemCallsForOne = MemCallsForOne
 
 addVarRestrWithMemCalls :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
 addVarRestrWithMemCalls nameHint ty memCallsOpt = do
-    r <- addVarXRestr nameHint ty
+    r <- addVarRestr nameHint ty
     when (ty == ExprTypeMem) $ do
         liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
     return r

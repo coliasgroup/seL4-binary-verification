@@ -20,7 +20,7 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , addDefNotSplit
     , addSplitMemVar
     , addVar
-    , addVarXRestr
+    , addVarRestr
     , assertFact
     , convertExpr
     , convertExprNoSplit
@@ -345,8 +345,8 @@ addVar nameHint ty = do
             liftSolver $ #modelVars %= S.insert name
     return name
 
-addVarXRestr :: MonadSolver m => NameHint -> ExprType -> m Name
-addVarXRestr = addVar
+addVarRestr :: MonadSolver m => NameHint -> ExprType -> m Name
+addVarRestr = addVar
 
 assertSMTFact :: MonadSolver m => S -> m ()
 assertSMTFact = send . assertS
