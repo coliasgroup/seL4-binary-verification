@@ -888,8 +888,8 @@ getFuncPairingM n_vc n_vc2 = do
                 return ()
             return $ if c then Just (p, p_n_vc) else Nothing
 
-getFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m Expr
-getFuncAssertM visit visit2 = do
+getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
+getFuncAssert visit visit2 = do
     (pairing, visits) <- fromJust <$> getFuncPairingM visit visit2
     (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
     (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
@@ -911,9 +911,9 @@ getFuncAssertM visit visit2 = do
     instEqs eqs envs = for eqs $ \eq ->
         instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
 
-addFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m ()
-addFuncAssertM n_vc n_vc2 = do
-    imp <- weakenAssert <$> getFuncAssertM n_vc n_vc2
+addFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m ()
+addFuncAssert visit visit2 = do
+    imp <- weakenAssert <$> getFuncAssert visit visit2
     withoutEnv $ assertFact imp
 
 memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
