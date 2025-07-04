@@ -432,9 +432,8 @@ getFuncPairing visit visit2 = do
                 { asm = lcalls
                 , c = rcalls
                 }
-            unless compatible $ do
-                -- warn _s
-                return ()
+            -- unless compatible $ do
+            --     warn _s
             return $ if compatible then Just (p, visits) else Nothing
 
 getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
