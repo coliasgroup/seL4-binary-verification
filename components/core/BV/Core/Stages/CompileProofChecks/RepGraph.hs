@@ -575,7 +575,7 @@ memCallsCompatible = \case
                             Just n -> n < rcast.min
                             _ -> False
                     in x || y
-        let bad = any f $ S.toList $ M.keysSet rcastcalls ++ M.keysSet rcalls
+        let bad = any f $ S.toList $ M.keysSet rcastcalls <> M.keysSet rcalls
         return $ if bad then (False, error "unimplemented") else (True, Nothing)
     _ -> return (True, Nothing)
 
