@@ -426,11 +426,11 @@ getFuncPairing visit visit2 = do
         Just (p, visits) -> do
             (lin, _, _) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
             (rin, _, _) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
-            lMemCalls <- scanMemCalls lin
-            rMemClls <- scanMemCalls rin
+            lcalls <- scanMemCalls lin
+            rcalls <- scanMemCalls rin
             (c, _s) <- memCallsCompatible $ PairingOf
-                { asm = lMemCalls
-                , c = rMemClls
+                { asm = lcalls
+                , c = rcalls
                 }
             unless c $ do
                 -- traceShowM ("skipping", s)
