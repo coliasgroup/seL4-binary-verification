@@ -394,6 +394,80 @@ askCont visit = do
         , restrs = if p then fromJust (incrVCs visit.restrs nodeAddr 1) else visit.restrs
         }
 
+addFuncM :: MonadRepGraphE m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
+addFuncM name inputs outputs success n_vc = do
+    present <- liftRepGraph $ use $ #funcs % to (M.member n_vc)
+    ensureM $ not present
+    liftRepGraph $ #funcs %= M.insert n_vc (inputs, outputs, success)
+    (liftRepGraph $ gview $ #pairingsAccess % at name) >>= \case
+        Nothing -> return ()
+        Just pair -> do
+            group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pair)
+            for_ group $ \n_vc2 -> do
+                x <- getFuncPairingM n_vc n_vc2
+                when (isJust x) $ do
+                    addFuncAssert n_vc n_vc2
+            liftRepGraph $ #funcsByName %= M.insert pair (group ++ [n_vc])
+
+getFuncPairingNoCheckM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairingNoCheckM n_vc n_vc2 = do
+    n <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
+    n2 <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc2.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
+    pair <- liftRepGraph $ gview $ #pairingsAccess % at n % unwrapped
+    p <- liftRepGraph $ gview $ #pairings % #unwrap % at pair % unwrapped
+    id $
+        if PairingOf { asm = n, c = n2 } == pair
+        then return (Just $ (p, PairingOf { asm = n_vc, c = n_vc2 }))
+        else if PairingOf { asm = n2, c = n } == pair
+        then return (Just $ (p, PairingOf { asm = n_vc2, c = n_vc }))
+        else return (Nothing)
+
+getFuncPairingM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairingM n_vc n_vc2 = do
+    getFuncPairingNoCheckM n_vc n_vc2 >>= \case
+        Nothing -> return Nothing
+        Just (p, p_n_vc) -> do
+            (lin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
+            (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
+            l_mem_calls <- scanMemCalls lin
+            r_mem_calls <- scanMemCalls rin
+            (c, _s) <- memCallsCompatible $ PairingOf
+                { asm = l_mem_calls
+                , c = r_mem_calls
+                }
+            unless c $ do
+                -- traceShowM ("skipping", s)
+                return ()
+            return $ if c then Just (p, p_n_vc) else Nothing
+
+getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
+getFuncAssert visit visit2 = do
+    (pairing, visits) <- fromJust <$> getFuncPairingM visit visit2
+    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
+    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
+    _lpc <- getPc visits.asm Nothing
+    rpc <- getPc visits.c Nothing
+    let envs = \case
+            PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
+            PairingEqSideQuadrant C PairingEqDirectionIn -> rin
+            PairingEqSideQuadrant Asm PairingEqDirectionOut -> lout
+            PairingEqSideQuadrant C PairingEqDirectionOut -> rout
+    inEqs <- instEqs pairing.inEqs envs
+    outEqs <- instEqs pairing.outEqs envs
+    let succImp = impliesE rsucc lsucc
+    return $ impliesE
+        (foldr1 andE (inEqs ++ [rpc]))
+        (foldr1 andE (outEqs ++ [succImp]))
+  where
+    instEqs :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
+    instEqs eqs envs = for eqs $ \eq ->
+        instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
+
+addFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m ()
+addFuncAssert visit visit2 = do
+    imp <- weakenAssert <$> getFuncAssert visit visit2
+    withoutEnv $ assertFact imp
+
 --
 
 warmPcEnvCacheM :: MonadRepGraph m => VisitWithTag -> m ()
@@ -841,80 +915,6 @@ mergeMemCalls mem_calls_x mem_calls_y =
         { min = min x.min y.min
         , max = liftA2 max x.max y.max
         }
-
-addFuncM :: MonadRepGraphE m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
-addFuncM name inputs outputs success n_vc = do
-    present <- liftRepGraph $ use $ #funcs % to (M.member n_vc)
-    ensureM $ not present
-    liftRepGraph $ #funcs %= M.insert n_vc (inputs, outputs, success)
-    (liftRepGraph $ gview $ #pairingsAccess % at name) >>= \case
-        Nothing -> return ()
-        Just pair -> do
-            group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pair)
-            for_ group $ \n_vc2 -> do
-                x <- getFuncPairingM n_vc n_vc2
-                when (isJust x) $ do
-                    addFuncAssertM n_vc n_vc2
-            liftRepGraph $ #funcsByName %= M.insert pair (group ++ [n_vc])
-
-getFuncPairingNoCheckM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairingNoCheckM n_vc n_vc2 = do
-    n <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
-    n2 <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc2.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
-    pair <- liftRepGraph $ gview $ #pairingsAccess % at n % unwrapped
-    p <- liftRepGraph $ gview $ #pairings % #unwrap % at pair % unwrapped
-    id $
-        if PairingOf { asm = n, c = n2 } == pair
-        then return (Just $ (p, PairingOf { asm = n_vc, c = n_vc2 }))
-        else if PairingOf { asm = n2, c = n } == pair
-        then return (Just $ (p, PairingOf { asm = n_vc2, c = n_vc }))
-        else return (Nothing)
-
-getFuncPairingM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairingM n_vc n_vc2 = do
-    getFuncPairingNoCheckM n_vc n_vc2 >>= \case
-        Nothing -> return Nothing
-        Just (p, p_n_vc) -> do
-            (lin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
-            (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
-            l_mem_calls <- scanMemCalls lin
-            r_mem_calls <- scanMemCalls rin
-            (c, _s) <- memCallsCompatible $ PairingOf
-                { asm = l_mem_calls
-                , c = r_mem_calls
-                }
-            unless c $ do
-                -- traceShowM ("skipping", s)
-                return ()
-            return $ if c then Just (p, p_n_vc) else Nothing
-
-getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
-getFuncAssert visit visit2 = do
-    (pairing, visits) <- fromJust <$> getFuncPairingM visit visit2
-    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
-    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
-    _lpc <- getPc visits.asm Nothing
-    rpc <- getPc visits.c Nothing
-    let envs = \case
-            PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
-            PairingEqSideQuadrant C PairingEqDirectionIn -> rin
-            PairingEqSideQuadrant Asm PairingEqDirectionOut -> lout
-            PairingEqSideQuadrant C PairingEqDirectionOut -> rout
-    inEqs <- instEqs pairing.inEqs envs
-    outEqs <- instEqs pairing.outEqs envs
-    let succImp = impliesE rsucc lsucc
-    return $ impliesE
-        (foldr1 andE (inEqs ++ [rpc]))
-        (foldr1 andE (outEqs ++ [succImp]))
-  where
-    instEqs :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
-    instEqs eqs envs = for eqs $ \eq ->
-        instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
-
-addFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m ()
-addFuncAssert visit visit2 = do
-    imp <- weakenAssert <$> getFuncAssert visit visit2
-    withoutEnv $ assertFact imp
 
 memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
 memCallsCompatible p_mem_calls = do
