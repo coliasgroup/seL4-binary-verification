@@ -493,7 +493,7 @@ zeroMemCallsForFunction = MemCallsForFunction
 addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
 addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
     let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
-     in fromMaybe zeroMemCallsForFunction slot & f
+     in f $ fromMaybe zeroMemCallsForFunction slot
 
 getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
 getMemCalls mem_sexpr = do
