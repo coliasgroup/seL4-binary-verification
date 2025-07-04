@@ -497,8 +497,8 @@ addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
 
 getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
 getMemCalls sexpr = do
-    calls <- liftRepGraph $ use $ #memCalls % at sexpr
-    whenNothing calls $ do
+    callsOpt <- liftRepGraph $ use $ #memCalls % at sexpr
+    whenNothing callsOpt $ do
         case sexpr of
             List [op, x, _, _] | isStore op -> getMemCalls x
             List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
@@ -518,12 +518,11 @@ getMemCalls sexpr = do
 
 scanMemCalls :: MonadRepGraph m => ExprEnv -> m (Maybe MemCalls)
 scanMemCalls env = do
-    let mem_vs = [ v | ((_nm, ty), v) <- M.toAscList env, ty == memT ]
-    mem_calls <- for (catMaybes (map (preview #_NotSplit) mem_vs)) $ \v -> do
-        getMemCalls v
-    return $ case mem_calls of
+    let vals = [ v | ((_, ty), v) <- M.toAscList env, ty == memT ]
+    calls <- traverse getMemCalls (vals ^.. folded % #_NotSplit)
+    return $ case calls of
         [] -> Nothing
-        _ -> Just $ foldr1 mergeMemCalls mem_calls
+        _ -> Just $ foldr1 mergeMemCalls calls
 
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCallsM split mem_callsOpt = do
