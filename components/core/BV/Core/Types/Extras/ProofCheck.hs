@@ -13,6 +13,7 @@ module BV.Core.Types.Extras.ProofCheck
     , eqInductH
     , eqSideH
     , eqWithIfAtH
+    , fromMapVC
     , fromRestrKindVC
     , fromSimpleVC
     , hasZeroVC
@@ -28,16 +29,22 @@ module BV.Core.Types.Extras.ProofCheck
     , pcTrueH
     , simpleVC
     , tagV
+    , toMapVC
     , trueIfAt
     , trueIfAt'
     , upToVC
+    , withMapVC
+    , withMapVCF
     ) where
 
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
+import BV.Core.Utils
 
 import Control.DeepSeq (NFData)
+import Control.Monad.Identity (Identity (Identity, runIdentity))
 import Data.Foldable (fold)
+import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 
@@ -105,6 +112,25 @@ incrVC :: Integer -> VisitCount -> VisitCount
 incrVC incr = (#numbers %~ f) . (#offsets %~ f)
   where
     f = filter (>= 0) . map (+ incr)
+
+withMapVC :: (M.Map NodeAddr VisitCount -> M.Map NodeAddr VisitCount) -> [Restr] -> [Restr]
+withMapVC f = runIdentity . withMapVCF (Identity . f)
+
+withMapVCF :: Functor f => (M.Map NodeAddr VisitCount -> f (M.Map NodeAddr VisitCount)) -> [Restr] -> f [Restr]
+withMapVCF f = fmap fromMapVC . f . toMapVC
+
+toMapVC :: [Restr] -> M.Map NodeAddr VisitCount
+toMapVC restrs = ensure check m
+  where
+    m = M.fromList [ (restr.nodeAddr, restr.visitCount) | restr <- restrs ]
+    check = M.size m == length restrs
+
+fromMapVC :: M.Map NodeAddr VisitCount -> [Restr]
+fromMapVC = map f . M.toAscList
+  where
+    f (nodeAddr, visitCount) = Restr { nodeAddr, visitCount }
+
+--
 
 tagV :: Tag -> Visit -> VisitWithTag
 tagV tag visit = VisitWithTag visit tag

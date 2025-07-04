@@ -33,6 +33,7 @@ import Control.DeepSeq (NFData)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT, runReader)
+import Control.Monad.RWS (RWST)
 import Control.Monad.State (StateT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT)
@@ -54,6 +55,9 @@ instance MonadStructs m => MonadStructs (ReaderT r m) where
     askLookupStruct = lift askLookupStruct
 
 instance MonadStructs m => MonadStructs (StateT s m) where
+    askLookupStruct = lift askLookupStruct
+
+instance (Monoid w, MonadStructs m) => MonadStructs (RWST r w s m) where
     askLookupStruct = lift askLookupStruct
 
 instance MonadStructs m => MonadStructs (MaybeT m) where
