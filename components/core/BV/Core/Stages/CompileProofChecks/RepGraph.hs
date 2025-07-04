@@ -401,8 +401,8 @@ addFuncM name inputs outputs success visit = do
     whenJust pairingIdOpt $ \pairingId -> do
             group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
             for_ group $ \visit2 -> do
-                x <- getFuncPairingM visit visit2
-                when (isJust x) $ do
+                ok <- isJust <$> getFuncPairingM visit visit2
+                when ok $ do
                     addFuncAssert visit visit2
             liftRepGraph $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
