@@ -163,7 +163,7 @@ initRepGraphState = RepGraphState
 
 initRepGraph :: MonadRepGraph m => m ()
 initRepGraph = do
-    addInputEnvsM
+    addInputEnvs
 
 --
 
@@ -245,8 +245,8 @@ getFreshIdent nameHint = do
 
 --
 
-addInputEnvsM :: MonadRepGraph m => m ()
-addInputEnvsM = do
+addInputEnvs :: MonadRepGraph m => m ()
+addInputEnvs = do
     p <- liftRepGraph $ gview #problem
     f p.sides.asm
     f p.sides.c
