@@ -903,7 +903,9 @@ getFuncAssertM visit visit2 = do
     inEqs <- instEqs pairing.inEqs envs
     outEqs <- instEqs pairing.outEqs envs
     let succImp = impliesE rsucc lsucc
-    return $ impliesE (foldr1 andE (inEqs ++ [rpc])) (foldr1 andE (outEqs ++ [succImp]))
+    return $ impliesE
+        (foldr1 andE (inEqs ++ [rpc]))
+        (foldr1 andE (outEqs ++ [succImp]))
   where
     instEqs :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
     instEqs eqs envs = for eqs $ \eq ->
