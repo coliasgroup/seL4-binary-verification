@@ -527,20 +527,17 @@ scanMemCalls env = do
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCallsM split memCallsOpt = case memCallsOpt of
     Nothing -> return Nothing
-    Just memCalls -> do
+    Just memCalls -> Just <$> do
         loopBody <- askLoopBody split
         fnames <- fmap (S.fromList . catMaybes) $ for (S.toAscList loopBody) $ \n -> do
             node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
             return $ case node of
                 NodeCall callNode -> Just callNode.functionName
                 _ -> Nothing
-        let new = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
+        let newMemCalls = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
                     Just x -> x & #max .~ Nothing
                     Nothing -> MemCallsForFunction 0 Nothing
-        if S.null fnames
-        then return $ Just memCalls
-        -- else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForFunction 0 Nothing)) | fname <- S.toAscList fnames ]
-        else return $ Just $ M.union new memCalls
+        return $ M.union newMemCalls memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
 mergeMemCalls mem_calls_x mem_calls_y =
