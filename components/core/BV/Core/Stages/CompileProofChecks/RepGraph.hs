@@ -540,12 +540,12 @@ addLoopMemCallsM split memCallsOpt = case memCallsOpt of
         return $ M.union newMemCalls memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
-mergeMemCalls mem_calls_x mem_calls_y =
-    if mem_calls_x == mem_calls_y
-    then mem_calls_x
+mergeMemCalls xcalls ycalls =
+    if xcalls == ycalls
+    then xcalls
     else M.fromList $
-        [ (k, f (fromMaybe zeroMemCallsForFunction $ M.lookup k mem_calls_x) (fromMaybe zeroMemCallsForFunction $ M.lookup k mem_calls_y))
-        | k <- S.toList $ S.union (M.keysSet mem_calls_x) (M.keysSet mem_calls_y)
+        [ (k, f (fromMaybe zeroMemCallsForFunction $ M.lookup k xcalls) (fromMaybe zeroMemCallsForFunction $ M.lookup k ycalls))
+        | k <- S.toList $ S.union (M.keysSet xcalls) (M.keysSet ycalls)
         ]
   where
     f x y = MemCallsForFunction
