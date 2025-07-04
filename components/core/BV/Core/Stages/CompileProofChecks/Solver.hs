@@ -57,7 +57,7 @@ import Data.Foldable (for_)
 import Data.List (nub, sortOn)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe, fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
