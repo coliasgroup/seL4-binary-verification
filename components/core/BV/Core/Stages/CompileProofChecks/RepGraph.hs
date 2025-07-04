@@ -420,22 +420,22 @@ getFuncPairingNoCheck visit visit2 = do
         | otherwise -> Nothing
 
 getFuncPairing :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairing n_vc n_vc2 = do
-    getFuncPairingNoCheck n_vc n_vc2 >>= \case
+getFuncPairing visit visit2 = do
+    getFuncPairingNoCheck visit visit2 >>= \case
         Nothing -> return Nothing
-        Just (p, p_n_vc) -> do
-            (lin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
-            (rin, _, _) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
-            l_mem_calls <- scanMemCalls lin
-            r_mem_calls <- scanMemCalls rin
+        Just (p, visits) -> do
+            (lin, _, _) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
+            (rin, _, _) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
+            lMemCalls <- scanMemCalls lin
+            rMemClls <- scanMemCalls rin
             (c, _s) <- memCallsCompatible $ PairingOf
-                { asm = l_mem_calls
-                , c = r_mem_calls
+                { asm = lMemCalls
+                , c = rMemClls
                 }
             unless c $ do
                 -- traceShowM ("skipping", s)
                 return ()
-            return $ if c then Just (p, p_n_vc) else Nothing
+            return $ if c then Just (p, visits) else Nothing
 
 getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
 getFuncAssert visit visit2 = do
