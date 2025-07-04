@@ -407,16 +407,16 @@ addFunc name inputs outputs success visit = do
         liftRepGraph $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
 getFuncPairingNoCheck :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairingNoCheck n_vc n_vc2 = do
+getFuncPairingNoCheck visit visit2 = do
     let askFnName v = liftRepGraph $ gview $
             #problem % #nodes % at (v.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
-    n <- askFnName n_vc
-    n2 <- askFnName n_vc2
-    pair <- liftRepGraph $ gview $ #pairingsAccess % at n % unwrapped
-    p <- liftRepGraph $ gview $ #pairings % #unwrap % at pair % unwrapped
+    fname <- askFnName visit
+    fname2 <- askFnName visit2
+    pairingId <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
+    p <- liftRepGraph $ gview $ #pairings % #unwrap % at pairingId % unwrapped
     return $ (p ,) <$> if
-        | PairingOf { asm = n, c = n2 } == pair -> Just $ PairingOf { asm = n_vc, c = n_vc2 }
-        | PairingOf { asm = n2, c = n } == pair -> Just $ PairingOf { asm = n_vc2, c = n_vc }
+        | pairingId == PairingOf { asm = fname, c = fname2 } -> Just $ PairingOf { asm = visit, c = visit2 }
+        | pairingId == PairingOf { asm = fname2, c = fname } -> Just $ PairingOf { asm = visit2, c = visit }
         | otherwise -> Nothing
 
 getFuncPairing :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
