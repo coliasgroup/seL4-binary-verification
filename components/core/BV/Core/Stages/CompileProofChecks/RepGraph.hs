@@ -464,6 +464,128 @@ addFuncAssert visit visit2 = do
     imp <- weakenAssert <$> getFuncAssert visit visit2
     withoutEnv $ assertFact imp
 
+-- TODO
+addLocalDef :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
+addLocalDef _ _ = addDef
+
+addVarRestrWithMemCalls :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
+addVarRestrWithMemCalls nameHint ty memCallsOpt = do
+    r <- addVarRestr nameHint ty
+    when (isMemT ty) $ do
+        liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
+    return r
+
+type MemCalls = Map Ident MemCallsForFunction
+
+data MemCallsForFunction
+  = MemCallsForFunction
+      { min :: Integer
+      , max :: Maybe Integer
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+zeroMemCallsForFunction :: MemCallsForFunction
+zeroMemCallsForFunction = MemCallsForFunction
+    { min = 0
+    , max = Just 0
+    }
+
+addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
+addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
+    let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
+     in fromMaybe zeroMemCallsForFunction slot & f
+
+getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
+getMemCalls mem_sexpr = do
+    present <- liftRepGraph $ use $ #memCalls % at mem_sexpr
+    case present of
+        Just x -> do
+            return x
+        Nothing -> do
+            case mem_sexpr of
+                List [op, x, _, _] | isStore op -> getMemCalls x
+                List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
+                _ -> do
+                    r <- runMaybeT $ do
+                        name <- hoistMaybe $ parseSymbolS mem_sexpr
+                        next <- MaybeT $ tryGetDef (Name name)
+                        lift $ getMemCalls next
+                    case r of
+                        Just x -> return x
+                        Nothing -> error $ "mem_calls fallthrough " ++ show (showSExprWithPlaceholders mem_sexpr)
+  where
+    isStore s = s `elem` ([symbolS "store-word32", symbolS "store-word8", symbolS "store-word64"] :: [SExprWithPlaceholders])
+
+scanMemCalls :: MonadRepGraph m => ExprEnv -> m (Maybe MemCalls)
+scanMemCalls env = do
+    let mem_vs = [ v | ((_nm, typ), v) <- M.toAscList env, typ == memT ]
+    mem_calls <- for (catMaybes (map (preview #_NotSplit) mem_vs)) $ \v -> do
+        getMemCalls v
+    return $ case mem_calls of
+        [] -> Nothing
+        _ -> Just $ foldr1 mergeMemCalls mem_calls
+
+addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
+addLoopMemCallsM split mem_callsOpt = do
+    case mem_callsOpt of
+        Nothing -> return Nothing
+        Just mem_calls -> do
+            loopBody <- askLoopBody split
+            fnames <- S.fromList . catMaybes <$> (for (S.toAscList loopBody) $ \n -> do
+                node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+                return $ case node of
+                    NodeCall callNode -> Just callNode.functionName
+                    _ -> Nothing)
+            let new = M.fromList $ flip map (S.toList fnames) $ \fname -> (fname,) $
+                    case M.lookup fname mem_calls of
+                        Just x -> x & #max .~ Nothing
+                        Nothing -> MemCallsForFunction 0 Nothing
+            if S.null fnames
+            then return $ Just mem_calls
+            -- else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForFunction 0 Nothing)) | fname <- S.toAscList fnames ]
+            else return $ Just $ M.union new mem_calls
+
+mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
+mergeMemCalls mem_calls_x mem_calls_y =
+    if mem_calls_x == mem_calls_y
+    then mem_calls_x
+    else M.fromList $
+        [ (k, f (fromMaybe zeroMemCallsForFunction $ M.lookup k mem_calls_x) (fromMaybe zeroMemCallsForFunction $ M.lookup k mem_calls_y))
+        | k <- S.toList $ S.union (M.keysSet mem_calls_x) (M.keysSet mem_calls_y)
+        ]
+  where
+    f x y = MemCallsForFunction
+        { min = min x.min y.min
+        , max = liftA2 max x.max y.max
+        }
+
+memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
+memCallsCompatible p_mem_calls = do
+    case (p_mem_calls.asm, p_mem_calls.c) of
+        (Just l_mem_calls, Just r_mem_calls) -> do
+            r_cast_calls <- fmap M.fromList $ fmap catMaybes $ for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
+                pair <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
+                let r_fun = pair.c
+                r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
+                let memOut = any (\arg -> arg.ty == memT) r_sig.output
+                return $
+                    if memOut
+                    then Just (r_fun, calls)
+                    else Nothing
+            let f fname =
+                    let r_cast = fromMaybe zeroMemCallsForFunction $ r_cast_calls !? fname
+                        r_actual = fromMaybe zeroMemCallsForFunction $ r_mem_calls !? fname
+                        x = case r_cast.max of
+                                Just n -> n < r_actual.min
+                                _ -> False
+                        y = case r_actual.max of
+                                Just n -> n < r_cast.min
+                                _ -> False
+                     in x || y
+            let bad = any f (nub $ M.keys r_cast_calls ++ M.keys r_mem_calls)
+            return $ if bad then (False, Just "foo") else (True, Nothing)
+        _ -> return (True, Nothing)
+
 --
 
 warmPcEnvCacheM :: MonadRepGraph m => VisitWithTag -> m ()
@@ -515,28 +637,6 @@ getTagVCount visit mtag = do
                     when (maybeloopId' == Just loopId && isOptionsVC visits) $ do
                         throwError $ TooGeneral { split }
             return (tag, Just [ Restr x y | (x, y) <- vcount ])
-
-type MemCalls = Map Ident MemCallsForOne
-
-data MemCallsForOne
-  = MemCallsForOne
-      { min :: Integer
-      , max :: Maybe Integer
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-zeroMemCallsForOne :: MemCallsForOne
-zeroMemCallsForOne = MemCallsForOne
-    { min = 0
-    , max = Just 0
-    }
-
-addVarRestrWithMemCalls :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
-addVarRestrWithMemCalls nameHint ty memCallsOpt = do
-    r <- addVarRestr nameHint ty
-    when (ty == ExprTypeMem) $ do
-        liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
-    return r
 
 varRepRequest :: MonadRepGraph m => Ident -> ExprType -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
 varRepRequest nm typ kind n_vc env = runMaybeT $ do
@@ -722,9 +822,6 @@ postEmitNodeHooksM visit = do
             [] -> return ()
             _ -> error "unexpected"
 
-addLocalDefMR :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
-addLocalDefMR _ _ = addDef
-
 emitNodeM :: MonadRepGraphE m => Visit -> m [(NodeId, Expr, ExprEnv)]
 emitNodeM n = do
     (pc, env) <- fromJust <$> tryGetNodePcEnv n Nothing
@@ -747,7 +844,7 @@ emitNodeM n = do
                         _ -> do
                             name <- return $ localName upd.varName n
                             let v = app_eqs upd.expr
-                            vname <- withEnv env $ addLocalDefMR () () name v
+                            vname <- withEnv env $ addLocalDef () () name v
                             return vname
                     return (k, val)
                 let env' = M.union (M.fromList upds) env
@@ -756,7 +853,7 @@ emitNodeM n = do
                 let name = condName n
                 freshName <- getFreshIdent name
                 let cond = varE boolT freshName
-                def <- withEnv env $ addLocalDefMR () () name (app_eqs condNode.expr)
+                def <- withEnv env $ addLocalDef () () name (app_eqs condNode.expr)
                 let env' = M.insert (freshName, boolT) def env
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
@@ -842,99 +939,3 @@ isSyntConstM orig_nm typ split = do
 
             runExceptT (go (mempty) (S.singleton (orig_nm, split)) (orig_nm, split)) >>= \case
                 Left r -> return r
-
-addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
-addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
-    let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
-     in fromMaybe zeroMemCallsForOne slot & f
-
-getMemCalls :: MonadRepGraph m => SExprWithPlaceholders -> m MemCalls
-getMemCalls mem_sexpr = do
-    present <- liftRepGraph $ use $ #memCalls % at mem_sexpr
-    case present of
-        Just x -> do
-            return x
-        Nothing -> do
-            case mem_sexpr of
-                List [op, x, _, _] | isStore op -> getMemCalls x
-                List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
-                _ -> do
-                    r <- runMaybeT $ do
-                        name <- hoistMaybe $ parseSymbolS mem_sexpr
-                        next <- MaybeT $ tryGetDef (Name name)
-                        lift $ getMemCalls next
-                    case r of
-                        Just x -> return x
-                        Nothing -> error $ "mem_calls fallthrough " ++ show (showSExprWithPlaceholders mem_sexpr)
-  where
-    isStore s = s `elem` ([symbolS "store-word32", symbolS "store-word8", symbolS "store-word64"] :: [SExprWithPlaceholders])
-
-scanMemCalls :: MonadRepGraph m => ExprEnv -> m (Maybe MemCalls)
-scanMemCalls env = do
-    let mem_vs = [ v | ((_nm, typ), v) <- M.toAscList env, typ == memT ]
-    mem_calls <- for (catMaybes (map (preview #_NotSplit) mem_vs)) $ \v -> do
-        getMemCalls v
-    return $ case mem_calls of
-        [] -> Nothing
-        _ -> Just $ foldr1 mergeMemCalls mem_calls
-
-addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
-addLoopMemCallsM split mem_callsOpt = do
-    case mem_callsOpt of
-        Nothing -> return Nothing
-        Just mem_calls -> do
-            loopBody <- askLoopBody split
-            fnames <- S.fromList . catMaybes <$> (for (S.toAscList loopBody) $ \n -> do
-                node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
-                return $ case node of
-                    NodeCall callNode -> Just callNode.functionName
-                    _ -> Nothing)
-            let new = M.fromList $ flip map (S.toList fnames) $ \fname -> (fname,) $
-                    case M.lookup fname mem_calls of
-                        Just x -> x & #max .~ Nothing
-                        Nothing -> MemCallsForOne 0 Nothing
-            if S.null fnames
-            then return $ Just mem_calls
-            -- else return $ Just $ M.unionWith f mem_calls $ M.fromList [ (fname, (MemCallsForOne 0 Nothing)) | fname <- S.toAscList fnames ]
-            else return $ Just $ M.union new mem_calls
-
-mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
-mergeMemCalls mem_calls_x mem_calls_y =
-    if mem_calls_x == mem_calls_y
-    then mem_calls_x
-    else M.fromList $
-        [ (k, f (fromMaybe zeroMemCallsForOne $ M.lookup k mem_calls_x) (fromMaybe zeroMemCallsForOne $ M.lookup k mem_calls_y))
-        | k <- S.toList $ S.union (M.keysSet mem_calls_x) (M.keysSet mem_calls_y)
-        ]
-  where
-    f x y = MemCallsForOne
-        { min = min x.min y.min
-        , max = liftA2 max x.max y.max
-        }
-
-memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
-memCallsCompatible p_mem_calls = do
-    case (p_mem_calls.asm, p_mem_calls.c) of
-        (Just l_mem_calls, Just r_mem_calls) -> do
-            r_cast_calls <- fmap M.fromList $ fmap catMaybes $ for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
-                pair <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
-                let r_fun = pair.c
-                r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
-                let memOut = any (\arg -> arg.ty == memT) r_sig.output
-                return $
-                    if memOut
-                    then Just (r_fun, calls)
-                    else Nothing
-            let f fname =
-                    let r_cast = fromMaybe zeroMemCallsForOne $ r_cast_calls !? fname
-                        r_actual = fromMaybe zeroMemCallsForOne $ r_mem_calls !? fname
-                        x = case r_cast.max of
-                                Just n -> n < r_actual.min
-                                _ -> False
-                        y = case r_actual.max of
-                                Just n -> n < r_cast.min
-                                _ -> False
-                     in x || y
-            let bad = any f (nub $ M.keys r_cast_calls ++ M.keys r_mem_calls)
-            return $ if bad then (False, Just "foo") else (True, Nothing)
-        _ -> return (True, Nothing)
