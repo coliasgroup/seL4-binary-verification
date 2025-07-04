@@ -544,8 +544,8 @@ mergeMemCalls xcalls ycalls =
     if xcalls == ycalls
     then xcalls
     else flip M.fromSet (S.union (M.keysSet xcalls) (M.keysSet ycalls)) $ \k ->
-            f (fromMaybe zeroMemCallsForFunction $ M.lookup k xcalls)
-              (fromMaybe zeroMemCallsForFunction $ M.lookup k ycalls)
+            f (fromMaybe zeroMemCallsForFunction (M.lookup k xcalls))
+              (fromMaybe zeroMemCallsForFunction (M.lookup k ycalls))
   where
     f x y = MemCallsForFunction
         { min = min x.min y.min
