@@ -414,9 +414,9 @@ getFuncPairingNoCheck n_vc n_vc2 = do
     n2 <- askFnName n_vc2
     pair <- liftRepGraph $ gview $ #pairingsAccess % at n % unwrapped
     p <- liftRepGraph $ gview $ #pairings % #unwrap % at pair % unwrapped
-    return $ if
-        | PairingOf { asm = n, c = n2 } == pair -> Just $ (p, PairingOf { asm = n_vc, c = n_vc2 })
-        | PairingOf { asm = n2, c = n } == pair -> Just $ (p, PairingOf { asm = n_vc2, c = n_vc })
+    return $ (p ,) <$> if
+        | PairingOf { asm = n, c = n2 } == pair -> Just $ PairingOf { asm = n_vc, c = n_vc2 }
+        | PairingOf { asm = n2, c = n } == pair -> Just $ PairingOf { asm = n_vc2, c = n_vc }
         | otherwise -> Nothing
 
 getFuncPairing :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
