@@ -408,16 +408,16 @@ addFuncM name inputs outputs success visit = do
 
 getFuncPairingNoCheckM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairingNoCheckM n_vc n_vc2 = do
-    n <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
-    n2 <- liftRepGraph $ gview $ #problem % #nodes % at (n_vc2.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
+    let askFnName v = liftRepGraph $ gview $
+            #problem % #nodes % at (v.nodeId ^. expecting #_Addr) % unwrapped % expecting #_NodeCall % #functionName
+    n <- askFnName n_vc
+    n2 <- askFnName n_vc2
     pair <- liftRepGraph $ gview $ #pairingsAccess % at n % unwrapped
     p <- liftRepGraph $ gview $ #pairings % #unwrap % at pair % unwrapped
-    id $
-        if PairingOf { asm = n, c = n2 } == pair
-        then return (Just $ (p, PairingOf { asm = n_vc, c = n_vc2 }))
-        else if PairingOf { asm = n2, c = n } == pair
-        then return (Just $ (p, PairingOf { asm = n_vc2, c = n_vc }))
-        else return (Nothing)
+    return $ if
+        | PairingOf { asm = n, c = n2 } == pair -> Just $ (p, PairingOf { asm = n_vc, c = n_vc2 })
+        | PairingOf { asm = n2, c = n } == pair -> Just $ (p, PairingOf { asm = n_vc2, c = n_vc })
+        | otherwise -> Nothing
 
 getFuncPairingM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairingM n_vc n_vc2 = do
