@@ -529,11 +529,11 @@ addLoopMemCallsM split memCallsOpt = case memCallsOpt of
     Nothing -> return Nothing
     Just memCalls -> do
         loopBody <- askLoopBody split
-        fnames <- S.fromList . catMaybes <$> (for (S.toAscList loopBody) $ \n -> do
+        fnames <- fmap (S.fromList . catMaybes) $ for (S.toAscList loopBody) $ \n -> do
             node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
             return $ case node of
                 NodeCall callNode -> Just callNode.functionName
-                _ -> Nothing)
+                _ -> Nothing
         let new = M.fromList $ flip map (S.toList fnames) $ \fname -> (fname,) $
                 case M.lookup fname memCalls of
                     Just x -> x & #max .~ Nothing
