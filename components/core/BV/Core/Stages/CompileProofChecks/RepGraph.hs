@@ -428,14 +428,14 @@ getFuncPairing visit visit2 = do
             (rin, _, _) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
             lcalls <- scanMemCalls lin
             rcalls <- scanMemCalls rin
-            (c, _s) <- memCallsCompatible $ PairingOf
+            (compatible, _s) <- memCallsCompatible $ PairingOf
                 { asm = lcalls
                 , c = rcalls
                 }
-            unless c $ do
-                -- traceShowM ("skipping", s)
+            unless compatible $ do
+                -- warn _s
                 return ()
-            return $ if c then Just (p, visits) else Nothing
+            return $ if compatible then Just (p, visits) else Nothing
 
 getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
 getFuncAssert visit visit2 = do
