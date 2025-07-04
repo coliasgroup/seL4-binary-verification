@@ -889,24 +889,25 @@ getFuncPairingM n_vc n_vc2 = do
             return $ if c then Just (p, p_n_vc) else Nothing
 
 getFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m Expr
-getFuncAssertM n_vc n_vc2 = do
-    (pair, p_n_vc) <- fromJust <$> getFuncPairingM n_vc n_vc2
-    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.asm % unwrapped
-    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at p_n_vc.c % unwrapped
-    _lpc <- getPc p_n_vc.asm Nothing
-    rpc <- getPc p_n_vc.c Nothing
+getFuncAssertM visit visit2 = do
+    (pairing, visits) <- fromJust <$> getFuncPairingM visit visit2
+    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
+    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
+    _lpc <- getPc visits.asm Nothing
+    rpc <- getPc visits.c Nothing
     let envs = \case
             PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
             PairingEqSideQuadrant C PairingEqDirectionIn -> rin
             PairingEqSideQuadrant Asm PairingEqDirectionOut -> lout
             PairingEqSideQuadrant C PairingEqDirectionOut -> rout
-    inp_eqs <- instEqsM pair.inEqs envs
-    out_eqs <- instEqsM pair.outEqs envs
-    let succ_imp = impliesE rsucc lsucc
-    return $ impliesE (foldr1 andE (inp_eqs ++ [rpc])) (foldr1 andE (out_eqs ++ [succ_imp]))
-
-instEqsM :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
-instEqsM eqs envs = for eqs $ \eq -> instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
+    inEqs <- instEqs pairing.inEqs envs
+    outEqs <- instEqs pairing.outEqs envs
+    let succImp = impliesE rsucc lsucc
+    return $ impliesE (foldr1 andE (inEqs ++ [rpc])) (foldr1 andE (outEqs ++ [succImp]))
+  where
+    instEqs :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
+    instEqs eqs envs = for eqs $ \eq ->
+        instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
 
 addFuncAssertM :: MonadRepGraphE m => Visit -> Visit -> m ()
 addFuncAssertM n_vc n_vc2 = do
