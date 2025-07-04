@@ -534,8 +534,7 @@ addLoopMemCallsM split memCallsOpt = case memCallsOpt of
             return $ case node of
                 NodeCall callNode -> Just callNode.functionName
                 _ -> Nothing
-        let new = M.fromList $ flip map (S.toList fnames) $ \fname -> (fname,) $
-                case M.lookup fname memCalls of
+        let new = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
                     Just x -> x & #max .~ Nothing
                     Nothing -> MemCallsForFunction 0 Nothing
         if S.null fnames
