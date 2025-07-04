@@ -555,31 +555,29 @@ mergeMemCalls xcalls ycalls =
         }
 
 memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
-memCallsCompatible p_mem_calls = do
-    case (p_mem_calls.asm, p_mem_calls.c) of
-        (Just l_mem_calls, Just r_mem_calls) -> do
-            r_cast_calls <- fmap M.fromList $ fmap catMaybes $ for (M.toAscList l_mem_calls) $ \(fname, calls) -> do
-                pair <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
-                let r_fun = pair.c
-                r_sig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C r_fun)
-                let memOut = any (\arg -> arg.ty == memT) r_sig.output
-                return $
-                    if memOut
-                    then Just (r_fun, calls)
-                    else Nothing
-            let f fname =
-                    let r_cast = fromMaybe zeroMemCallsForFunction $ r_cast_calls !? fname
-                        r_actual = fromMaybe zeroMemCallsForFunction $ r_mem_calls !? fname
-                        x = case r_cast.max of
-                                Just n -> n < r_actual.min
-                                _ -> False
-                        y = case r_actual.max of
-                                Just n -> n < r_cast.min
-                                _ -> False
-                     in x || y
-            let bad = any f (nub $ M.keys r_cast_calls ++ M.keys r_mem_calls)
-            return $ if bad then (False, Just "foo") else (True, Nothing)
-        _ -> return (True, Nothing)
+memCallsCompatible = \case
+    PairingOf { asm = Just lcalls, c = Just rcalls } -> do
+        rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
+            pairingId <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
+            let rfname = pairingId.c
+            rsig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C rfname)
+            return $
+                if any (\arg -> arg.ty == memT) rsig.output
+                then Just (rfname, calls)
+                else Nothing
+        let f fname =
+                let rcast = fromMaybe zeroMemCallsForFunction $ rcastcalls !? fname
+                    ractual = fromMaybe zeroMemCallsForFunction $ rcalls !? fname
+                    x = case rcast.max of
+                            Just n -> n < ractual.min
+                            _ -> False
+                    y = case ractual.max of
+                            Just n -> n < rcast.min
+                            _ -> False
+                    in x || y
+        let bad = any f $ S.toList $ M.keysSet rcastcalls ++ M.keysSet rcalls
+        return $ if bad then (False, error "unimplemented") else (True, Nothing)
+    _ -> return (True, Nothing)
 
 --
 
