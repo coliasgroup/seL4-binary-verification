@@ -267,7 +267,7 @@ addInputEnvs = do
                         VarRepRequestKindInit
                         (Visit { nodeId = side.entryPoint, restrs = []})
                         env
-                    whenJust opt $ \splitMem -> modify $ M.insert (arg.name, arg.ty) (Split splitMem)
+                    whenJust_ opt $ \splitMem -> modify $ M.insert (arg.name, arg.ty) (Split splitMem)
         env <- execStateT m M.empty
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
 
@@ -398,7 +398,7 @@ addFunc :: MonadRepGraphE m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m
 addFunc name inputs outputs success visit = do
     liftRepGraph $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
     pairingIdOpt <- liftRepGraph $ gview $ #pairingsAccess % at name
-    whenJust pairingIdOpt $ \pairingId -> do
+    whenJust_ pairingIdOpt $ \pairingId -> do
         group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
         for_ group $ \visit2 -> do
             ok <- isJust <$> getFuncPairing visit visit2
@@ -421,20 +421,19 @@ getFuncPairingNoCheck visit visit2 = do
 
 getFuncPairing :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairing visit visit2 = do
-    getFuncPairingNoCheck visit visit2 >>= \case
-        Nothing -> return Nothing
-        Just (p, visits) -> do
-            (lin, _, _) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
-            (rin, _, _) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
-            lcalls <- scanMemCalls lin
-            rcalls <- scanMemCalls rin
-            (compatible, _s) <- memCallsCompatible $ PairingOf
-                { asm = lcalls
-                , c = rcalls
-                }
-            -- unless compatible $ do
-            --     warn _s
-            return $ if compatible then Just (p, visits) else Nothing
+    opt <- getFuncPairingNoCheck visit visit2 >>= \case
+    whenJustThen opt $ \(p, visits) -> do
+        (lin, _, _) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
+        (rin, _, _) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
+        lcalls <- scanMemCalls lin
+        rcalls <- scanMemCalls rin
+        (compatible, _s) <- memCallsCompatible $ PairingOf
+            { asm = lcalls
+            , c = rcalls
+            }
+        -- unless compatible $ do
+        --     warn _s
+        return $ if compatible then Just (p, visits) else Nothing
 
 getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
 getFuncAssert visit visit2 = do
@@ -525,19 +524,17 @@ scanMemCalls env = do
         _ -> Just $ foldr1 mergeMemCalls memCalls
 
 addLoopMemCallsM :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
-addLoopMemCallsM split memCallsOpt = case memCallsOpt of
-    Nothing -> return Nothing
-    Just memCalls -> Just <$> do
-        loopBody <- askLoopBody split
-        fnames <- fmap (S.fromList . catMaybes) $ for (S.toAscList loopBody) $ \n -> do
-            node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
-            return $ case node of
-                NodeCall callNode -> Just callNode.functionName
-                _ -> Nothing
-        let newMemCalls = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
-                    Just x -> x & #max .~ Nothing
-                    Nothing -> MemCallsForFunction 0 Nothing
-        return $ M.union newMemCalls memCalls
+addLoopMemCallsM split = traverse $ \memCalls -> do
+    loopBody <- askLoopBody split
+    fnames <- fmap (S.fromList . catMaybes) $ for (S.toAscList loopBody) $ \n -> do
+        node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+        return $ case node of
+            NodeCall callNode -> Just callNode.functionName
+            _ -> Nothing
+    let newMemCalls = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
+                Just x -> x & #max .~ Nothing
+                Nothing -> MemCallsForFunction 0 Nothing
+    return $ M.union newMemCalls memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
 mergeMemCalls xcalls ycalls =

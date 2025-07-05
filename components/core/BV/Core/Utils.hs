@@ -14,9 +14,10 @@ module BV.Core.Utils
     , is
     , optionals
     , unwrapped
-    , whenJust
+    , whenJust_
     , whenNothing
     , whileM
+    , whenJustThen
     , (!@)
     ) where
 
@@ -33,6 +34,7 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
+import Control.Monad.Trans.Maybe (hoistMaybe, MaybeT (runMaybeT, MaybeT))
 
 ensure :: HasCallStack => Bool -> a -> a
 ensure p = applyWhen (not p) (error "ensure failed")
@@ -67,8 +69,11 @@ whileM cond body = go
 whenNothing :: Monad m => Maybe a -> m a -> m a
 whenNothing opt m = maybe m return opt
 
-whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
-whenJust = for_
+whenJust_ :: Monad m => Maybe a -> (a -> m ()) -> m ()
+whenJust_ = for_
+
+whenJustThen :: Monad m => Maybe a -> (a -> m (Maybe b)) -> m (Maybe b)
+whenJustThen opt f = runMaybeT $ hoistMaybe opt >>= MaybeT . f
 
 unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just
