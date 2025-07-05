@@ -753,7 +753,7 @@ getArcPcEnvsM n n_vc2 = do
     case r of
         Right x -> return x
         Left (TooGeneral { split }) -> do
-            specs <- specialize n_vc2 split
+            let specs = specialize n_vc2 split
             let specs' =
                     [ Visit
                         { nodeId = n_vc2.nodeId
