@@ -73,7 +73,7 @@ loopHeadsFrom g entryPoints =
     | comp <- sccs
     ]
   where
-    toNodeAddr v = g.nodeIdMap v ^. expecting #_Addr
+    toNodeAddr v = nodeAddrFromNodeId $ g.nodeIdMap v
     sccs = do
         comp <- S.fromList . toList <$> G.scc g.graph
         True <- return $ S.size comp > 1
