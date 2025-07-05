@@ -24,6 +24,7 @@ import Control.DeepSeq (NFData)
 import Control.Monad (when)
 import Data.Binary (Binary)
 import Data.Either (fromRight)
+import Data.Foldable (for_)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
@@ -67,7 +68,7 @@ whenNothing :: Monad m => Maybe a -> m a -> m a
 whenNothing opt m = maybe m return opt
 
 whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
-whenJust opt f = maybe (return ()) f opt
+whenJust = for_
 
 unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just
