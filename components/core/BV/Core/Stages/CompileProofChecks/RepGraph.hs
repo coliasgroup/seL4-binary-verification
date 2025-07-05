@@ -49,7 +49,7 @@ import Control.Monad.Trans.Reader (ReaderT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
-import Data.List (intercalate, isPrefixOf, nub, sort, tails)
+import Data.List (intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
