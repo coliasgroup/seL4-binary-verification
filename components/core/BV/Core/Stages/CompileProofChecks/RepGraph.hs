@@ -581,6 +581,19 @@ contract name visit sexpr ty = withMapSlot #contractions sexpr $ do
     let name' = localNameBefore name visit
     withoutEnv $ addDef name' (smtExprE ty (NotSplit sexpr))
 
+specialize :: MonadRepGraph m => Visit -> NodeAddr -> m [[Restr]]
+specialize visit split = do
+    let vcount = M.fromList $ [ (r.nodeAddr, r.visitCount) | r <- visit.restrs ]
+    ensureM $ isOptionsVC $ vcount ! split
+    for (enumerateSimpleVC (vcount ! split)) $ \n -> do
+        return
+            [ Restr
+                { nodeAddr
+                , visitCount
+                }
+            | (nodeAddr, visitCount) <- M.toAscList (M.insert split (fromSimpleVC n) vcount)
+            ]
+
 --
 
 warmPcEnvCacheM :: MonadRepGraph m => VisitWithTag -> m ()
@@ -744,7 +757,7 @@ getArcPcEnvsM n n_vc2 = do
     case r of
         Right x -> return x
         Left (TooGeneral { split }) -> do
-            specs <- specializeM n_vc2 split
+            specs <- specialize n_vc2 split
             let specs' =
                     [ Visit
                         { nodeId = n_vc2.nodeId
@@ -753,19 +766,6 @@ getArcPcEnvsM n n_vc2 = do
                     | spec <- specs
                     ]
             concat <$> (for specs' $ \spec -> getArcPcEnvsM n spec)
-
-specializeM :: MonadRepGraph m => Visit -> NodeAddr -> m [[Restr]]
-specializeM visit split = do
-    let vcount = M.fromList $ [ (r.nodeAddr, r.visitCount) | r <- visit.restrs ]
-    ensureM $ isOptionsVC $ vcount ! split
-    for (enumerateSimpleVC (vcount ! split)) $ \n -> do
-        return
-            [ Restr
-                { nodeAddr
-                , visitCount
-                }
-            | (nodeAddr, visitCount) <- M.toAscList (M.insert split (fromSimpleVC n) vcount)
-            ]
 
 getArcPcEnvM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Expr, ExprEnv))
 getArcPcEnvM visit' n2 = do

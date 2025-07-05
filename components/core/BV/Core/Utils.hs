@@ -14,15 +14,16 @@ module BV.Core.Utils
     , is
     , optionals
     , unwrapped
+    , whenJustThen
     , whenJust_
     , whenNothing
     , whileM
-    , whenJustThen
     , (!@)
     ) where
 
 import Control.DeepSeq (NFData)
 import Control.Monad (when)
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT), hoistMaybe)
 import Data.Binary (Binary)
 import Data.Either (fromRight)
 import Data.Foldable (for_)
@@ -34,7 +35,6 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
-import Control.Monad.Trans.Maybe (hoistMaybe, MaybeT (runMaybeT, MaybeT))
 
 ensure :: HasCallStack => Bool -> a -> a
 ensure p = applyWhen (not p) (error "ensure failed")
