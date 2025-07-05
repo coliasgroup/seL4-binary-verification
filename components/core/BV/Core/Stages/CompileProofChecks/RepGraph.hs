@@ -421,7 +421,7 @@ getFuncPairingNoCheck visit visit2 = do
 
 getFuncPairing :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairing visit visit2 = do
-    opt <- getFuncPairingNoCheck visit visit2 >>= \case
+    opt <- getFuncPairingNoCheck visit visit2
     whenJustThen opt $ \(p, visits) -> do
         (lin, _, _) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
         (rin, _, _) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
