@@ -576,6 +576,11 @@ memCallsCompatible = \case
         return $ if incompat then (False, error "unimplemented") else (True, Nothing)
     _ -> return (True, Nothing)
 
+contract :: MonadRepGraph m => Ident -> Visit -> SExprWithPlaceholders -> ExprType -> m MaybeSplit
+contract name visit sexpr ty = withMapSlot #contractions sexpr $ do
+    let name' = localNameBefore name visit
+    withoutEnv $ addDef name' (smtExprE ty (NotSplit sexpr))
+
 --
 
 warmPcEnvCacheM :: MonadRepGraph m => VisitWithTag -> m ()
@@ -657,16 +662,6 @@ asmStackRepHook nm typ kind n = runMaybeT $ do
         , direction = PairingEqDirectionIn
         }) (Ident "r13"))
 
-contractM :: MonadRepGraph m => Ident -> Visit -> SExprWithPlaceholders -> ExprType -> m MaybeSplit
-contractM name n_vc val typ = do
-    liftRepGraph (use $ #contractions % at val) >>= \case
-        Just x -> return x
-        Nothing -> do
-            let name' = localNameBefore name n_vc
-            name'' <- withoutEnv $ addDef name' (smtExprE typ (NotSplit val))
-            liftRepGraph $ #contractions %= M.insert val name''
-            return name''
-
 getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, ExprEnv))
 getNodePcEnvRawM visitWithTag = do
     liftRepGraph (use $ #inpEnvs % at visitWithTag.visit.nodeId) >>= \case
@@ -703,7 +698,7 @@ getNodePcEnvRawM visitWithTag = do
                                     return $ smtExprE boolT name
                             env' <- flip M.traverseWithKey env $ \(nm, typ) v -> do
                                 case v of
-                                    NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contractM nm visitWithTag.visit v' typ
+                                    NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contract nm visitWithTag.visit v' typ
                                     _ -> return v
                             return $ Just (pc', env')
 
