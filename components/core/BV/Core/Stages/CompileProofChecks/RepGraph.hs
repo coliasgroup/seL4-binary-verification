@@ -753,15 +753,14 @@ getArcPcEnvsM n n_vc2 = do
     case r of
         Right x -> return x
         Left (TooGeneral { split }) -> do
-            let specs = specialize n_vc2 split
-            let specs' =
+            let specs =
                     [ Visit
                         { nodeId = n_vc2.nodeId
                         , restrs = spec
                         }
-                    | spec <- specs
+                    | spec <- specialize n_vc2 split
                     ]
-            concat <$> (for specs' $ \spec -> getArcPcEnvsM n spec)
+            concat <$> (for specs $ \spec -> getArcPcEnvsM n spec)
 
 getArcPcEnvM :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Expr, ExprEnv))
 getArcPcEnvM visit' n2 = do
