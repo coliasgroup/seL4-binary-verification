@@ -581,18 +581,14 @@ contract name visit sexpr ty = withMapSlot #contractions sexpr $ do
     let name' = localNameBefore name visit
     withoutEnv $ addDef name' (smtExprE ty (NotSplit sexpr))
 
-specialize :: MonadRepGraph m => Visit -> NodeAddr -> m [[Restr]]
-specialize visit split = do
-    let vcount = M.fromList $ [ (r.nodeAddr, r.visitCount) | r <- visit.restrs ]
-    ensureM $ isOptionsVC $ vcount ! split
-    for (enumerateSimpleVC (vcount ! split)) $ \n -> do
-        return
-            [ Restr
-                { nodeAddr
-                , visitCount
-                }
-            | (nodeAddr, visitCount) <- M.toAscList (M.insert split (fromSimpleVC n) vcount)
-            ]
+specialize :: Visit -> NodeAddr -> [[Restr]]
+specialize visit split = ensure (isOptionsVC vc)
+    [ fromMapVC $ M.insert split (fromSimpleVC n) m
+    | n <- enumerateSimpleVC vc
+    ]
+  where
+    m = toMapVC visit.restrs
+    vc = m ! split
 
 --
 
