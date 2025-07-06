@@ -867,35 +867,35 @@ isSyntacticConstant origName ty split = do
 
 --
 
--- TODO
-askCont :: MonadRepGraph m => Visit -> m Visit
-askCont visit = do
-    let nodeAddr = nodeAddrFromNodeId visit.nodeId
-    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at nodeAddr % unwrapped % nodeConts
-    let [cont] = conts
-    let p = any (\restr -> restr.nodeAddr == nodeAddr) visit.restrs
-    return $ Visit
-        { nodeId = cont
-        , restrs = if p then fromJust (incrVCs visit.restrs nodeAddr 1) else visit.restrs
-        }
+-- -- TODO
+-- askCont :: MonadRepGraph m => Visit -> m Visit
+-- askCont visit = do
+--     let nodeAddr = nodeAddrFromNodeId visit.nodeId
+--     conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at nodeAddr % unwrapped % nodeConts
+--     let [cont] = conts
+--     let p = any (\restr -> restr.nodeAddr == nodeAddr) visit.restrs
+--     return $ Visit
+--         { nodeId = cont
+--         , restrs = if p then fromJust (incrVCs visit.restrs nodeAddr 1) else visit.restrs
+--         }
 
--- TODO
-convertInnerExprWithPcEnv :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
-convertInnerExprWithPcEnv expr visit tag = do
-    pcEnv <- tryGetNodePcEnv visit tag
-    let Just (_pc, env) = pcEnv
-    withEnv env $ convertInnerExpr expr
+-- -- TODO
+-- convertInnerExprWithPcEnv :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
+-- convertInnerExprWithPcEnv expr visit tag = do
+--     pcEnv <- tryGetNodePcEnv visit tag
+--     let Just (_pc, env) = pcEnv
+--     withEnv env $ convertInnerExpr expr
 
--- TODO
-postEmitNodeHookM :: MonadRepGraphE m => Visit -> m ()
-postEmitNodeHookM visit = do
-    let n = nodeAddrFromNodeId visit.nodeId
-    tag <- askNodeTag n
-    when (tag == C) $ do
-        node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
-        upds <- fmap catMaybes $ for (node ^.. foldExprs % getMemAccess) $ \acc -> case acc.kind of
-            MemOpKindUpdate -> Just <$> convertInnerExprWithPcEnv acc.addr visit Nothing
-            _ -> return Nothing
-        case upds of
-            [] -> return ()
-            _ -> error "unexpected"
+-- -- TODO
+-- postEmitNodeHookM :: MonadRepGraphE m => Visit -> m ()
+-- postEmitNodeHookM visit = do
+--     let n = nodeAddrFromNodeId visit.nodeId
+--     tag <- askNodeTag n
+--     when (tag == C) $ do
+--         node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+--         upds <- fmap catMaybes $ for (node ^.. foldExprs % getMemAccess) $ \acc -> case acc.kind of
+--             MemOpKindUpdate -> Just <$> convertInnerExprWithPcEnv acc.addr visit Nothing
+--             _ -> return Nothing
+--         case upds of
+--             [] -> return ()
+--             _ -> error "unexpected"
