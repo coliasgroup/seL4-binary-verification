@@ -16,15 +16,9 @@ workers_arg="-j8"
 # workers_arg="--workers $here/workers.local.yaml"
 # workers_arg="--workers $here/workers.remote.yaml"
 
-# size=big
-size=small
-# size=focused
-
-target_dir=$top_tmp/test-target-dirs/$size
-
 time $exe \
     check \
-    --target-dir $target_dir \
+    --target-dir $here/target-dir \
     --ignore-function fastpath_call \
     --ignore-function fastpath_reply_recv \
     --ignore-function arm_swi_syscall \
