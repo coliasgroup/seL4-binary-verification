@@ -35,7 +35,7 @@ import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
-                          RWST (runRWST), asks, evalRWST)
+                          RWST (runRWST), evalRWST)
 import Control.Monad.State (StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (runExceptT)
