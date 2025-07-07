@@ -12,21 +12,35 @@ import BV.Core.Stages.CompileProofChecks.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Control.Monad.Reader (runReaderT)
 import Control.Monad.RWS (RWS, runRWS)
 import Data.Map (Map)
-import qualified Data.Map as M
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 
-compileProofChecks :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> ArgRenames -> Problem -> [ProofCheck a] -> [SMTProofCheckGroup a]
+compileProofChecks
+    :: Map Ident Struct
+    -> FunctionSignatures
+    -> Pairings
+    -> ROData
+    -> ArgRenames
+    -> Problem
+    -> [ProofCheck a]
+    -> [SMTProofCheckGroup a]
 compileProofChecks cStructs functionSigs pairings rodata argRenames problem checks =
     map
         (compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem)
         (proofCheckGroups checks)
 
-compileProofCheckGroup :: Map Ident Struct -> FunctionSignatures -> Pairings -> ROData -> ArgRenames -> Problem -> ProofCheckGroup a -> SMTProofCheckGroup a
+compileProofCheckGroup
+    :: Map Ident Struct
+    -> FunctionSignatures
+    -> Pairings
+    -> ROData
+    -> ArgRenames
+    -> Problem
+    -> ProofCheckGroup a
+    -> SMTProofCheckGroup a
 compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem group =
     SMTProofCheckGroup setup imps
   where
@@ -90,7 +104,7 @@ interpretGroup group = do
         hyps <- mapM interpretHyp check.hyps
         return (check, strengthenHyp (nImpliesE hyps concl))
     for hyps $ \(check, term) -> do
-        sexpr <- runReaderT (convertExprNoSplit term) M.empty
+        sexpr <- withoutEnv $ convertExprNoSplit term
         return $ SMTProofCheckImp check.meta sexpr
 
 interpretHyp :: Hyp -> M Expr
