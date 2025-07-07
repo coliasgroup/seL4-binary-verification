@@ -117,6 +117,7 @@ data CheckOpts
       , sqliteCache :: Maybe String
       , postgresCache :: Maybe String
       , inputTargetDir :: FilePath
+      , referenceTargetDir :: Maybe FilePath
       , dumpTargetDir :: Maybe FilePath
       , mismatchDir :: Maybe FilePath
       , rodataSections :: [String]
@@ -393,6 +394,11 @@ checkOptsParser = do
         , help "Output file for report"
         , action "file"
         ]
+    referenceTargetDir <- optional $ option' str
+        [ long "reference-target-dir"
+        , metavar "DIRECTORY"
+        , action "directory"
+        ]
     dumpTargetDir <- optional $ option' str
         [ long "dump-target-dir"
         , metavar "DIRECTORY"
@@ -413,6 +419,7 @@ checkOptsParser = do
         , sqliteCache
         , postgresCache
         , inputTargetDir
+        , referenceTargetDir
         , dumpTargetDir
         , mismatchDir
         , rodataSections

@@ -56,7 +56,7 @@ runCheck opts = do
     let evalStagesCtx = EvalStagesContext
             { force = True
             , dumpTargetDir = TargetDir <$> opts.dumpTargetDir
-            , referenceTargetDir = Just (TargetDir opts.inputTargetDir)
+            , referenceTargetDir = TargetDir <$> opts.referenceTargetDir
             , mismatchDumpDir = opts.mismatchDir
             }
     input <- liftIO $ readStagesInput
