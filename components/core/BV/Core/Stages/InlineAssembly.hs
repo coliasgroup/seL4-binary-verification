@@ -11,6 +11,8 @@ module BV.Core.Stages.InlineAssembly
 import BV.Core.Types
 import BV.Core.Types.Extras
 
+import Text.ParserCombinators.ReadP
+
 import Control.Monad (unless)
 import Control.Monad.Writer (runWriter, tell)
 import Data.Char (isAlphaNum, isDigit, isHexDigit)
@@ -22,7 +24,6 @@ import qualified Data.Set as S
 import Numeric (readDec)
 import Optics
 import qualified Text.ParserCombinators.ReadP as P
-import Text.ParserCombinators.ReadP
 
 addInlineAssemblySpecs :: PairingOf Program -> (Pairings, PairingOf Program, PairingOf [Ident])
 addInlineAssemblySpecs progs =

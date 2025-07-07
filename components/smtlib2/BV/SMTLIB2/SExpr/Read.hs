@@ -14,13 +14,14 @@ module BV.SMTLIB2.SExpr.Read
 
 import BV.SMTLIB2.SExpr
 
+import Text.ParserCombinators.ReadP
+
 import Control.Applicative ((<|>))
 import Data.Char (isDigit, isSpace)
 import Data.Functor (void)
 import Data.Maybe (fromJust, listToMaybe)
 import GHC.Natural (Natural)
 import Numeric (readDec)
-import Text.ParserCombinators.ReadP
 
 tryReadSExprs :: String -> Maybe [SExpr]
 tryReadSExprs = readPToTryRead $ anySExprWhitespaceP *> many (sexprP <* anySExprWhitespaceP)

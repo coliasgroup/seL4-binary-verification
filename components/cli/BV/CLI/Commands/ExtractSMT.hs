@@ -10,7 +10,6 @@ import BV.ConcreteSyntax
 import BV.Logging
 
 import Data.Attoparsec.Text
-import Optics
 
 import Control.Applicative (optional)
 import Control.Monad (when)
@@ -27,6 +26,7 @@ import qualified Data.Conduit.Text as CT (decodeUtf8)
 import Data.List (isInfixOf, isPrefixOf, isSuffixOf)
 import Data.Maybe (isJust)
 import qualified Data.Text as T
+import Optics
 import Options.Applicative (many)
 import System.Exit (die)
 import System.IO (stdout)
