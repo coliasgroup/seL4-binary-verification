@@ -3,11 +3,7 @@
 set -eu -o pipefail
 
 here=$(dirname $0)
-top=$here/../..
-top_tmp=$top/tmp
-
 tmp=$here/tmp
-mkdir -p $tmp
 
 exe="cabal run sel4-bv-cli --"
 # exe=$(nix-build -A distrib)/bin/driver
@@ -16,16 +12,18 @@ workers_arg="-j8"
 # workers_arg="--workers $here/workers.local.yaml"
 # workers_arg="--workers $here/workers.remote.yaml"
 
-time $exe \
+mkdir -p $tmp
+
+$exe \
     check \
     --target-dir $here/target-dir \
+    --rodata-section .rodata \
+    --rodata-symbol kernel_device_frames \
+    --rodata-symbol avail_p_regs \
     --ignore-function fastpath_call \
     --ignore-function fastpath_reply_recv \
     --ignore-function arm_swi_syscall \
     --ignore-function-early c_handle_syscall \
-    --rodata-section .rodata \
-    --rodata-symbol kernel_device_frames \
-    --rodata-symbol avail_p_regs \
     $workers_arg \
     --solvers $here/solvers.yaml \
     --sqlite-cache $tmp/cache.sqlite \
