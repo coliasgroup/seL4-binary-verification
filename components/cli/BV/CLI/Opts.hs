@@ -117,6 +117,7 @@ data CheckOpts
       , sqliteCache :: Maybe String
       , postgresCache :: Maybe String
       , inputTargetDir :: FilePath
+      , forceEvalStages :: Bool
       , referenceTargetDir :: Maybe FilePath
       , dumpTargetDir :: Maybe FilePath
       , mismatchDir :: Maybe FilePath
@@ -394,6 +395,7 @@ checkOptsParser = do
         , help "Output file for report"
         , action "file"
         ]
+    forceEvalStages <- switch (long "force-eval-stages" <> help "Force evaluation of stages")
     dumpTargetDir <- optional $ option' str
         [ long "dump-target-dir"
         , metavar "DIRECTORY"
@@ -419,6 +421,7 @@ checkOptsParser = do
         , sqliteCache
         , postgresCache
         , inputTargetDir
+        , forceEvalStages
         , dumpTargetDir
         , referenceTargetDir
         , mismatchDir
