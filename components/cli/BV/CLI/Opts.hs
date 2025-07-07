@@ -394,13 +394,13 @@ checkOptsParser = do
         , help "Output file for report"
         , action "file"
         ]
-    referenceTargetDir <- optional $ option' str
-        [ long "reference-target-dir"
+    dumpTargetDir <- optional $ option' str
+        [ long "dump-target-dir"
         , metavar "DIRECTORY"
         , action "directory"
         ]
-    dumpTargetDir <- optional $ option' str
-        [ long "dump-target-dir"
+    referenceTargetDir <- optional $ option' str
+        [ long "reference-target-dir"
         , metavar "DIRECTORY"
         , action "directory"
         ]
@@ -419,8 +419,8 @@ checkOptsParser = do
         , sqliteCache
         , postgresCache
         , inputTargetDir
-        , referenceTargetDir
         , dumpTargetDir
+        , referenceTargetDir
         , mismatchDir
         , rodataSections
         , rodataSymbols
