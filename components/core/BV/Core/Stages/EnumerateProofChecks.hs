@@ -176,7 +176,6 @@ proofChecksRecM (ProofNodeWith _ node) = do
             restrs <- getRestrs
             hyps <- getAssumptions
             checks <- liftReader $ restrChecksM restrs hyps restrNode
-            restrict1L $ getProofRestr restrNode.point restrNode.range
             do
                 restrs <- getRestrs
                 let restr = Restr
@@ -185,6 +184,7 @@ proofChecksRecM (ProofNodeWith _ node) = do
                 assume1R $ pcTrivH
                         (tagV restrNode.tag
                             (Visit (Addr restrNode.point) (restr:restrs)))
+            restrict1L $ getProofRestr restrNode.point restrNode.range
             node' <- traverseRestrProofNodeChild
                 proofChecksRecM
                 restrNode
@@ -222,11 +222,13 @@ proofChecksRecM (ProofNodeWith _ node) = do
 
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
-    nonRErrPcH <$> getRestrs >>= assume1L
+    -- nonRErrPcH <$> getRestrs >>= assume1L
+    nerrPcHyp <- nonRErrPcH <$> getRestrs
     nlerrPc <- pcFalseH . asmV <$> getVisit Err
     retEq <- eqH'
         <$> (eqSideH trueE . asmV <$> getVisit Ret)
         <*> (eqSideH trueE . cV <$> getVisit Ret)
+    assume1L nerrPcHyp
     instEqs <- instEqsM PairingEqDirectionOut
     concludeWith "Leaf path-cond imp" [retEq] nlerrPc
     traverse_ (concludeWith "Leaf eq check" [nlerrPc, retEq]) instEqs
