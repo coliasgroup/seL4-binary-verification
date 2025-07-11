@@ -181,8 +181,6 @@ liftReader = reader . runReader
 
 --
 
--- withAssumptionsR :: MonadChecks m => [Hyp] ->
-
 proofChecksRecM :: MonadChecks m => ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
 proofChecksRecM (ProofNodeWith _ node) = do
     case node of
@@ -205,16 +203,15 @@ proofChecksRecM (ProofNodeWith _ node) = do
             visit <- tagV caseSplitNode.tag <$> getVisit (Addr caseSplitNode.addr)
             ProofNodeWith [] . ProofNodeCaseSplit <$>
                 traverseCaseSplitProofNodeChildren
-                    (goWith [pcTrueH visit])
-                    (goWith [pcFalseH visit])
+                    (go (assumeR [pcTrueH visit]))
+                    (go (assumeR [pcFalseH visit]))
                     caseSplitNode
         ProofNodeSplit splitNode -> do
-            restrs <- getRestrs
             checks <- collect $ branch $ splitChecksM splitNode
             ProofNodeWith checks . ProofNodeSplit <$>
                 traverseSplitProofNodeChildren
-                    (goWith (splitNoLoopHyps splitNode restrs))
-                    (goWith (splitLoopHyps splitNode restrs True))
+                    (go (splitNoLoopHyps splitNode))
+                    (go (splitLoopHyps splitNode True))
                     splitNode
         ProofNodeSingleRevInduct singleRevInductNode -> do
             restrs <- getRestrs
@@ -227,9 +224,7 @@ proofChecksRecM (ProofNodeWith _ node) = do
                     proofChecksRecM
                     singleRevInductNode
   where
-    goWith hyps n = branch $ do
-        assumeR hyps
-        proofChecksRecM n
+    go m n = branch $ m >> proofChecksRecM n
 
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
@@ -318,7 +313,7 @@ splitInductStepChecksM splitNode = do
     errHyp <- liftReader $ splitRErrPcHypM splitNode restrs
     let conts = splitVisitVisits splitNode restrs (offsetVC splitNode.n)
     assumeL [errHyp, pcTrueH conts.asm, pcTrivH conts.c]
-    assumeR $ splitLoopHyps splitNode restrs False
+    splitLoopHyps splitNode False
     for_ (splitHypsAtVisit splitNode restrs (offsetVC splitNode.n)) $ \(hyp, desc) ->
         conclude
             ("Induct check (" ++ desc ++ ") at inductive step for " ++ show splitNode.details.asm.split.unwrap)
@@ -331,11 +326,11 @@ splitRErrPcHypM splitNode restrs = do
     restrs' <- restrOthersM (Restr splitNode.details.c.split vc : restrs) 2
     return $ nonRErrPcH restrs'
 
-splitNoLoopHyps :: SplitProofNode () -> [Restr] -> [Hyp]
-splitNoLoopHyps splitNode restrs =
-    [pcFalseH visits.asm]
-  where
-    visits = splitVisitVisits splitNode restrs (numberVC splitNode.n)
+splitNoLoopHyps :: MonadChecks m => SplitProofNode () -> m ()
+splitNoLoopHyps splitNode = do
+    restrs <- getRestrs
+    let visits = splitVisitVisits splitNode restrs (numberVC splitNode.n)
+    assumeR [pcFalseH visits.asm]
 
 splitVisitVisits :: SplitProofNode () -> [Restr] -> VisitCount -> PairingOf VisitWithTag
 splitVisitVisits splitNode restrs visit = withTags splitNode.details <&> \detailsWithTag ->
@@ -437,19 +432,20 @@ word32ListFromExpr = go
         ExprValueOp OpPlus [Expr _ (ExprValueNum n), expr'] -> n : go expr'
         _ -> []
 
-splitLoopHyps :: SplitProofNode () -> [Restr] -> Bool -> [Hyp]
-splitLoopHyps splitNode restrs exit =
-    [lEnter] ++ optionals exit [lExit] ++
+splitLoopHyps :: MonadChecks m => SplitProofNode () -> Bool -> m ()
+splitLoopHyps splitNode exit = do
+    restrs <- getRestrs
+    let n = splitNode.n
+    let visits = splitVisitVisits splitNode restrs (offsetVC (n - 1))
+    let conts = splitVisitVisits splitNode restrs (offsetVC n)
+    let lEnter = pcTrueH visits.asm
+    let lExit = pcFalseH conts.asm
+    assumeR $
+        [lEnter] ++ optionals exit [lExit] ++
         [ hyp
         | offs <- [ offsetVC i | i <- [0..n-1] ]
         , (hyp, _) <- splitHypsAtVisit splitNode restrs offs
         ]
-  where
-    n = splitNode.n
-    visits = splitVisitVisits splitNode restrs (offsetVC (n - 1))
-    conts = splitVisitVisits splitNode restrs (offsetVC n)
-    lEnter = pcTrueH visits.asm
-    lExit = pcFalseH conts.asm
 
 singleRevInductChecksM :: [Restr] -> [Hyp] -> SingleRevInductProofNode () -> Reader Context NodeProofChecks
 singleRevInductChecksM restrs hyps node = do
