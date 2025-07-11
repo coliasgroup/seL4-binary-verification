@@ -332,14 +332,12 @@ splitVisitVisits splitNode visit = for (withTags splitNode.details) $ \detailsWi
     splitVisitOneVisit detailsWithTag visit
 
 splitVisitOneVisit :: MonadChecks m => WithTag SplitProofNodeDetails -> VisitCount -> m VisitWithTag
-splitVisitOneVisit detailsWithTag visit = do
-    restrs <- getRestrs
-    return $ tagV detailsWithTag.tag $
-        let visit' = case fromJust (simpleVC visit) of
-                SimpleVisitCountViewOffset n -> offsetVC (n * detailsWithTag.value.step)
-                SimpleVisitCountViewNumber n -> numberVC (detailsWithTag.value.seqStart + (n * detailsWithTag.value.step))
-            restr' = Restr detailsWithTag.value.split visit'
-        in Visit (Addr detailsWithTag.value.split) (restr' : restrs)
+splitVisitOneVisit detailsWithTag visit = branchRestrs $ do
+    let visit' = case fromJust (simpleVC visit) of
+            SimpleVisitCountViewOffset n -> offsetVC (n * detailsWithTag.value.step)
+            SimpleVisitCountViewNumber n -> numberVC (detailsWithTag.value.seqStart + (n * detailsWithTag.value.step))
+    restrict1L $ Restr detailsWithTag.value.split visit'
+    getVisitWithTag detailsWithTag.tag (Addr detailsWithTag.value.split)
 
 splitHypsAtVisit :: MonadChecks m => SplitProofNode () -> VisitCount -> m [(Hyp, ProofCheckDescription)]
 splitHypsAtVisit splitNode visit = do
@@ -545,10 +543,10 @@ singleLoopRevInductBaseChecksM node tag = do
         goal
 
 singleRevInductResultingHypM :: MonadChecks m => SingleRevInductProofNode () -> m ()
-singleRevInductResultingHypM node = do
-    restrs <- getRestrs
+singleRevInductResultingHypM node = branchRestrs $ do
+    restrict1R $ Restr node.point (numberVC 0)
     tag <- askNodeTag node.point
-    let vis = tagV tag $ Visit (Addr node.point) $ restrs ++ [Restr node.point (numberVC 0)]
+    vis <- getVisitWithTag tag (Addr node.point)
     assume1R $ trueIfAt' node.pred_ vis
 
 --
