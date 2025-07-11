@@ -293,12 +293,11 @@ splitChecksM splitNode = do
 
 splitInitStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitInitStepChecksM splitNode = do
-    restrs <- getRestrs
     errHyp <- splitRErrPcHypM splitNode
     assume1L errHyp
     for_ [0..splitNode.n - 1] $ \i -> branch $ do
-        let visits = splitVisitVisits splitNode restrs (numberVC i)
-        let visHyps = splitHypsAtVisit splitNode restrs (numberVC i)
+        visits <- splitVisitVisits splitNode (numberVC i)
+        visHyps <- splitHypsAtVisit splitNode (numberVC i)
         assume1R $ pcTrueH visits.asm
         assume1R $ pcTrivH visits.c
         for_ visHyps $ \(hyp, desc) ->
@@ -308,12 +307,12 @@ splitInitStepChecksM splitNode = do
 
 splitInductStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitInductStepChecksM splitNode = do
-    restrs <- getRestrs
     errHyp <- splitRErrPcHypM splitNode
-    let conts = splitVisitVisits splitNode restrs (offsetVC splitNode.n)
+    conts <- splitVisitVisits splitNode (offsetVC splitNode.n)
     assumeL [errHyp, pcTrueH conts.asm, pcTrivH conts.c]
     splitLoopHyps splitNode False
-    for_ (splitHypsAtVisit splitNode restrs (offsetVC splitNode.n)) $ \(hyp, desc) ->
+    concs <- splitHypsAtVisit splitNode (offsetVC splitNode.n)
+    for_ concs $ \(hyp, desc) ->
         conclude
             ("Induct check (" ++ desc ++ ") at inductive step for " ++ show splitNode.details.asm.split.unwrap)
             hyp
@@ -328,13 +327,15 @@ splitRErrPcHypM splitNode = branchRestrs $ do
 
 splitNoLoopHyps :: MonadChecks m => SplitProofNode () -> m ()
 splitNoLoopHyps splitNode = do
-    restrs <- getRestrs
-    let visits = splitVisitVisits splitNode restrs (numberVC splitNode.n)
+    visits <- splitVisitVisits splitNode (numberVC splitNode.n)
     assumeR [pcFalseH visits.asm]
 
-splitVisitVisits :: SplitProofNode () -> [Restr] -> VisitCount -> PairingOf VisitWithTag
-splitVisitVisits splitNode restrs visit = withTags splitNode.details <&> \detailsWithTag ->
-    splitVisitOneVisit detailsWithTag restrs visit
+splitVisitVisits :: MonadChecks m => SplitProofNode () -> VisitCount -> m (PairingOf VisitWithTag)
+splitVisitVisits splitNode visit = do
+    restrs <- getRestrs
+    return $
+        withTags splitNode.details <&> \detailsWithTag ->
+            splitVisitOneVisit detailsWithTag restrs visit
 
 splitVisitOneVisit :: WithTag SplitProofNodeDetails -> [Restr] -> VisitCount -> VisitWithTag
 splitVisitOneVisit detailsWithTag restrs visit = tagV detailsWithTag.tag $
@@ -344,50 +345,50 @@ splitVisitOneVisit detailsWithTag restrs visit = tagV detailsWithTag.tag $
         restr' = Restr detailsWithTag.value.split visit'
      in Visit (Addr detailsWithTag.value.split) (restr' : restrs)
 
-splitHypsAtVisit :: SplitProofNode () -> [Restr] -> VisitCount -> [(Hyp, ProofCheckDescription)]
-splitHypsAtVisit splitNode restrs visit =
-    [ (pcImpH (PcImpHypSidePc visits.asm) (PcImpHypSidePc visits.c), "pc imp")
-    , (pcImpH (PcImpHypSidePc visits.asm) (PcImpHypSidePc starts.asm), prettyTag Asm ++ " pc imp")
-    , (pcImpH (PcImpHypSidePc visits.c) (PcImpHypSidePc starts.c), prettyTag C ++ " pc imp")
-    ] ++
-    [ ( eqH
-            (eqSideH (zsub exprL) starts.asm)
-            (eqSideH (lsub exprL) visits.asm)
-            (Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap))
-      , prettyTag Asm ++ " const"
-      )
-    | Lambda { expr = exprL } <- splitNode.details.asm.eqs
-    , inst exprL
-    ] ++
-    [ ( eqH
-            (eqSideH (zsub exprR) starts.c)
-            (eqSideH (lsub exprR) visits.c)
-            (Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap))
-      , prettyTag C ++ " const"
-      )
-    | Lambda { expr = exprR } <- splitNode.details.c.eqs
-    , inst exprR
-    ] ++
-    [ ( eqH
-            (eqSideH (lsub exprL) visits.asm)
-            (eqSideH (lsub exprR) visits.c)
-            (Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap))
-      , "eq"
-      )
-    | (Lambda { expr = exprL }, Lambda { expr = exprR }) <- splitNode.eqs
-    , inst exprL && inst exprR
-    ]
-  where
-    visits = splitVisitVisits splitNode restrs visit
-    starts = splitVisitVisits splitNode restrs (numberVC 0)
-    mksub v = walkExprs $ \case
-        Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
-        expr -> expr
-    inst expr = instEqAtVisit expr visit
-    zsub = mksub (machineWordE 0)
-    lsub = mksub $ case fromJust (simpleVC visit) of
-        SimpleVisitCountViewNumber n -> machineWordE n
-        SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
+splitHypsAtVisit :: MonadChecks m => SplitProofNode () -> VisitCount -> m [(Hyp, ProofCheckDescription)]
+splitHypsAtVisit splitNode visit = do
+    visits <- splitVisitVisits splitNode visit
+    starts <- splitVisitVisits splitNode (numberVC 0)
+    let mksub v = walkExprs $ \case
+            Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
+            expr -> expr
+        inst expr = instEqAtVisit expr visit
+        zsub = mksub (machineWordE 0)
+        lsub = mksub $ case fromJust (simpleVC visit) of
+            SimpleVisitCountViewNumber n -> machineWordE n
+            SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
+    return $
+        [ (pcImpH (PcImpHypSidePc visits.asm) (PcImpHypSidePc visits.c), "pc imp")
+        , (pcImpH (PcImpHypSidePc visits.asm) (PcImpHypSidePc starts.asm), prettyTag Asm ++ " pc imp")
+        , (pcImpH (PcImpHypSidePc visits.c) (PcImpHypSidePc starts.c), prettyTag C ++ " pc imp")
+        ] ++
+        [ ( eqH
+                (eqSideH (zsub exprL) starts.asm)
+                (eqSideH (lsub exprL) visits.asm)
+                (Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap))
+        , prettyTag Asm ++ " const"
+        )
+        | Lambda { expr = exprL } <- splitNode.details.asm.eqs
+        , inst exprL
+        ] ++
+        [ ( eqH
+                (eqSideH (zsub exprR) starts.c)
+                (eqSideH (lsub exprR) visits.c)
+                (Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap))
+        , prettyTag C ++ " const"
+        )
+        | Lambda { expr = exprR } <- splitNode.details.c.eqs
+        , inst exprR
+        ] ++
+        [ ( eqH
+                (eqSideH (lsub exprL) visits.asm)
+                (eqSideH (lsub exprR) visits.c)
+                (Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap))
+        , "eq"
+        )
+        | (Lambda { expr = exprL }, Lambda { expr = exprR }) <- splitNode.eqs
+        , inst exprL && inst exprR
+        ]
 
 loopEqHypsAtVisit :: Tag -> NodeAddr -> [Lambda] -> [Restr] -> VisitCount -> Bool -> [(Hyp, ProofCheckDescription)]
 loopEqHypsAtVisit tag split eqs restrs visitNum useIfAt =
@@ -434,18 +435,16 @@ word32ListFromExpr = go
 
 splitLoopHyps :: MonadChecks m => SplitProofNode () -> Bool -> m ()
 splitLoopHyps splitNode exit = do
-    restrs <- getRestrs
     let n = splitNode.n
-    let visits = splitVisitVisits splitNode restrs (offsetVC (n - 1))
-    let conts = splitVisitVisits splitNode restrs (offsetVC n)
+    visits <- splitVisitVisits splitNode (offsetVC (n - 1))
+    conts <- splitVisitVisits splitNode (offsetVC n)
     let lEnter = pcTrueH visits.asm
     let lExit = pcFalseH conts.asm
-    assumeR $
-        [lEnter] ++ optionals exit [lExit] ++
-        [ hyp
-        | offs <- [ offsetVC i | i <- [0..n-1] ]
-        , (hyp, _) <- splitHypsAtVisit splitNode restrs offs
-        ]
+    assume1R lEnter
+    traverse_ assume1R $ optionals exit [lExit]
+    for_ [ offsetVC i | i <- [0..n-1] ] $ \offs -> do
+        concs <- splitHypsAtVisit splitNode offs
+        for_ concs $ \(hyp, _) -> assume1R hyp
 
 singleRevInductChecksM :: MonadChecks m => SingleRevInductProofNode () -> CheckWriter m ()
 singleRevInductChecksM node = do
