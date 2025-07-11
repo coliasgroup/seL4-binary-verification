@@ -194,7 +194,7 @@ proofChecksRecM (ProofNodeWith _ node) = do
                     restrNode.point
                     (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
                 assume1R =<< pcTrivH . tagV restrNode.tag <$> getVisit (Addr restrNode.point)
-            restrict1L $ getProofRestr restrNode.point restrNode.range
+            getProofRestr restrNode.point restrNode.range
             ProofNodeWith checks . ProofNodeRestr <$>
                 traverseRestrProofNodeChild
                     proofChecksRecM
@@ -237,7 +237,7 @@ leafChecksM = do
 restrChecksM :: MonadChecks m => RestrProofNode () -> CheckWriter m ()
 restrChecksM restrNode = do
     branchRestrs $ do
-        restrict1L $ getProofRestr restrNode.point restrNode.range
+        getProofRestr restrNode.point restrNode.range
         restrOthersM 2
         assume1L =<< nonRErrPcH'
     tag <- askNodeTag restrNode.point
@@ -276,8 +276,8 @@ loopsToSplitM = do
                 nodeTag restr.nodeAddr /= nodeTag lh
     return . S.toList $ appEndo (foldMap (Endo . f) (reverse restrs)) remLoopHeadsInit
 
-getProofRestr :: NodeAddr -> RestrProofNodeRange -> Restr
-getProofRestr point range =
+getProofRestr :: MonadChecks m => NodeAddr -> RestrProofNodeRange -> m ()
+getProofRestr point range = restrict1L $
     Restr
         point
         (optionsVC (map (fromRestrKindVC range.kind) [range.x .. range.y - 1]))
