@@ -236,11 +236,11 @@ leafChecksM = do
 
 restrChecksM :: MonadChecks m => RestrProofNode () -> CheckWriter m ()
 restrChecksM restrNode = do
+    branchRestrs $ do
+        restrict1L $ getProofRestr restrNode.point restrNode.range
+        restrOthersM 2
+        assume1L =<< nonRErrPcH'
     restrs <- getRestrs
-    let restr = getProofRestr restrNode.point restrNode.range
-    restrOthers <- liftReader $ restrOthersM (restr : restrs) 2
-    let nCErrHyp = nonRErrPcH restrOthers
-    assume1L nCErrHyp
     tag <- askNodeTag restrNode.point
     let visit vc = tagV tag
             (Visit (Addr restrNode.point) (Restr restrNode.point vc : restrs))
@@ -258,11 +258,11 @@ restrChecksM restrNode = do
         (printf "Check of restr max %d %s for %d" restrNode.range.y (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
         (pcFalseH (visit topVC))
 
-restrOthersM :: [Restr] -> Integer -> Reader Context [Restr]
-restrOthersM restrs n = do
-    xs <- loopsToSplitM restrs
-    let extras = [ Restr sp (upToVC n) | sp <- xs ]
-    return $ restrs ++ extras
+restrOthersM :: MonadChecks m => Integer -> CheckWriter m ()
+restrOthersM n = do
+    restrs <- getRestrs
+    xs <- liftReader $ loopsToSplitM restrs
+    restrictR [ Restr sp (upToVC n) | sp <- xs ]
 
 loopsToSplitM :: [Restr] -> Reader Context [NodeAddr]
 loopsToSplitM restrs = do
@@ -291,7 +291,7 @@ splitChecksM splitNode = do
 splitInitStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitInitStepChecksM splitNode = do
     restrs <- getRestrs
-    errHyp <- liftReader $ splitRErrPcHypM splitNode restrs
+    errHyp <- splitRErrPcHypM splitNode
     assume1L errHyp
     for_ [0..splitNode.n - 1] $ \i ->
         let visits = splitVisitVisits splitNode restrs (numberVC i)
@@ -307,7 +307,7 @@ splitInitStepChecksM splitNode = do
 splitInductStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitInductStepChecksM splitNode = do
     restrs <- getRestrs
-    errHyp <- liftReader $ splitRErrPcHypM splitNode restrs
+    errHyp <- splitRErrPcHypM splitNode
     let conts = splitVisitVisits splitNode restrs (offsetVC splitNode.n)
     assumeL [errHyp, pcTrueH conts.asm, pcTrivH conts.c]
     splitLoopHyps splitNode False
@@ -316,12 +316,13 @@ splitInductStepChecksM splitNode = do
             ("Induct check (" ++ desc ++ ") at inductive step for " ++ show splitNode.details.asm.split.unwrap)
             hyp
 
-splitRErrPcHypM :: SplitProofNode () -> [Restr] -> Reader Context Hyp
-splitRErrPcHypM splitNode restrs = do
+splitRErrPcHypM :: MonadChecks m => SplitProofNode () -> CheckWriter m Hyp
+splitRErrPcHypM splitNode = branchRestrs $ do
     let nc = splitNode.n * splitNode.details.c.step
     let vc = doubleRangeVC (splitNode.details.c.seqStart + nc) (splitNode.loopRMax + 2)
-    restrs' <- restrOthersM (Restr splitNode.details.c.split vc : restrs) 2
-    return $ nonRErrPcH restrs'
+    restrict1L $ Restr splitNode.details.c.split vc
+    restrOthersM 2
+    nonRErrPcH'
 
 splitNoLoopHyps :: MonadChecks m => SplitProofNode () -> m ()
 splitNoLoopHyps splitNode = do
@@ -503,7 +504,7 @@ singleLoopRevInductChecksM node tag = do
             , p1 = undefined
             , p2 = undefined
             }
-    nonErr <- liftReader $ splitRErrPcHypM splitDetails restrs
+    nonErr <- splitRErrPcHypM splitDetails
     let trueNext = trueIfAt' node.pred_ cont
     assumeR $
         [pcTrueH curr, trueNext, nonErr] ++
@@ -544,7 +545,7 @@ singleLoopRevInductBaseChecksM node tag = do
             , p1 = undefined
             , p2 = undefined
             }
-    nonErr <- liftReader $ splitRErrPcHypM splitDetails restrs
+    nonErr <- splitRErrPcHypM splitDetails
     assumeR $
         [nhyp, pcTrueH cont, nonErr] ++
         [ h
