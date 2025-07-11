@@ -21,7 +21,7 @@ import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((%=))
+import Optics.State.Operators ((%=), (.=))
 import Text.Printf (printf)
 
 type NodeProofChecks = [ProofCheck ProofCheckDescription]
@@ -85,34 +85,51 @@ askGetNodeTag = gview #nodeTag
 data State
   = State
       { restrs :: [Restr]
-      , hyps :: [Hyp]
+      , assumptions :: [Hyp]
       }
   deriving (Generic)
 
 initState :: State
 initState = State
     { restrs = []
-    , hyps = []
+    , assumptions = []
     }
 
 class (MonadReader Context m, MonadState State m) => MonadChecks m where
     branch :: m a -> m a
+    branchRestrs :: m a -> m a
+    branchAssumptions :: m a -> m a
 
 instance Monad m => MonadChecks (StateT State (ReaderT Context m)) where
+
     branch (StateT f) = StateT $ \s -> do
         (a, _) <- f s
         return (a, s)
+
+    branchRestrs m = do
+        restrs <- getRestrs
+        a <- m
+        #restrs .= restrs
+        return a
+
+    branchAssumptions m = do
+        assumptions <- getAssumptions
+        a <- m
+        #assumptions .= assumptions
+        return a
 
 type CheckWriter = WriterT NodeProofChecks
 
 instance MonadChecks m => MonadChecks (CheckWriter m) where
     branch = mapWriterT branch
+    branchRestrs = mapWriterT branchRestrs
+    branchAssumptions = mapWriterT branchAssumptions
 
 assumeL :: MonadChecks m => [Hyp] -> m ()
-assumeL hyps = #hyps %= (hyps ++)
+assumeL hyps = #assumptions %= (hyps ++)
 
 assumeR :: MonadChecks m => [Hyp] -> m ()
-assumeR hyps = #hyps %= (++ hyps)
+assumeR hyps = #assumptions %= (++ hyps)
 
 assume1L :: MonadChecks m => Hyp -> m ()
 assume1L = assumeL . (:[])
@@ -121,7 +138,7 @@ assume1R :: MonadChecks m => Hyp -> m ()
 assume1R = assumeR . (:[])
 
 getAssumptions :: MonadChecks m => m [Hyp]
-getAssumptions = use #hyps
+getAssumptions = use #assumptions
 
 restrictL :: MonadChecks m => [Restr] -> m ()
 restrictL restrs = #restrs %= (restrs ++)
@@ -220,13 +237,11 @@ proofChecksRecM (ProofNodeWith _ node) = do
 
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
-    -- nonRErrPcH <$> getRestrs >>= assume1L
-    nerrPcHyp <- nonRErrPcH <$> getRestrs
+    nonRErrPcH <$> getRestrs >>= assume1L
     nlerrPc <- pcFalseH . asmV <$> getVisit Err
     retEq <- eqH'
         <$> (eqSideH trueE . asmV <$> getVisit Ret)
         <*> (eqSideH trueE . cV <$> getVisit Ret)
-    assume1L nerrPcHyp
     instEqs <- instEqsM PairingEqDirectionOut
     concludeWith "Leaf path-cond imp" [retEq] nlerrPc
     traverse_ (concludeWith "Leaf eq check" [nlerrPc, retEq]) instEqs
