@@ -191,14 +191,11 @@ proofChecksRecM (ProofNodeWith _ node) = do
             return $ ProofNodeWith checks ProofNodeLeaf
         ProofNodeRestr restrNode -> do
             checks <- collect $ branch $ restrChecksM restrNode
-            do
-                restrs <- getRestrs
-                let restr = Restr
-                        restrNode.point
-                        (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
-                assume1R $ pcTrivH
-                        (tagV restrNode.tag
-                            (Visit (Addr restrNode.point) (restr:restrs)))
+            branchRestrs $ do
+                restrict1L $ Restr
+                    restrNode.point
+                    (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
+                pcTrivH . tagV restrNode.tag <$> getVisit (Addr restrNode.point) >>= assume1R
             restrict1L $ getProofRestr restrNode.point restrNode.range
             ProofNodeWith checks . ProofNodeRestr <$>
                 traverseRestrProofNodeChild
@@ -237,7 +234,7 @@ proofChecksRecM (ProofNodeWith _ node) = do
 
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
-    nonRErrPcH <$> getRestrs >>= assume1L
+    nonRErrPcH' >>= assume1L
     nlerrPc <- pcFalseH . asmV <$> getVisit Err
     retEq <- eqH'
         <$> (eqSideH trueE . asmV <$> getVisit Ret)
@@ -611,3 +608,6 @@ instEqsM direction = do
 
 nonRErrPcH :: [Restr] -> Hyp
 nonRErrPcH restrs = pcFalseH . cV $ Visit Err restrs
+
+nonRErrPcH' :: MonadChecks m => m Hyp
+nonRErrPcH' = pcFalseH . cV <$> getVisit Err
