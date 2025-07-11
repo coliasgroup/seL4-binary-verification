@@ -7,9 +7,9 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils (optionals)
 
-import Control.Monad.Reader (MonadReader (..), Reader, ReaderT, runReader)
-import Control.Monad.State (MonadState, StateT (StateT), evalState, evalStateT)
-import Control.Monad.Writer (WriterT (WriterT), execWriterT, mapWriterT, tell)
+import Control.Monad.Reader (MonadReader (..), ReaderT, runReader)
+import Control.Monad.State (MonadState, StateT (StateT), evalStateT)
+import Control.Monad.Writer (WriterT, execWriterT, mapWriterT, tell)
 import Data.Foldable (for_, traverse_)
 import Data.Function (applyWhen, on)
 import Data.Map (Map)
@@ -178,9 +178,6 @@ getVisit n = Visit n <$> getRestrs
 
 getVisitWithTag :: MonadChecks m => Tag -> NodeId -> m VisitWithTag
 getVisitWithTag tag n = tagV tag <$> getVisit n
-
-liftReader :: MonadChecks m => Reader Context a -> m a
-liftReader = reader . runReader
 
 --
 
@@ -457,7 +454,6 @@ singleRevInductChecksM node = do
 
 singleLoopInductStepChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
 singleLoopInductStepChecksM node tag = do
-    restrs <- getRestrs
     let eqsAssume = []
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
     cont <- splitVisitOneVisit (WithTag tag details) (offsetVC node.n)
@@ -473,7 +469,6 @@ singleLoopInductStepChecksM node tag = do
 
 singleLoopInductBaseChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
 singleLoopInductBaseChecksM node tag = do
-    restrs <- getRestrs
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
     for_ [0 .. node.n] $ \i -> do
         reach <- splitVisitOneVisit (WithTag tag details) (numberVC i)
@@ -487,7 +482,6 @@ singleLoopInductBaseChecksM node tag = do
 
 singleLoopRevInductChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
 singleLoopRevInductChecksM node tag = do
-    restrs <- getRestrs
     let eqsAssume = node.eqs
     let details = SplitProofNodeDetails node.point 0 1 eqsAssume
     curr <- splitVisitOneVisit (WithTag tag details) (offsetVC 1)
@@ -515,7 +509,6 @@ singleLoopRevInductChecksM node tag = do
 
 mkLoopCounterEqHypM :: MonadChecks m => SingleRevInductProofNode () -> m Hyp
 mkLoopCounterEqHypM node = do
-    restrs <- getRestrs
     tag <- askNodeTag node.point
     let details = SplitProofNodeDetails node.point 0 1 []
     visit <- splitVisitOneVisit (WithTag tag details) (offsetVC 0)
@@ -527,7 +520,6 @@ mkLoopCounterEqHypM node = do
 
 singleLoopRevInductBaseChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
 singleLoopRevInductBaseChecksM node tag = do
-    restrs <- getRestrs
     let eqsAssume = node.eqs
     let details = SplitProofNodeDetails node.point 0 1 eqsAssume
     cont <- splitVisitOneVisit (WithTag tag details) (offsetVC 1)
