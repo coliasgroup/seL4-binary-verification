@@ -60,6 +60,9 @@ initContext argRenames pairing problem = Context
 askLoopHead :: MonadReader Context m => NodeAddr -> m (Maybe NodeAddr)
 askLoopHead addr = loopHeadOf addr <$> gview #loopData
 
+askLoopHeads :: MonadReader Context m => m [NodeAddr]
+askLoopHeads = loopHeadsOf <$> gview #loopData
+
 askNodeGraph :: MonadReader Context m => m NodeGraph
 askNodeGraph = gview #nodeGraph
 
@@ -180,9 +183,9 @@ leafChecksM restrs hyps = do
     let nlerrPc = pcFalseH . asmV $ Visit Err restrs
     let retEq = eqSideH trueE (asmV (Visit Ret restrs)) `eqH'` eqSideH trueE (cV (Visit Ret restrs))
     let hyps' = nerrPcHyp : hyps
-    outEqs <- gview $ #pairing % #outEqs
+    pairing <- askPairing
     let pathCondImp = ProofCheck "Leaf path-cond imp" (hyps' ++ [retEq]) nlerrPc
-    instEqs' <- instEqsM restrs outEqs
+    instEqs' <- instEqsM restrs pairing.outEqs
     let otherChecks = map (ProofCheck "Leaf eq check" (hyps' ++ [nlerrPc, retEq])) instEqs'
     return $ pathCondImp : otherChecks
 
@@ -192,8 +195,8 @@ restrChecksM restrs hyps restrNode = do
     restrOthers <- restrOthersM (restr : restrs) 2
     let nCErrHyp = nonRErrPcH restrOthers
     let hyps' = nCErrHyp : hyps
-    nodeTag <- gview #nodeTag
-    let visit vc = tagV (nodeTag restrNode.point)
+    tag <- askNodeTag restrNode.point
+    let visit vc = tagV tag
             (Visit (Addr restrNode.point) (Restr restrNode.point vc : restrs))
     let minVC = case restrNode.range.kind of
             RestrProofNodeRangeKindOffset -> Just $ offsetVC (max 0 (restrNode.range.x - 1))
@@ -220,12 +223,11 @@ restrOthersM restrs n = do
 
 loopsToSplitM :: [Restr] -> Reader Context [NodeAddr]
 loopsToSplitM restrs = do
-    loopHeadsWithSplit <- fmap (S.fromList . catMaybes) . for restrs $ \restr -> do
-        loopHeadOf restr.nodeAddr <$> gview #loopData
-    loopHeads_ <- S.fromList . loopHeadsOf <$> gview #loopData
+    loopHeadsWithSplit <- fmap (S.fromList . catMaybes) . for restrs $ \restr -> askLoopHead restr.nodeAddr
+    loopHeads_ <- S.fromList <$> askLoopHeads
     let remLoopHeadsInit = loopHeads_ `S.difference` loopHeadsWithSplit
-    g <- gview #nodeGraph
-    nodeTag <- gview #nodeTag
+    g <- askNodeGraph
+    nodeTag <- askGetNodeTag
     let f :: Restr -> Set NodeAddr -> Set NodeAddr
         f restr = applyWhen (not (hasZeroVC restr.visitCount)) . S.filter $ \lh ->
             isReachableFrom g (Addr restr.nodeAddr) (Addr lh) ||
@@ -405,8 +407,7 @@ splitLoopHyps splitNode restrs exit =
 
 singleRevInductChecksM :: [Restr] -> [Hyp] -> SingleRevInductProofNode () -> Reader Context NodeProofChecks
 singleRevInductChecksM restrs hyps node = do
-    nodeTag <- gview #nodeTag
-    let tag = nodeTag node.point
+    tag <- askNodeTag node.point
     concat <$> sequence
         [ singleLoopInductStepChecksM restrs hyps node tag
         , singleLoopInductBaseChecksM restrs hyps node tag
@@ -480,8 +481,7 @@ singleLoopRevInductChecksM restrs hyps node tag = do
 
 mkLoopCounterEqHypM :: SingleRevInductProofNode () -> [Restr] -> Reader Context Hyp
 mkLoopCounterEqHypM node restrs = do
-    nodeTag <- gview #nodeTag
-    let tag = nodeTag node.point
+    tag <- askNodeTag node.point
     let details = SplitProofNodeDetails node.point 0 1 []
     let visit = splitVisitOneVisit (WithTag tag details) restrs (offsetVC 0)
     return $
@@ -521,8 +521,7 @@ singleLoopRevInductBaseChecksM restrs hyps node tag = do
 
 singleRevInductResultingHypM :: [Restr] -> SingleRevInductProofNode () -> Reader Context Hyp
 singleRevInductResultingHypM restrs node = do
-    nodeTag <- gview #nodeTag
-    let tag = nodeTag node.point
+    tag <- askNodeTag node.point
     let vis = tagV tag $ Visit (Addr node.point) $ restrs ++ [Restr node.point (numberVC 0)]
     return $ trueIfAt' node.pred_ vis
 
@@ -530,16 +529,16 @@ singleRevInductResultingHypM restrs node = do
 
 initPointHypsM :: Reader Context [Hyp]
 initPointHypsM = do
-    inEqs <- gview $ #pairing % #inEqs
-    instEqsM [] inEqs
+    pairing <- askPairing
+    instEqsM [] pairing.inEqs
 
 instEqsM :: [Restr] -> [PairingEq] -> Reader Context [Hyp]
 instEqsM restrs eqs = do
-    entryPoints <- gview $ #problem % #sides % to (fmap (.entryPoint))
+    entryPoints <- askEntryPoints
     let addrMap quadrant = tagV quadrant.tag $ case quadrant.direction of
             PairingEqDirectionIn -> Visit (pairingSide quadrant.tag entryPoints) []
             PairingEqDirectionOut -> Visit Ret restrs
-    renames <- gview #argRenames
+    renames <- askArgRenames
     let hyps = flip map eqs $ \(PairingEq { lhs, rhs }) ->
             let f eqSide = eqSideH (renameVarsI (renames eqSide.quadrant) eqSide.expr) (addrMap eqSide.quadrant)
              in (eqH' `on` f) lhs rhs
