@@ -240,32 +240,31 @@ restrChecksM restrNode = do
         restrict1L $ getProofRestr restrNode.point restrNode.range
         restrOthersM 2
         assume1L =<< nonRErrPcH'
-    restrs <- getRestrs
     tag <- askNodeTag restrNode.point
-    let visit vc = tagV tag
-            (Visit (Addr restrNode.point) (Restr restrNode.point vc : restrs))
+    visit <- do
+            restrs <- getRestrs
+            return $ \vc -> tagV tag $
+                Visit (Addr restrNode.point) (Restr restrNode.point vc : restrs)
     let minVC = case restrNode.range.kind of
-            RestrProofNodeRangeKindOffset -> Just $ offsetVC (max 0 (restrNode.range.x - 1))
-            _ | restrNode.range.x > 1 -> Just $ numberVC (restrNode.range.x - 1)
+            RestrProofNodeRangeKindOffset -> Just $ offsetVC $ max 0 (restrNode.range.x - 1)
+            _ | restrNode.range.x > 1 -> Just $ numberVC $ restrNode.range.x - 1
             _ -> Nothing
-    case minVC of
-            Just minVC' -> conclude
-                (printf "Check of restr min %d %s for %d" restrNode.range.x (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
-                (pcTrueH (visit minVC'))
-            Nothing -> return ()
+    for_ minVC $ \minVC' -> conclude
+        (printf "Check of restr min %d %s for %d" restrNode.range.x (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
+        (pcTrueH (visit minVC'))
     let topVC = fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1)
     conclude
         (printf "Check of restr max %d %s for %d" restrNode.range.y (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
         (pcFalseH (visit topVC))
 
-restrOthersM :: MonadChecks m => Integer -> CheckWriter m ()
+restrOthersM :: MonadChecks m => Integer -> m ()
 restrOthersM n = do
-    restrs <- getRestrs
-    xs <- liftReader $ loopsToSplitM restrs
+    xs <- loopsToSplitM
     restrictR [ Restr sp (upToVC n) | sp <- xs ]
 
-loopsToSplitM :: [Restr] -> Reader Context [NodeAddr]
-loopsToSplitM restrs = do
+loopsToSplitM :: MonadChecks m => m [NodeAddr]
+loopsToSplitM = do
+    restrs <- getRestrs
     loopHeadsWithSplit <- fmap (S.fromList . catMaybes) . for restrs $ \restr -> askLoopHead restr.nodeAddr
     loopHeads_ <- S.fromList <$> askLoopHeads
     let remLoopHeadsInit = loopHeads_ `S.difference` loopHeadsWithSplit
@@ -316,7 +315,7 @@ splitInductStepChecksM splitNode = do
             ("Induct check (" ++ desc ++ ") at inductive step for " ++ show splitNode.details.asm.split.unwrap)
             hyp
 
-splitRErrPcHypM :: MonadChecks m => SplitProofNode () -> CheckWriter m Hyp
+splitRErrPcHypM :: MonadChecks m => SplitProofNode () -> m Hyp
 splitRErrPcHypM splitNode = branchRestrs $ do
     let nc = splitNode.n * splitNode.details.c.step
     let vc = doubleRangeVC (splitNode.details.c.seqStart + nc) (splitNode.loopRMax + 2)
@@ -516,8 +515,9 @@ singleLoopRevInductChecksM node tag = do
         "Pred reverse step."
         goal
 
-mkLoopCounterEqHypM :: SingleRevInductProofNode () -> [Restr] -> Reader Context Hyp
-mkLoopCounterEqHypM node restrs = do
+mkLoopCounterEqHypM :: MonadChecks m => SingleRevInductProofNode () -> m Hyp
+mkLoopCounterEqHypM node = do
+    restrs <- getRestrs
     tag <- askNodeTag node.point
     let details = SplitProofNodeDetails node.point 0 1 []
     let visit = splitVisitOneVisit (WithTag tag details) restrs (offsetVC 0)
@@ -533,7 +533,7 @@ singleLoopRevInductBaseChecksM node tag = do
     let eqsAssume = node.eqs
     let details = SplitProofNodeDetails node.point 0 1 eqsAssume
     let cont = splitVisitOneVisit (WithTag tag details) restrs (offsetVC 1)
-    nhyp <- liftReader $ mkLoopCounterEqHypM node restrs
+    nhyp <- mkLoopCounterEqHypM node
     let splitDetails = SplitProofNode
             { n = 1
             , loopRMax = 1
