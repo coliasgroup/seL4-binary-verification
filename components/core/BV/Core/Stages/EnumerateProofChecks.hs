@@ -224,7 +224,7 @@ leafChecksM = do
     let retEq = eqSideH trueE (asmV (Visit Ret restrs)) `eqH'` eqSideH trueE (cV (Visit Ret restrs))
     assume1L nerrPcHyp
     pairing <- askPairing
-    instEqs' <- instEqsM restrs pairing.outEqs
+    instEqs' <- instEqsM pairing.outEqs
     concludeWith "Leaf path-cond imp" [retEq] nlerrPc
     traverse_ (concludeWith "Leaf eq check" [nlerrPc, retEq]) instEqs'
 
@@ -569,12 +569,13 @@ singleRevInductResultingHypM restrs node = do
 initPointHypsM :: MonadChecks m => m ()
 initPointHypsM = do
     pairing <- askPairing
-    hyps <- instEqsM [] pairing.inEqs
+    hyps <- instEqsM pairing.inEqs
     assumeR hyps
 
-instEqsM :: MonadReader Context m => [Restr] -> [PairingEq] -> m [Hyp]
-instEqsM restrs eqs = do
+instEqsM :: MonadChecks m => [PairingEq] -> m [Hyp]
+instEqsM eqs = do
     entryPoints <- askEntryPoints
+    restrs <- getRestrs
     let addrMap quadrant = tagV quadrant.tag $ case quadrant.direction of
             PairingEqDirectionIn -> Visit (pairingSide quadrant.tag entryPoints) []
             PairingEqDirectionOut -> Visit Ret restrs
