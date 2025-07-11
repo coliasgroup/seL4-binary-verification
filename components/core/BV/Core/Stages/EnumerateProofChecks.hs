@@ -214,10 +214,8 @@ proofChecksRecM (ProofNodeWith _ node) = do
                     (go (splitLoopHyps splitNode True))
                     splitNode
         ProofNodeSingleRevInduct singleRevInductNode -> do
-            restrs <- getRestrs
             checks <- collect $ branch $ singleRevInductChecksM singleRevInductNode
-            hyp' <- liftReader $ singleRevInductResultingHypM restrs singleRevInductNode
-            assume1R hyp'
+            singleRevInductResultingHypM singleRevInductNode
             ProofNodeWith checks . ProofNodeSingleRevInduct <$>
                 traverseSingleRevInductProofNodeChild
                     proofChecksRecM
@@ -557,11 +555,12 @@ singleLoopRevInductBaseChecksM node tag = do
         ("Pred true at " ++ show node.nBound ++ " check.")
         goal
 
-singleRevInductResultingHypM :: [Restr] -> SingleRevInductProofNode () -> Reader Context Hyp
-singleRevInductResultingHypM restrs node = do
+singleRevInductResultingHypM :: MonadChecks m => SingleRevInductProofNode () -> m ()
+singleRevInductResultingHypM node = do
+    restrs <- getRestrs
     tag <- askNodeTag node.point
     let vis = tagV tag $ Visit (Addr node.point) $ restrs ++ [Restr node.point (numberVC 0)]
-    return $ trueIfAt' node.pred_ vis
+    assume1R $ trueIfAt' node.pred_ vis
 
 --
 
