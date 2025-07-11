@@ -7,8 +7,8 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils (optionals)
 
-import Control.Monad.Reader (MonadReader, Reader, ReaderT, runReader)
-import Control.Monad.State (MonadState, StateT (StateT))
+import Control.Monad.Reader (MonadReader (..), Reader, ReaderT, runReader)
+import Control.Monad.State (MonadState, StateT (StateT), evalState, evalStateT)
 import Control.Monad.Writer (WriterT, execWriterT, tell)
 import Data.Function (applyWhen, on)
 import Data.Map (Map)
@@ -27,12 +27,12 @@ type NodeProofChecks = [ProofCheck ProofCheckDescription]
 
 enumerateProofChecks :: ArgRenames -> Pairing -> Problem -> ProofScript () -> ProofScript NodeProofChecks
 enumerateProofChecks argRenames pairing problem proofScript =
-    ProofScript $ runReader m context
+    ProofScript $ runReader (evalStateT m initState) context
   where
     context = initContext argRenames pairing problem
     m = do
-        hyps <- initPointHypsM
-        proofChecksRecM [] hyps proofScript.root
+        initPointHypsM
+        proofChecksRecM proofScript.root
 
 data Context
   = Context
@@ -88,6 +88,12 @@ data State
       }
   deriving (Generic)
 
+initState :: State
+initState = State
+    { restrs = []
+    , hyps = []
+    }
+
 class (MonadReader Context m, MonadState State m) => MonadChecks m where
     branch :: m a -> m a
 
@@ -130,52 +136,60 @@ conclude meta hyp = do
             }
     tell [check]
 
+liftReader :: MonadChecks m => Reader Context a -> m a
+liftReader = reader . runReader
+
 --
 
-proofChecksRecM :: [Restr] -> [Hyp] -> ProofNodeWith () -> Reader Context (ProofNodeWith NodeProofChecks)
-proofChecksRecM restrs hyps (ProofNodeWith _ node) = case node of
-    ProofNodeLeaf -> do
-        checks <- leafChecksM restrs hyps
-        return $ ProofNodeWith checks ProofNodeLeaf
-    ProofNodeRestr restrNode -> do
-        checks <- restrChecksM restrs hyps restrNode
-        let restrs' = getProofRestr restrNode.point restrNode.range : restrs
-        let hyps' = hyps ++
-                [ pcTrivH
-                    (tagV restrNode.tag
-                        (Visit (Addr restrNode.point)
-                            (Restr
-                                restrNode.point
-                                (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
-                            : restrs)))
-                ]
-        node' <- traverseRestrProofNodeChild
-            (proofChecksRecM restrs' hyps')
-            restrNode
-        return $ ProofNodeWith checks (ProofNodeRestr node')
-    ProofNodeCaseSplit caseSplitNode -> do
-        let visit = tagV caseSplitNode.tag (Visit (Addr caseSplitNode.addr) restrs)
-        node' <- traverseCaseSplitProofNodeChildren
-            (proofChecksRecM restrs (hyps ++ [pcTrueH visit]))
-            (proofChecksRecM restrs (hyps ++ [pcFalseH visit]))
-            caseSplitNode
-        return $ ProofNodeWith [] (ProofNodeCaseSplit node')
-    ProofNodeSplit splitNode -> do
-        checks <- splitChecksM restrs hyps splitNode
-        let noLoopHyps = splitNoLoopHyps splitNode restrs
-        let loopHyps = splitLoopHyps splitNode restrs True
-        node' <- traverseSplitProofNodeChildren
-            (proofChecksRecM restrs (hyps ++ noLoopHyps))
-            (proofChecksRecM restrs (hyps ++ loopHyps))
-            splitNode
-        return $ ProofNodeWith checks (ProofNodeSplit node')
-    ProofNodeSingleRevInduct singleRevInductNode -> do
-        checks <- singleRevInductChecksM restrs hyps singleRevInductNode
-        hyp' <- singleRevInductResultingHypM restrs singleRevInductNode
-        node' <- traverseSingleRevInductProofNodeChild
-            (proofChecksRecM restrs (hyps ++ [hyp']))
-            singleRevInductNode
-        return $ ProofNodeWith checks (ProofNodeSingleRevInduct node')
+proofChecksRecM :: MonadChecks m => ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
+proofChecksRecM n = do
+    restrs <- getRestrictions
+    hyps <- getAssumptions
+    liftReader $ go restrs hyps n
+  where
+    go restrs hyps (ProofNodeWith _ node) = case node of
+        ProofNodeLeaf -> do
+            checks <- leafChecksM restrs hyps
+            return $ ProofNodeWith checks ProofNodeLeaf
+        ProofNodeRestr restrNode -> do
+            checks <- restrChecksM restrs hyps restrNode
+            let restrs' = getProofRestr restrNode.point restrNode.range : restrs
+            let hyps' = hyps ++
+                    [ pcTrivH
+                        (tagV restrNode.tag
+                            (Visit (Addr restrNode.point)
+                                (Restr
+                                    restrNode.point
+                                    (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
+                                : restrs)))
+                    ]
+            node' <- traverseRestrProofNodeChild
+                (go restrs' hyps')
+                restrNode
+            return $ ProofNodeWith checks (ProofNodeRestr node')
+        ProofNodeCaseSplit caseSplitNode -> do
+            let visit = tagV caseSplitNode.tag (Visit (Addr caseSplitNode.addr) restrs)
+            node' <- traverseCaseSplitProofNodeChildren
+                (go restrs (hyps ++ [pcTrueH visit]))
+                (go restrs (hyps ++ [pcFalseH visit]))
+                caseSplitNode
+            return $ ProofNodeWith [] (ProofNodeCaseSplit node')
+        ProofNodeSplit splitNode -> do
+            checks <- splitChecksM restrs hyps splitNode
+            let noLoopHyps = splitNoLoopHyps splitNode restrs
+            let loopHyps = splitLoopHyps splitNode restrs True
+            node' <- traverseSplitProofNodeChildren
+                (go restrs (hyps ++ noLoopHyps))
+                (go restrs (hyps ++ loopHyps))
+                splitNode
+            return $ ProofNodeWith checks (ProofNodeSplit node')
+        ProofNodeSingleRevInduct singleRevInductNode -> do
+            checks <- singleRevInductChecksM restrs hyps singleRevInductNode
+            hyp' <- singleRevInductResultingHypM restrs singleRevInductNode
+            node' <- traverseSingleRevInductProofNodeChild
+                (go restrs (hyps ++ [hyp']))
+                singleRevInductNode
+            return $ ProofNodeWith checks (ProofNodeSingleRevInduct node')
 
 leafChecksM :: [Restr] -> [Hyp] -> Reader Context NodeProofChecks
 leafChecksM restrs hyps = do
@@ -527,12 +541,13 @@ singleRevInductResultingHypM restrs node = do
 
 --
 
-initPointHypsM :: Reader Context [Hyp]
+initPointHypsM :: MonadChecks m => m ()
 initPointHypsM = do
     pairing <- askPairing
-    instEqsM [] pairing.inEqs
+    hyps <- instEqsM [] pairing.inEqs
+    assumeR hyps
 
-instEqsM :: [Restr] -> [PairingEq] -> Reader Context [Hyp]
+instEqsM :: MonadReader Context m => [Restr] -> [PairingEq] -> m [Hyp]
 instEqsM restrs eqs = do
     entryPoints <- askEntryPoints
     let addrMap quadrant = tagV quadrant.tag $ case quadrant.direction of
