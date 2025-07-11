@@ -10,7 +10,7 @@ import BV.Core.Utils (optionals)
 import Control.Monad.Reader (MonadReader (..), Reader, ReaderT, runReader)
 import Control.Monad.State (MonadState, StateT (StateT), evalState, evalStateT)
 import Control.Monad.Writer (WriterT (WriterT), execWriterT, mapWriterT, tell)
-import Data.Foldable (traverse_)
+import Data.Foldable (for_, traverse_)
 import Data.Function (applyWhen, on)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -210,8 +210,7 @@ proofChecksRecM (ProofNodeWith _ node) = do
                     caseSplitNode
         ProofNodeSplit splitNode -> do
             restrs <- getRestrs
-            hyps <- getAssumptions
-            checks <- liftReader $ splitChecksM restrs hyps splitNode
+            checks <- collect $ branch $ splitChecksM splitNode
             ProofNodeWith checks . ProofNodeSplit <$>
                 traverseSplitProofNodeChildren
                     (goWith (splitNoLoopHyps splitNode restrs))
@@ -292,43 +291,38 @@ getProofRestr point range =
         point
         (optionsVC (map (fromRestrKindVC range.kind) [range.x .. range.y - 1]))
 
-splitChecksM :: [Restr] -> [Hyp] -> SplitProofNode () -> Reader Context NodeProofChecks
-splitChecksM restrs hyps splitNode = do
-    (<>) <$> splitInitStepChecksM restrs hyps splitNode <*> splitInductStepChecksM restrs hyps splitNode
+splitChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
+splitChecksM splitNode = do
+    branch $ splitInitStepChecksM splitNode
+    branch $ splitInductStepChecksM splitNode
 
-splitInitStepChecksM :: [Restr] -> [Hyp] -> SplitProofNode () -> Reader Context NodeProofChecks
-splitInitStepChecksM restrs hyps splitNode = do
-    errHyp <- splitRErrPcHypM splitNode restrs
-    let hyps' = errHyp : hyps
-    return $ concat
-        [ let visits = splitVisitVisits splitNode restrs (numberVC i)
-              lpcHyp = pcTrueH visits.asm
-              rpcTrivHyp = pcTrivH visits.c
-              visHyps = splitHypsAtVisit splitNode restrs (numberVC i)
-           in
-              [ ProofCheck
+splitInitStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
+splitInitStepChecksM splitNode = do
+    restrs <- getRestrs
+    errHyp <- liftReader $ splitRErrPcHypM splitNode restrs
+    assume1L errHyp
+    for_ [0..splitNode.n - 1] $ \i ->
+        let visits = splitVisitVisits splitNode restrs (numberVC i)
+            lpcHyp = pcTrueH visits.asm
+            rpcTrivHyp = pcTrivH visits.c
+            visHyps = splitHypsAtVisit splitNode restrs (numberVC i)
+         in for_ visHyps $ \(hyp, desc) ->
+                concludeWith
                     ("Induct check at visit " ++ show i ++ ": " ++ desc)
-                    (hyps' ++ [lpcHyp, rpcTrivHyp])
+                    [lpcHyp, rpcTrivHyp]
                     hyp
-              | (hyp, desc) <- visHyps
-              ]
-        | i <- [0..splitNode.n - 1]
-        ]
 
-splitInductStepChecksM :: [Restr] -> [Hyp] -> SplitProofNode () -> Reader Context NodeProofChecks
-splitInductStepChecksM restrs hyps splitNode = do
-    errHyp <- splitRErrPcHypM splitNode restrs
+splitInductStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
+splitInductStepChecksM splitNode = do
+    restrs <- getRestrs
+    errHyp <- liftReader $ splitRErrPcHypM splitNode restrs
     let conts = splitVisitVisits splitNode restrs (offsetVC splitNode.n)
-    let hyps' = [errHyp, pcTrueH conts.asm, pcTrivH conts.c] ++ hyps ++ splitLoopHyps splitNode restrs False
-    return
-        [ let
-           in
-              ProofCheck
-                  ("Induct check (" ++ desc ++ ") at inductive step for " ++ show splitNode.details.asm.split.unwrap)
-                  hyps'
-                  hyp
-        | (hyp, desc) <- splitHypsAtVisit splitNode restrs (offsetVC splitNode.n)
-        ]
+    assumeL [errHyp, pcTrueH conts.asm, pcTrivH conts.c]
+    assumeR $ splitLoopHyps splitNode restrs False
+    for_ (splitHypsAtVisit splitNode restrs (offsetVC splitNode.n)) $ \(hyp, desc) ->
+        conclude
+            ("Induct check (" ++ desc ++ ") at inductive step for " ++ show splitNode.details.asm.split.unwrap)
+            hyp
 
 splitRErrPcHypM :: SplitProofNode () -> [Restr] -> Reader Context Hyp
 splitRErrPcHypM splitNode restrs = do
