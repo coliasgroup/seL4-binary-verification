@@ -21,8 +21,9 @@ module BV.Core.Types.Extras.ProofCheck
     , isEmptyVC
     , isOptionsVC
     , numberVC
+    , numbersVC
     , offsetVC
-    , optionsVC
+    , offsetsVC
     , pcFalseH
     , pcImpH
     , pcTrivH
@@ -43,36 +44,33 @@ import BV.Core.Utils
 
 import Control.DeepSeq (NFData)
 import Control.Monad.Identity (Identity (Identity, runIdentity))
-import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 
 numberVC :: Integer -> VisitCount
-numberVC n = VisitCount
-    { numbers = [n]
+numberVC n = numbersVC [n]
+
+numbersVC :: [Integer] -> VisitCount
+numbersVC numbers = VisitCount
+    { numbers
     , offsets = []
     }
 
 offsetVC :: Integer -> VisitCount
-offsetVC n = VisitCount
-    { numbers = []
-    , offsets = [n]
-    }
+offsetVC n = offsetsVC [n]
 
-optionsVC :: [VisitCount] -> VisitCount
-optionsVC = fold
+offsetsVC :: [Integer] -> VisitCount
+offsetsVC offsets = VisitCount
+    { numbers = []
+    , offsets
+    }
 
 isOptionsVC :: VisitCount -> Bool
 isOptionsVC vc = length vc.numbers + length vc.offsets > 1
 
 isEmptyVC :: VisitCount -> Bool
-isEmptyVC = \case
-    VisitCount
-        { numbers = []
-        , offsets = []
-        } -> True
-    _ -> False
+isEmptyVC = (==) mempty
 
 data SimpleVisitCountView
   = SimpleVisitCountViewNumber Integer
@@ -99,11 +97,10 @@ fromRestrKindVC kind n = n & case kind of
     RestrProofNodeRangeKindOffset -> offsetVC
 
 upToVC :: Integer -> VisitCount
-upToVC n = optionsVC (map numberVC [0 .. n - 1])
+upToVC n = foldMap numberVC [0 .. n - 1]
 
 doubleRangeVC :: Integer -> Integer -> VisitCount
-doubleRangeVC n m = optionsVC $
-    map numberVC [0 ..  n - 1] ++ map offsetVC [0 ..  m - 1]
+doubleRangeVC n m = foldMap numberVC [0 .. n - 1] <> foldMap offsetVC [0 .. m - 1]
 
 hasZeroVC :: VisitCount -> Bool
 hasZeroVC vc = 0 `elem` vc.numbers

@@ -13,6 +13,7 @@ module BV.Core.Logic
     , alignValidIneq
     , applyRelWrapper
     , askStruct
+    , instEqAtVisit
     , isNodeNoop
     , pvalidAssertion1
     , pvalidAssertion2
@@ -41,7 +42,7 @@ import Data.Function (applyWhen)
 import Data.Functor ((<&>))
 import Data.List (nub)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromJust)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
@@ -317,6 +318,20 @@ applyRelWrapper lhs rhs =
     destructOp (Expr { ty = ExprTypeRelWrapper, value = ExprValueOp op args}) = (op, args)
     (opL, argsL) = destructOp lhs
     (opR, argsR) = destructOp rhs
+
+--
+
+instEqAtVisit :: Expr -> VisitCount -> Bool
+instEqAtVisit expr visit = case expr.value of
+    ExprValueOp OpEqSelectiveWrapper [_, xs, ys] -> case fromJust (simpleVC visit) of
+        SimpleVisitCountViewNumber n -> n `elem` sumElems xs
+        SimpleVisitCountViewOffset n -> n `elem` sumElems ys
+    _ -> True
+  where
+    sumElems expr' = case expr'.value of
+        ExprValueNum n -> [n]
+        ExprValueOp OpPlus [Expr _ (ExprValueNum n), rhs] -> n : sumElems rhs
+        _ -> []
 
 --
 

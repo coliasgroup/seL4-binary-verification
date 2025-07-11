@@ -11,7 +11,7 @@ module BV.Core.Types.Extras.Program
     , nodeConts
     , programFromFunctions
     , renameVars
-    , renameVarsI
+    , renameVarsA
     , signatureOfFunction
     , trivialNode
     , varSubst
@@ -105,11 +105,11 @@ instance HasVarNames Expr where
 instance HasVarNames ExprValue where
     varNamesOf = castOptic #_ExprValueVar
 
-renameVars :: (HasVarNames a, Applicative f) => (Ident -> f Ident) -> a -> f a
-renameVars = traverseOf varNamesOf
+renameVarsA :: (HasVarNames a, Applicative f) => (Ident -> f Ident) -> a -> f a
+renameVarsA = traverseOf varNamesOf
 
-renameVarsI :: HasVarNames a => (Ident -> Ident) -> a -> a
-renameVarsI f = runIdentity . renameVars (Identity . f)
+renameVars :: HasVarNames a => (Ident -> Ident) -> a -> a
+renameVars f = runIdentity . renameVarsA (Identity . f)
 
 class HasVarDecls a where
     varDeclsOf :: Traversal' a (Ident, ExprType)
