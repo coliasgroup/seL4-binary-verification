@@ -168,35 +168,37 @@ liftReader = reader . runReader
 
 proofChecksRecM :: MonadChecks m => ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
 proofChecksRecM (ProofNodeWith _ node) = do
-    restrs <- getRestrs
-    hyps <- getAssumptions
     case node of
         ProofNodeLeaf -> do
             checks <- collect $ branch leafChecksM
             return $ ProofNodeWith checks ProofNodeLeaf
         ProofNodeRestr restrNode -> do
+            restrs <- getRestrs
+            hyps <- getAssumptions
             checks <- liftReader $ restrChecksM restrs hyps restrNode
             restrict1L $ getProofRestr restrNode.point restrNode.range
-            assume1R $
-                pcTrivH
-                    (tagV restrNode.tag
-                        (Visit (Addr restrNode.point)
-                            (Restr
-                                restrNode.point
-                                (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
-                            : restrs)))
+            do
+                restrs <- getRestrs
+                let restr = Restr
+                        restrNode.point
+                        (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
+                assume1R $ pcTrivH
+                        (tagV restrNode.tag
+                            (Visit (Addr restrNode.point) (restr:restrs)))
             node' <- traverseRestrProofNodeChild
                 proofChecksRecM
                 restrNode
             return $ ProofNodeWith checks (ProofNodeRestr node')
         ProofNodeCaseSplit caseSplitNode -> do
-            let visit = tagV caseSplitNode.tag (Visit (Addr caseSplitNode.addr) restrs)
+            visit <- tagV caseSplitNode.tag <$> getVisit (Addr caseSplitNode.addr)
             node' <- traverseCaseSplitProofNodeChildren
                 (goWith [pcTrueH visit])
                 (goWith [pcFalseH visit])
                 caseSplitNode
             return $ ProofNodeWith [] (ProofNodeCaseSplit node')
         ProofNodeSplit splitNode -> do
+            restrs <- getRestrs
+            hyps <- getAssumptions
             checks <- liftReader $ splitChecksM restrs hyps splitNode
             node' <- traverseSplitProofNodeChildren
                 (goWith (splitNoLoopHyps splitNode restrs))
@@ -204,6 +206,8 @@ proofChecksRecM (ProofNodeWith _ node) = do
                 splitNode
             return $ ProofNodeWith checks (ProofNodeSplit node')
         ProofNodeSingleRevInduct singleRevInductNode -> do
+            restrs <- getRestrs
+            hyps <- getAssumptions
             checks <- liftReader $ singleRevInductChecksM restrs hyps singleRevInductNode
             hyp' <- liftReader $ singleRevInductResultingHypM restrs singleRevInductNode
             assume1R hyp'
@@ -218,15 +222,14 @@ proofChecksRecM (ProofNodeWith _ node) = do
 
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
-    nerrPcHyp <- nonRErrPcH <$> getRestrs
+    nonRErrPcH <$> getRestrs >>= assume1L
     nlerrPc <- pcFalseH . asmV <$> getVisit Err
-    restrs <- getRestrs
-    let retEq = eqSideH trueE (asmV (Visit Ret restrs)) `eqH'` eqSideH trueE (cV (Visit Ret restrs))
-    assume1L nerrPcHyp
-    pairing <- askPairing
-    instEqs' <- instEqsM pairing.outEqs
+    retEq <- eqH'
+        <$> (eqSideH trueE . asmV <$> getVisit Ret)
+        <*> (eqSideH trueE . cV <$> getVisit Ret)
+    instEqs <- instEqsM PairingEqDirectionOut
     concludeWith "Leaf path-cond imp" [retEq] nlerrPc
-    traverse_ (concludeWith "Leaf eq check" [nlerrPc, retEq]) instEqs'
+    traverse_ (concludeWith "Leaf eq check" [nlerrPc, retEq]) instEqs
 
 restrChecksM :: [Restr] -> [Hyp] -> RestrProofNode () -> Reader Context NodeProofChecks
 restrChecksM restrs hyps restrNode = do
@@ -568,22 +571,28 @@ singleRevInductResultingHypM restrs node = do
 
 initPointHypsM :: MonadChecks m => m ()
 initPointHypsM = do
-    pairing <- askPairing
-    hyps <- instEqsM pairing.inEqs
+    hyps <- instEqsM PairingEqDirectionIn
     assumeR hyps
 
-instEqsM :: MonadChecks m => [PairingEq] -> m [Hyp]
-instEqsM eqs = do
+instEqsM :: MonadChecks m => PairingEqDirection -> m [Hyp]
+instEqsM direction = do
+    pairing <- askPairing
+    let eqs = case direction of
+            PairingEqDirectionIn -> pairing.inEqs
+            PairingEqDirectionOut -> pairing.outEqs
     entryPoints <- askEntryPoints
     restrs <- getRestrs
     let addrMap quadrant = tagV quadrant.tag $ case quadrant.direction of
             PairingEqDirectionIn -> Visit (pairingSide quadrant.tag entryPoints) []
             PairingEqDirectionOut -> Visit Ret restrs
     renames <- askArgRenames
-    let hyps = flip map eqs $ \(PairingEq { lhs, rhs }) ->
-            let f eqSide = eqSideH (renameVarsI (renames eqSide.quadrant) eqSide.expr) (addrMap eqSide.quadrant)
-             in (eqH' `on` f) lhs rhs
-    return hyps
+    return
+        [ let f eqSide = eqSideH
+                (renameVarsI (renames eqSide.quadrant) eqSide.expr)
+                (addrMap eqSide.quadrant)
+           in (eqH' `on` f) lhs rhs
+        | PairingEq { lhs, rhs } <- eqs
+        ]
 
 --
 
