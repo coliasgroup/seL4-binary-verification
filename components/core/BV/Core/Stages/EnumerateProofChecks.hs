@@ -195,7 +195,7 @@ proofChecksRecM (ProofNodeWith _ node) = do
                 restrict1L $ Restr
                     restrNode.point
                     (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
-                pcTrivH . tagV restrNode.tag <$> getVisit (Addr restrNode.point) >>= assume1R
+                assume1R =<< pcTrivH . tagV restrNode.tag <$> getVisit (Addr restrNode.point)
             restrict1L $ getProofRestr restrNode.point restrNode.range
             ProofNodeWith checks . ProofNodeRestr <$>
                 traverseRestrProofNodeChild
@@ -234,7 +234,7 @@ proofChecksRecM (ProofNodeWith _ node) = do
 
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
-    nonRErrPcH' >>= assume1L
+    assume1L =<< nonRErrPcH'
     nlerrPc <- pcFalseH . asmV <$> getVisit Err
     retEq <- eqH'
         <$> (eqSideH trueE . asmV <$> getVisit Ret)
