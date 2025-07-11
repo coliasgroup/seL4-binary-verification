@@ -111,6 +111,12 @@ assumeL hyps = #hyps %= (hyps ++)
 assumeR :: MonadChecks m => [Hyp] -> m ()
 assumeR hyps = #hyps %= (++ hyps)
 
+assume1L :: MonadChecks m => Hyp -> m ()
+assume1L = assumeL . (:[])
+
+assume1R :: MonadChecks m => Hyp -> m ()
+assume1R = assumeR . (:[])
+
 getAssumptions :: MonadChecks m => m [Hyp]
 getAssumptions = use #hyps
 
@@ -119,6 +125,12 @@ restrictL restrs = #restrs %= (restrs ++)
 
 restrictR :: MonadChecks m => [Restr] -> m ()
 restrictR restrs = #restrs %= (++ restrs)
+
+restrict1L :: MonadChecks m => Restr -> m ()
+restrict1L = restrictL . (:[])
+
+restrict1R :: MonadChecks m => Restr -> m ()
+restrict1R = restrictR . (:[])
 
 getRestrictions :: MonadChecks m => m [Restr]
 getRestrictions = use #restrs
@@ -136,60 +148,65 @@ conclude meta hyp = do
             }
     tell [check]
 
+getVisit :: MonadChecks m => NodeId -> m Visit
+getVisit n = Visit n <$> getRestrictions
+
 liftReader :: MonadChecks m => Reader Context a -> m a
 liftReader = reader . runReader
 
 --
 
+-- withAssumptionsR :: MonadChecks m => [Hyp] ->
+
 proofChecksRecM :: MonadChecks m => ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
-proofChecksRecM n = do
+proofChecksRecM (ProofNodeWith _ node) = do
     restrs <- getRestrictions
     hyps <- getAssumptions
-    liftReader $ go restrs hyps n
-  where
-    go restrs hyps (ProofNodeWith _ node) = case node of
+    case node of
         ProofNodeLeaf -> do
-            checks <- leafChecksM restrs hyps
+            checks <- liftReader $ leafChecksM restrs hyps
             return $ ProofNodeWith checks ProofNodeLeaf
         ProofNodeRestr restrNode -> do
-            checks <- restrChecksM restrs hyps restrNode
-            let restrs' = getProofRestr restrNode.point restrNode.range : restrs
-            let hyps' = hyps ++
-                    [ pcTrivH
-                        (tagV restrNode.tag
-                            (Visit (Addr restrNode.point)
-                                (Restr
-                                    restrNode.point
-                                    (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
-                                : restrs)))
-                    ]
+            checks <- liftReader $ restrChecksM restrs hyps restrNode
+            restrict1L $ getProofRestr restrNode.point restrNode.range
+            assume1R $
+                pcTrivH
+                    (tagV restrNode.tag
+                        (Visit (Addr restrNode.point)
+                            (Restr
+                                restrNode.point
+                                (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
+                            : restrs)))
             node' <- traverseRestrProofNodeChild
-                (go restrs' hyps')
+                proofChecksRecM
                 restrNode
             return $ ProofNodeWith checks (ProofNodeRestr node')
         ProofNodeCaseSplit caseSplitNode -> do
             let visit = tagV caseSplitNode.tag (Visit (Addr caseSplitNode.addr) restrs)
             node' <- traverseCaseSplitProofNodeChildren
-                (go restrs (hyps ++ [pcTrueH visit]))
-                (go restrs (hyps ++ [pcFalseH visit]))
+                (goWith [pcTrueH visit])
+                (goWith [pcFalseH visit])
                 caseSplitNode
             return $ ProofNodeWith [] (ProofNodeCaseSplit node')
         ProofNodeSplit splitNode -> do
-            checks <- splitChecksM restrs hyps splitNode
-            let noLoopHyps = splitNoLoopHyps splitNode restrs
-            let loopHyps = splitLoopHyps splitNode restrs True
+            checks <- liftReader $ splitChecksM restrs hyps splitNode
             node' <- traverseSplitProofNodeChildren
-                (go restrs (hyps ++ noLoopHyps))
-                (go restrs (hyps ++ loopHyps))
+                (goWith (splitNoLoopHyps splitNode restrs))
+                (goWith (splitLoopHyps splitNode restrs True))
                 splitNode
             return $ ProofNodeWith checks (ProofNodeSplit node')
         ProofNodeSingleRevInduct singleRevInductNode -> do
-            checks <- singleRevInductChecksM restrs hyps singleRevInductNode
-            hyp' <- singleRevInductResultingHypM restrs singleRevInductNode
+            checks <- liftReader $ singleRevInductChecksM restrs hyps singleRevInductNode
+            hyp' <- liftReader $ singleRevInductResultingHypM restrs singleRevInductNode
+            assume1R hyp'
             node' <- traverseSingleRevInductProofNodeChild
-                (go restrs (hyps ++ [hyp']))
+                proofChecksRecM
                 singleRevInductNode
             return $ ProofNodeWith checks (ProofNodeSingleRevInduct node')
+  where
+    goWith hyps n = branch $ do
+        assumeR hyps
+        proofChecksRecM n
 
 leafChecksM :: [Restr] -> [Hyp] -> Reader Context NodeProofChecks
 leafChecksM restrs hyps = do
