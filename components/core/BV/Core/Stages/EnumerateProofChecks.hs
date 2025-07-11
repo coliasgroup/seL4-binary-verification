@@ -176,6 +176,9 @@ concludeWith meta hyps hyp = branch $ do
 getVisit :: MonadChecks m => NodeId -> m Visit
 getVisit n = Visit n <$> getRestrs
 
+getVisitWithTag :: MonadChecks m => Tag -> NodeId -> m VisitWithTag
+getVisitWithTag tag n = tagV tag <$> getVisit n
+
 liftReader :: MonadChecks m => Reader Context a -> m a
 liftReader = reader . runReader
 
@@ -226,10 +229,10 @@ proofChecksRecM (ProofNodeWith _ node) = do
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
     assume1L =<< nonRErrPcH'
-    nlerrPc <- pcFalseH . asmV <$> getVisit Err
+    nlerrPc <- pcFalseH <$> getVisitWithTag Asm Err
     retEq <- eqH'
-        <$> (eqSideH trueE . asmV <$> getVisit Ret)
-        <*> (eqSideH trueE . cV <$> getVisit Ret)
+        <$> (eqSideH trueE <$> getVisitWithTag Asm Ret)
+        <*> (eqSideH trueE <$> getVisitWithTag C Ret)
     instEqs <- instEqsM PairingEqDirectionOut
     concludeWith "Leaf path-cond imp" [retEq] nlerrPc
     traverse_ (concludeWith "Leaf eq check" [nlerrPc, retEq]) instEqs
@@ -240,22 +243,23 @@ restrChecksM restrNode = do
         getProofRestr restrNode.point restrNode.range
         restrOthersM 2
         assume1L =<< nonRErrPcH'
-    tag <- askNodeTag restrNode.point
-    visit <- do
-            restrs <- getRestrs
-            return $ \vc -> tagV tag $
-                Visit (Addr restrNode.point) (Restr restrNode.point vc : restrs)
+    let visit vc = branchRestrs $ do
+            tag <- askNodeTag restrNode.point
+            restrict1L $ Restr restrNode.point vc
+            getVisitWithTag tag $ Addr restrNode.point
     let minVC = case restrNode.range.kind of
             RestrProofNodeRangeKindOffset -> Just $ offsetVC $ max 0 (restrNode.range.x - 1)
             _ | restrNode.range.x > 1 -> Just $ numberVC $ restrNode.range.x - 1
             _ -> Nothing
-    for_ minVC $ \minVC' -> conclude
-        (printf "Check of restr min %d %s for %d" restrNode.range.x (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
-        (pcTrueH (visit minVC'))
-    let topVC = fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1)
+    for_ minVC $ \minVC' -> do
+        v <- visit minVC'
+        conclude
+            (printf "Check of restr min %d %s for %d" restrNode.range.x (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
+            (pcTrueH v)
+    topVC <- visit $ fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1)
     conclude
         (printf "Check of restr max %d %s for %d" restrNode.range.y (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
-        (pcFalseH (visit topVC))
+        (pcFalseH topVC)
 
 restrOthersM :: MonadChecks m => Integer -> m ()
 restrOthersM n = do
