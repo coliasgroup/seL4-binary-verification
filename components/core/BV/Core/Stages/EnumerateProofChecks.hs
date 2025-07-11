@@ -563,18 +563,17 @@ instEqsM direction = do
             PairingEqDirectionIn -> pairing.inEqs
             PairingEqDirectionOut -> pairing.outEqs
     entryPoints <- askEntryPoints
-    restrs <- getRestrs
-    let addrMap quadrant = tagV quadrant.tag $ case quadrant.direction of
-            PairingEqDirectionIn -> Visit (pairingSide quadrant.tag entryPoints) []
-            PairingEqDirectionOut -> Visit Ret restrs
+    let addrMap quadrant = tagV quadrant.tag <$> case quadrant.direction of
+            PairingEqDirectionIn -> return $ Visit (pairingSide quadrant.tag entryPoints) []
+            PairingEqDirectionOut -> getVisit Ret
     renames <- askArgRenames
-    return
-        [ let f eqSide = eqSideH
+    for eqs $ \PairingEq { lhs, rhs } -> do
+        let f eqSide = eqSideH
                 (renameVarsI (renames eqSide.quadrant) eqSide.expr)
-                (addrMap eqSide.quadrant)
-           in (eqH' `on` f) lhs rhs
-        | PairingEq { lhs, rhs } <- eqs
-        ]
+                <$> addrMap eqSide.quadrant
+        lhs' <- f lhs
+        rhs' <- f rhs
+        return $ lhs' `eqH'` rhs'
 
 --
 
