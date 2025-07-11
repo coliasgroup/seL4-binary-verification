@@ -183,36 +183,36 @@ proofChecksRecM (ProofNodeWith _ node) = do
                         (tagV restrNode.tag
                             (Visit (Addr restrNode.point) (restr:restrs)))
             restrict1L $ getProofRestr restrNode.point restrNode.range
-            node' <- traverseRestrProofNodeChild
-                proofChecksRecM
-                restrNode
-            return $ ProofNodeWith checks (ProofNodeRestr node')
+            ProofNodeWith checks . ProofNodeRestr <$>
+                traverseRestrProofNodeChild
+                    proofChecksRecM
+                    restrNode
         ProofNodeCaseSplit caseSplitNode -> do
             visit <- tagV caseSplitNode.tag <$> getVisit (Addr caseSplitNode.addr)
-            node' <- traverseCaseSplitProofNodeChildren
-                (goWith [pcTrueH visit])
-                (goWith [pcFalseH visit])
-                caseSplitNode
-            return $ ProofNodeWith [] (ProofNodeCaseSplit node')
+            ProofNodeWith [] . ProofNodeCaseSplit <$>
+                traverseCaseSplitProofNodeChildren
+                    (goWith [pcTrueH visit])
+                    (goWith [pcFalseH visit])
+                    caseSplitNode
         ProofNodeSplit splitNode -> do
             restrs <- getRestrs
             hyps <- getAssumptions
             checks <- liftReader $ splitChecksM restrs hyps splitNode
-            node' <- traverseSplitProofNodeChildren
-                (goWith (splitNoLoopHyps splitNode restrs))
-                (goWith (splitLoopHyps splitNode restrs True))
-                splitNode
-            return $ ProofNodeWith checks (ProofNodeSplit node')
+            ProofNodeWith checks . ProofNodeSplit <$>
+                traverseSplitProofNodeChildren
+                    (goWith (splitNoLoopHyps splitNode restrs))
+                    (goWith (splitLoopHyps splitNode restrs True))
+                    splitNode
         ProofNodeSingleRevInduct singleRevInductNode -> do
             restrs <- getRestrs
             hyps <- getAssumptions
             checks <- liftReader $ singleRevInductChecksM restrs hyps singleRevInductNode
             hyp' <- liftReader $ singleRevInductResultingHypM restrs singleRevInductNode
             assume1R hyp'
-            node' <- traverseSingleRevInductProofNodeChild
-                proofChecksRecM
-                singleRevInductNode
-            return $ ProofNodeWith checks (ProofNodeSingleRevInduct node')
+            ProofNodeWith checks . ProofNodeSingleRevInduct <$>
+                traverseSingleRevInductProofNodeChild
+                    proofChecksRecM
+                    singleRevInductNode
   where
     goWith hyps n = branch $ do
         assumeR hyps
