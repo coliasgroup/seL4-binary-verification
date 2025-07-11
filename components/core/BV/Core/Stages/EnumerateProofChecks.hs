@@ -228,7 +228,7 @@ proofChecksRecM (ProofNodeWith _ node) = do
 
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
-    assume1L =<< nonRErrPcH'
+    assume1L =<< nonRErrPcH
     nlerrPc <- pcFalseH <$> getVisitWithTag Asm Err
     retEq <- eqH'
         <$> (eqSideH trueE <$> getVisitWithTag Asm Ret)
@@ -242,7 +242,7 @@ restrChecksM restrNode = do
     branchRestrs $ do
         getProofRestr restrNode.point restrNode.range
         restrOthersM 2
-        assume1L =<< nonRErrPcH'
+        assume1L =<< nonRErrPcH
     let visit vc = branchRestrs $ do
             tag <- askNodeTag restrNode.point
             restrict1L $ Restr restrNode.point vc
@@ -325,7 +325,7 @@ splitRErrPcHypM splitNode = branchRestrs $ do
     let vc = doubleRangeVC (splitNode.details.c.seqStart + nc) (splitNode.loopRMax + 2)
     restrict1L $ Restr splitNode.details.c.split vc
     restrOthersM 2
-    nonRErrPcH'
+    nonRErrPcH
 
 splitNoLoopHyps :: MonadChecks m => SplitProofNode () -> m ()
 splitNoLoopHyps splitNode = do
@@ -596,8 +596,5 @@ instEqsM direction = do
 
 --
 
-nonRErrPcH :: [Restr] -> Hyp
-nonRErrPcH restrs = pcFalseH . cV $ Visit Err restrs
-
-nonRErrPcH' :: MonadChecks m => m Hyp
-nonRErrPcH' = pcFalseH . cV <$> getVisit Err
+nonRErrPcH :: MonadChecks m => m Hyp
+nonRErrPcH = pcFalseH . cV <$> getVisit Err
