@@ -247,12 +247,12 @@ restrChecksM restrNode = do
             tag <- askNodeTag restrNode.point
             restrict1L $ Restr restrNode.point vc
             getVisitWithTag tag $ Addr restrNode.point
-    let minVC = case restrNode.range.kind of
+    let minVCOpt = case restrNode.range.kind of
             RestrProofNodeRangeKindOffset -> Just $ offsetVC $ max 0 (restrNode.range.x - 1)
             _ | restrNode.range.x > 1 -> Just $ numberVC $ restrNode.range.x - 1
             _ -> Nothing
-    for_ minVC $ \minVC' -> do
-        v <- visit minVC'
+    for_ minVCOpt $ \minVC -> do
+        v <- visit minVC
         conclude
             (printf "Check of restr min %d %s for %d" restrNode.range.x (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
             (pcTrueH v)
@@ -296,16 +296,15 @@ splitInitStepChecksM splitNode = do
     restrs <- getRestrs
     errHyp <- splitRErrPcHypM splitNode
     assume1L errHyp
-    for_ [0..splitNode.n - 1] $ \i ->
+    for_ [0..splitNode.n - 1] $ \i -> branch $ do
         let visits = splitVisitVisits splitNode restrs (numberVC i)
-            lpcHyp = pcTrueH visits.asm
-            rpcTrivHyp = pcTrivH visits.c
-            visHyps = splitHypsAtVisit splitNode restrs (numberVC i)
-         in for_ visHyps $ \(hyp, desc) ->
-                concludeWith
-                    ("Induct check at visit " ++ show i ++ ": " ++ desc)
-                    [lpcHyp, rpcTrivHyp]
-                    hyp
+        let visHyps = splitHypsAtVisit splitNode restrs (numberVC i)
+        assume1R $ pcTrueH visits.asm
+        assume1R $ pcTrivH visits.c
+        for_ visHyps $ \(hyp, desc) ->
+            conclude
+                ("Induct check at visit " ++ show i ++ ": " ++ desc)
+                hyp
 
 splitInductStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitInductStepChecksM splitNode = do
