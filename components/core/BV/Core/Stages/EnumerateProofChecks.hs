@@ -7,7 +7,9 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils (optionals)
 
-import Control.Monad.Reader (Reader, runReader)
+import Control.Monad.Reader (MonadReader, Reader, ReaderT, runReader)
+import Control.Monad.State (MonadState, StateT (StateT))
+import Control.Monad.Writer (WriterT, execWriterT, tell)
 import Data.Function (applyWhen, on)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -18,6 +20,7 @@ import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
+import Optics.State.Operators ((%=))
 import Text.Printf (printf)
 
 type NodeProofChecks = [ProofCheck ProofCheckDescription]
@@ -26,15 +29,7 @@ enumerateProofChecks :: ArgRenames -> Pairing -> Problem -> ProofScript () -> Pr
 enumerateProofChecks argRenames pairing problem proofScript =
     ProofScript $ runReader m context
   where
-    nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
-    context = Context
-        { pairing
-        , problem
-        , argRenames
-        , nodeGraph
-        , nodeTag = nodeTagOf problem nodeGraph
-        , loopData = createLoopDataMap problem nodeGraph
-        }
+    context = initContext argRenames pairing problem
     m = do
         hyps <- initPointHypsM
         proofChecksRecM [] hyps proofScript.root
@@ -49,6 +44,88 @@ data Context
       , nodeGraph :: NodeGraph
       }
   deriving (Generic)
+
+initContext :: ArgRenames -> Pairing -> Problem -> Context
+initContext argRenames pairing problem = Context
+    { pairing
+    , problem
+    , argRenames
+    , nodeGraph
+    , nodeTag = nodeTagOf problem nodeGraph
+    , loopData = createLoopDataMap problem nodeGraph
+    }
+  where
+    nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
+
+askLoopHead :: MonadReader Context m => NodeAddr -> m (Maybe NodeAddr)
+askLoopHead addr = loopHeadOf addr <$> gview #loopData
+
+askNodeGraph :: MonadReader Context m => m NodeGraph
+askNodeGraph = gview #nodeGraph
+
+askArgRenames :: MonadReader Context m => m ArgRenames
+askArgRenames = gview #argRenames
+
+askEntryPoints :: MonadReader Context m => m (PairingOf NodeId)
+askEntryPoints = gview $ #problem % #sides % to (fmap (.entryPoint))
+
+askPairing :: MonadReader Context m => m Pairing
+askPairing = gview #pairing
+
+askNodeTag :: MonadReader Context m => NodeAddr -> m Tag
+askNodeTag addr = ($ addr) <$> gview #nodeTag
+
+askGetNodeTag :: MonadReader Context m => m (NodeAddr -> Tag)
+askGetNodeTag = gview #nodeTag
+
+data State
+  = State
+      { restrs :: [Restr]
+      , hyps :: [Hyp]
+      }
+  deriving (Generic)
+
+class (MonadReader Context m, MonadState State m) => MonadChecks m where
+    branch :: m a -> m a
+
+instance Monad m => MonadChecks (StateT State (ReaderT Context m)) where
+    branch (StateT f) = StateT $ \s -> do
+        (a, _) <- f s
+        return (a, s)
+
+instance MonadChecks m => MonadChecks (WriterT NodeProofChecks m) where
+    branch = undefined
+
+assumeL :: MonadChecks m => [Hyp] -> m ()
+assumeL hyps = #hyps %= (hyps ++)
+
+assumeR :: MonadChecks m => [Hyp] -> m ()
+assumeR hyps = #hyps %= (++ hyps)
+
+getAssumptions :: MonadChecks m => m [Hyp]
+getAssumptions = use #hyps
+
+restrictL :: MonadChecks m => [Restr] -> m ()
+restrictL restrs = #restrs %= (restrs ++)
+
+restrictR :: MonadChecks m => [Restr] -> m ()
+restrictR restrs = #restrs %= (++ restrs)
+
+getRestrictions :: MonadChecks m => m [Restr]
+getRestrictions = use #restrs
+
+collect :: MonadChecks m => WriterT NodeProofChecks m () -> m NodeProofChecks
+collect = execWriterT
+
+conclude :: MonadChecks m => ProofCheckDescription-> Hyp -> WriterT NodeProofChecks m ()
+conclude meta hyp = do
+    hyps <- getAssumptions
+    let check = ProofCheck
+            { meta
+            , hyps
+            , hyp
+            }
+    tell [check]
 
 --
 
