@@ -9,7 +9,8 @@ import BV.Core.Utils (optionals)
 
 import Control.Monad.Reader (MonadReader (..), Reader, ReaderT, runReader)
 import Control.Monad.State (MonadState, StateT (StateT), evalState, evalStateT)
-import Control.Monad.Writer (WriterT, execWriterT, tell)
+import Control.Monad.Writer (WriterT (WriterT), execWriterT, mapWriterT, tell)
+import Data.Foldable (traverse_)
 import Data.Function (applyWhen, on)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -102,8 +103,10 @@ instance Monad m => MonadChecks (StateT State (ReaderT Context m)) where
         (a, _) <- f s
         return (a, s)
 
-instance MonadChecks m => MonadChecks (WriterT NodeProofChecks m) where
-    branch = undefined
+type CheckWriter = WriterT NodeProofChecks
+
+instance MonadChecks m => MonadChecks (CheckWriter m) where
+    branch = mapWriterT branch
 
 assumeL :: MonadChecks m => [Hyp] -> m ()
 assumeL hyps = #hyps %= (hyps ++)
@@ -132,13 +135,13 @@ restrict1L = restrictL . (:[])
 restrict1R :: MonadChecks m => Restr -> m ()
 restrict1R = restrictR . (:[])
 
-getRestrictions :: MonadChecks m => m [Restr]
-getRestrictions = use #restrs
+getRestrs :: MonadChecks m => m [Restr]
+getRestrs = use #restrs
 
-collect :: MonadChecks m => WriterT NodeProofChecks m () -> m NodeProofChecks
+collect :: MonadChecks m => CheckWriter m () -> m NodeProofChecks
 collect = execWriterT
 
-conclude :: MonadChecks m => ProofCheckDescription-> Hyp -> WriterT NodeProofChecks m ()
+conclude :: MonadChecks m => ProofCheckDescription-> Hyp -> CheckWriter m ()
 conclude meta hyp = do
     hyps <- getAssumptions
     let check = ProofCheck
@@ -148,8 +151,13 @@ conclude meta hyp = do
             }
     tell [check]
 
+concludeWith :: MonadChecks m => ProofCheckDescription-> [Hyp] -> Hyp -> CheckWriter m ()
+concludeWith meta hyps hyp = branch $ do
+    assumeR hyps
+    conclude meta hyp
+
 getVisit :: MonadChecks m => NodeId -> m Visit
-getVisit n = Visit n <$> getRestrictions
+getVisit n = Visit n <$> getRestrs
 
 liftReader :: MonadChecks m => Reader Context a -> m a
 liftReader = reader . runReader
@@ -160,11 +168,11 @@ liftReader = reader . runReader
 
 proofChecksRecM :: MonadChecks m => ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
 proofChecksRecM (ProofNodeWith _ node) = do
-    restrs <- getRestrictions
+    restrs <- getRestrs
     hyps <- getAssumptions
     case node of
         ProofNodeLeaf -> do
-            checks <- liftReader $ leafChecksM restrs hyps
+            checks <- collect $ branch leafChecksM
             return $ ProofNodeWith checks ProofNodeLeaf
         ProofNodeRestr restrNode -> do
             checks <- liftReader $ restrChecksM restrs hyps restrNode
@@ -208,17 +216,17 @@ proofChecksRecM (ProofNodeWith _ node) = do
         assumeR hyps
         proofChecksRecM n
 
-leafChecksM :: [Restr] -> [Hyp] -> Reader Context NodeProofChecks
-leafChecksM restrs hyps = do
-    let nerrPcHyp = nonRErrPcH restrs
-    let nlerrPc = pcFalseH . asmV $ Visit Err restrs
+leafChecksM :: MonadChecks m => CheckWriter m ()
+leafChecksM = do
+    nerrPcHyp <- nonRErrPcH <$> getRestrs
+    nlerrPc <- pcFalseH . asmV <$> getVisit Err
+    restrs <- getRestrs
     let retEq = eqSideH trueE (asmV (Visit Ret restrs)) `eqH'` eqSideH trueE (cV (Visit Ret restrs))
-    let hyps' = nerrPcHyp : hyps
+    assume1L nerrPcHyp
     pairing <- askPairing
-    let pathCondImp = ProofCheck "Leaf path-cond imp" (hyps' ++ [retEq]) nlerrPc
     instEqs' <- instEqsM restrs pairing.outEqs
-    let otherChecks = map (ProofCheck "Leaf eq check" (hyps' ++ [nlerrPc, retEq])) instEqs'
-    return $ pathCondImp : otherChecks
+    concludeWith "Leaf path-cond imp" [retEq] nlerrPc
+    traverse_ (concludeWith "Leaf eq check" [nlerrPc, retEq]) instEqs'
 
 restrChecksM :: [Restr] -> [Hyp] -> RestrProofNode () -> Reader Context NodeProofChecks
 restrChecksM restrs hyps restrNode = do
