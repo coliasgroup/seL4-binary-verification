@@ -331,19 +331,18 @@ splitNoLoopHyps splitNode = do
     assumeR [pcFalseH visits.asm]
 
 splitVisitVisits :: MonadChecks m => SplitProofNode () -> VisitCount -> m (PairingOf VisitWithTag)
-splitVisitVisits splitNode visit = do
-    restrs <- getRestrs
-    return $
-        withTags splitNode.details <&> \detailsWithTag ->
-            splitVisitOneVisit detailsWithTag restrs visit
+splitVisitVisits splitNode visit = for (withTags splitNode.details) $ \detailsWithTag ->
+    splitVisitOneVisit detailsWithTag visit
 
-splitVisitOneVisit :: WithTag SplitProofNodeDetails -> [Restr] -> VisitCount -> VisitWithTag
-splitVisitOneVisit detailsWithTag restrs visit = tagV detailsWithTag.tag $
-    let visit' = case fromJust (simpleVC visit) of
-            SimpleVisitCountViewOffset n -> offsetVC (n * detailsWithTag.value.step)
-            SimpleVisitCountViewNumber n -> numberVC (detailsWithTag.value.seqStart + (n * detailsWithTag.value.step))
-        restr' = Restr detailsWithTag.value.split visit'
-     in Visit (Addr detailsWithTag.value.split) (restr' : restrs)
+splitVisitOneVisit :: MonadChecks m => WithTag SplitProofNodeDetails -> VisitCount -> m VisitWithTag
+splitVisitOneVisit detailsWithTag visit = do
+    restrs <- getRestrs
+    return $ tagV detailsWithTag.tag $
+        let visit' = case fromJust (simpleVC visit) of
+                SimpleVisitCountViewOffset n -> offsetVC (n * detailsWithTag.value.step)
+                SimpleVisitCountViewNumber n -> numberVC (detailsWithTag.value.seqStart + (n * detailsWithTag.value.step))
+            restr' = Restr detailsWithTag.value.split visit'
+        in Visit (Addr detailsWithTag.value.split) (restr' : restrs)
 
 splitHypsAtVisit :: MonadChecks m => SplitProofNode () -> VisitCount -> m [(Hyp, ProofCheckDescription)]
 splitHypsAtVisit splitNode visit = do
@@ -390,30 +389,30 @@ splitHypsAtVisit splitNode visit = do
         , inst exprL && inst exprR
         ]
 
-loopEqHypsAtVisit :: Tag -> NodeAddr -> [Lambda] -> [Restr] -> VisitCount -> Bool -> [(Hyp, ProofCheckDescription)]
-loopEqHypsAtVisit tag split eqs restrs visitNum useIfAt =
-    [ (pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start), prettyTag tag ++ " pc imp")
-    ] ++
-    [ ( eqWithIfAtH useIfAt
-            (eqSideH (zsub expr) start)
-            (eqSideH (isub expr) visit)
-            (Just (eqInductH split.unwrap 0))
-      , prettyTag tag ++ " const"
-      )
-    | Lambda { expr } <- eqs
-    , instEqAtVisit expr visitNum
-    ]
-  where
-    details = SplitProofNodeDetails split 0 1 eqs
-    visit = splitVisitOneVisit (WithTag tag details) restrs visitNum
-    start = splitVisitOneVisit (WithTag tag details) restrs (numberVC 0)
-    mksub v = walkExprs $ \case
-        Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
-        expr -> expr
-    zsub = mksub (machineWordE 0)
-    isub = mksub $ case fromJust (simpleVC visitNum) of
-        SimpleVisitCountViewNumber n -> machineWordE n
-        SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
+loopEqHypsAtVisit :: MonadChecks m => Tag -> NodeAddr -> [Lambda] -> VisitCount -> Bool -> m [(Hyp, ProofCheckDescription)]
+loopEqHypsAtVisit tag split eqs visitNum useIfAt = do
+    let details = SplitProofNodeDetails split 0 1 eqs
+    visit <- splitVisitOneVisit (WithTag tag details) visitNum
+    start <- splitVisitOneVisit (WithTag tag details) (numberVC 0)
+    let mksub v = walkExprs $ \case
+            Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
+            expr -> expr
+    let zsub = mksub (machineWordE 0)
+    let isub = mksub $ case fromJust (simpleVC visitNum) of
+            SimpleVisitCountViewNumber n -> machineWordE n
+            SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
+    return $
+        [ (pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start), prettyTag tag ++ " pc imp")
+        ] ++
+        [ ( eqWithIfAtH useIfAt
+                (eqSideH (zsub expr) start)
+                (eqSideH (isub expr) visit)
+                (Just (eqInductH split.unwrap 0))
+        , prettyTag tag ++ " const"
+        )
+        | Lambda { expr } <- eqs
+        , instEqAtVisit expr visitNum
+        ]
 
 instEqAtVisit :: Expr -> VisitCount -> Bool
 instEqAtVisit expr visit = case expr.value of
@@ -461,28 +460,27 @@ singleLoopInductStepChecksM node tag = do
     restrs <- getRestrs
     let eqsAssume = []
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
-    let cont = splitVisitOneVisit (WithTag tag details) restrs (offsetVC node.n)
+    cont <- splitVisitOneVisit (WithTag tag details) (offsetVC node.n)
     assumeL [pcTrueH cont]
-    assumeR
-        [ h
-        | i <- [0.. node.n - 1]
-        , (h, _) <- loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) restrs (offsetVC i) False
-        ]
-    for_ (loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) restrs (offsetVC node.n) False) $ \(hyp, desc) ->
-        conclude
-            ("Induct check (" ++ desc ++ ") at inductive step for " ++ show node.point.unwrap)
-            hyp
+    for_ [0.. node.n - 1] $ \i ->
+        loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) (offsetVC i) False
+            >>= traverse_ (\(h, _) -> assume1R h)
+    loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) (offsetVC node.n) False
+        >>= traverse_ (\(hyp, desc) ->
+            conclude
+                ("Induct check (" ++ desc ++ ") at inductive step for " ++ show node.point.unwrap)
+                hyp)
 
 singleLoopInductBaseChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
 singleLoopInductBaseChecksM node tag = do
     restrs <- getRestrs
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
-    for_ [0 .. node.n] $ \i ->
-        let reach = splitVisitOneVisit (WithTag tag details) restrs (numberVC i)
-            nhyps = [ pcTrueH reach ]
-         in branch $ do
-            assumeR nhyps
-            for_ (loopEqHypsAtVisit tag node.point node.eqs restrs (numberVC i) False) $ \(hyp, desc) ->
+    for_ [0 .. node.n] $ \i -> do
+        reach <- splitVisitOneVisit (WithTag tag details) (numberVC i)
+        branch $ do
+            assumeR [ pcTrueH reach ]
+            concs <- loopEqHypsAtVisit tag node.point node.eqs (numberVC i) False
+            for_ concs $ \(hyp, desc) ->
                 conclude
                     ("Base check (" ++ desc ++ ", " ++ show i ++ ") at induct step for " ++ show node.point.unwrap)
                     hyp
@@ -492,8 +490,8 @@ singleLoopRevInductChecksM node tag = do
     restrs <- getRestrs
     let eqsAssume = node.eqs
     let details = SplitProofNodeDetails node.point 0 1 eqsAssume
-    let curr = splitVisitOneVisit (WithTag tag details) restrs (offsetVC 1)
-    let cont = splitVisitOneVisit (WithTag tag details) restrs (offsetVC 2)
+    curr <- splitVisitOneVisit (WithTag tag details) (offsetVC 1)
+    cont <- splitVisitOneVisit (WithTag tag details) (offsetVC 2)
     let splitDetails = SplitProofNode
             { n = 1
             , loopRMax = 1
@@ -507,11 +505,9 @@ singleLoopRevInductChecksM node tag = do
             }
     nonErr <- splitRErrPcHypM splitDetails
     let trueNext = trueIfAt' node.pred_ cont
-    assumeR $
-        [pcTrueH curr, trueNext, nonErr] ++
-        [ h
-        | (h, _) <- loopEqHypsAtVisit tag node.point eqsAssume restrs (offsetVC 1) True
-        ]
+    assumeR [pcTrueH curr, trueNext, nonErr]
+    hyps <- loopEqHypsAtVisit tag node.point eqsAssume (offsetVC 1) True
+    for_ hyps $ \(h, _) -> assume1R h
     let goal = trueIfAt' node.pred_ curr
     conclude
         "Pred reverse step."
@@ -522,7 +518,7 @@ mkLoopCounterEqHypM node = do
     restrs <- getRestrs
     tag <- askNodeTag node.point
     let details = SplitProofNodeDetails node.point 0 1 []
-    let visit = splitVisitOneVisit (WithTag tag details) restrs (offsetVC 0)
+    visit <- splitVisitOneVisit (WithTag tag details) (offsetVC 0)
     return $
         eqH
             (eqSideH (machineWordVarE (Ident "%n")) visit)
@@ -534,7 +530,7 @@ singleLoopRevInductBaseChecksM node tag = do
     restrs <- getRestrs
     let eqsAssume = node.eqs
     let details = SplitProofNodeDetails node.point 0 1 eqsAssume
-    let cont = splitVisitOneVisit (WithTag tag details) restrs (offsetVC 1)
+    cont <- splitVisitOneVisit (WithTag tag details) (offsetVC 1)
     nhyp <- mkLoopCounterEqHypM node
     let splitDetails = SplitProofNode
             { n = 1
@@ -548,11 +544,9 @@ singleLoopRevInductBaseChecksM node tag = do
             , p2 = undefined
             }
     nonErr <- splitRErrPcHypM splitDetails
-    assumeR $
-        [nhyp, pcTrueH cont, nonErr] ++
-        [ h
-        | (h, _) <- loopEqHypsAtVisit tag node.point eqsAssume restrs (offsetVC 0) False
-        ]
+    assumeR [nhyp, pcTrueH cont, nonErr]
+    hyps <- loopEqHypsAtVisit tag node.point eqsAssume (offsetVC 0) False
+    for_ hyps $ \(h, _) -> assume1R h
     let goal = trueIfAt' node.pred_ cont
     conclude
         ("Pred true at " ++ show node.nBound ++ " check.")
