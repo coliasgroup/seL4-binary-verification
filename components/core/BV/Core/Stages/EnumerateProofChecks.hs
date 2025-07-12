@@ -259,12 +259,13 @@ emitRestrNodeChecks restrNode = branch $ do
         applyRestrNodeRange restrNode
         assume1L =<< getRestrOtherHyp
     let visit vc = branchRestrs $ do
-            tag <- askNodeTag restrNode.point
             restrict1L $ Restr restrNode.point vc
+            tag <- askNodeTag restrNode.point
             getVisitWithTag tag $ Addr restrNode.point
+    let minPred = restrNode.range.x - 1
     let minVCOpt = case restrNode.range.kind of
-            RestrProofNodeRangeKindOffset -> Just $ offsetVC $ max 0 $ restrNode.range.x - 1
-            _ | restrNode.range.x > 1 -> Just $ numberVC $ restrNode.range.x - 1
+            RestrProofNodeRangeKindOffset -> Just $ offsetVC (max 0 minPred)
+            _ | minPred > 0 -> Just $ numberVC minPred
             _ -> Nothing
     for_ minVCOpt $ \minVC -> do
         v <- visit minVC
