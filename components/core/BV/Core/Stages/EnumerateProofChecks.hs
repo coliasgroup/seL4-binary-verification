@@ -272,14 +272,14 @@ emitRestrNodeChecks restrNode = branch $ do
             (printf "Check of restr min %d %s for %d"
                 restrNode.range.x
                 (prettyRestrProofNodeRangeKind restrNode.range.kind)
-                restrNode.point.unwrap)
+                restrNode.point)
             (pcTrueH v)
     topVC <- visit $ fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1)
     conclude
         (printf "Check of restr max %d %s for %d"
             restrNode.range.y
             (prettyRestrProofNodeRangeKind restrNode.range.kind)
-            restrNode.point.unwrap)
+            restrNode.point)
         (pcFalseH topVC)
 
 applyRestrNodeMax :: MonadChecks m => (RestrProofNode a) -> m ()
@@ -349,7 +349,7 @@ splitInductStepChecksM splitNode = do
         conclude
             (printf "Induct check (%s) at inductive step for %d"
                 desc
-                splitNode.details.asm.split.unwrap)
+                splitNode.details.asm.split)
             hyp
 
 splitRErrPcHypM :: MonadChecks m => SplitProofNode () -> m Hyp
@@ -499,7 +499,9 @@ singleLoopInductStepChecksM node tag = do
     loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) (offsetVC node.n) False
         >>= traverse_ (\(hyp, desc) ->
             conclude
-                ("Induct check (" ++ desc ++ ") at inductive step for " ++ show node.point.unwrap)
+                (printf "Induct check (%s) at inductive step for %d"
+                    desc
+                    node.point)
                 hyp)
 
 singleLoopInductBaseChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
@@ -512,7 +514,7 @@ singleLoopInductBaseChecksM node tag = do
             concs <- loopEqHypsAtVisit tag node.point node.eqs (numberVC i) False
             for_ concs $ \(hyp, desc) ->
                 conclude
-                    ("Base check (" ++ desc ++ ", " ++ show i ++ ") at induct step for " ++ show node.point.unwrap)
+                    (printf "Base check (%s, %d) at induct step for %d" desc i node.point)
                     hyp
 
 singleLoopRevInductChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
@@ -576,7 +578,7 @@ singleLoopRevInductBaseChecksM node tag = do
     for_ hyps $ \(h, _) -> assume1R h
     let goal = trueIfAt' node.pred_ cont
     conclude
-        ("Pred true at " ++ show node.nBound ++ " check.")
+        (printf "Pred true at %d check." node.nBound)
         goal
 
 singleRevInductResultingHypM :: MonadChecks m => SingleRevInductProofNode () -> m ()

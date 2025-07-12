@@ -41,6 +41,7 @@ import qualified Data.Map as M
 import Data.String (IsString (..))
 import GHC.Generics (Generic)
 import Optics (view)
+import Text.Printf (PrintfArg (..))
 
 newtype Ident
   = Ident { unwrap :: String }
@@ -157,6 +158,10 @@ newtype NodeAddr
   deriving newtype (Integral, NFData, Num, Real)
 
 instance Binary NodeAddr where
+
+instance PrintfArg NodeAddr where
+    formatArg = formatArg . (.unwrap)
+    parseFormat _ = parseFormat (undefined :: Integer)
 
 data NodeId
   = Ret
