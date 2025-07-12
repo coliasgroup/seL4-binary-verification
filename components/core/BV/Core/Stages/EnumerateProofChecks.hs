@@ -221,7 +221,7 @@ instantiatePairingEqs direction = do
 enumerateProofChecksInner :: MonadChecks m => m () -> ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
 enumerateProofChecksInner = go
   where
-    go before (ProofNodeWith _ node) = branch $ do
+    go before (ProofNodeWith () node) = branch $ do
         before
         case node of
             ProofNodeLeaf -> do
