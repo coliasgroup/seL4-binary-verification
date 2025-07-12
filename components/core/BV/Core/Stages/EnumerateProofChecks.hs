@@ -274,7 +274,8 @@ emitRestrNodeChecks restrNode = branch $ do
     tag <- askNodeTag restrNode.point
     branchRestrs $ do
         applyRestrNodeRange restrNode
-        assume1L =<< getRestrOthersHyp
+        applyRestrOthers
+        assume1L =<< pcFalseH <$> getVisitWithTag C Err
     let visit vc = branchRestrs $ do
             restrict1L $ Restr restrNode.point vc
             getVisitWithTag tag $ Addr restrNode.point
@@ -321,12 +322,11 @@ applyRestrNodeRange restrNode = restrict1L $
             (fromRestrKindVC restrNode.range.kind)
             [restrNode.range.x .. restrNode.range.y - 1])
 
-getRestrOthersHyp :: MonadChecks m => m Hyp
-getRestrOthersHyp = branch $ do
+applyRestrOthers :: MonadChecks m => m ()
+applyRestrOthers = do
     restrs <- getRestrs
     loopsToSplit <- liftReader $ askLoopsToSplit restrs
     restrictR [ Restr addr (numbersVC [0, 1]) | addr <- loopsToSplit ]
-    pcFalseH <$> getVisitWithTag C Err
   where
     askLoopsToSplit restrs = do
         loopHeadsWithSplit <- fmap catMaybes $ for restrs $ \restr -> askLoopHead restr.nodeAddr
@@ -375,7 +375,8 @@ splitRErrPcHypM splitNode = branchRestrs $ do
             doubleRangeVC
                 (splitNode.details.c.seqStart + (splitNode.n * splitNode.details.c.step))
                 (splitNode.loopRMax + 2)
-    getRestrOthersHyp
+    applyRestrOthers
+    pcFalseH <$> getVisitWithTag C Err
 
 assumeSplitNoLoop :: MonadChecks m => SplitProofNode () -> m ()
 assumeSplitNoLoop splitNode = do
