@@ -516,17 +516,6 @@ singleLoopRevInductChecksM node tag = do
         "Pred reverse step."
         goal
 
-mkLoopCounterEqHypM :: MonadChecks m => SingleRevInductProofNode () -> m Hyp
-mkLoopCounterEqHypM node = do
-    tag <- askNodeTag node.point
-    let details = SplitProofNodeDetails node.point 0 1 []
-    visit <- splitVisitOneVisit (WithTag tag details) (offsetVC 0)
-    return $
-        eqH
-            (eqSideH (machineWordVarE (Ident "%n")) visit)
-            (eqSideH (machineWordE node.nBound) visit)
-            (Just (eqInductH node.point.unwrap 0))
-
 singleLoopRevInductBaseChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
 singleLoopRevInductBaseChecksM node tag = do
     let eqsAssume = node.eqs
@@ -551,6 +540,17 @@ singleLoopRevInductBaseChecksM node tag = do
     conclude
         (printf "Pred true at %d check." node.nBound)
         goal
+
+mkLoopCounterEqHypM :: MonadChecks m => SingleRevInductProofNode () -> m Hyp
+mkLoopCounterEqHypM node = do
+    tag <- askNodeTag node.point
+    let details = SplitProofNodeDetails node.point 0 1 []
+    visit <- splitVisitOneVisit (WithTag tag details) (offsetVC 0)
+    return $
+        eqH
+            (eqSideH (machineWordVarE (Ident "%n")) visit)
+            (eqSideH (machineWordE node.nBound) visit)
+            (Just (eqInductH node.point.unwrap 0))
 
 assumeSingleRevInduct :: MonadChecks m => SingleRevInductProofNode () -> m ()
 assumeSingleRevInduct node = branchRestrs $ do
