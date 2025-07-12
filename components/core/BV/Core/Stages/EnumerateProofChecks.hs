@@ -217,7 +217,7 @@ enumerateProofChecksInner = go
             ProofNodeWith checks . ProofNodeRestr <$>
                 traverseRestrProofNodeChild go restrNode
         ProofNodeCaseSplit caseSplitNode -> do
-            visit <- tagV caseSplitNode.tag <$> getVisit (Addr caseSplitNode.addr)
+            visit <- getVisitWithTag caseSplitNode.tag (Addr caseSplitNode.addr)
             ProofNodeWith [] . ProofNodeCaseSplit <$>
                 traverseCaseSplitProofNodeChildren
                     (thenGo (assumeR [pcTrueH visit]))
