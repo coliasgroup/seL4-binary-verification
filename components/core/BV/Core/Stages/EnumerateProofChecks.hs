@@ -492,17 +492,7 @@ emitSingleLoopRevInductChecks node tag = branch $ do
     cont <- getSplitVisitAt (WithTag tag details) (offsetVC 2)
     assume1R $ pcTrueH curr
     assume1R $ trueIfAt' node.pred_ cont
-    assume1R =<< getSplitNodeCErrHyp (SplitProofNode
-        { n = 1
-        , loopRMax = 1
-        , details = PairingOf
-            { asm = undefined
-            , c = details
-            }
-        , eqs = undefined
-        , p1 = undefined
-        , p2 = undefined
-        })
+    assume1R =<< getSingleLoopRevCErrHyp details
     assumeHyps =<< getLoopEqHypsAt tag node.point node.eqs (offsetVC 1) True
     conclude
         "Pred reverse step."
@@ -512,26 +502,16 @@ emitSingleLoopRevInductBaseChecks :: MonadChecks m => SingleRevInductProofNode (
 emitSingleLoopRevInductBaseChecks node tag = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
     cont <- getSplitVisitAt (WithTag tag details) (offsetVC 1)
-    assume1R =<< mkLoopCounterEqHypM node
+    assume1R =<< getLoopCounterEqHyp node
     assume1R $ pcTrueH cont
-    assume1R =<< getSplitNodeCErrHyp (SplitProofNode
-        { n = 1
-        , loopRMax = 1
-        , details = PairingOf
-            { asm = undefined
-            , c = details
-            }
-        , eqs = undefined
-        , p1 = undefined
-        , p2 = undefined
-        })
+    assume1R =<< getSingleLoopRevCErrHyp details
     assumeHyps =<< getLoopEqHypsAt tag node.point node.eqs (offsetVC 0) False
     conclude
         (printf "Pred true at %d check." node.nBound)
         (trueIfAt' node.pred_ cont)
 
-mkLoopCounterEqHypM :: MonadChecks m => SingleRevInductProofNode () -> m Hyp
-mkLoopCounterEqHypM node = do
+getLoopCounterEqHyp :: MonadChecks m => SingleRevInductProofNode () -> m Hyp
+getLoopCounterEqHyp node = do
     let details = SplitProofNodeDetails node.point 0 1 []
     tag <- askNodeTag node.point
     visit <- getSplitVisitAt (WithTag tag details) (offsetVC 0)
@@ -540,6 +520,19 @@ mkLoopCounterEqHypM node = do
             (eqSideH (machineWordVarE (Ident "%n")) visit)
             (eqSideH (machineWordE node.nBound) visit)
             (Just (eqInductH node.point.unwrap 0))
+
+getSingleLoopRevCErrHyp :: MonadChecks m => SplitProofNodeDetails -> m Hyp
+getSingleLoopRevCErrHyp details = getSplitNodeCErrHyp (SplitProofNode
+    { n = 1
+    , loopRMax = 1
+    , details = PairingOf
+        { asm = undefined
+        , c = details
+        }
+    , eqs = undefined
+    , p1 = undefined
+    , p2 = undefined
+    })
 
 assumeSingleRevInduct :: MonadChecks m => SingleRevInductProofNode () -> m ()
 assumeSingleRevInduct node = branchRestrs $ do
