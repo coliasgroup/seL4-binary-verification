@@ -183,6 +183,21 @@ liftReader = reader . runReader
 
 --
 
+data HypWithDesc
+  = HypWithDesc
+      { hyp :: Hyp
+      , desc :: String
+      }
+  deriving (Generic)
+
+concludeManyWith :: MonadChecks m => (String -> String) -> [HypWithDesc] -> CheckWriter m ()
+concludeManyWith f hyps = for_ hyps $ \hyp -> conclude (f hyp.desc) hyp.hyp
+
+assumeHyps :: MonadChecks m => [HypWithDesc] -> m ()
+assumeHyps = assumeR . map (.hyp)
+
+--
+
 instantiatePairingEqs :: MonadChecks m => PairingEqDirection -> m [Hyp]
 instantiatePairingEqs direction = do
     pairing <- askPairing
@@ -335,11 +350,8 @@ splitInitStepChecksM splitNode = do
         visits <- splitVisitVisits splitNode (numberVC i)
         assume1R $ pcTrueH visits.asm
         assume1R $ pcTrivH visits.c
-        visHyps <- splitHypsAtVisit splitNode (numberVC i)
-        for_ visHyps $ \(hyp, desc) ->
-            conclude
-                (printf "Induct check at visit %d: %s" i desc)
-                hyp
+        splitHypsAtVisit splitNode (numberVC i)
+            >>= concludeManyWith (\desc -> printf "Induct check at visit %d: %s" i desc)
 
 splitInductStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitInductStepChecksM splitNode = do
@@ -347,13 +359,11 @@ splitInductStepChecksM splitNode = do
     conts <- splitVisitVisits splitNode (offsetVC splitNode.n)
     assumeL [errHyp, pcTrueH conts.asm, pcTrivH conts.c]
     splitLoopHyps splitNode False
-    concs <- splitHypsAtVisit splitNode (offsetVC splitNode.n)
-    for_ concs $ \(hyp, desc) ->
-        conclude
-            (printf "Induct check (%s) at inductive step for %d"
+    splitHypsAtVisit splitNode (offsetVC splitNode.n)
+        >>= concludeManyWith (\desc ->
+            printf "Induct check (%s) at inductive step for %d"
                 desc
                 splitNode.details.asm.split)
-            hyp
 
 splitRErrPcHypM :: MonadChecks m => SplitProofNode () -> m Hyp
 splitRErrPcHypM splitNode = branchRestrs $ do
@@ -379,7 +389,7 @@ splitVisitOneVisit detailsWithTag visit = branchRestrs $ do
     restrict1L $ Restr detailsWithTag.value.split visit'
     getVisitWithTag detailsWithTag.tag (Addr detailsWithTag.value.split)
 
-splitHypsAtVisit :: MonadChecks m => SplitProofNode () -> VisitCount -> m [(Hyp, ProofCheckDescription)]
+splitHypsAtVisit :: MonadChecks m => SplitProofNode () -> VisitCount -> m [HypWithDesc]
 splitHypsAtVisit splitNode visit = do
     visits <- splitVisitVisits splitNode visit
     starts <- splitVisitVisits splitNode (numberVC 0)
@@ -391,7 +401,7 @@ splitHypsAtVisit splitNode visit = do
         lsub = mksub $ case fromJust (simpleVC visit) of
             SimpleVisitCountViewNumber n -> machineWordE n
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
-    let mk = flip (,)
+    let mk = flip HypWithDesc
         imp l r = pcImpH (PcImpHypSidePc l) (PcImpHypSidePc r)
         induct = Just $
             eqInductH
@@ -434,9 +444,8 @@ splitLoopHyps splitNode exit = do
     conts <- splitVisitVisits splitNode (offsetVC n)
     assume1R $ pcTrueH visits.asm
     when exit $ assume1R $ pcFalseH conts.asm
-    for_ [0 .. n - 1] $ \i -> do
-        concs <- splitHypsAtVisit splitNode (offsetVC i)
-        for_ concs $ \(hyp, _) -> assume1R hyp
+    for_ [0 .. n - 1] $ \i ->
+        assumeHyps =<< splitHypsAtVisit splitNode (offsetVC i)
 
 --
 
