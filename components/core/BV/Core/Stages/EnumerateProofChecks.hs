@@ -243,6 +243,8 @@ proofChecksRecM (ProofNodeWith _ node) = do
   where
     go m n = branch $ m >> proofChecksRecM n
 
+--
+
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
     assume1L =<< pcFalseH <$> getVisitWithTag C Err
@@ -253,6 +255,8 @@ leafChecksM = do
     outEqs <- instEqsM PairingEqDirectionOut
     concludeWith "Leaf path-cond imp" [retEq] noAsmErr
     traverse_ (concludeWith "Leaf eq check" [noAsmErr, retEq]) outEqs
+
+--
 
 restrChecksM :: MonadChecks m => RestrProofNode () -> CheckWriter m ()
 restrChecksM restrNode = do
@@ -305,6 +309,8 @@ getProofRestr restrNode = restrict1L $
             (map
                 (fromRestrKindVC restrNode.range.kind)
                 [restrNode.range.x .. restrNode.range.y - 1]))
+
+--
 
 splitChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitChecksM splitNode = do
