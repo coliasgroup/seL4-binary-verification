@@ -330,13 +330,12 @@ splitChecksM splitNode = do
 
 splitInitStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitInitStepChecksM splitNode = do
-    errHyp <- splitRErrPcHypM splitNode
-    assume1L errHyp
-    for_ [0..splitNode.n - 1] $ \i -> branch $ do
+    assume1L =<< splitRErrPcHypM splitNode
+    for_ [0 .. splitNode.n - 1] $ \i -> branch $ do
         visits <- splitVisitVisits splitNode (numberVC i)
-        visHyps <- splitHypsAtVisit splitNode (numberVC i)
         assume1R $ pcTrueH visits.asm
         assume1R $ pcTrivH visits.c
+        visHyps <- splitHypsAtVisit splitNode (numberVC i)
         for_ visHyps $ \(hyp, desc) ->
             conclude
                 (printf "Induct check at visit %d: %s" i desc)
@@ -430,12 +429,10 @@ splitLoopHyps splitNode exit = do
     let n = splitNode.n
     visits <- splitVisitVisits splitNode (offsetVC (n - 1))
     conts <- splitVisitVisits splitNode (offsetVC n)
-    let lEnter = pcTrueH visits.asm
-    let lExit = pcFalseH conts.asm
-    assume1R lEnter
-    when exit $ assume1R lExit
-    for_ [ offsetVC i | i <- [0..n-1] ] $ \offs -> do
-        concs <- splitHypsAtVisit splitNode offs
+    assume1R $ pcTrueH visits.asm
+    when exit $ assume1R $ pcFalseH conts.asm
+    for_ [0 .. n - 1] $ \i -> do
+        concs <- splitHypsAtVisit splitNode (offsetVC i)
         for_ concs $ \(hyp, _) -> assume1R hyp
 
 --
