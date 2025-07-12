@@ -466,15 +466,12 @@ singleLoopInductStepChecksM node tag = do
     cont <- splitVisitOneVisit (WithTag tag details) (offsetVC node.n)
     assumeL [pcTrueH cont]
     for_ [0.. node.n - 1] $ \i ->
-        loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) (offsetVC i) False
-            >>= traverse_ (\(h, _) -> assume1R h)
+        assumeHyps =<< loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) (offsetVC i) False
     loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) (offsetVC node.n) False
-        >>= traverse_ (\(hyp, desc) ->
-            conclude
-                (printf "Induct check (%s) at inductive step for %d"
-                    desc
-                    node.point)
-                hyp)
+        >>= concludeManyWith (\desc ->
+            printf "Induct check (%s) at inductive step for %d"
+                desc
+                node.point)
 
 singleLoopInductBaseChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
 singleLoopInductBaseChecksM node tag = do
@@ -483,11 +480,9 @@ singleLoopInductBaseChecksM node tag = do
         reach <- splitVisitOneVisit (WithTag tag details) (numberVC i)
         branch $ do
             assumeR [ pcTrueH reach ]
-            concs <- loopEqHypsAtVisit tag node.point node.eqs (numberVC i) False
-            for_ concs $ \(hyp, desc) ->
-                conclude
-                    (printf "Base check (%s, %d) at induct step for %d" desc i node.point)
-                    hyp
+            loopEqHypsAtVisit tag node.point node.eqs (numberVC i) False
+                >>= concludeManyWith
+                    (\desc -> printf "Base check (%s, %d) at induct step for %d" desc i node.point)
 
 singleLoopRevInductChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
 singleLoopRevInductChecksM node tag = do
@@ -509,8 +504,7 @@ singleLoopRevInductChecksM node tag = do
     nonErr <- splitRErrPcHypM splitDetails
     let trueNext = trueIfAt' node.pred_ cont
     assumeR [pcTrueH curr, trueNext, nonErr]
-    hyps <- loopEqHypsAtVisit tag node.point eqsAssume (offsetVC 1) True
-    for_ hyps $ \(h, _) -> assume1R h
+    assumeHyps =<< loopEqHypsAtVisit tag node.point eqsAssume (offsetVC 1) True
     let goal = trueIfAt' node.pred_ curr
     conclude
         "Pred reverse step."
@@ -546,8 +540,7 @@ singleLoopRevInductBaseChecksM node tag = do
             }
     nonErr <- splitRErrPcHypM splitDetails
     assumeR [nhyp, pcTrueH cont, nonErr]
-    hyps <- loopEqHypsAtVisit tag node.point eqsAssume (offsetVC 0) False
-    for_ hyps $ \(h, _) -> assume1R h
+    assumeHyps =<< loopEqHypsAtVisit tag node.point eqsAssume (offsetVC 0) False
     let goal = trueIfAt' node.pred_ cont
     conclude
         (printf "Pred true at %d check." node.nBound)
@@ -560,7 +553,7 @@ singleRevInductResultingHypM node = branchRestrs $ do
     vis <- getVisitWithTag tag (Addr node.point)
     assume1R $ trueIfAt' node.pred_ vis
 
-loopEqHypsAtVisit :: MonadChecks m => Tag -> NodeAddr -> [Lambda] -> VisitCount -> Bool -> m [(Hyp, ProofCheckDescription)]
+loopEqHypsAtVisit :: MonadChecks m => Tag -> NodeAddr -> [Lambda] -> VisitCount -> Bool -> m [HypWithDesc]
 loopEqHypsAtVisit tag split eqs visitNum useIfAt = do
     let details = SplitProofNodeDetails split 0 1 eqs
     visit <- splitVisitOneVisit (WithTag tag details) visitNum
@@ -572,7 +565,7 @@ loopEqHypsAtVisit tag split eqs visitNum useIfAt = do
     let isub = mksub $ case fromJust (simpleVC visitNum) of
             SimpleVisitCountViewNumber n -> machineWordE n
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
-    let mk = flip (,)
+    let mk = flip HypWithDesc
     return $
         [ mk (prettyTag tag ++ " pc imp") $ pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start)
         ] ++
