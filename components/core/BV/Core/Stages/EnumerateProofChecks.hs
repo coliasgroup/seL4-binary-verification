@@ -3,10 +3,11 @@ module BV.Core.Stages.EnumerateProofChecks
     ) where
 
 import BV.Core.Graph
+import BV.Core.Logic (instEqAtVisit)
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils (optionals)
 
+import Control.Monad (when)
 import Control.Monad.Reader (MonadReader (..), Reader, ReaderT, runReader)
 import Control.Monad.State (MonadState, StateT (StateT), evalStateT)
 import Control.Monad.Writer (WriterT, execWriterT, mapWriterT, tell)
@@ -424,24 +425,6 @@ splitHypsAtVisit splitNode visit = do
         , inst exprL && inst exprR
         ]
 
-instEqAtVisit :: Expr -> VisitCount -> Bool
-instEqAtVisit expr visit = case expr.value of
-    ExprValueOp OpEqSelectiveWrapper [_, xs, ys] ->
-        let xs' = word32ListFromExpr xs
-            ys' = word32ListFromExpr ys
-         in case fromJust (simpleVC visit) of
-                SimpleVisitCountViewNumber n -> n `elem` xs'
-                SimpleVisitCountViewOffset n -> n `elem` ys'
-    _ -> True
-
-word32ListFromExpr :: Expr -> [Integer]
-word32ListFromExpr = go
-  where
-    go expr = case expr.value of
-        ExprValueNum n -> [n]
-        ExprValueOp OpPlus [Expr _ (ExprValueNum n), expr'] -> n : go expr'
-        _ -> []
-
 splitLoopHyps :: MonadChecks m => SplitProofNode () -> Bool -> m ()
 splitLoopHyps splitNode exit = do
     let n = splitNode.n
@@ -450,7 +433,7 @@ splitLoopHyps splitNode exit = do
     let lEnter = pcTrueH visits.asm
     let lExit = pcFalseH conts.asm
     assume1R lEnter
-    traverse_ assume1R $ optionals exit [lExit]
+    when exit $ assume1R lExit
     for_ [ offsetVC i | i <- [0..n-1] ] $ \offs -> do
         concs <- splitHypsAtVisit splitNode offs
         for_ concs $ \(hyp, _) -> assume1R hyp
