@@ -21,7 +21,9 @@ module BV.Core.Types.Extras.ProofCheck
     , isEmptyVC
     , isOptionsVC
     , numberVC
+    , numbersVC
     , offsetVC
+    , offsetsVC
     , optionsVC
     , pcFalseH
     , pcImpH
@@ -49,15 +51,21 @@ import GHC.Generics (Generic)
 import Optics
 
 numberVC :: Integer -> VisitCount
-numberVC n = VisitCount
-    { numbers = [n]
+numberVC n = numbersVC [n]
+
+numbersVC :: [Integer] -> VisitCount
+numbersVC numbers = VisitCount
+    { numbers
     , offsets = []
     }
 
 offsetVC :: Integer -> VisitCount
-offsetVC n = VisitCount
+offsetVC n = offsetsVC [n]
+
+offsetsVC :: [Integer] -> VisitCount
+offsetsVC offsets = VisitCount
     { numbers = []
-    , offsets = [n]
+    , offsets
     }
 
 optionsVC :: [VisitCount] -> VisitCount
