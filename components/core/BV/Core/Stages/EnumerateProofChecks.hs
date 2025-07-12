@@ -211,11 +211,9 @@ enumerateProofChecksInner = go
         ProofNodeRestr restrNode -> do
             checks <- collect $ branch $ emitRestrNodeChecks restrNode
             branchRestrs $ do
-                restrict1L $ Restr
-                    restrNode.point
-                    (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
+                applyRestrNodeMax restrNode
                 assume1R =<< pcTrivH <$> getVisitWithTag restrNode.tag (Addr restrNode.point)
-            getProofRestr restrNode
+            applyRestrNodeRange restrNode
             ProofNodeWith checks . ProofNodeRestr <$>
                 traverseRestrProofNodeChild go restrNode
         ProofNodeCaseSplit caseSplitNode -> do
@@ -258,9 +256,8 @@ emitLeafNodeChecks = branch $ do
 emitRestrNodeChecks :: MonadChecks m => RestrProofNode () -> CheckWriter m ()
 emitRestrNodeChecks restrNode = branch $ do
     branchRestrs $ do
-        getProofRestr restrNode
-        restrOthersM
-        assume1L =<< pcFalseH <$> getVisitWithTag C Err
+        applyRestrNodeRange restrNode
+        assume1L =<< getRestrOtherHyp
     let visit vc = branchRestrs $ do
             tag <- askNodeTag restrNode.point
             restrict1L $ Restr restrNode.point vc
@@ -278,6 +275,26 @@ emitRestrNodeChecks restrNode = branch $ do
     conclude
         (printf "Check of restr max %d %s for %d" restrNode.range.y (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
         (pcFalseH topVC)
+
+applyRestrNodeMax :: MonadChecks m => (RestrProofNode a) -> m ()
+applyRestrNodeMax restrNode = restrict1L $
+    Restr
+        restrNode.point
+        (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
+
+applyRestrNodeRange :: MonadChecks m => (RestrProofNode a) -> m ()
+applyRestrNodeRange restrNode = restrict1L $
+    Restr
+        restrNode.point
+        (optionsVC
+            (map
+                (fromRestrKindVC restrNode.range.kind)
+                [restrNode.range.x .. restrNode.range.y - 1]))
+
+getRestrOtherHyp :: MonadChecks m => m Hyp
+getRestrOtherHyp = branch $ do
+    restrOthersM
+    pcFalseH <$> getVisitWithTag C Err
 
 restrOthersM :: MonadChecks m => m ()
 restrOthersM = do
@@ -297,15 +314,6 @@ loopsToSplitM = do
             isReachableFrom g (Addr restr.nodeAddr) (Addr lh) ||
                 nodeTag restr.nodeAddr /= nodeTag lh
     return . S.toList $ appEndo (foldMap (Endo . f) (reverse restrs)) remLoopHeadsInit
-
-getProofRestr :: MonadChecks m => (RestrProofNode a) -> m ()
-getProofRestr restrNode = restrict1L $
-    Restr
-        restrNode.point
-        (optionsVC
-            (map
-                (fromRestrKindVC restrNode.range.kind)
-                [restrNode.range.x .. restrNode.range.y - 1]))
 
 --
 
@@ -345,8 +353,7 @@ splitRErrPcHypM splitNode = branchRestrs $ do
     let nc = splitNode.n * splitNode.details.c.step
     let vc = doubleRangeVC (splitNode.details.c.seqStart + nc) (splitNode.loopRMax + 2)
     restrict1L $ Restr splitNode.details.c.split vc
-    restrOthersM
-    pcFalseH <$> getVisitWithTag C Err
+    getRestrOtherHyp
 
 splitNoLoopHyps :: MonadChecks m => SplitProofNode () -> m ()
 splitNoLoopHyps splitNode = do
