@@ -365,7 +365,7 @@ splitRErrPcHypM splitNode = branchRestrs $ do
 splitNoLoopHyps :: MonadChecks m => SplitProofNode () -> m ()
 splitNoLoopHyps splitNode = do
     visits <- splitVisitVisits splitNode (numberVC splitNode.n)
-    assumeR [pcFalseH visits.asm]
+    assume1R $ pcFalseH visits.asm
 
 splitVisitVisits :: MonadChecks m => SplitProofNode () -> VisitCount -> m (PairingOf VisitWithTag)
 splitVisitVisits splitNode visit = for (withTags splitNode.details) $ \detailsWithTag ->
@@ -374,8 +374,8 @@ splitVisitVisits splitNode visit = for (withTags splitNode.details) $ \detailsWi
 splitVisitOneVisit :: MonadChecks m => WithTag SplitProofNodeDetails -> VisitCount -> m VisitWithTag
 splitVisitOneVisit detailsWithTag visit = branchRestrs $ do
     let visit' = case fromJust (simpleVC visit) of
-            SimpleVisitCountViewOffset n -> offsetVC (n * detailsWithTag.value.step)
-            SimpleVisitCountViewNumber n -> numberVC (detailsWithTag.value.seqStart + (n * detailsWithTag.value.step))
+            SimpleVisitCountViewOffset n -> offsetVC $ n * detailsWithTag.value.step
+            SimpleVisitCountViewNumber n -> numberVC $ detailsWithTag.value.seqStart + (n * detailsWithTag.value.step)
     restrict1L $ Restr detailsWithTag.value.split visit'
     getVisitWithTag detailsWithTag.tag (Addr detailsWithTag.value.split)
 
@@ -393,7 +393,10 @@ splitHypsAtVisit splitNode visit = do
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
     let mk = flip (,)
         imp l r = pcImpH (PcImpHypSidePc l) (PcImpHypSidePc r)
-        induct = Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap)
+        induct = Just $
+            eqInductH
+                splitNode.details.asm.split.unwrap
+                splitNode.details.c.split.unwrap
     return $
         [ mk "pc imp" $ imp visits.asm visits.c
         , mk (prettyTag Asm ++ " pc imp") $ imp visits.asm starts.asm
