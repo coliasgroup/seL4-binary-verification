@@ -24,7 +24,6 @@ module BV.Core.Types.Extras.ProofCheck
     , numbersVC
     , offsetVC
     , offsetsVC
-    , optionsVC
     , pcFalseH
     , pcImpH
     , pcTrivH
@@ -68,19 +67,11 @@ offsetsVC offsets = VisitCount
     , offsets
     }
 
-optionsVC :: [VisitCount] -> VisitCount
-optionsVC = fold
-
 isOptionsVC :: VisitCount -> Bool
 isOptionsVC vc = length vc.numbers + length vc.offsets > 1
 
 isEmptyVC :: VisitCount -> Bool
-isEmptyVC = \case
-    VisitCount
-        { numbers = []
-        , offsets = []
-        } -> True
-    _ -> False
+isEmptyVC = (==) mempty
 
 data SimpleVisitCountView
   = SimpleVisitCountViewNumber Integer
@@ -107,11 +98,10 @@ fromRestrKindVC kind n = n & case kind of
     RestrProofNodeRangeKindOffset -> offsetVC
 
 upToVC :: Integer -> VisitCount
-upToVC n = optionsVC (map numberVC [0 .. n - 1])
+upToVC n = foldMap numberVC [0 .. n - 1]
 
 doubleRangeVC :: Integer -> Integer -> VisitCount
-doubleRangeVC n m = optionsVC $
-    map numberVC [0 ..  n - 1] ++ map offsetVC [0 ..  m - 1]
+doubleRangeVC n m = foldMap numberVC [0 .. n - 1] <> foldMap offsetVC [0 .. m - 1]
 
 hasZeroVC :: VisitCount -> Bool
 hasZeroVC vc = 0 `elem` vc.numbers
