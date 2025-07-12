@@ -1,3 +1,8 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Redundant <$>" #-}
+{-# HLINT ignore "Functor law" #-}
+
 module BV.Core.Stages.EnumerateProofChecks
     ( enumerateProofChecks
     ) where
