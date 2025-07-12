@@ -387,39 +387,39 @@ splitHypsAtVisit splitNode visit = do
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
             expr -> expr
         inst expr = instEqAtVisit expr visit
-        zsub = mksub (machineWordE 0)
+        zsub = mksub $ machineWordE 0
         lsub = mksub $ case fromJust (simpleVC visit) of
             SimpleVisitCountViewNumber n -> machineWordE n
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
+    let mk = flip (,)
+        imp l r = pcImpH (PcImpHypSidePc l) (PcImpHypSidePc r)
+        induct = Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap)
     return $
-        [ (pcImpH (PcImpHypSidePc visits.asm) (PcImpHypSidePc visits.c), "pc imp")
-        , (pcImpH (PcImpHypSidePc visits.asm) (PcImpHypSidePc starts.asm), prettyTag Asm ++ " pc imp")
-        , (pcImpH (PcImpHypSidePc visits.c) (PcImpHypSidePc starts.c), prettyTag C ++ " pc imp")
+        [ mk "pc imp" $ imp visits.asm visits.c
+        , mk (prettyTag Asm ++ " pc imp") $ imp visits.asm starts.asm
+        , mk (prettyTag C ++ " pc imp") $ imp visits.c starts.c
         ] ++
-        [ ( eqH
+        [ mk (prettyTag Asm ++ " const") $
+            eqH
                 (eqSideH (zsub exprL) starts.asm)
                 (eqSideH (lsub exprL) visits.asm)
-                (Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap))
-        , prettyTag Asm ++ " const"
-        )
+                induct
         | Lambda { expr = exprL } <- splitNode.details.asm.eqs
         , inst exprL
         ] ++
-        [ ( eqH
+        [ mk (prettyTag C ++ " const") $
+            eqH
                 (eqSideH (zsub exprR) starts.c)
                 (eqSideH (lsub exprR) visits.c)
-                (Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap))
-        , prettyTag C ++ " const"
-        )
+                induct
         | Lambda { expr = exprR } <- splitNode.details.c.eqs
         , inst exprR
         ] ++
-        [ ( eqH
+        [ mk "eq" $
+            eqH
                 (eqSideH (lsub exprL) visits.asm)
                 (eqSideH (lsub exprR) visits.c)
-                (Just (eqInductH splitNode.details.asm.split.unwrap splitNode.details.c.split.unwrap))
-        , "eq"
-        )
+                induct
         | (Lambda { expr = exprL }, Lambda { expr = exprR }) <- splitNode.eqs
         , inst exprL && inst exprR
         ]
