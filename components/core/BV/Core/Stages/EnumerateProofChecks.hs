@@ -352,18 +352,18 @@ splitInitStepChecksM splitNode = do
     assume1L =<< splitRErrPcHypM splitNode
     for_ [0 .. splitNode.n - 1] $ \i -> branch $ do
         visits <- splitVisitVisits splitNode (numberVC i)
-        assume1R $ pcTrueH visits.asm
-        assume1R $ pcTrivH visits.c
+        assumeR [pcTrueH visits.asm, pcTrivH visits.c]
         splitHypsAtVisit splitNode (numberVC i)
             >>= concludeManyWith (\desc -> printf "Induct check at visit %d: %s" i desc)
 
 splitInductStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitInductStepChecksM splitNode = do
+    let n = splitNode.n
     errHyp <- splitRErrPcHypM splitNode
-    conts <- splitVisitVisits splitNode (offsetVC splitNode.n)
+    conts <- splitVisitVisits splitNode (offsetVC n)
     assumeL [errHyp, pcTrueH conts.asm, pcTrivH conts.c]
     assumeSplitLoop splitNode False
-    splitHypsAtVisit splitNode (offsetVC splitNode.n)
+    splitHypsAtVisit splitNode (offsetVC n)
         >>= concludeManyWith (\desc ->
             printf "Induct check (%s) at inductive step for %d"
                 desc
@@ -371,9 +371,11 @@ splitInductStepChecksM splitNode = do
 
 splitRErrPcHypM :: MonadChecks m => SplitProofNode () -> m Hyp
 splitRErrPcHypM splitNode = branchRestrs $ do
-    let nc = splitNode.n * splitNode.details.c.step
-    let vc = doubleRangeVC (splitNode.details.c.seqStart + nc) (splitNode.loopRMax + 2)
-    restrict1L $ Restr splitNode.details.c.split vc
+    restrict1L $
+        Restr splitNode.details.c.split $
+            doubleRangeVC
+                (splitNode.details.c.seqStart + (splitNode.n * splitNode.details.c.step))
+                (splitNode.loopRMax + 2)
     getRestrOthersHyp
 
 assumeSplitNoLoop :: MonadChecks m => SplitProofNode () -> m ()
@@ -387,12 +389,13 @@ splitVisitVisits splitNode visit = for (withTags splitNode.details) $ \detailsWi
 
 splitVisitOneVisit :: MonadChecks m => WithTag SplitProofNodeDetails -> VisitCount -> m VisitWithTag
 splitVisitOneVisit detailsWithTag visit = branchRestrs $ do
-    let visit' = case fromJust (simpleVC visit) of
-            SimpleVisitCountViewOffset n ->
-                offsetVC $ n * detailsWithTag.value.step
-            SimpleVisitCountViewNumber n ->
-                numberVC $ detailsWithTag.value.seqStart + (n * detailsWithTag.value.step)
-    restrict1L $ Restr detailsWithTag.value.split visit'
+    restrict1L $
+        Restr detailsWithTag.value.split $
+            case fromJust (simpleVC visit) of
+                SimpleVisitCountViewOffset n ->
+                    offsetVC $ n * detailsWithTag.value.step
+                SimpleVisitCountViewNumber n ->
+                    numberVC $ detailsWithTag.value.seqStart + (n * detailsWithTag.value.step)
     getVisitWithTag detailsWithTag.tag (Addr detailsWithTag.value.split)
 
 assumeSplitLoop :: MonadChecks m => SplitProofNode () -> Bool -> m ()
