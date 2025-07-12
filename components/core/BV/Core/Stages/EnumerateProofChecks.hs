@@ -572,15 +572,15 @@ loopEqHypsAtVisit tag split eqs visitNum useIfAt = do
     let isub = mksub $ case fromJust (simpleVC visitNum) of
             SimpleVisitCountViewNumber n -> machineWordE n
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
+    let mk = flip (,)
     return $
-        [ (pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start), prettyTag tag ++ " pc imp")
+        [ mk (prettyTag tag ++ " pc imp") $ pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start)
         ] ++
-        [ ( eqWithIfAtH useIfAt
+        [ mk (prettyTag tag ++ " const") $
+            eqWithIfAtH useIfAt
                 (eqSideH (zsub expr) start)
                 (eqSideH (isub expr) visit)
                 (Just (eqInductH split.unwrap 0))
-        , prettyTag tag ++ " const"
-        )
         | Lambda { expr } <- eqs
         , instEqAtVisit expr visitNum
         ]
