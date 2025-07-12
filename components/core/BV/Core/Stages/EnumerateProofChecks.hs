@@ -389,6 +389,16 @@ splitVisitOneVisit detailsWithTag visit = branchRestrs $ do
     restrict1L $ Restr detailsWithTag.value.split visit'
     getVisitWithTag detailsWithTag.tag (Addr detailsWithTag.value.split)
 
+splitLoopHyps :: MonadChecks m => SplitProofNode () -> Bool -> m ()
+splitLoopHyps splitNode exit = do
+    let n = splitNode.n
+    visits <- splitVisitVisits splitNode (offsetVC (n - 1))
+    conts <- splitVisitVisits splitNode (offsetVC n)
+    assume1R $ pcTrueH visits.asm
+    when exit $ assume1R $ pcFalseH conts.asm
+    for_ [0 .. n - 1] $ \i ->
+        assumeHyps =<< splitHypsAtVisit splitNode (offsetVC i)
+
 splitHypsAtVisit :: MonadChecks m => SplitProofNode () -> VisitCount -> m [HypWithDesc]
 splitHypsAtVisit splitNode visit = do
     visits <- splitVisitVisits splitNode visit
@@ -436,16 +446,6 @@ splitHypsAtVisit splitNode visit = do
         | (Lambda { expr = exprL }, Lambda { expr = exprR }) <- splitNode.eqs
         , inst exprL && inst exprR
         ]
-
-splitLoopHyps :: MonadChecks m => SplitProofNode () -> Bool -> m ()
-splitLoopHyps splitNode exit = do
-    let n = splitNode.n
-    visits <- splitVisitVisits splitNode (offsetVC (n - 1))
-    conts <- splitVisitVisits splitNode (offsetVC n)
-    assume1R $ pcTrueH visits.asm
-    when exit $ assume1R $ pcFalseH conts.asm
-    for_ [0 .. n - 1] $ \i ->
-        assumeHyps =<< splitHypsAtVisit splitNode (offsetVC i)
 
 --
 
