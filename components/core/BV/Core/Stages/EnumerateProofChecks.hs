@@ -32,8 +32,8 @@ enumerateProofChecks argRenames pairing problem proofScript =
   where
     context = initContext argRenames pairing problem
     m = do
-        assumeR =<< instEqsM PairingEqDirectionIn
-        proofChecksRecM proofScript.root
+        assumeR =<< instantiatePairingEqs PairingEqDirectionIn
+        enumerateProofChecksInner proofScript.root
 
 data Context
   = Context
@@ -181,8 +181,8 @@ getVisitWithTag tag n = tagV tag <$> getVisit n
 
 --
 
-instEqsM :: MonadChecks m => PairingEqDirection -> m [Hyp]
-instEqsM direction = do
+instantiatePairingEqs :: MonadChecks m => PairingEqDirection -> m [Hyp]
+instantiatePairingEqs direction = do
     pairing <- askPairing
     let eqs = case direction of
             PairingEqDirectionIn -> pairing.inEqs
@@ -201,14 +201,15 @@ instEqsM direction = do
 
 --
 
-proofChecksRecM :: MonadChecks m => ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
-proofChecksRecM (ProofNodeWith _ node) = do
-    case node of
+enumerateProofChecksInner :: MonadChecks m => ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
+enumerateProofChecksInner = go
+  where
+    go (ProofNodeWith _ node) = case node of
         ProofNodeLeaf -> do
-            checks <- collect $ branch leafChecksM
+            checks <- collect $ branch emitLeafNodeChecks
             return $ ProofNodeWith checks ProofNodeLeaf
         ProofNodeRestr restrNode -> do
-            checks <- collect $ branch $ restrChecksM restrNode
+            checks <- collect $ branch $ emitRestrNodeChecks restrNode
             branchRestrs $ do
                 restrict1L $ Restr
                     restrNode.point
@@ -216,50 +217,46 @@ proofChecksRecM (ProofNodeWith _ node) = do
                 assume1R =<< pcTrivH <$> getVisitWithTag restrNode.tag (Addr restrNode.point)
             getProofRestr restrNode
             ProofNodeWith checks . ProofNodeRestr <$>
-                traverseRestrProofNodeChild
-                    proofChecksRecM
-                    restrNode
+                traverseRestrProofNodeChild go restrNode
         ProofNodeCaseSplit caseSplitNode -> do
             visit <- tagV caseSplitNode.tag <$> getVisit (Addr caseSplitNode.addr)
             ProofNodeWith [] . ProofNodeCaseSplit <$>
                 traverseCaseSplitProofNodeChildren
-                    (go (assumeR [pcTrueH visit]))
-                    (go (assumeR [pcFalseH visit]))
+                    (thenGo (assumeR [pcTrueH visit]))
+                    (thenGo (assumeR [pcFalseH visit]))
                     caseSplitNode
         ProofNodeSplit splitNode -> do
             checks <- collect $ branch $ splitChecksM splitNode
             ProofNodeWith checks . ProofNodeSplit <$>
                 traverseSplitProofNodeChildren
-                    (go (splitNoLoopHyps splitNode))
-                    (go (splitLoopHyps splitNode True))
+                    (thenGo (splitNoLoopHyps splitNode))
+                    (thenGo (splitLoopHyps splitNode True))
                     splitNode
         ProofNodeSingleRevInduct singleRevInductNode -> do
             checks <- collect $ branch $ singleRevInductChecksM singleRevInductNode
             singleRevInductResultingHypM singleRevInductNode
             ProofNodeWith checks . ProofNodeSingleRevInduct <$>
-                traverseSingleRevInductProofNodeChild
-                    proofChecksRecM
-                    singleRevInductNode
-  where
-    go m n = branch $ m >> proofChecksRecM n
+                traverseSingleRevInductProofNodeChild go singleRevInductNode
+      where
+        thenGo m n = branch $ m >> go n
 
 --
 
-leafChecksM :: MonadChecks m => CheckWriter m ()
-leafChecksM = do
+emitLeafNodeChecks :: MonadChecks m => CheckWriter m ()
+emitLeafNodeChecks = branch $ do
     assume1L =<< pcFalseH <$> getVisitWithTag C Err
     noAsmErr <- pcFalseH <$> getVisitWithTag Asm Err
     retEq <- eqH'
         <$> (eqSideH trueE <$> getVisitWithTag Asm Ret)
         <*> (eqSideH trueE <$> getVisitWithTag C Ret)
-    outEqs <- instEqsM PairingEqDirectionOut
+    outEqs <- instantiatePairingEqs PairingEqDirectionOut
     concludeWith "Leaf path-cond imp" [retEq] noAsmErr
     traverse_ (concludeWith "Leaf eq check" [noAsmErr, retEq]) outEqs
 
 --
 
-restrChecksM :: MonadChecks m => RestrProofNode () -> CheckWriter m ()
-restrChecksM restrNode = do
+emitRestrNodeChecks :: MonadChecks m => RestrProofNode () -> CheckWriter m ()
+emitRestrNodeChecks restrNode = branch $ do
     branchRestrs $ do
         getProofRestr restrNode
         restrOthersM
