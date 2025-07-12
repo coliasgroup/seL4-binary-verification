@@ -421,31 +421,6 @@ splitHypsAtVisit splitNode visit = do
         , inst exprL && inst exprR
         ]
 
-loopEqHypsAtVisit :: MonadChecks m => Tag -> NodeAddr -> [Lambda] -> VisitCount -> Bool -> m [(Hyp, ProofCheckDescription)]
-loopEqHypsAtVisit tag split eqs visitNum useIfAt = do
-    let details = SplitProofNodeDetails split 0 1 eqs
-    visit <- splitVisitOneVisit (WithTag tag details) visitNum
-    start <- splitVisitOneVisit (WithTag tag details) (numberVC 0)
-    let mksub v = walkExprs $ \case
-            Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
-            expr -> expr
-    let zsub = mksub (machineWordE 0)
-    let isub = mksub $ case fromJust (simpleVC visitNum) of
-            SimpleVisitCountViewNumber n -> machineWordE n
-            SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
-    return $
-        [ (pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start), prettyTag tag ++ " pc imp")
-        ] ++
-        [ ( eqWithIfAtH useIfAt
-                (eqSideH (zsub expr) start)
-                (eqSideH (isub expr) visit)
-                (Just (eqInductH split.unwrap 0))
-        , prettyTag tag ++ " const"
-        )
-        | Lambda { expr } <- eqs
-        , instEqAtVisit expr visitNum
-        ]
-
 instEqAtVisit :: Expr -> VisitCount -> Bool
 instEqAtVisit expr visit = case expr.value of
     ExprValueOp OpEqSelectiveWrapper [_, xs, ys] ->
@@ -476,6 +451,8 @@ splitLoopHyps splitNode exit = do
     for_ [ offsetVC i | i <- [0..n-1] ] $ \offs -> do
         concs <- splitHypsAtVisit splitNode offs
         for_ concs $ \(hyp, _) -> assume1R hyp
+
+--
 
 singleRevInductChecksM :: MonadChecks m => SingleRevInductProofNode () -> CheckWriter m ()
 singleRevInductChecksM node = do
@@ -587,3 +564,28 @@ singleRevInductResultingHypM node = branchRestrs $ do
     tag <- askNodeTag node.point
     vis <- getVisitWithTag tag (Addr node.point)
     assume1R $ trueIfAt' node.pred_ vis
+
+loopEqHypsAtVisit :: MonadChecks m => Tag -> NodeAddr -> [Lambda] -> VisitCount -> Bool -> m [(Hyp, ProofCheckDescription)]
+loopEqHypsAtVisit tag split eqs visitNum useIfAt = do
+    let details = SplitProofNodeDetails split 0 1 eqs
+    visit <- splitVisitOneVisit (WithTag tag details) visitNum
+    start <- splitVisitOneVisit (WithTag tag details) (numberVC 0)
+    let mksub v = walkExprs $ \case
+            Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
+            expr -> expr
+    let zsub = mksub (machineWordE 0)
+    let isub = mksub $ case fromJust (simpleVC visitNum) of
+            SimpleVisitCountViewNumber n -> machineWordE n
+            SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
+    return $
+        [ (pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start), prettyTag tag ++ " pc imp")
+        ] ++
+        [ ( eqWithIfAtH useIfAt
+                (eqSideH (zsub expr) start)
+                (eqSideH (isub expr) visit)
+                (Just (eqInductH split.unwrap 0))
+        , prettyTag tag ++ " const"
+        )
+        | Lambda { expr } <- eqs
+        , instEqAtVisit expr visitNum
+        ]
