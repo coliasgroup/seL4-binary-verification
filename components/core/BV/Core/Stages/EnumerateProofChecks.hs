@@ -467,10 +467,10 @@ emitSingleRevInductNodeChecks node = do
 
 singleLoopInductStepChecksM :: MonadChecks m => SingleRevInductProofNode () -> Tag -> CheckWriter m ()
 singleLoopInductStepChecksM node tag = do
-    let eqsAssume = []
+    let eqsAssume = [] -- TODO
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
     cont <- splitVisitOneVisit (WithTag tag details) (offsetVC node.n)
-    assumeL [pcTrueH cont]
+    assume1L $ pcTrueH cont
     for_ [0.. node.n - 1] $ \i ->
         assumeHyps =<< loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) (offsetVC i) False
     loopEqHypsAtVisit tag node.point (eqsAssume ++ node.eqs) (offsetVC node.n) False
@@ -485,7 +485,7 @@ singleLoopInductBaseChecksM node tag = do
     for_ [0 .. node.n] $ \i -> do
         reach <- splitVisitOneVisit (WithTag tag details) (numberVC i)
         branch $ do
-            assumeR [ pcTrueH reach ]
+            assume1R $ pcTrueH reach
             loopEqHypsAtVisit tag node.point node.eqs (numberVC i) False
                 >>= concludeManyWith
                     (\desc -> printf "Base check (%s, %d) at induct step for %d" desc i node.point)
