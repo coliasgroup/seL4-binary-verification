@@ -30,9 +30,9 @@ enumerateProofChecks argRenames pairing problem proofScript =
     ProofScript $ runReader (evalStateT m initState) context
   where
     context = initContext argRenames pairing problem
-    m = do
-        assumeR =<< instantiatePairingEqs PairingEqDirectionIn
-        enumerateProofChecksInner proofScript.root
+    m = enumerateProofChecksInner
+        (assumeR =<< instantiatePairingEqs PairingEqDirectionIn)
+        proofScript.root
 
 data Context
   = Context
@@ -218,41 +218,41 @@ instantiatePairingEqs direction = do
 
 --
 
-enumerateProofChecksInner :: MonadChecks m => ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
+enumerateProofChecksInner :: MonadChecks m => m () -> ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
 enumerateProofChecksInner = go
   where
-    go (ProofNodeWith _ node) = case node of
-        ProofNodeLeaf -> do
-            checks <- collect $ branch emitLeafNodeChecks
-            return $ ProofNodeWith checks ProofNodeLeaf
-        ProofNodeRestr restrNode -> do
-            checks <- collect $ branch $ emitRestrNodeChecks restrNode
-            ProofNodeWith checks . ProofNodeRestr <$>
-                traverseRestrProofNodeChild
-                    (thenGo (assumeRestrTriv restrNode >> applyRestrNodeRange restrNode))
-                    restrNode
-        ProofNodeCaseSplit caseSplitNode -> do
-            visit <- getVisitWithTag caseSplitNode.tag (Addr caseSplitNode.addr)
-            ProofNodeWith [] . ProofNodeCaseSplit <$>
-                traverseCaseSplitProofNodeChildren
-                    (thenGo (assumeR [pcTrueH visit]))
-                    (thenGo (assumeR [pcFalseH visit]))
-                    caseSplitNode
-        ProofNodeSplit splitNode -> do
-            checks <- collect $ branch $ emitSplitNodeChecks splitNode
-            ProofNodeWith checks . ProofNodeSplit <$>
-                traverseSplitProofNodeChildren
-                    (thenGo (assumeSplitNoLoop splitNode))
-                    (thenGo (assumeSplitLoop splitNode True))
-                    splitNode
-        ProofNodeSingleRevInduct singleRevInductNode -> do
-            checks <- collect $ branch $ emitSingleRevInductNodeChecks singleRevInductNode
-            ProofNodeWith checks . ProofNodeSingleRevInduct <$>
-                traverseSingleRevInductProofNodeChild
-                    (thenGo (assumeSingleRevInduct singleRevInductNode))
-                    singleRevInductNode
-      where
-        thenGo m n = branch $ m >> go n
+    go before (ProofNodeWith _ node) = branch $ do
+        before
+        case node of
+            ProofNodeLeaf -> do
+                checks <- collect $ branch emitLeafNodeChecks
+                return $ ProofNodeWith checks ProofNodeLeaf
+            ProofNodeRestr restrNode -> do
+                checks <- collect $ branch $ emitRestrNodeChecks restrNode
+                ProofNodeWith checks . ProofNodeRestr <$>
+                    traverseRestrProofNodeChild
+                        (go (assumeRestrTriv restrNode >> applyRestrNodeRange restrNode))
+                        restrNode
+            ProofNodeCaseSplit caseSplitNode -> do
+                visit <- getVisitWithTag caseSplitNode.tag (Addr caseSplitNode.addr)
+                ProofNodeWith [] . ProofNodeCaseSplit <$>
+                    traverseCaseSplitProofNodeChildren
+                        (go (assumeR [pcTrueH visit]))
+                        (go (assumeR [pcFalseH visit]))
+                        caseSplitNode
+            ProofNodeSplit splitNode -> do
+                checks <- collect $ branch $ emitSplitNodeChecks splitNode
+                ProofNodeWith checks . ProofNodeSplit <$>
+                    traverseSplitProofNodeChildren
+                        (go (assumeSplitNoLoop splitNode))
+                        (go (assumeSplitLoop splitNode True))
+                        splitNode
+            ProofNodeSingleRevInduct singleRevInductNode -> do
+                checks <- collect $ branch $ emitSingleRevInductNodeChecks singleRevInductNode
+                ProofNodeWith checks . ProofNodeSingleRevInduct <$>
+                    traverseSingleRevInductProofNodeChild
+                        (go (assumeSingleRevInduct singleRevInductNode))
+                        singleRevInductNode
 
 --
 
