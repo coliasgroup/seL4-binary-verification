@@ -483,14 +483,18 @@ lineWrappingOptsParser = do
         , value defaultPrettySExprConfig.indentWidth
         , help "Indent width"
         ]
-    minBreak <- option' auto
+    minBreakOpt <- optional $ option' auto
         [ long "min-break"
         , metavar "N"
-        , value defaultPrettySExprConfig.minBreak
         , help "Indent width"
         ]
     color <- switch (long "color" <> help "Add color")
-    pure $ LineWrappingOpts { preferredMaxLineWidth, indentWidth, minBreak, color }
+    pure $ LineWrappingOpts
+        { preferredMaxLineWidth
+        , indentWidth
+        , minBreak = minBreakOpt <|> defaultPrettySExprConfig.minBreak
+        , color
+        }
 
 workerOptsParser :: Parser WorkerOpts
 workerOptsParser = do
