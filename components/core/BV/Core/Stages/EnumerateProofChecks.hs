@@ -11,7 +11,7 @@ import Control.Monad.Reader (MonadReader (..), ReaderT, runReader)
 import Control.Monad.State (MonadState, StateT (StateT), evalStateT)
 import Control.Monad.Writer (WriterT, execWriterT, mapWriterT, tell)
 import Data.Foldable (for_, traverse_)
-import Data.Function (applyWhen, on)
+import Data.Function (applyWhen)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust)
@@ -32,7 +32,7 @@ enumerateProofChecks argRenames pairing problem proofScript =
   where
     context = initContext argRenames pairing problem
     m = do
-        initPointHypsM
+        assumeR =<< instEqsM PairingEqDirectionIn
         proofChecksRecM proofScript.root
 
 data Context
@@ -181,6 +181,26 @@ getVisitWithTag tag n = tagV tag <$> getVisit n
 
 --
 
+instEqsM :: MonadChecks m => PairingEqDirection -> m [Hyp]
+instEqsM direction = do
+    pairing <- askPairing
+    let eqs = case direction of
+            PairingEqDirectionIn -> pairing.inEqs
+            PairingEqDirectionOut -> pairing.outEqs
+    let visitFor quadrant = tagV quadrant.tag <$> case quadrant.direction of
+            PairingEqDirectionIn -> do
+                entryPoint <- pairingSide quadrant.tag <$> askEntryPoints
+                return $ Visit entryPoint []
+            PairingEqDirectionOut -> do
+                getVisit Ret
+    renames <- askArgRenames
+    let eqSideFor side =
+            eqSideH (renameVars (renames side.quadrant) side.expr)
+                <$> visitFor side.quadrant
+    for eqs $ \PairingEq { lhs, rhs } -> eqH' <$> eqSideFor lhs <*> eqSideFor rhs
+
+--
+
 proofChecksRecM :: MonadChecks m => ProofNodeWith () -> m (ProofNodeWith NodeProofChecks)
 proofChecksRecM (ProofNodeWith _ node) = do
     case node of
@@ -194,7 +214,7 @@ proofChecksRecM (ProofNodeWith _ node) = do
                     restrNode.point
                     (fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1))
                 assume1R =<< pcTrivH <$> getVisitWithTag restrNode.tag (Addr restrNode.point)
-            getProofRestr restrNode.point restrNode.range
+            getProofRestr restrNode
             ProofNodeWith checks . ProofNodeRestr <$>
                 traverseRestrProofNodeChild
                     proofChecksRecM
@@ -225,21 +245,21 @@ proofChecksRecM (ProofNodeWith _ node) = do
 
 leafChecksM :: MonadChecks m => CheckWriter m ()
 leafChecksM = do
-    assume1L =<< nonRErrPcH
-    nlerrPc <- pcFalseH <$> getVisitWithTag Asm Err
+    assume1L =<< pcFalseH <$> getVisitWithTag C Err
+    noAsmErr <- pcFalseH <$> getVisitWithTag Asm Err
     retEq <- eqH'
         <$> (eqSideH trueE <$> getVisitWithTag Asm Ret)
         <*> (eqSideH trueE <$> getVisitWithTag C Ret)
-    instEqs <- instEqsM PairingEqDirectionOut
-    concludeWith "Leaf path-cond imp" [retEq] nlerrPc
-    traverse_ (concludeWith "Leaf eq check" [nlerrPc, retEq]) instEqs
+    outEqs <- instEqsM PairingEqDirectionOut
+    concludeWith "Leaf path-cond imp" [retEq] noAsmErr
+    traverse_ (concludeWith "Leaf eq check" [noAsmErr, retEq]) outEqs
 
 restrChecksM :: MonadChecks m => RestrProofNode () -> CheckWriter m ()
 restrChecksM restrNode = do
     branchRestrs $ do
-        getProofRestr restrNode.point restrNode.range
-        restrOthersM 2
-        assume1L =<< nonRErrPcH
+        getProofRestr restrNode
+        restrOthersM
+        assume1L =<< pcFalseH <$> getVisitWithTag C Err
     let visit vc = branchRestrs $ do
             tag <- askNodeTag restrNode.point
             restrict1L $ Restr restrNode.point vc
@@ -258,10 +278,10 @@ restrChecksM restrNode = do
         (printf "Check of restr max %d %s for %d" restrNode.range.y (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
         (pcFalseH topVC)
 
-restrOthersM :: MonadChecks m => Integer -> m ()
-restrOthersM n = do
+restrOthersM :: MonadChecks m => m ()
+restrOthersM = do
     xs <- loopsToSplitM
-    restrictR [ Restr sp (upToVC n) | sp <- xs ]
+    restrictR [ Restr sp (upToVC 2) | sp <- xs ]
 
 loopsToSplitM :: MonadChecks m => m [NodeAddr]
 loopsToSplitM = do
@@ -277,11 +297,14 @@ loopsToSplitM = do
                 nodeTag restr.nodeAddr /= nodeTag lh
     return . S.toList $ appEndo (foldMap (Endo . f) (reverse restrs)) remLoopHeadsInit
 
-getProofRestr :: MonadChecks m => NodeAddr -> RestrProofNodeRange -> m ()
-getProofRestr point range = restrict1L $
+getProofRestr :: MonadChecks m => (RestrProofNode a) -> m ()
+getProofRestr restrNode = restrict1L $
     Restr
-        point
-        (optionsVC (map (fromRestrKindVC range.kind) [range.x .. range.y - 1]))
+        restrNode.point
+        (optionsVC
+            (map
+                (fromRestrKindVC restrNode.range.kind)
+                [restrNode.range.x .. restrNode.range.y - 1]))
 
 splitChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
 splitChecksM splitNode = do
@@ -319,8 +342,8 @@ splitRErrPcHypM splitNode = branchRestrs $ do
     let nc = splitNode.n * splitNode.details.c.step
     let vc = doubleRangeVC (splitNode.details.c.seqStart + nc) (splitNode.loopRMax + 2)
     restrict1L $ Restr splitNode.details.c.split vc
-    restrOthersM 2
-    nonRErrPcH
+    restrOthersM
+    pcFalseH <$> getVisitWithTag C Err
 
 splitNoLoopHyps :: MonadChecks m => SplitProofNode () -> m ()
 splitNoLoopHyps splitNode = do
@@ -548,34 +571,3 @@ singleRevInductResultingHypM node = branchRestrs $ do
     tag <- askNodeTag node.point
     vis <- getVisitWithTag tag (Addr node.point)
     assume1R $ trueIfAt' node.pred_ vis
-
---
-
-initPointHypsM :: MonadChecks m => m ()
-initPointHypsM = do
-    hyps <- instEqsM PairingEqDirectionIn
-    assumeR hyps
-
-instEqsM :: MonadChecks m => PairingEqDirection -> m [Hyp]
-instEqsM direction = do
-    pairing <- askPairing
-    let eqs = case direction of
-            PairingEqDirectionIn -> pairing.inEqs
-            PairingEqDirectionOut -> pairing.outEqs
-    entryPoints <- askEntryPoints
-    let addrMap quadrant = tagV quadrant.tag <$> case quadrant.direction of
-            PairingEqDirectionIn -> return $ Visit (pairingSide quadrant.tag entryPoints) []
-            PairingEqDirectionOut -> getVisit Ret
-    renames <- askArgRenames
-    for eqs $ \PairingEq { lhs, rhs } -> do
-        let f eqSide = eqSideH
-                (renameVarsI (renames eqSide.quadrant) eqSide.expr)
-                <$> addrMap eqSide.quadrant
-        lhs' <- f lhs
-        rhs' <- f rhs
-        return $ lhs' `eqH'` rhs'
-
---
-
-nonRErrPcH :: MonadChecks m => m Hyp
-nonRErrPcH = pcFalseH <$> getVisitWithTag C Err
