@@ -237,8 +237,8 @@ enumerateProofChecksInner = go
                 visit <- getVisitWithTag caseSplitNode.tag (Addr caseSplitNode.addr)
                 ProofNodeWith [] . ProofNodeCaseSplit <$>
                     traverseCaseSplitProofNodeChildren
-                        (go (assumeR [pcTrueH visit]))
-                        (go (assumeR [pcFalseH visit]))
+                        (go (assume1R (pcTrueH visit)))
+                        (go (assume1R (pcFalseH visit)))
                         caseSplitNode
             ProofNodeSplit splitNode -> do
                 checks <- collect $ branch $ emitSplitNodeChecks splitNode
