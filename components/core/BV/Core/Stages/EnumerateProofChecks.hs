@@ -79,8 +79,8 @@ askPairing = gview #pairing
 askNodeTag :: MonadReader Context m => NodeAddr -> m Tag
 askNodeTag addr = ($ addr) <$> gview #nodeTag
 
-askGetNodeTag :: MonadReader Context m => m (NodeAddr -> Tag)
-askGetNodeTag = gview #nodeTag
+askLookupNodeTag :: MonadReader Context m => m (NodeAddr -> Tag)
+askLookupNodeTag = gview #nodeTag
 
 data State
   = State
@@ -263,17 +263,23 @@ emitRestrNodeChecks restrNode = branch $ do
             restrict1L $ Restr restrNode.point vc
             getVisitWithTag tag $ Addr restrNode.point
     let minVCOpt = case restrNode.range.kind of
-            RestrProofNodeRangeKindOffset -> Just $ offsetVC $ max 0 (restrNode.range.x - 1)
+            RestrProofNodeRangeKindOffset -> Just $ offsetVC $ max 0 $ restrNode.range.x - 1
             _ | restrNode.range.x > 1 -> Just $ numberVC $ restrNode.range.x - 1
             _ -> Nothing
     for_ minVCOpt $ \minVC -> do
         v <- visit minVC
         conclude
-            (printf "Check of restr min %d %s for %d" restrNode.range.x (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
+            (printf "Check of restr min %d %s for %d"
+                restrNode.range.x
+                (prettyRestrProofNodeRangeKind restrNode.range.kind)
+                restrNode.point.unwrap)
             (pcTrueH v)
     topVC <- visit $ fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1)
     conclude
-        (printf "Check of restr max %d %s for %d" restrNode.range.y (prettyRestrProofNodeRangeKind restrNode.range.kind) restrNode.point.unwrap)
+        (printf "Check of restr max %d %s for %d"
+            restrNode.range.y
+            (prettyRestrProofNodeRangeKind restrNode.range.kind)
+            restrNode.point.unwrap)
         (pcFalseH topVC)
 
 applyRestrNodeMax :: MonadChecks m => (RestrProofNode a) -> m ()
@@ -293,26 +299,22 @@ applyRestrNodeRange restrNode = restrict1L $
 
 getRestrOtherHyp :: MonadChecks m => m Hyp
 getRestrOtherHyp = branch $ do
-    restrOthersM
+    loopsToSplit <- getLoopsToSplit
+    restrictR [ Restr sp (upToVC 2) | sp <- loopsToSplit ]
     pcFalseH <$> getVisitWithTag C Err
 
-restrOthersM :: MonadChecks m => m ()
-restrOthersM = do
-    xs <- loopsToSplitM
-    restrictR [ Restr sp (upToVC 2) | sp <- xs ]
-
-loopsToSplitM :: MonadChecks m => m [NodeAddr]
-loopsToSplitM = do
+getLoopsToSplit :: MonadChecks m => m [NodeAddr]
+getLoopsToSplit = do
     restrs <- getRestrs
     loopHeadsWithSplit <- fmap (S.fromList . catMaybes) . for restrs $ \restr -> askLoopHead restr.nodeAddr
     loopHeads_ <- S.fromList <$> askLoopHeads
     let remLoopHeadsInit = loopHeads_ `S.difference` loopHeadsWithSplit
     g <- askNodeGraph
-    nodeTag <- askGetNodeTag
+    lookupNodeTag <- askLookupNodeTag
     let f :: Restr -> Set NodeAddr -> Set NodeAddr
         f restr = applyWhen (not (hasZeroVC restr.visitCount)) . S.filter $ \lh ->
             isReachableFrom g (Addr restr.nodeAddr) (Addr lh) ||
-                nodeTag restr.nodeAddr /= nodeTag lh
+                lookupNodeTag restr.nodeAddr /= lookupNodeTag lh
     return . S.toList $ appEndo (foldMap (Endo . f) (reverse restrs)) remLoopHeadsInit
 
 --
@@ -333,7 +335,7 @@ splitInitStepChecksM splitNode = do
         assume1R $ pcTrivH visits.c
         for_ visHyps $ \(hyp, desc) ->
             conclude
-                ("Induct check at visit " ++ show i ++ ": " ++ desc)
+                (printf "Induct check at visit %d: %s" i desc)
                 hyp
 
 splitInductStepChecksM :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
@@ -345,7 +347,9 @@ splitInductStepChecksM splitNode = do
     concs <- splitHypsAtVisit splitNode (offsetVC splitNode.n)
     for_ concs $ \(hyp, desc) ->
         conclude
-            ("Induct check (" ++ desc ++ ") at inductive step for " ++ show splitNode.details.asm.split.unwrap)
+            (printf "Induct check (%s) at inductive step for %d"
+                desc
+                splitNode.details.asm.split.unwrap)
             hyp
 
 splitRErrPcHypM :: MonadChecks m => SplitProofNode () -> m Hyp
