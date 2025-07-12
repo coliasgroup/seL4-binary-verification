@@ -469,8 +469,8 @@ emitSingleLoopInductStepChecks node tag = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
     assume1L =<< pcTrueH <$> getSplitVisitAt (WithTag tag details) (offsetVC node.n)
     for_ [0.. node.n - 1] $ \i ->
-        assumeHyps =<< loopEqHypsAtVisit tag node.point node.eqs (offsetVC i) False
-    loopEqHypsAtVisit tag node.point node.eqs (offsetVC node.n) False
+        assumeHyps =<< getLoopEqHypsAt tag node.point node.eqs (offsetVC i) False
+    getLoopEqHypsAt tag node.point node.eqs (offsetVC node.n) False
         >>= concludeManyWith (\desc ->
             printf "Induct check (%s) at inductive step for %d"
                 desc
@@ -481,7 +481,7 @@ emitSingleLoopInductBaseChecks node tag = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
     for_ [0 .. node.n] $ \i -> branch $ do
         assume1R =<< pcTrueH <$> getSplitVisitAt (WithTag tag details) (numberVC i)
-        loopEqHypsAtVisit tag node.point node.eqs (numberVC i) False
+        getLoopEqHypsAt tag node.point node.eqs (numberVC i) False
             >>= concludeManyWith
                 (\desc -> printf "Base check (%s, %d) at induct step for %d" desc i node.point)
 
@@ -503,7 +503,7 @@ emitSingleLoopRevInductChecks node tag = branch $ do
         , p1 = undefined
         , p2 = undefined
         })
-    assumeHyps =<< loopEqHypsAtVisit tag node.point node.eqs (offsetVC 1) True
+    assumeHyps =<< getLoopEqHypsAt tag node.point node.eqs (offsetVC 1) True
     conclude
         "Pred reverse step."
         (trueIfAt' node.pred_ curr)
@@ -525,7 +525,7 @@ emitSingleLoopRevInductBaseChecks node tag = branch $ do
         , p1 = undefined
         , p2 = undefined
         })
-    assumeHyps =<< loopEqHypsAtVisit tag node.point node.eqs (offsetVC 0) False
+    assumeHyps =<< getLoopEqHypsAt tag node.point node.eqs (offsetVC 0) False
     conclude
         (printf "Pred true at %d check." node.nBound)
         (trueIfAt' node.pred_ cont)
@@ -548,8 +548,8 @@ assumeSingleRevInduct node = branchRestrs $ do
     visit <- getVisitWithTag tag (Addr node.point)
     assume1R $ trueIfAt' node.pred_ visit
 
-loopEqHypsAtVisit :: MonadChecks m => Tag -> NodeAddr -> [Lambda] -> VisitCount -> Bool -> m [HypWithDesc]
-loopEqHypsAtVisit tag split eqs visitNum useIfAt = do
+getLoopEqHypsAt :: MonadChecks m => Tag -> NodeAddr -> [Lambda] -> VisitCount -> Bool -> m [HypWithDesc]
+getLoopEqHypsAt tag split eqs visitNum useIfAt = do
     let details = SplitProofNodeDetails split 0 1 eqs
         mksub v = walkExprs $ \case
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
