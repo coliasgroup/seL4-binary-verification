@@ -199,7 +199,7 @@ assumeHyps = assumeR . map (.hyp)
 --
 
 instantiatePairingEqs :: MonadChecks m => PairingEqDirection -> m [Hyp]
-instantiatePairingEqs direction = do
+instantiatePairingEqs direction = branch $ do
     pairing <- askPairing
     let eqs = case direction of
             PairingEqDirectionIn -> pairing.inEqs
@@ -342,7 +342,7 @@ applyRestrOthers = do
 --
 
 emitSplitNodeChecks :: MonadChecks m => SplitProofNode () -> CheckWriter m ()
-emitSplitNodeChecks splitNode = do
+emitSplitNodeChecks splitNode = branch $ do
     branch $ emitSplitNodeInitStepChecks splitNode
     branch $ emitSplitNodeInductStepChecks splitNode
 
@@ -369,7 +369,7 @@ emitSplitNodeInductStepChecks splitNode = branch $ do
                 splitNode.details.asm.split)
 
 splitRErrPcHypM :: MonadChecks m => SplitProofNode () -> m Hyp
-splitRErrPcHypM splitNode = branchRestrs $ do
+splitRErrPcHypM splitNode = branch $ do
     restrict1L $
         Restr splitNode.details.c.split $
             doubleRangeVC
@@ -379,7 +379,7 @@ splitRErrPcHypM splitNode = branchRestrs $ do
     pcFalseH <$> getVisitWithTag C Err
 
 assumeSplitNoLoop :: MonadChecks m => SplitProofNode () -> m ()
-assumeSplitNoLoop splitNode = do
+assumeSplitNoLoop splitNode = branchRestrs $ do
     visits <- getSplitVisitsAt splitNode (numberVC splitNode.n)
     assume1R $ pcFalseH visits.asm
 
@@ -388,7 +388,7 @@ getSplitVisitsAt splitNode visit = for (withTags splitNode.details) $ \detailsWi
     getSplitVisitAt detailsWithTag visit
 
 getSplitVisitAt :: MonadChecks m => WithTag SplitProofNodeDetails -> VisitCount -> m VisitWithTag
-getSplitVisitAt (WithTag tag details) visit = branchRestrs $ do
+getSplitVisitAt (WithTag tag details) visit = branch $ do
     restrict1L $
         Restr details.split $
             case fromJust (simpleVC visit) of
@@ -399,7 +399,7 @@ getSplitVisitAt (WithTag tag details) visit = branchRestrs $ do
     getVisitWithTag tag (Addr details.split)
 
 assumeSplitLoop :: MonadChecks m => SplitProofNode () -> Bool -> m ()
-assumeSplitLoop splitNode exit = do
+assumeSplitLoop splitNode exit = branchRestrs $ do
     let n = splitNode.n
     visits <- getSplitVisitsAt splitNode (offsetVC (n - 1))
     conts <- getSplitVisitsAt splitNode (offsetVC n)
@@ -409,7 +409,7 @@ assumeSplitLoop splitNode exit = do
         assumeHyps =<< splitHypsAtVisit splitNode (offsetVC i)
 
 splitHypsAtVisit :: MonadChecks m => SplitProofNode () -> VisitCount -> m [HypWithDesc]
-splitHypsAtVisit splitNode visit = do
+splitHypsAtVisit splitNode visit = branch $ do
     visits <- getSplitVisitsAt splitNode visit
     starts <- getSplitVisitsAt splitNode (numberVC 0)
     let mksub v = walkExprs $ \case
