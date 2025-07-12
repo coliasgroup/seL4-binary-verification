@@ -388,8 +388,10 @@ splitVisitVisits splitNode visit = for (withTags splitNode.details) $ \detailsWi
 splitVisitOneVisit :: MonadChecks m => WithTag SplitProofNodeDetails -> VisitCount -> m VisitWithTag
 splitVisitOneVisit detailsWithTag visit = branchRestrs $ do
     let visit' = case fromJust (simpleVC visit) of
-            SimpleVisitCountViewOffset n -> offsetVC $ n * detailsWithTag.value.step
-            SimpleVisitCountViewNumber n -> numberVC $ detailsWithTag.value.seqStart + (n * detailsWithTag.value.step)
+            SimpleVisitCountViewOffset n ->
+                offsetVC $ n * detailsWithTag.value.step
+            SimpleVisitCountViewNumber n ->
+                numberVC $ detailsWithTag.value.seqStart + (n * detailsWithTag.value.step)
     restrict1L $ Restr detailsWithTag.value.split visit'
     getVisitWithTag detailsWithTag.tag (Addr detailsWithTag.value.split)
 
