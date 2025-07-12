@@ -178,9 +178,6 @@ getVisit n = Visit n <$> getRestrs
 getVisitWithTag :: MonadChecks m => Tag -> NodeId -> m VisitWithTag
 getVisitWithTag tag n = tagV tag <$> getVisit n
 
-liftReader :: MonadChecks m => Reader Context a -> m a
-liftReader = reader . runReader
-
 --
 
 data HypWithDesc
@@ -325,7 +322,7 @@ applyRestrNodeRange restrNode = restrict1L $
 applyRestrOthers :: MonadChecks m => m ()
 applyRestrOthers = do
     restrs <- getRestrs
-    loopsToSplit <- liftReader $ askLoopsToSplit restrs
+    loopsToSplit <- askLoopsToSplit restrs
     restrictR [ Restr addr (numbersVC [0, 1]) | addr <- loopsToSplit ]
   where
     askLoopsToSplit restrs = do
