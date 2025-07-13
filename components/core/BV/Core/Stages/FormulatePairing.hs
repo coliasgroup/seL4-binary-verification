@@ -33,7 +33,8 @@ formulatePairing minStackSize inputC outputC = Pairing { inEqs, outEqs }
         , alignedE 2 ret
         , r0Input `eqE` r 0
         , minStackSize `lessEqE` stackPointer
-        ] ++
+        ]
+        ++
         retPreconds
         ++
         maybeToList (outerAddr <&> \addr -> stackPointer `lessEqE` addr)
@@ -45,17 +46,19 @@ formulatePairing minStackSize inputC outputC = Pairing { inEqs, outEqs }
         ++
         retPostEqs
         ++
-        [(stackWrapperE stackPointer stack argSeqAddrs, stackWrapperE stackPointer stack saveAddrs)]
+        [ (stackWrapperE stackPointer stack argSeqAddrs, stackWrapperE stackPointer stack saveAddrs)
+        ]
+
+    multiRet = length varRetsC > 1
 
     firstArgIndex = if multiRet then 1 else 0
 
     argSeq =
         [ (r i, Nothing)
         | i <- [firstArgIndex..3]
-        ] ++
+        ]
+        ++
         mkStackSequence stackPointer 4 stack machineWordT (length varArgsC + 1)
-
-    multiRet = length varRetsC > 1
 
     (retPreconds, retPostEqs, retOutEqs, saveAddrs) =
         if not multiRet
@@ -108,15 +111,13 @@ formulatePairing minStackSize inputC outputC = Pairing { inEqs, outEqs }
         | (c, (asm, _addr)) <- zip varArgsC argSeq
         ]
 
-    inEqs =
-        argEqs ++ memIeqs ++ [ asmIn expr === asmIn trueE | expr <- preconds ]
+    inEqs = argEqs ++ memIeqs ++ [ asmIn expr === asmIn trueE | expr <- preconds ]
 
-    retEqs = retOutEqs <&> \(c, asm) -> asmOut asm === cOut (castCToAsmE asm.ty c)
+    retEqs = [ asmOut asm === cOut (castCToAsmE asm.ty c) | (c, asm) <- retOutEqs ]
 
-    asmInvs = postEqs <&> \(vin, vout) -> asmIn vin === asmOut vout
+    asmInvs = [ asmIn vin === asmOut vout | (vin, vout) <- postEqs ]
 
-    outEqs =
-        retEqs ++ memOeqs ++ asmInvs
+    outEqs = retEqs ++ memOeqs ++ asmInvs
 
 -- TODO join with one in FormulatePairings
 splitScalarPairs :: [Argument] -> ([Argument], [Argument], [Argument])
