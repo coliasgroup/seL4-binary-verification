@@ -335,10 +335,10 @@ instEqAtVisit expr visit = case expr.value of
 
 --
 
-strengthenHypInner :: Integer -> Expr -> Expr
+strengthenHypInner :: Bool -> Expr -> Expr
 strengthenHypInner = go
   where
-    go sign expr = case expr.value of
+    go direction expr = case expr.value of
         ExprValueOp op args -> case op of
             _ | op == OpAnd || op == OpOr ->
                 Expr expr.ty (ExprValueOp op (map goWith args))
@@ -348,12 +348,9 @@ strengthenHypInner = go
             OpNot ->
                 let [x] = args
                 in notE (goAgainst x)
-            OpStackEquals -> case sign of
-                1 -> boolE (ExprValueOp OpImpliesStackEquals args)
-                -1 -> boolE (ExprValueOp OpStackEqualsImplies args)
-            OpROData -> case sign of
-                1 -> boolE (ExprValueOp OpImpliesROData args)
-                -1 -> expr
+            OpStackEquals -> boolE $
+                ExprValueOp (if direction then OpImpliesStackEquals else OpStackEqualsImplies) args
+            OpROData -> if direction then boolE (ExprValueOp OpImpliesROData args) else expr
             OpEquals | isBoolT (head args).ty ->
                 let [_, r] = args
                     [l', r'] = applyWhen (r `elem` [trueE, falseE]) reverse args
@@ -364,14 +361,14 @@ strengthenHypInner = go
             _ -> expr
         _ -> expr
       where
-        goWith = go sign
-        goAgainst = go (-sign)
+        goWith = go direction
+        goAgainst = go (not direction)
 
 strengthenHyp :: Expr -> Expr
-strengthenHyp = strengthenHypInner 1
+strengthenHyp = strengthenHypInner True
 
 weakenAssert :: Expr -> Expr
-weakenAssert = strengthenHypInner (-1)
+weakenAssert = strengthenHypInner False
 
 --
 
