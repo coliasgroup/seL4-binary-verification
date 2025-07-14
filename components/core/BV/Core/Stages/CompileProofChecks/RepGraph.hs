@@ -140,16 +140,16 @@ initRepGraphEnv functionSigs pairings argRenames problem =
 
 initRepGraphState :: RepGraphState
 initRepGraphState = RepGraphState
-    { inductVarEnv = M.empty
-    , nodePcEnvs = M.empty
-    , inpEnvs = M.empty
+    { inpEnvs = M.empty
     , memCalls = M.empty
-    , contractions = M.empty
+    , nodePcEnvs = M.empty
     , arcPcEnvs = M.empty
-    , extraProblemNames = S.empty
-    , hasInnerLoop = M.empty
     , funcs = M.empty
     , funcsByName = M.empty
+    , inductVarEnv = M.empty
+    , contractions = M.empty
+    , extraProblemNames = S.empty
+    , hasInnerLoop = M.empty
     }
 
 initRepGraph :: MonadRepGraph m => m ()
