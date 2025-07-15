@@ -126,6 +126,10 @@ stages input = StagesOutput
 
     finalPrograms = alteredProgramsWithInlineAsm
 
+    lookupFunction (WithTag tag funName) = (pairingSide tag finalPrograms).functions ! funName
+
+    functionSigs = signatureOfFunction . lookupFunction
+
     collectedFunctions = programFromFunctions $
         M.unionWith (error "not disjoint") finalPrograms.c.functions finalPrograms.asm.functions
 
@@ -137,17 +141,13 @@ stages input = StagesOutput
 
     normalPairings = M.fromList
         [ let stackBound = input.stackBounds.unwrap ! pairingId.asm
-              cFun = finalPrograms.c.functions ! pairingId.c
-              pairing = formulatePairing stackBound cFun.input cFun.output
+              sig = functionSigs $ WithTag C pairingId.c
+              pairing = formulatePairing stackBound sig
            in (pairingId, pairing)
         | pairingId <- normalFunctionPairingIds
         ]
 
     pairings = Pairings $ normalPairings `M.union` inlineAsmPairings.unwrap
-
-    lookupFunction (WithTag tag funName) = (pairingSide tag finalPrograms).functions ! funName
-
-    functionSigs = signatureOfFunction . lookupFunction
 
     -- TODO
     -- By doing this we lose laziness, and it's probably overkill anyways (reduces eval from ~8s -> ~4s)
@@ -155,7 +155,7 @@ stages input = StagesOutput
     problems = problems'
     -- problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
 
-    problems' = Problems . M.fromList $ do
+    problems' = Problems $ M.fromList $ do
         pairingId <- normalFunctionPairingIds
         let namedFuns =
                 let f funName prog = Named funName (prog.functions ! funName)
@@ -166,14 +166,14 @@ stages input = StagesOutput
         let problem = buildProblem lookupFunction inlineScript namedFuns
         return (pairingId, problem)
 
-    provenProblems = problems & #unwrap %~ \m -> M.restrictKeys m (M.keysSet input.proofs.unwrap)
+    provenProblems = problems & #unwrap %~ (`M.restrictKeys` M.keysSet input.proofs.unwrap)
+
+    lookupOrigVarNameFor = argRenamesOf lookupFunction
 
     -- TODO (see above)
     proofChecks = proofChecks'
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
-
-    lookupOrigVarNameFor = argRenamesOf lookupFunction
 
     proofChecks' = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings `atPairingId` pairingId
@@ -196,8 +196,7 @@ stages input = StagesOutput
 
     finalChecks =
         let f = decorateProofScriptWithProofScriptNodePathsWith $ \path -> map (fmap (ProofCheckMeta path))
-         in StagesOutputChecks $
-                M.map (fold . f) smtProofChecks.unwrap
+         in StagesOutputChecks $ M.map (fold . f) smtProofChecks.unwrap
 
 
 asmFunNameToCFunName :: Ident -> Ident

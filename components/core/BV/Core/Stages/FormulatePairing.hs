@@ -14,11 +14,11 @@ import Data.List (partition)
 import Data.Maybe (fromJust, mapMaybe, maybeToList)
 import Optics
 
-formulatePairing :: Expr -> [Argument] -> [Argument] -> Pairing
-formulatePairing minStackSize inputC outputC = Pairing { inEqs, outEqs }
+formulatePairing :: Expr -> FunctionSignature -> Pairing
+formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
   where
-    (varArgsC, imemC, _globArgsC) = splitScalarPairs inputC
-    (varRetsC, omemC, _globRetsC) = splitScalarPairs outputC
+    (varArgsC, imemC, _globArgsC) = splitScalarPairs sig.input
+    (varRetsC, omemC, _globRetsC) = splitScalarPairs sig.output
 
     r i = machineWordVarE (Ident ("r" ++ show (i :: Integer)))
     stackPointer = r 13
