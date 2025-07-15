@@ -61,7 +61,7 @@ import Text.Printf (printf)
 type FunctionSignatures = WithTag Ident -> FunctionSignature
 
 class MonadSolver m => MonadRepGraph m where
-    liftRepGraph ::StateT RepGraphState (Reader RepGraphEnv) a -> m a
+    liftRepGraph :: StateT RepGraphState (Reader RepGraphEnv) a -> m a
 
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
     liftRepGraph f = lift $ liftRepGraph f
