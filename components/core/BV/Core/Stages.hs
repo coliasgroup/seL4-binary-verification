@@ -183,14 +183,15 @@ stages input = StagesOutput
     compatProofChecks = toCompatProofChecks proofChecks
 
     smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
-        compileProofChecks
-            input.programs.c.structs
-            functionSigs
-            pairings
-            input.rodata
-            (lookupOrigVarNameFor problem)
-            problem
-                <$> (proofChecks `atPairingId` pairingId)
+        let repGraphInput = RepGraphInput
+                { cStructs = input.programs.c.structs
+                , functionSigs
+                , pairings
+                , rodata = input.rodata
+                , argRenames = (lookupOrigVarNameFor problem)
+                , problem
+                }
+         in compileProofChecks repGraphInput <$> (proofChecks `atPairingId` pairingId)
 
     compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)
 

@@ -1,6 +1,9 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module BV.Core.Stages.CompileProofChecks
     ( FunctionSignature (..)
     , FunctionSignatures
+    , RepGraphInput (..)
     , compileProofChecks
     ) where
 
@@ -22,44 +25,48 @@ import GHC.Generics (Generic)
 import Optics
 
 compileProofChecks
-    :: Map Ident Struct
-    -> FunctionSignatures
-    -> Pairings
-    -> ROData
-    -> ArgRenames
-    -> Problem
+    :: RepGraphInput
     -> [ProofCheck a]
     -> [SMTProofCheckGroup a]
-compileProofChecks cStructs functionSigs pairings rodata argRenames problem checks =
+compileProofChecks input checks =
     map
-        (compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem)
+        (compileProofCheckGroup input)
         (proofCheckGroups checks)
 
 compileProofCheckGroup
-    :: Map Ident Struct
-    -> FunctionSignatures
-    -> Pairings
-    -> ROData
-    -> ArgRenames
-    -> Problem
+    :: RepGraphInput
     -> ProofCheckGroup a
     -> SMTProofCheckGroup a
-compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem group =
+compileProofCheckGroup input group =
     SMTProofCheckGroup setup imps
   where
-    (imps, setup) = runWriter (runReaderT (evalStateT m.run initState) env)
-    env = initEnv rodata cStructs functionSigs pairings argRenames problem
-    m = do
-        initSolver
-        initRepGraph
-        imps' <- interpretGroup group
-        finalizeSolver
-        return imps'
+    (imps, setup) = runWriter (runM input m)
+    m = interpretGroup group <* finalizeSolver
+
+data RepGraphInput
+  = RepGraphInput
+      { cStructs :: Map Ident Struct
+      , functionSigs :: FunctionSignatures
+      , pairings :: Pairings
+      , rodata :: ROData
+      , argRenames :: ArgRenames
+      , problem :: Problem
+      }
+  deriving (Generic)
 
 newtype M m a
   = M { run :: StateT State (ReaderT Env m) a }
   deriving (Functor)
   deriving newtype (Applicative, Monad)
+
+runM :: MonadSolverSend m => RepGraphInput -> M m a -> m a
+runM input m = runReaderT (evalStateT m'.run initState) env
+  where
+    env = initEnv input
+    m' = do
+        initSolver
+        initRepGraph
+        m
 
 instance MonadSolverSend m => MonadSolverSend (M m) where
     sendSExprWithPlaceholders = M . sendSExprWithPlaceholders
@@ -96,8 +103,8 @@ instance MonadSolverSend m => MonadRepGraph (M m) where
         . mapStateT (mapReaderT (return . runIdentity))
         $ m
 
-initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> ArgRenames -> Problem -> Env
-initEnv rodata cStructs functionSigs pairings argRenames problem = Env
+initEnv :: RepGraphInput -> Env
+initEnv (RepGraphInput {..}) = Env
     { structs = initStructsEnv rodata problem cStructs
     , solver = initSolverEnv rodata
     , repGraph = initRepGraphEnv functionSigs pairings argRenames problem
