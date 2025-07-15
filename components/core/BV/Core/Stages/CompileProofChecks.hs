@@ -12,10 +12,10 @@ import BV.Core.Stages.CompileProofChecks.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
 
+import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, mapStateT)
-import Control.Monad.Trans (lift)
-import Control.Monad.Writer (Writer, runWriter)
+import Control.Monad.Writer (runWriter)
 import Data.Map (Map)
 import Data.Traversable (for)
 import GHC.Generics (Generic)
@@ -56,10 +56,13 @@ compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem 
         finalizeSolver
         return imps'
 
-newtype M a
-  = M { run :: StateT State (ReaderT Env (Writer SolverOutput)) a }
+newtype M m a
+  = M { run :: StateT State (ReaderT Env m) a }
   deriving (Functor)
   deriving newtype (Applicative, Monad)
+
+instance MonadSolverSend m => MonadSolverSend (M m) where
+    sendSExprWithPlaceholders = M . sendSExprWithPlaceholders
 
 data Env
   = Env
@@ -76,14 +79,22 @@ data State
       }
   deriving (Generic)
 
-instance MonadStructs M where
+instance Monad m => MonadStructs (M m) where
     askLookupStruct = M $ gview #structs
 
-instance MonadSolver M where
-    liftSolver m = M . zoom #solver . magnify #solver $ m
+instance MonadSolverSend m => MonadSolver (M m) where
+    liftSolver m = M
+        . zoom #solver
+        . magnify #solver
+        . mapStateT (mapReaderT (return . runIdentity))
+        $ m
 
-instance MonadRepGraph M where
-    liftRepGraph m = M . zoom #repGraph . magnify #repGraph . (mapStateT (mapReaderT lift)) $ m
+instance MonadSolverSend m => MonadRepGraph (M m) where
+    liftRepGraph m = M
+        . zoom #repGraph
+        . magnify #repGraph
+        . mapStateT (mapReaderT (return . runIdentity))
+        $ m
 
 initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> ArgRenames -> Problem -> Env
 initEnv rodata cStructs functionSigs pairings argRenames problem = Env
@@ -100,7 +111,7 @@ initState = State
 
 --
 
-interpretGroup :: ProofCheckGroup a -> M [SMTProofCheckImp a]
+interpretGroup :: MonadSolverSend m => ProofCheckGroup a -> M m [SMTProofCheckImp a]
 interpretGroup group = do
     hyps <- for group $ \check -> do
         concl <- interpretHyp check.hyp
@@ -110,7 +121,7 @@ interpretGroup group = do
         sexpr <- withoutEnv $ convertExprNoSplit term
         return $ SMTProofCheckImp check.meta sexpr
 
-interpretHyp :: Hyp -> M Expr
+interpretHyp :: MonadSolverSend m => Hyp -> M m Expr
 interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case

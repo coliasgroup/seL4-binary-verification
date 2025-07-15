@@ -11,6 +11,7 @@
 module BV.Core.Stages.CompileProofChecks.Solver
     ( ExprEnv
     , MonadSolver (..)
+    , MonadSolverSend (..)
     , Name (..)
     , NameHint
     , SolverEnv
@@ -48,11 +49,11 @@ import BV.SMTLIB2.SExpr
 import Control.DeepSeq (NFData)
 import Control.Monad (unless, when, (>=>))
 import Control.Monad.Except (ExceptT)
-import Control.Monad.Reader (ReaderT (runReaderT), asks)
-import Control.Monad.RWS (RWST, lift, modify)
+import Control.Monad.Reader (Reader, ReaderT (runReaderT), asks)
+import Control.Monad.RWS (RWST, lift, modify, tell)
 import Control.Monad.State (StateT, execStateT, get)
 import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Writer (Writer, tell)
+import Control.Monad.Writer (WriterT)
 import Data.Foldable (for_)
 import Data.List (nub, sortOn)
 import Data.Map (Map)
@@ -75,23 +76,44 @@ cheatMemDoms = True
 
 --
 
-class MonadStructs m => MonadSolver m where
-    liftSolver :: StateT SolverState (ReaderT SolverEnv (Writer SolverOutput)) a -> m a
+class Monad m => MonadSolverSend m where
+    sendSExprWithPlaceholders :: SExprWithPlaceholders -> m ()
 
-instance MonadSolver m => MonadSolver (ReaderT r m) where
-    liftSolver = lift . liftSolver
+instance Monad m => MonadSolverSend (WriterT SolverOutput m) where
+    sendSExprWithPlaceholders s = tell [s]
 
-instance MonadSolver m => MonadSolver (StateT s m) where
-    liftSolver = lift . liftSolver
+class (MonadStructs m, MonadSolverSend m) => MonadSolver m where
+    liftSolver :: StateT SolverState (Reader SolverEnv) a -> m a
 
 instance (Monoid w, MonadSolver m) => MonadSolver (RWST r w s m) where
     liftSolver = lift . liftSolver
 
+instance (Monoid w, MonadSolverSend m) => MonadSolverSend (RWST r w s m) where
+    sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
+
+instance MonadSolver m => MonadSolver (ReaderT r m) where
+    liftSolver = lift . liftSolver
+
+instance MonadSolverSend m => MonadSolverSend (ReaderT r m) where
+    sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
+
+instance MonadSolver m => MonadSolver (StateT s m) where
+    liftSolver = lift . liftSolver
+
+instance MonadSolverSend m => MonadSolverSend (StateT s m) where
+    sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
+
 instance MonadSolver m => MonadSolver (MaybeT m) where
     liftSolver = lift . liftSolver
 
+instance MonadSolverSend m => MonadSolverSend (MaybeT m) where
+    sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
+
 instance MonadSolver m => MonadSolver (ExceptT e m) where
     liftSolver = lift . liftSolver
+
+instance MonadSolverSend m => MonadSolverSend (ExceptT e m) where
+    sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
 
 data SolverEnv
   = SolverEnv
@@ -148,7 +170,7 @@ initSolverState = SolverState
 --
 
 send :: MonadSolver m => SExprWithPlaceholders -> m ()
-send s = liftSolver $ tell [s]
+send = sendSExprWithPlaceholders
 
 --
 
