@@ -75,6 +75,7 @@ library core
       BV.Core.Graph
       BV.Core.Logic
       BV.Core.ModelConfig
+      BV.Core.Search.Inlining
       BV.Core.Stages
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
