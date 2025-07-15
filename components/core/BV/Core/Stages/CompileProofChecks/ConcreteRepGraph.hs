@@ -16,6 +16,7 @@ import BV.Core.Types.Extras
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, mapStateT)
+import Control.Monad.Trans (MonadTrans, lift)
 import Data.Map (Map)
 import GHC.Generics (Generic)
 import Optics
@@ -44,6 +45,9 @@ runM input m = runReaderT (evalStateT m'.run initState) env
         initSolver
         initRepGraph
         m
+
+instance MonadTrans M where
+    lift = M . lift . lift
 
 instance MonadSolverSend m => MonadSolverSend (M m) where
     sendSExprWithPlaceholders = M . sendSExprWithPlaceholders
