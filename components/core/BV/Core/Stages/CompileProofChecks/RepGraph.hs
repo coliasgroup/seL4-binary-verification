@@ -723,8 +723,8 @@ getTagVCount visit tagOpt = do
                 nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
                 loopId <- MaybeT $ askLoopHead nodeAddr
                 for_ vcount $ \restr -> do
-                    loopIdOt' <- askLoopHead restr.nodeAddr
-                    when (loopIdOt' == Just loopId && isOptionsVC restr.visitCount) $ do
+                    loopIdOpt' <- askLoopHead restr.nodeAddr
+                    when (loopIdOpt' == Just loopId && isOptionsVC restr.visitCount) $ do
                         throwError $ TooGeneral { split = restr.nodeAddr }
             return (tag, Just vcount)
 
