@@ -601,10 +601,10 @@ tryGetNodePcEnv visit tag' = do
                 }
         MaybeT $ withMapSlot #nodePcEnvs vt $ do
             warmPcEnvCache vt
-            getNodePcEnvRawM vt
+            getNodePcEnvRaw vt
 
-getNodePcEnvRawM :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, ExprEnv))
-getNodePcEnvRawM visitWithTag = do
+getNodePcEnvRaw :: MonadRepGraphE m => VisitWithTag -> m (Maybe (Expr, ExprEnv))
+getNodePcEnvRaw visitWithTag = do
     liftRepGraph (use $ #inpEnvs % at visitWithTag.visit.nodeId) >>= \case
         Just env -> return $ Just (trueE, env)
         Nothing -> do
@@ -887,8 +887,8 @@ isSyntacticConstant origName ty split = do
 --     withEnv env $ convertInnerExpr expr
 
 -- -- TODO
--- postEmitNodeHookM :: MonadRepGraphE m => Visit -> m ()
--- postEmitNodeHookM visit = do
+-- postEmitNodeHook :: MonadRepGraphE m => Visit -> m ()
+-- postEmitNodeHook visit = do
 --     let n = nodeAddrFromNodeId visit.nodeId
 --     tag <- askNodeTag n
 --     when (tag == C) $ do
