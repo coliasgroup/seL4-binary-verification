@@ -64,19 +64,19 @@ class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: StateT RepGraphState (Reader RepGraphEnv) a -> m a
 
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
-    liftRepGraph f = lift $ liftRepGraph f
+    liftRepGraph = lift . liftRepGraph
 
 instance MonadRepGraph m => MonadRepGraph (StateT s m) where
-    liftRepGraph f = lift $ liftRepGraph f
+    liftRepGraph = lift . liftRepGraph
 
 instance (Monoid w, MonadRepGraph m) => MonadRepGraph (RWST r w s m) where
-    liftRepGraph f = lift $ liftRepGraph f
+    liftRepGraph = lift . liftRepGraph
 
 instance MonadRepGraph m => MonadRepGraph (MaybeT m) where
-    liftRepGraph f = lift $ liftRepGraph f
+    liftRepGraph = lift . liftRepGraph
 
 instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
-    liftRepGraph f = lift $ liftRepGraph f
+    liftRepGraph = lift . liftRepGraph
 
 type MonadRepGraphE m = (MonadRepGraph m, MonadError TooGeneral m)
 
