@@ -32,15 +32,13 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import Control.DeepSeq (NFData)
 import Control.Monad (filterM, guard, replicateM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
-import Control.Monad.Except (ExceptT)
-import Control.Monad.Reader (MonadReader)
+import Control.Monad.Except (ExceptT, runExceptT)
+import Control.Monad.Reader (Reader, ReaderT)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
                           RWST (runRWST), evalRWST)
 import Control.Monad.State (StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
-import Control.Monad.Trans.Reader (ReaderT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
@@ -62,10 +60,8 @@ import Text.Printf (printf)
 
 type FunctionSignatures = WithTag Ident -> FunctionSignature
 
-type RepGraphContext m = (MonadReader RepGraphEnv m, MonadState RepGraphState m)
-
 class MonadSolver m => MonadRepGraph m where
-    liftRepGraph :: (forall n. RepGraphContext n => n a) -> m a
+    liftRepGraph ::StateT RepGraphState (Reader RepGraphEnv) a -> m a
 
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
     liftRepGraph f = lift $ liftRepGraph f

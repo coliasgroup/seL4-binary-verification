@@ -49,10 +49,10 @@ import Control.DeepSeq (NFData)
 import Control.Monad (unless, when, (>=>))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (ReaderT (runReaderT), asks)
-import Control.Monad.RWS (MonadTrans (lift), RWS, RWST, modify)
+import Control.Monad.RWS (RWST, lift, modify)
 import Control.Monad.State (StateT, execStateT, get)
 import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Writer (tell)
+import Control.Monad.Writer (Writer, tell)
 import Data.Foldable (for_)
 import Data.List (nub, sortOn)
 import Data.Map (Map)
@@ -76,7 +76,7 @@ cheatMemDoms = True
 --
 
 class MonadStructs m => MonadSolver m where
-    liftSolver :: RWS SolverEnv SolverOutput SolverState a -> m a
+    liftSolver :: StateT SolverState (ReaderT SolverEnv (Writer SolverOutput)) a -> m a
 
 instance MonadSolver m => MonadSolver (ReaderT r m) where
     liftSolver = lift . liftSolver
@@ -85,7 +85,7 @@ instance MonadSolver m => MonadSolver (StateT s m) where
     liftSolver = lift . liftSolver
 
 instance (Monoid w, MonadSolver m) => MonadSolver (RWST r w s m) where
-    liftSolver f = lift $ liftSolver f
+    liftSolver = lift . liftSolver
 
 instance MonadSolver m => MonadSolver (MaybeT m) where
     liftSolver = lift . liftSolver

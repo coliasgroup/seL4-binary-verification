@@ -12,7 +12,10 @@ import BV.Core.Stages.CompileProofChecks.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Control.Monad.RWS (RWS, runRWS)
+import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT)
+import Control.Monad.State (StateT, evalStateT, mapStateT)
+import Control.Monad.Trans (lift)
+import Control.Monad.Writer (Writer, runWriter)
 import Data.Map (Map)
 import Data.Traversable (for)
 import GHC.Generics (Generic)
@@ -44,7 +47,7 @@ compileProofCheckGroup
 compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem group =
     SMTProofCheckGroup setup imps
   where
-    (imps, _, setup) = runRWS m.run env initState
+    (imps, setup) = runWriter (runReaderT (evalStateT m.run initState) env)
     env = initEnv rodata cStructs functionSigs pairings argRenames problem
     m = do
         initSolver
@@ -54,7 +57,7 @@ compileProofCheckGroup cStructs functionSigs pairings rodata argRenames problem 
         return imps'
 
 newtype M a
-  = M { run :: RWS Env SolverOutput State a }
+  = M { run :: StateT State (ReaderT Env (Writer SolverOutput)) a }
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
@@ -80,7 +83,7 @@ instance MonadSolver M where
     liftSolver m = M . zoom #solver . magnify #solver $ m
 
 instance MonadRepGraph M where
-    liftRepGraph m = M . zoom #repGraph . magnify #repGraph $ m
+    liftRepGraph m = M . zoom #repGraph . magnify #repGraph . (mapStateT (mapReaderT lift)) $ m
 
 initEnv :: ROData -> Map Ident Struct -> FunctionSignatures -> Pairings -> ArgRenames -> Problem -> Env
 initEnv rodata cStructs functionSigs pairings argRenames problem = Env
