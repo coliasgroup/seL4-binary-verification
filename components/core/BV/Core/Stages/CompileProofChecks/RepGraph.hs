@@ -63,20 +63,28 @@ type FunctionSignatures = WithTag Ident -> FunctionSignature
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: StateT RepGraphState (Reader RepGraphEnv) a -> m a
 
+    runPreEmitNodeHook :: Visit -> m ()
+    runPreEmitNodeHook _ = return ()
+
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
     liftRepGraph = lift . liftRepGraph
+    runPreEmitNodeHook = lift . runPreEmitNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (StateT s m) where
     liftRepGraph = lift . liftRepGraph
+    runPreEmitNodeHook = lift . runPreEmitNodeHook
 
 instance (Monoid w, MonadRepGraph m) => MonadRepGraph (RWST r w s m) where
     liftRepGraph = lift . liftRepGraph
+    runPreEmitNodeHook = lift . runPreEmitNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (MaybeT m) where
     liftRepGraph = lift . liftRepGraph
+    runPreEmitNodeHook = lift . runPreEmitNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
     liftRepGraph = lift . liftRepGraph
+    runPreEmitNodeHook = lift . runPreEmitNodeHook
 
 type MonadRepGraphE m = (MonadRepGraph m, MonadError TooGeneral m)
 
@@ -700,6 +708,7 @@ getArcPcEnv visit' otherVisit = do
                 Nothing -> do
                     pcEnvOpt <- tryGetNodePcEnv visit Nothing
                     whenJustThen pcEnvOpt $ \_ -> do
+                        runPreEmitNodeHook visit
                         arcs <- emitNode visit
                         let arcs' = M.fromList [ (cont, (pc, env)) | (cont, pc, env) <- arcs ]
                         liftRepGraph $ #arcPcEnvs %= M.insert visit arcs'
