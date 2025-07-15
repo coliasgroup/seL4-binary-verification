@@ -15,8 +15,26 @@ import qualified BV.SMTLIB2.Monad as S
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (MonadReader (ask), ReaderT, runReaderT)
 import Control.Monad.Trans (lift)
+import Data.Map (Map)
 import GHC.Generics (Generic)
 import Optics
+
+data DiscoverInlineScriptInput
+  = DiscoverInlineScriptInput
+      { cStructs :: Map Ident Struct
+      , functions :: WithTag Ident -> Function
+      , pairings :: Pairings
+      , rodata :: ROData
+      , fnames :: PairingOf Ident
+      }
+  deriving (Generic)
+
+discoverInlineScript
+    :: (Monad m, S.MonadSolver n)
+    => ((ModelConfig -> n a) -> m a)
+    -> DiscoverInlineScriptInput
+    -> m InlineScript
+discoverInlineScript = undefined
 
 newtype InlineM m a
   = InlineM { run :: M (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m))) a }
@@ -66,7 +84,11 @@ nextInlinePoint modelConfig repGraphInput = preview (_Left % #nodeAddr) <$> ret
     ret = runInlineM modelConfig repGraphInput inlinerInput $ do
         undefined
 
--- type Inliner m = Problem -> m (Maybe NodeAddr)
+--
 
--- buildProblemWith :: Monad m => Inliner m -> (WithTag Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
--- buildProblemWith lookupFun inlineScript funs = undefined
+-- TODO move
+
+type Inliner m = Problem -> m (Maybe [NodeAddr])
+
+buildProblemWith :: Monad m => [Inliner m] -> (WithTag Ident -> Function) -> PairingOf (Named Function) -> InlineScript
+buildProblemWith _inliners _lookupFun _funs = undefined
