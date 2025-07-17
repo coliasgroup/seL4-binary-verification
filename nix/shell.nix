@@ -36,14 +36,14 @@ pkgs.mkShell {
     haskellPackages.haskell-dap
     haskellPackages.ghci-dap
 
-    inotify-tools
+    # inotify-tools
 
     yices
     bitwuzla
     z3
     cvc5
-    cvc4
-    mathsat5
+    # cvc4
+    # mathsat5
     sonolar
   ];
 
