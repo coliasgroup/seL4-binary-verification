@@ -1,4 +1,5 @@
 { pkgs
+, lib
 , mathsat5
 , sonolar
 }:
@@ -14,7 +15,7 @@ let
 
 in
 pkgs.mkShell {
-  nativeBuildInputs = with pkgs; [
+  nativeBuildInputs = with pkgs; ([
     stack
     hls
     ghc
@@ -36,16 +37,20 @@ pkgs.mkShell {
     haskellPackages.haskell-dap
     haskellPackages.ghci-dap
 
-    inotify-tools
-
     yices
     bitwuzla
     z3
     cvc5
+
+    sonolar
+
+  ] ++ lib.optionals pkgs.hostPlatform.isLinux [
+    inotify-tools
+
+    # broken on darwin
     cvc4
     mathsat5
-    sonolar
-  ];
+  ]);
 
   shellHook = ''
     mkdir -p $TMPDIR
