@@ -9,8 +9,8 @@ let
       };
 in
 
-let
-  path = ../../../../x/stacklock2nix;
-in
+# let
+#   path = ../../../../x/stacklock2nix;
+# in
 
 import (path + "/nix/overlay.nix")
