@@ -162,7 +162,7 @@ getRestrs = use #restrs
 collect :: MonadChecks m => CheckWriter m () -> m NodeProofChecks
 collect = execWriterT
 
-conclude :: MonadChecks m => ProofCheckDescription-> Hyp -> CheckWriter m ()
+conclude :: MonadChecks m => ProofCheckDescription -> Hyp -> CheckWriter m ()
 conclude meta hyp = do
     hyps <- getAssumptions
     let check = ProofCheck
@@ -172,7 +172,7 @@ conclude meta hyp = do
             }
     tell [check]
 
-concludeWith :: MonadChecks m => ProofCheckDescription-> [Hyp] -> Hyp -> CheckWriter m ()
+concludeWith :: MonadChecks m => ProofCheckDescription -> [Hyp] -> Hyp -> CheckWriter m ()
 concludeWith meta hyps hyp = branch $ do
     assumeR hyps
     conclude meta hyp

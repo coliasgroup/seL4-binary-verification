@@ -155,7 +155,7 @@ instance AtPairingId Pairing Pairings where
     atPairingId = atPairingId . (.unwrap)
 
 prettyPairingId :: PairingId -> String
-prettyPairingId (PairingOf { c, asm }) = asm.unwrap++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
+prettyPairingId (PairingOf { c, asm }) = asm.unwrap ++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
 
 prettyTag :: Tag ->  String
 prettyTag C = "C"
