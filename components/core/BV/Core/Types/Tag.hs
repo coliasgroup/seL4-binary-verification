@@ -71,8 +71,26 @@ tagValues = [minBound .. maxBound]
 numTagValues :: forall t. Tag t => Proxy t -> Int
 numTagValues _ = fromEnum (maxBound :: t) - fromEnum (minBound :: t) + 1
 
+data WithTag t a
+  = WithTag
+      { tag :: t
+      , value :: a
+      }
+  deriving (Eq, Functor, Generic, NFData, Ord, Show)
+
+withTag :: (t -> a -> b) -> WithTag t a -> b
+withTag f (WithTag tag value) = f tag value
+
+viewAtTag :: Tag t => t -> ByTag t a -> a
+viewAtTag = view . atTag
+
+viewWithTag :: Tag t => t -> ByTag t a -> WithTag t a
+viewWithTag tag = viewAtTag tag . withTags
+
 byTagFromMap :: Tag t => M.Map t a -> ByTag t a
 byTagFromMap m = withTags (pure ()) <&> \(WithTag tag _) -> m M.! tag
+
+--
 
 instance Tag () where
     newtype ByTag () a = ByUnitTag { unit :: a }
@@ -88,6 +106,8 @@ instance Tag () where
 instance Applicative (ByTag ()) where
     pure = ByUnitTag
     (ByUnitTag f) <*> (ByUnitTag a) = ByUnitTag (f a)
+
+--
 
 data AsmRefineTag
   = Asm
@@ -136,22 +156,6 @@ instance Traversable (ByTag AsmRefineTag) where
     traverse f p = ByAsmRefineTag <$> f p.asm <*> f p.c
 
 instance Binary a => Binary (ByTag AsmRefineTag a) where
-
-data WithTag t a
-  = WithTag
-      { tag :: t
-      , value :: a
-      }
-  deriving (Eq, Functor, Generic, NFData, Ord, Show)
-
-withTag :: (t -> a -> b) -> WithTag t a -> b
-withTag f (WithTag tag value) = f tag value
-
-viewAtTag :: Tag t => t -> ByTag t a -> a
-viewAtTag = view . atTag
-
-viewWithTag :: Tag t => t -> ByTag t a -> WithTag t a
-viewWithTag tag = viewAtTag tag . withTags
 
 -- TODO
 
