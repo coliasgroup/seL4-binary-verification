@@ -14,6 +14,7 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , RepGraphEnv
     , RepGraphState
     , askCont
+    , convertInnerExprWithPcEnv
     , getInductVar
     , getNodePcEnv
     , getPc
@@ -919,12 +920,11 @@ isSyntacticConstant origName ty split = do
 
 --
 
--- -- TODO
--- convertInnerExprWithPcEnv :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
--- convertInnerExprWithPcEnv expr visit tag = do
---     pcEnv <- tryGetNodePcEnv visit tag
---     let Just (_pc, env) = pcEnv
---     withEnv env $ convertInnerExpr expr
+convertInnerExprWithPcEnv :: (MonadRepGraph m, MonadError TooGeneral m) => Expr -> Visit -> Maybe Tag -> m Expr
+convertInnerExprWithPcEnv expr visit tag = do
+    pcEnv <- tryGetNodePcEnv visit tag
+    let Just (_pc, env) = pcEnv
+    withEnv env $ convertInnerExpr expr
 
 -- -- TODO
 -- postEmitNodeHook :: MonadRepGraphE m => Visit -> m ()
