@@ -925,17 +925,3 @@ convertInnerExprWithPcEnv expr visit tag = do
     pcEnv <- tryGetNodePcEnv visit tag
     let Just (_pc, env) = pcEnv
     withEnv env $ convertInnerExpr expr
-
--- -- TODO
--- postEmitNodeHook :: MonadRepGraphE m => Visit -> m ()
--- postEmitNodeHook visit = do
---     let n = nodeAddrFromNodeId visit.nodeId
---     tag <- askNodeTag n
---     when (tag == C) $ do
---         node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
---         upds <- fmap catMaybes $ for (node ^.. foldExprs % getMemAccess) $ \acc -> case acc.kind of
---             MemOpKindUpdate -> Just <$> convertInnerExprWithPcEnv acc.addr visit Nothing
---             _ -> return Nothing
---         case upds of
---             [] -> return ()
---             _ -> error "unexpected"
