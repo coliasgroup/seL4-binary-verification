@@ -81,38 +81,38 @@ class MonadSolver m => MonadRepGraph m where
 
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
     liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
+    runProblemVarRepHook = compose4 lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
+    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (StateT s m) where
     liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
+    runProblemVarRepHook = compose4 lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
+    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
 
 instance (Monoid w, MonadRepGraph m) => MonadRepGraph (RWST r w s m) where
     liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
+    runProblemVarRepHook = compose4 lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
+    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (MaybeT m) where
     liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
+    runProblemVarRepHook = compose4 lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
+    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
     liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
+    runProblemVarRepHook = compose4 lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
+    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
 
 data TooGeneral
   = TooGeneral
