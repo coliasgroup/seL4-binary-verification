@@ -18,7 +18,7 @@ import Data.Binary (Binary)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-type Problem' = Problem RefineTag
+type Problem' = Problem AsmRefineTag
 
 data Problem t
   = Problem

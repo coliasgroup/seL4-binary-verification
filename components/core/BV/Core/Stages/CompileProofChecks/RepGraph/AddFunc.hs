@@ -100,8 +100,8 @@ getFuncPairingNoCheck visit visit2 = do
     pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
     p <- WithAddFunc $ gview $ #pairings % #unwrap % at pairingId % unwrapped
     return $ (p ,) <$> if
-        | pairingId == ByRefineTag { asm = fname, c = fname2 } -> Just $ ByRefineTag { asm = visit, c = visit2 }
-        | pairingId == ByRefineTag { asm = fname2, c = fname } -> Just $ ByRefineTag { asm = visit2, c = visit }
+        | pairingId == ByAsmRefineTag { asm = fname, c = fname2 } -> Just $ ByAsmRefineTag { asm = visit, c = visit2 }
+        | pairingId == ByAsmRefineTag { asm = fname2, c = fname } -> Just $ ByAsmRefineTag { asm = visit2, c = visit }
         | otherwise -> Nothing
 
 getFuncPairing :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing, ByTag' Visit))
@@ -112,7 +112,7 @@ getFuncPairing visit visit2 = do
         (rin, _, _) <- WithAddFunc $ use $ #funcs % at visits.c % unwrapped
         lcalls <- scanMemCalls lin
         rcalls <- scanMemCalls rin
-        (compatible, _s) <- memCallsCompatible $ ByRefineTag
+        (compatible, _s) <- memCallsCompatible $ ByAsmRefineTag
             { asm = lcalls
             , c = rcalls
             }
@@ -150,7 +150,7 @@ addFuncAssert visit visit2 = do
 
 memCallsCompatible :: MonadRepGraph m => ByTag' (Maybe MemCalls) -> WithAddFunc m (Bool, Maybe String)
 memCallsCompatible = \case
-    ByRefineTag { asm = Just lcalls, c = Just rcalls } -> do
+    ByAsmRefineTag { asm = Just lcalls, c = Just rcalls } -> do
         rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
             pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
             let rfname = pairingId.c

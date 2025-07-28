@@ -78,7 +78,7 @@ instance AtPairingId Pairing Pairings where
     atPairingId = atPairingId . (.unwrap)
 
 prettyPairingId :: PairingId -> String
-prettyPairingId (ByRefineTag { c, asm }) = asm.unwrap ++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
+prettyPairingId (ByAsmRefineTag { c, asm }) = asm.unwrap ++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
 
 prettyPairingEqSideQuadrant :: PairingEqSideQuadrant ->  String
 prettyPairingEqSideQuadrant (PairingEqSideQuadrant { tag, direction }) =

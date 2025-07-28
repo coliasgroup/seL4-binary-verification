@@ -37,7 +37,7 @@ instance Binary InlineScripts where
 instance AtPairingId InlineScript' InlineScripts where
     atPairingId = atPairingId . (.unwrap)
 
-type InlineScript' = InlineScript RefineTag
+type InlineScript' = InlineScript AsmRefineTag
 
 type InlineScript t = [InlineScriptEntry t]
 

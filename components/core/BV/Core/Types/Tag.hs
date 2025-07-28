@@ -4,9 +4,9 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module BV.Core.Types.Tag
-    ( ByTag (..)
+    ( AsmRefineTag (..)
+    , ByTag (..)
     , ByTag'
-    , RefineTag (..)
     , Tag (..)
     , Tag'
     , WithTag (..)
@@ -89,16 +89,16 @@ instance Applicative (ByTag ()) where
     pure = ByUnitTag
     (ByUnitTag f) <*> (ByUnitTag a) = ByUnitTag (f a)
 
-data RefineTag
+data AsmRefineTag
   = Asm
   | C
   deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Show)
 
-instance Binary RefineTag where
+instance Binary AsmRefineTag where
 
-instance Tag RefineTag where
-    data ByTag RefineTag a
-      = ByRefineTag
+instance Tag AsmRefineTag where
+    data ByTag AsmRefineTag a
+      = ByAsmRefineTag
           { asm :: a
           , c :: a
           }
@@ -108,7 +108,7 @@ instance Tag RefineTag where
         Asm -> #asm
         C -> #c
 
-    withTags byTag = ByRefineTag
+    withTags byTag = ByAsmRefineTag
         { asm = WithTag Asm byTag.asm
         , c = WithTag C byTag.c
         }
@@ -122,20 +122,20 @@ instance Tag RefineTag where
         "C" -> Just C
         _ -> Nothing
 
-instance Applicative (ByTag RefineTag) where
-    pure x = ByRefineTag x x
-    ff <*> fx = ByRefineTag
+instance Applicative (ByTag AsmRefineTag) where
+    pure x = ByAsmRefineTag x x
+    ff <*> fx = ByAsmRefineTag
         { asm = ff.asm fx.asm
         , c = ff.c fx.c
         }
 
-instance Foldable (ByTag RefineTag) where
+instance Foldable (ByTag AsmRefineTag) where
     foldMap = foldMapDefault
 
-instance Traversable (ByTag RefineTag) where
-    traverse f p = ByRefineTag <$> f p.asm <*> f p.c
+instance Traversable (ByTag AsmRefineTag) where
+    traverse f p = ByAsmRefineTag <$> f p.asm <*> f p.c
 
-instance Binary a => Binary (ByTag RefineTag a) where
+instance Binary a => Binary (ByTag AsmRefineTag a) where
 
 data WithTag t a
   = WithTag
@@ -155,8 +155,8 @@ viewWithTag tag = viewAtTag tag . withTags
 
 -- TODO
 
-type ByTag' = ByTag RefineTag
+type ByTag' = ByTag AsmRefineTag
 
-type WithTag' = WithTag RefineTag
+type WithTag' = WithTag AsmRefineTag
 
-type Tag' = RefineTag
+type Tag' = AsmRefineTag

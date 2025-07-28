@@ -46,10 +46,10 @@ deriving instance FromJSON InlineScripts
 
 deriving instance ToJSON InlineScripts
 
-instance FromJSON (InlineScriptEntry RefineTag) where
+instance FromJSON (InlineScriptEntry AsmRefineTag) where
     parseJSON = parseLine
 
-instance ToJSON (InlineScriptEntry RefineTag) where
+instance ToJSON (InlineScriptEntry AsmRefineTag) where
     toJSON = buildLine
 
 deriving instance FromJSON Pairings
@@ -139,7 +139,7 @@ parsePrettyPairingId = do
     M.hspace *> "(ASM)" *> M.hspace *> "<=" *> M.hspace
     c <- ident
     M.hspace *> "(C)"
-    return $ ByRefineTag { asm, c }
+    return $ ByAsmRefineTag { asm, c }
   where
     ident = Ident <$> M.some (M.satisfy isIdentChar)
     isIdentChar c = not (isSpace c || c == '(' || c == ')')

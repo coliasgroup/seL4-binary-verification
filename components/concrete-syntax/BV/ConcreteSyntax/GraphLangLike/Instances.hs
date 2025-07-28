@@ -391,7 +391,7 @@ instance ParseFile Problems where
 instance Tag t => ParseInBlock (Problem t) where
     parseInBlock = do
         _ <- line $ inLineSymbol "Problem"
-        byTagAssocs <- replicateM (numTagValues (Proxy :: Proxy RefineTag)) problemSideLine
+        byTagAssocs <- replicateM (numTagValues (Proxy :: Proxy AsmRefineTag)) problemSideLine
         let sides = byTagFromMap $ M.fromList byTagAssocs
         nodes <- M.fromList <$> manyTill nodeLine (try endLine)
         return $ Problem

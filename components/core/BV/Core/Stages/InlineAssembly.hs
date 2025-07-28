@@ -32,14 +32,14 @@ addInlineAssemblySpecs progs =
     (cProg', (cInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun progs.c
     (asmProg', (asmInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun progs.asm
 
-    intermediateProgs = ByRefineTag
+    intermediateProgs = ByAsmRefineTag
         { c = cProg'
         , asm = asmProg'
         }
 
     requiredInstFuns = S.toAscList (cInstFuns `S.union` asmInstFuns)
 
-    unhandled = S.toAscList <$> ByRefineTag
+    unhandled = S.toAscList <$> ByAsmRefineTag
         { c = cUnhandledFunNames
         , asm = asmUnhandledFunNames
         }
@@ -103,7 +103,7 @@ regSpecForInstFunction = \case
     WFI -> []
 
 instFunctionName :: InstFunction -> ByTag' Ident
-instFunctionName instFun = ByRefineTag { c = "r", asm = "l"} <&> \prefix -> Ident (prefix ++ "_impl'" ++ suffix)
+instFunctionName instFun = ByAsmRefineTag { c = "r", asm = "l"} <&> \prefix -> Ident (prefix ++ "_impl'" ++ suffix)
   where
     suffix = case instFun of
         MCR -> "mcr"

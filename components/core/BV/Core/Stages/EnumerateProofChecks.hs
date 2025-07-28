@@ -530,7 +530,7 @@ getSingleLoopRevCErrHyp :: MonadChecks m => SplitProofNodeDetails -> m Hyp
 getSingleLoopRevCErrHyp details = getSplitNodeCErrHyp (SplitProofNode
     { n = 1
     , loopRMax = 1
-    , details = ByRefineTag
+    , details = ByAsmRefineTag
         { asm = undefined
         , c = details
         }
