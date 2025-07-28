@@ -42,6 +42,7 @@ dependencies:
   - exceptions
   - safe-exceptions
   - containers
+  - array
   - vector
   - bytestring
   - text
@@ -117,6 +118,7 @@ internal-libraries:
       - sel4-bv:smtlib2
       # external
       - binary
+      - vector-binary-instances
       - file-embed
       - split
       # TODO for debugging

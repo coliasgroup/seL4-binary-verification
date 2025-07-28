@@ -29,20 +29,20 @@ addInlineAssemblySpecs :: ByTag' Program -> (Pairings, ByTag' Program, ByTag' [I
 addInlineAssemblySpecs progs =
     (pairings, finalProgs, unhandled)
   where
-    (cProg', (rightInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun progs.c
-    (asmProg', (leftInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun progs.asm
+    (cProg', (rightInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun (getC progs)
+    (asmProg', (leftInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun (getAsm progs)
 
-    intermediateProgs = ByAsmRefineTag
+    intermediateProgs = byAsmRefineTag (ByAsmRefineTag
         { c = cProg'
         , asm = asmProg'
-        }
+        })
 
     requiredInstFuns = S.toAscList (rightInstFuns `S.union` leftInstFuns)
 
-    unhandled = S.toAscList <$> ByAsmRefineTag
+    unhandled = S.toAscList <$> byAsmRefineTag (ByAsmRefineTag
         { c = cUnhandledFunNames
         , asm = asmUnhandledFunNames
-        }
+        })
 
     applyDecoder :: InstFunDecoder -> Program -> (Program, (S.Set InstFunction, S.Set Ident))
     applyDecoder decode prog = runWriter . iforOf (#functions % itraversed) prog $ \funName fun ->
@@ -103,7 +103,7 @@ regSpecForInstFunction = \case
     WFI -> []
 
 instFunctionName :: InstFunction -> ByTag' Ident
-instFunctionName instFun = ByAsmRefineTag { c = "r", asm = "l"} <&> \prefix -> Ident (prefix ++ "_impl'" ++ suffix)
+instFunctionName instFun = byRefineTag "l" "r" <&> \prefix -> Ident (prefix ++ "_impl'" ++ suffix)
   where
     suffix = case instFun of
         MCR -> "mcr"
@@ -173,7 +173,7 @@ decodeAsmInstFun funName _fun = f <$> stripPrefix "instruction'" funName.unwrap
                 output =
                     [ Argument reg machineWordT | (reg, RegRoleOut) <- zip regAssignments regSpec ]
                     ++ [ Argument "mem" memT ]
-                funBody = trivialProxyFunctionBody (instFunctionName instFun).asm input output
+                funBody = trivialProxyFunctionBody (getAsm (instFunctionName instFun)) input output
              in (funBody, instFun)
 
 
@@ -187,7 +187,7 @@ decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
                 (oscs, omems) = splitScalarPairs fun.output
                 input = map varFromArgE iscs ++ [ tokenE token ] ++ map varFromArgE imems
                 output = oscs ++ omems
-                funBody = trivialProxyFunctionBody (instFunctionName instFun).c input output
+                funBody = trivialProxyFunctionBody (getC (instFunctionName instFun)) input output
              in (funBody, instFun)
 
 -- TODO join with one in FormulatePairings

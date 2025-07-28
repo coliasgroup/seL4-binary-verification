@@ -191,10 +191,10 @@ getCheckFilter opts = CheckFilter
                 [] -> const True
                 include ->
                     let includeSet = S.fromList include
-                    in \pairingId -> pairingId.asm `S.member` includeSet
+                    in \pairingId -> getAsm pairingId `S.member` includeSet
             isIgnored =
                 let ignoreSet = S.fromList opts.ignoreFunctions
-                 in \pairingId -> pairingId.asm `S.member` ignoreSet
+                 in \pairingId -> getAsm pairingId `S.member` ignoreSet
          in \pairingId -> isIncluded pairingId && not (isIgnored pairingId)
     , groups = case opts.includeGroups of
         [] -> const True

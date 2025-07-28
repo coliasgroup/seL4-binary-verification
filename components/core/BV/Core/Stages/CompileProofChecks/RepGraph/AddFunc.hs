@@ -16,7 +16,7 @@ import Control.Monad (when)
 import Control.Monad.Reader (ReaderT (runReaderT))
 import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.Trans (MonadTrans, lift)
-import Data.Foldable (for_)
+import Data.Foldable (for_, toList)
 import Data.Map ((!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust)
@@ -55,7 +55,7 @@ initEnv :: Pairings -> Env
 initEnv pairings = Env
     { pairings
     , pairingsAccess = M.fromListWith (error "unexpected") $
-        concat [ [(p.c, p), (p.asm, p)] | p <- M.keys pairings.unwrap]
+        concat [ [(getC p, p), (getAsm p, p)] | p <- M.keys pairings.unwrap]
     }
 
 initState :: State
@@ -100,19 +100,19 @@ getFuncPairingNoCheck visit visit2 = do
     pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
     p <- WithAddFunc $ gview $ #pairings % #unwrap % at pairingId % unwrapped
     return $ (p ,) <$> if
-        | pairingId == ByAsmRefineTag { asm = fname, c = fname2 } -> Just $ ByAsmRefineTag { asm = visit, c = visit2 }
-        | pairingId == ByAsmRefineTag { asm = fname2, c = fname } -> Just $ ByAsmRefineTag { asm = visit2, c = visit }
+        | pairingId == byAsmRefineTag (ByAsmRefineTag { asm = fname, c = fname2 }) -> Just $ byAsmRefineTag $ ByAsmRefineTag { asm = visit, c = visit2 }
+        | pairingId == byAsmRefineTag (ByAsmRefineTag { asm = fname2, c = fname }) -> Just $ byAsmRefineTag $ ByAsmRefineTag { asm = visit2, c = visit }
         | otherwise -> Nothing
 
 getFuncPairing :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing', ByTag' Visit))
 getFuncPairing visit visit2 = do
     opt <- getFuncPairingNoCheck visit visit2
     whenJustThen opt $ \(p, visits) -> do
-        (lin, _, _) <- WithAddFunc $ use $ #funcs % at visits.asm % unwrapped
-        (rin, _, _) <- WithAddFunc $ use $ #funcs % at visits.c % unwrapped
+        (lin, _, _) <- WithAddFunc $ use $ #funcs % at (getAsm visits) % unwrapped
+        (rin, _, _) <- WithAddFunc $ use $ #funcs % at (getC visits) % unwrapped
         lcalls <- scanMemCalls lin
         rcalls <- scanMemCalls rin
-        (compatible, _s) <- memCallsCompatible $ ByAsmRefineTag
+        (compatible, _s) <- memCallsCompatible $ byAsmRefineTag $ ByAsmRefineTag
             { asm = lcalls
             , c = rcalls
             }
@@ -123,10 +123,10 @@ getFuncPairing visit visit2 = do
 getFuncAssert :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m Expr
 getFuncAssert visit visit2 = do
     (pairing, visits) <- fromJust <$> getFuncPairing visit visit2
-    (lin, lout, lsucc) <- WithAddFunc $ use $ #funcs % at visits.asm % unwrapped
-    (rin, rout, rsucc) <- WithAddFunc $ use $ #funcs % at visits.c % unwrapped
-    _lpc <- getPc visits.asm Nothing
-    rpc <- getPc visits.c Nothing
+    (lin, lout, lsucc) <- WithAddFunc $ use $ #funcs % at (getAsm visits) % unwrapped
+    (rin, rout, rsucc) <- WithAddFunc $ use $ #funcs % at (getC visits) % unwrapped
+    _lpc <- getPc (getAsm visits) Nothing
+    rpc <- getPc (getC visits) Nothing
     let envs = \case
             PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
             PairingEqSideQuadrant C PairingEqDirectionIn -> rin
@@ -149,11 +149,11 @@ addFuncAssert visit visit2 = do
     withoutEnv $ assertFact imp
 
 memCallsCompatible :: MonadRepGraph m => ByTag' (Maybe MemCalls) -> WithAddFunc m (Bool, Maybe String)
-memCallsCompatible = \case
-    ByAsmRefineTag { asm = Just lcalls, c = Just rcalls } -> do
+memCallsCompatible byTag = case toList byTag of
+    [Just lcalls, Just rcalls] -> do
         rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
             pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
-            let rfname = pairingId.c
+            let rfname = getC pairingId
             rsig <- askFunctionSigs <&> ($ WithTag C rfname)
             return $
                 if any (\arg -> arg.ty == memT) rsig.output

@@ -594,8 +594,8 @@ instance BuildInLine (SplitProofNode ()) where
     buildInLine node =
            putDec node.n
         <> putDec node.loopRMax
-        <> put node.details.asm
-        <> put node.details.c
+        <> put (getAsm node.details)
+        <> put (getC node.details)
         <> put node.eqs
         <> put node.p1
         <> put node.p2

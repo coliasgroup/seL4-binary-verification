@@ -1,6 +1,6 @@
 module BV.Core
     ( AsmFunctionFilter
-    , ByTag (..)
+    , ByTag
     , Ident (..)
     , IncludeExcludeFilter (..)
     , IntermediateStagesOutput (..)
@@ -26,6 +26,7 @@ module BV.Core
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
+    , getAsm
     , prettyMemoryMode
     , prettyModelConfig
     , prettyPairingId

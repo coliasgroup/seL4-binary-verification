@@ -40,6 +40,7 @@ library concrete-syntax
   build-depends:
       aeson
     , aeson-pretty
+    , array
     , async
     , attoparsec
     , base
@@ -121,7 +122,8 @@ library core
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      async
+      array
+    , async
     , base
     , binary
     , bytestring
@@ -142,6 +144,7 @@ library core
     , transformers
     , transformers-base
     , vector
+    , vector-binary-instances
   default-language: GHC2024
 
 library logging
@@ -167,6 +170,7 @@ library logging
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
+    , array
     , async
     , attoparsec
     , attoparsec-aeson
@@ -206,7 +210,8 @@ library network-transport-static
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      async
+      array
+    , async
     , base
     , binary
     , bytestring
@@ -249,7 +254,8 @@ library smtlib2
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      async
+      array
+    , async
     , attoparsec
     , base
     , binary
@@ -283,7 +289,8 @@ library smtlib2-process
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      async
+      array
+    , async
     , base
     , bytestring
     , conduit
@@ -325,7 +332,8 @@ library system
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      async
+      array
+    , async
     , base
     , binary
     , bytestring
@@ -384,7 +392,8 @@ library system-core
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      async
+      array
+    , async
     , base
     , base16-bytestring
     , binary
@@ -429,7 +438,8 @@ library system-utils
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      async
+      array
+    , async
     , base
     , bytestring
     , containers
@@ -463,6 +473,7 @@ library target-dir
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
       aeson
+    , array
     , async
     , base
     , bytestring
@@ -496,7 +507,8 @@ library test-utils
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind
   build-depends:
-      async
+      array
+    , async
     , base
     , bytestring
     , containers
@@ -541,6 +553,7 @@ executable sel4-bv-cli
   build-depends:
       aeson
     , ansi-terminal
+    , array
     , async
     , attoparsec
     , base
@@ -598,6 +611,7 @@ test-suite concrete-syntax-test
   build-depends:
       Glob
     , aeson
+    , array
     , async
     , attoparsec
     , base
@@ -638,7 +652,8 @@ test-suite core-test
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
-      async
+      array
+    , async
     , base
     , bytestring
     , containers
@@ -679,6 +694,7 @@ test-suite logging-test
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       aeson
+    , array
     , async
     , attoparsec
     , attoparsec-aeson
@@ -716,6 +732,7 @@ test-suite smtlib2-test
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       Glob
+    , array
     , async
     , attoparsec
     , base
@@ -755,7 +772,8 @@ test-suite system-test
       OverloadedRecordDot
   ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
-      async
+      array
+    , async
     , base
     , bytestring
     , containers

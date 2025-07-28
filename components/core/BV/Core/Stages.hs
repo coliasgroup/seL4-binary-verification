@@ -101,8 +101,8 @@ data IntermediateStagesOutput
 stages :: StagesInput -> StagesOutput
 stages input = StagesOutput
     { checks = finalChecks
-    , unhandledInlineAssemblyFunctions = unhandledAsmFunctionNames.c
-    , unhandledInstructionFunctions = unhandledAsmFunctionNames.asm
+    , unhandledInlineAssemblyFunctions = getC unhandledAsmFunctionNames
+    , unhandledInstructionFunctions = getAsm unhandledAsmFunctionNames
     , intermediate = IntermediateStagesOutput
         { functions = collectedFunctions
         , pairings
@@ -115,11 +115,11 @@ stages input = StagesOutput
 
   where
 
-    alteredPrograms = fixupProgram <$> ByAsmRefineTag
-        { asm = input.programs.asm & #functions %~ M.filterWithKey (\k _v ->
+    alteredPrograms = fixupProgram <$> byAsmRefineTag (ByAsmRefineTag
+        { asm = getAsm input.programs & #functions %~ M.filterWithKey (\k _v ->
             applyIncludeExcludeFilter input.earlyAsmFunctionFilter k)
-        , c = pseudoCompile input.objDumpInfo input.programs.c
-        }
+        , c = pseudoCompile input.objDumpInfo (getC input.programs)
+        })
 
     (inlineAsmPairings, alteredProgramsWithInlineAsm, unhandledAsmFunctionNames) =
         addInlineAssemblySpecs alteredPrograms
@@ -131,17 +131,17 @@ stages input = StagesOutput
     functionSigs = signatureOfFunction . lookupFunction
 
     collectedFunctions = programFromFunctions $
-        M.unionWith (error "not disjoint") finalPrograms.c.functions finalPrograms.asm.functions
+        M.unionWith (error "not disjoint") (getC finalPrograms).functions (getAsm finalPrograms).functions
 
     normalFunctionPairingIds = do
-        asm <- M.keys finalPrograms.asm.functions
+        asm <- M.keys (getAsm finalPrograms).functions
         let c = asmFunNameToCFunName asm
-        guard $ c `M.member` finalPrograms.c.functions
-        return $ ByAsmRefineTag { c = asmFunNameToCFunName asm, asm }
+        guard $ c `M.member` (getC finalPrograms).functions
+        return $ byAsmRefineTag $ ByAsmRefineTag { c = asmFunNameToCFunName asm, asm }
 
     normalPairings = M.fromList
-        [ let stackBound = input.stackBounds.unwrap ! pairingId.asm
-              sig = functionSigs $ WithTag C pairingId.c
+        [ let stackBound = input.stackBounds.unwrap ! (getAsm pairingId)
+              sig = functionSigs $ WithTag C (getC pairingId)
               pairing = formulatePairing stackBound sig
            in (pairingId, pairing)
         | pairingId <- normalFunctionPairingIds
@@ -160,8 +160,8 @@ stages input = StagesOutput
         let namedFuns =
                 let f funName prog = Named funName (prog.functions ! funName)
                  in f <$> pairingId <*> finalPrograms
-        guard $ isJust namedFuns.c.value.body
-        guard $ isJust namedFuns.asm.value.body
+        guard $ isJust (getC namedFuns).value.body
+        guard $ isJust (getAsm namedFuns).value.body
         let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
         let problem = buildProblem lookupFunction inlineScript namedFuns
         return (pairingId, problem)
@@ -184,7 +184,7 @@ stages input = StagesOutput
 
     smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let repGraphInput = RepGraphInput
-                { cStructs = input.programs.c.structs
+                { cStructs = (getC input.programs).structs
                 , rodata = input.rodata
                 , problem
                 , functionSigs

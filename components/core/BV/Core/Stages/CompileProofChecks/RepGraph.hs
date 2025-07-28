@@ -53,7 +53,7 @@ import Control.Monad.State (StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
-import Data.Foldable (for_, toList)
+import Data.Foldable (for_, toList, traverse_)
 import qualified Data.Graph as G
 import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
@@ -456,8 +456,7 @@ varRepRequest name ty kind visit env = runMaybeT $ do
 addInputEnvs :: MonadRepGraph m => m ()
 addInputEnvs = do
     p <- liftRepGraph $ gview #problem
-    f p.sides.asm
-    f p.sides.c
+    traverse_ f p.sides
   where
     f side = do
         let m = do
