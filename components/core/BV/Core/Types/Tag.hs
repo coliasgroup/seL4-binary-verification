@@ -94,14 +94,14 @@ instance Binary RefineTag where
 instance Tag RefineTag where
     data ByTag RefineTag a
       = ByRefineTag
-          { c :: a
-          , asm :: a
+          { asm :: a
+          , c :: a
           }
       deriving (Eq, Functor, Generic, NFData, Ord, Show)
 
     atTag = \case
-        C -> #c
         Asm -> #asm
+        C -> #c
 
     withTags byTag = ByRefineTag
         { asm = WithTag Asm byTag.asm
@@ -109,8 +109,8 @@ instance Tag RefineTag where
         }
 
     prettyTag = \case
-        C -> "C"
         Asm -> "ASM"
+        C -> "C"
 
 instance Applicative (ByTag RefineTag) where
     pure x = ByRefineTag x x
@@ -123,7 +123,7 @@ instance Foldable (ByTag RefineTag) where
     foldMap = foldMapDefault
 
 instance Traversable (ByTag RefineTag) where
-    traverse f p = (\asm c -> ByRefineTag { asm, c }) <$> f p.asm <*> f p.c
+    traverse f p = ByRefineTag <$> f p.asm <*> f p.c
 
 instance Binary a => Binary (ByTag RefineTag a) where
 
