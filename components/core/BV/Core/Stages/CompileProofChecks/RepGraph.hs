@@ -1,5 +1,7 @@
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
@@ -8,6 +10,7 @@
 module BV.Core.Stages.CompileProofChecks.RepGraph
     ( FunctionSignatures
     , MonadRepGraph (..)
+    , MonadRepGraphDefaultHelper (..)
     , RepGraphEnv
     , RepGraphState
     , getInductVar
@@ -18,6 +21,9 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , initRepGraphState
     , instEqWithEnvs
     , substInduct
+      -- TODO
+    , addFunc
+    , asmStackRepHook
     ) where
 
 import BV.Core.Graph
@@ -37,11 +43,12 @@ import Control.Monad.Reader (Reader, ReaderT)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
                           RWST (runRWST), evalRWST)
 import Control.Monad.State (StateT (runStateT), execStateT, modify)
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
+import Data.Kind (Type)
 import Data.List (intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
@@ -60,59 +67,59 @@ import Text.Printf (printf)
 
 type FunctionSignatures = WithTag Ident -> FunctionSignature
 
+class MonadRepGraph n => MonadRepGraphDefaultHelper n m | m -> n where
+    liftMonadRepGraphDefaultHelper :: n a -> m a
+
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: StateT RepGraphState (Reader RepGraphEnv) a -> m a
-
     runProblemVarRepHook :: Ident -> ExprType -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
-    -- runProblemVarRepHook _ _ _ _ = return Nothing
-    -- TODO
-    runProblemVarRepHook = asmStackRepHook
-
     runPostEmitNodeHook :: Visit -> m ()
-    runPostEmitNodeHook _ = return ()
-
     runPreEmitCallNodeHook :: Visit -> Expr -> ExprEnv -> m ()
-    runPreEmitCallNodeHook _ _ _ = return ()
-
     runPostEmitCallNodeHook :: Visit -> ExprEnv -> ExprEnv -> Expr -> m ()
-    -- runPostEmitCallNodeHook _ _ _ _ = return ()
-    -- TODO
-    runPostEmitCallNodeHook = addFunc
+
+    default liftRepGraph :: MonadRepGraphDefaultHelper n m => StateT RepGraphState (Reader RepGraphEnv) a -> m a
+    liftRepGraph = liftMonadRepGraphDefaultHelper . liftRepGraph
+
+    default runProblemVarRepHook :: MonadRepGraphDefaultHelper n m => Ident -> ExprType -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
+    runProblemVarRepHook = compose4 liftMonadRepGraphDefaultHelper runProblemVarRepHook
+
+    default runPostEmitNodeHook :: MonadRepGraphDefaultHelper n m => Visit -> m ()
+    runPostEmitNodeHook = liftMonadRepGraphDefaultHelper . runPostEmitNodeHook
+
+    default runPreEmitCallNodeHook :: MonadRepGraphDefaultHelper n m => Visit -> Expr -> ExprEnv -> m ()
+    runPreEmitCallNodeHook = compose3 liftMonadRepGraphDefaultHelper runPreEmitCallNodeHook
+
+    default runPostEmitCallNodeHook :: MonadRepGraphDefaultHelper n m => Visit -> ExprEnv -> ExprEnv -> Expr -> m ()
+    runPostEmitCallNodeHook = compose4 liftMonadRepGraphDefaultHelper runPostEmitCallNodeHook
+
+-- TODO
+-- instance (MonadTrans t, MonadRepGraph m) => MonadRepGraphDefaultHelper m (t m) where
+--     liftMonadRepGraphDefaultHelper = lift
+
+instance MonadRepGraph m => MonadRepGraphDefaultHelper m (ReaderT r m) where
+    liftMonadRepGraphDefaultHelper = lift
 
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
-    liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = compose4 lift runProblemVarRepHook
-    runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
+
+instance MonadRepGraph m => MonadRepGraphDefaultHelper m (StateT s  m) where
+    liftMonadRepGraphDefaultHelper = lift
 
 instance MonadRepGraph m => MonadRepGraph (StateT s m) where
-    liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = compose4 lift runProblemVarRepHook
-    runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
+
+instance (Monoid w, MonadRepGraph m) => MonadRepGraphDefaultHelper m (RWST r w s m) where
+    liftMonadRepGraphDefaultHelper = lift
 
 instance (Monoid w, MonadRepGraph m) => MonadRepGraph (RWST r w s m) where
-    liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = compose4 lift runProblemVarRepHook
-    runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
+
+instance MonadRepGraph m => MonadRepGraphDefaultHelper m (MaybeT m) where
+    liftMonadRepGraphDefaultHelper = lift
 
 instance MonadRepGraph m => MonadRepGraph (MaybeT m) where
-    liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = compose4 lift runProblemVarRepHook
-    runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
+
+instance MonadRepGraph m => MonadRepGraphDefaultHelper m (ExceptT e m) where
+    liftMonadRepGraphDefaultHelper = lift
 
 instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
-    liftRepGraph = lift . liftRepGraph
-    runProblemVarRepHook = compose4 lift runProblemVarRepHook
-    runPostEmitNodeHook = lift . runPostEmitNodeHook
-    runPreEmitCallNodeHook = compose3 lift runPreEmitCallNodeHook
-    runPostEmitCallNodeHook = compose4 lift runPostEmitCallNodeHook
 
 data TooGeneral
   = TooGeneral

@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies #-}
+
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Core.Search.Inlining
@@ -67,9 +69,10 @@ instance S.MonadSolver m => MonadSolverSend (InnerSolver m) where
         modelConfig <- ask
         lift $ S.sendSExpr $ configureSExpr modelConfig s
 
-instance S.MonadSolver m => MonadRepGraph (InlineM m) where
-    liftRepGraph = InlineM . liftRepGraph
+instance S.MonadSolver m => MonadRepGraphDefaultHelper (M (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m)))) (InlineM m) where
+    liftMonadRepGraphDefaultHelper = InlineM
 
+instance S.MonadSolver m => MonadRepGraph (InlineM m) where
     runPreEmitCallNodeHook _nodeId _pc _env = do
         undefined
 

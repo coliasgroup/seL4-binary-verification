@@ -84,6 +84,11 @@ instance MonadSolverSend m => MonadRepGraph (M m) where
         . mapStateT (mapReaderT (return . runIdentity))
         $ m
 
+    runProblemVarRepHook = asmStackRepHook
+    runPostEmitNodeHook _ = return ()
+    runPreEmitCallNodeHook _ _ _ = return ()
+    runPostEmitCallNodeHook = addFunc
+
 initEnv :: RepGraphInput -> Env
 initEnv (RepGraphInput {..}) = Env
     { structs = initStructsEnv rodata problem cStructs
