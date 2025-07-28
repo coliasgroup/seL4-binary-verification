@@ -32,12 +32,12 @@ argRenamesOf lookupFunction problem quadrant mangledName =
 pairingIdOfProblem :: Problem' -> PairingId
 pairingIdOfProblem problem = view #name <$> problem.sides
 
-varNamesOfProblem :: Traversal' Problem' Ident
+varNamesOfProblem :: Tag t => Traversal' (Problem t) Ident
 varNamesOfProblem =
     (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
         `adjoin` (#nodes % traversed % varNamesOf)
 
-predsOf :: Problem' -> M.Map NodeId (S.Set NodeAddr)
+predsOf :: Problem t -> M.Map NodeId (S.Set NodeAddr)
 predsOf problem =
     M.fromListWith (<>) $ concat $ [defaults] ++
         [ [ (cont, S.singleton nodeAddr)

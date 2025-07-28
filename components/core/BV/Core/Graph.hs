@@ -97,13 +97,13 @@ data LoopData
   | LoopMember NodeAddr
   deriving (Eq, Generic, Ord, Show)
 
-createLoopDataMap :: Problem' -> NodeGraph -> LoopDataMap
+createLoopDataMap :: Tag t => Problem t -> NodeGraph -> LoopDataMap
 createLoopDataMap problem nodeGraph =
     M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
         [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
             if member == loopHead then Nothing else Just (member, LoopMember loopHead))
   where
-    heads = loopHeadsFrom nodeGraph [problem.sides.c.entryPoint, problem.sides.asm.entryPoint]
+    heads = loopHeadsFrom nodeGraph $ problem.sides ^.. folded % #entryPoint
 
 loopHeadsOf :: LoopDataMap -> [NodeAddr]
 loopHeadsOf loopDataMap = flip mapMaybe (M.toList loopDataMap) $ \(k, v) -> case v of

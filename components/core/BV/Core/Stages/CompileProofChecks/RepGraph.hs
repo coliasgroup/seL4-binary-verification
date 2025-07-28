@@ -257,7 +257,7 @@ getHasInnerLoop loopHead = withMapSlot #hasInnerLoop loopHead $ do
     loopBody <- askLoopBody loopHead
     return $ not $ null $ loopBodyInnerLoops p loopHead loopBody
 
-loopBodyInnerLoops :: Problem' -> NodeAddr -> Set NodeAddr -> [Set NodeAddr]
+loopBodyInnerLoops :: Problem t -> NodeAddr -> Set NodeAddr -> [Set NodeAddr]
 loopBodyInnerLoops p loopHead loopBody =
     [ S.map (view _2 . toNodeAddr) component
     | component <- S.fromList . toList <$> G.scc g
