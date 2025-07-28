@@ -7,12 +7,15 @@ module BV.Core.Types.Tag
     ( AsmRefineTag (..)
     , ByTag (..)
     , ByTag'
+    , RefineTag
     , Tag (..)
     , Tag'
     , WithTag (..)
     , WithTag'
     , byTagFromMap
+    , leftTag
     , numTagValues
+    , rightTag
     , tagValues
     , viewAtTag
     , viewWithTag
@@ -92,6 +95,16 @@ byTagFromMap m = withTags (pure ()) <&> \(WithTag tag _) -> m M.! tag
 
 --
 
+class Tag t => RefineTag t where
+
+leftTag :: RefineTag t => t
+leftTag = minBound
+
+rightTag :: RefineTag t => t
+rightTag = maxBound
+
+--
+
 instance Tag () where
     newtype ByTag () a = ByUnitTag { unit :: a }
       deriving (Eq, Generic, Ord, Show, Functor, Foldable, Traversable)
@@ -141,6 +154,8 @@ instance Tag AsmRefineTag where
         "ASM" -> Just Asm
         "C" -> Just C
         _ -> Nothing
+
+instance RefineTag AsmRefineTag
 
 instance Applicative (ByTag AsmRefineTag) where
     pure x = ByAsmRefineTag x x
