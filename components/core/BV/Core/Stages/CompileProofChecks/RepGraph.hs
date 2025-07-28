@@ -63,7 +63,7 @@ type FunctionSignatures = WithTag Ident -> FunctionSignature
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: StateT RepGraphState (Reader RepGraphEnv) a -> m a
 
-    runPreEmitCallNodeHook :: NodeId -> Expr -> ExprEnv -> m ()
+    runPreEmitCallNodeHook :: Visit -> Expr -> ExprEnv -> m ()
     runPreEmitCallNodeHook _ _ _ = return ()
 
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
@@ -418,9 +418,14 @@ specialize visit split = ensure (isOptionsVC vc)
 
 --
 
-addFunc :: MonadRepGraph m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
-addFunc name inputs outputs success visit = do
+askFnName :: MonadRepGraph m => Visit -> m Ident
+askFnName v = liftRepGraph $ gview $
+    #problem % #nodes % at (nodeAddrFromNodeId v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
+
+addFunc :: MonadRepGraph m => Visit -> ExprEnv -> ExprEnv -> Expr -> m ()
+addFunc visit inputs outputs success = do
     liftRepGraph $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
+    name <- askFnName visit
     pairingIdOpt <- liftRepGraph $ gview $ #pairingsAccess % at name
     whenJust_ pairingIdOpt $ \pairingId -> do
         group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
@@ -432,8 +437,6 @@ addFunc name inputs outputs success visit = do
 
 getFuncPairingNoCheck :: MonadRepGraph m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairingNoCheck visit visit2 = do
-    let askFnName v = liftRepGraph $ gview $
-            #problem % #nodes % at (nodeAddrFromNodeId v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
     fname <- askFnName visit
     fname2 <- askFnName visit2
     pairingId <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
@@ -794,7 +797,7 @@ emitNode visit = do
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, lpc, env'), (condNode.right, rpc, env')]
             NodeCall callNode -> do
-                runPreEmitCallNodeHook visit.nodeId pc env
+                runPreEmitCallNodeHook visit pc env
                 let name = successName callNode.functionName visit
                 success <- smtExprE boolT . NotSplit . nameS <$> addVar name boolT
                 sigs <- liftRepGraph $ gview #functionSigs
@@ -816,7 +819,7 @@ emitNode visit = do
                                 tell [((y.name, x.ty), Split v)]
                 (_, env', outs') <- runRWST m () env
                 let outs = M.fromList outs'
-                addFunc callNode.functionName ins outs success visit
+                addFunc visit ins outs success
                 return [(callNode.next, pc, env')]
 
 isSyntacticConstant :: MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
