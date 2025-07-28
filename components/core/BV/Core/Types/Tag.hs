@@ -85,8 +85,8 @@ instance Applicative (ByTag ()) where
     (ByUnitTag f) <*> (ByUnitTag a) = ByUnitTag (f a)
 
 data RefineTag
-  = C
-  | Asm
+  = Asm
+  | C
   deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Show)
 
 instance Binary RefineTag where
@@ -115,15 +115,15 @@ instance Tag RefineTag where
 instance Applicative (ByTag RefineTag) where
     pure x = ByRefineTag x x
     ff <*> fx = ByRefineTag
-        { c = ff.c fx.c
-        , asm = ff.asm fx.asm
+        { asm = ff.asm fx.asm
+        , c = ff.c fx.c
         }
 
 instance Foldable (ByTag RefineTag) where
     foldMap = foldMapDefault
 
 instance Traversable (ByTag RefineTag) where
-    traverse f p = (\c asm -> ByRefineTag { c, asm }) <$> f p.c <*> f p.asm
+    traverse f p = (\asm c -> ByRefineTag { asm, c }) <$> f p.asm <*> f p.c
 
 instance Binary a => Binary (ByTag RefineTag a) where
 
