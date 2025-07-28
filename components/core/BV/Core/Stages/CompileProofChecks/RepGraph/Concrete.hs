@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module BV.Core.Stages.CompileProofChecks.ConcreteRepGraph
+module BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
     ( M
     , RepGraphInput (..)
     , runM

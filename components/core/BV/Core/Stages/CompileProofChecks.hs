@@ -8,7 +8,7 @@ module BV.Core.Stages.CompileProofChecks
     ) where
 
 import BV.Core.Logic
-import BV.Core.Stages.CompileProofChecks.ConcreteRepGraph
+import BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
 import BV.Core.Stages.CompileProofChecks.Grouping
 import BV.Core.Stages.CompileProofChecks.RepGraph
 import BV.Core.Stages.CompileProofChecks.Solver

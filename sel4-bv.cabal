@@ -79,9 +79,9 @@ library core
       BV.Core.Stages
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
-      BV.Core.Stages.CompileProofChecks.ConcreteRepGraph
       BV.Core.Stages.CompileProofChecks.Grouping
       BV.Core.Stages.CompileProofChecks.RepGraph
+      BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
       BV.Core.Stages.CompileProofChecks.Solver
       BV.Core.Stages.CompileProofChecks.Structs
       BV.Core.Stages.EnumerateProofChecks
