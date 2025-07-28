@@ -7,6 +7,8 @@ module BV.Core.Types.Tag where
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
+import Data.Functor ((<&>))
+import qualified Data.Map as M
 import Data.Monoid (Ap (..))
 import Data.Proxy (Proxy)
 import Data.Traversable (foldMapDefault)
@@ -49,6 +51,9 @@ tagValues = [minBound .. maxBound]
 
 numTagValues :: forall t. Tag t => Proxy t -> Int
 numTagValues _ = fromEnum (maxBound :: t) - fromEnum (minBound :: t)
+
+byTagFromMap :: Tag t => M.Map t a -> ByTag t a
+byTagFromMap m = withTags (pure ()) <&> \(WithTag tag _) -> m M.! tag
 
 instance Tag () where
     newtype ByTag () a = ByUnitTag { unit :: a }
