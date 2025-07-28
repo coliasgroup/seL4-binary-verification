@@ -521,7 +521,7 @@ instance ParseInLine (SplitProofNode ()) where
         SplitProofNode
             <$> parseInLine
             <*> parseInLine
-            <*> traverse (const parseInLine) (pure ())
+            <*> sequence (pure parseInLine)
             <*> parseInLine
             <*> parseInLine
             <*> parseInLine
