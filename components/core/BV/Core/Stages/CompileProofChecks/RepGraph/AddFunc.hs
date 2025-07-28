@@ -37,7 +37,7 @@ instance MonadTrans WithAddFunc where
 data Env
   = Env
       { pairings :: Pairings
-      , pairingsAccess :: M.Map Ident PairingId
+      , pairingsAccess :: M.Map Ident PairingId'
       }
   deriving (Generic)
 
@@ -93,7 +93,7 @@ addFunc visit inputs outputs success = do
                 addFuncAssert visit visit2
         WithAddFunc $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
-getFuncPairingNoCheck :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing, ByTag' Visit))
+getFuncPairingNoCheck :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing', ByTag' Visit))
 getFuncPairingNoCheck visit visit2 = do
     fname <- askFnName visit
     fname2 <- askFnName visit2
@@ -104,7 +104,7 @@ getFuncPairingNoCheck visit visit2 = do
         | pairingId == ByAsmRefineTag { asm = fname2, c = fname } -> Just $ ByAsmRefineTag { asm = visit2, c = visit }
         | otherwise -> Nothing
 
-getFuncPairing :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing, ByTag' Visit))
+getFuncPairing :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing', ByTag' Visit))
 getFuncPairing visit visit2 = do
     opt <- getFuncPairingNoCheck visit visit2
     whenJustThen opt $ \(p, visits) -> do
@@ -139,7 +139,7 @@ getFuncAssert visit visit2 = do
         (foldr1 andE (inEqs ++ [rpc]))
         (foldr1 andE (outEqs ++ [succImp]))
   where
-    instEqs :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
+    instEqs :: MonadSolver m => [PairingEq AsmRefineTag] -> (PairingEqSideQuadrant AsmRefineTag -> ExprEnv) -> m [Expr]
     instEqs eqs envs = for eqs $ \eq ->
         instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
 

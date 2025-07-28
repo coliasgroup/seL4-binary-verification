@@ -24,7 +24,7 @@ import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.Text.Lazy.Builder (toLazyText)
 import System.Process (CreateProcess)
 
-withPushLogContextPairing :: MonadLoggerWithContext m => PairingId -> m a -> m a
+withPushLogContextPairing :: MonadLoggerWithContext m => PairingId' -> m a -> m a
 withPushLogContextPairing pairingId = withPushLogContext $
     "pairing " ++ pairingId.asm.unwrap
 

@@ -73,7 +73,7 @@ data StagesOutput
   deriving (Eq, Generic, NFData)
 
 newtype StagesOutputChecks
-  = StagesOutputChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup ProofCheckMeta] }
+  = StagesOutputChecks { unwrap :: M.Map PairingId' [SMTProofCheckGroup ProofCheckMeta] }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 

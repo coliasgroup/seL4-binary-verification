@@ -9,6 +9,7 @@ module BV.Core
     , OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
     , PairingId
+    , PairingId'
     , ProofCheckDescription
     , ProofCheckMeta (..)
     , ProofScriptNodePath (..)

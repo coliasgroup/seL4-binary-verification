@@ -12,7 +12,8 @@ module BV.Core.Types.Tag
     , Tag'
     , WithTag (..)
     , WithTag'
-    , byTagFromMap
+    , byRefineTag
+    , byTagFrom
     , leftTag
     , numTagValues
     , rightTag
@@ -25,7 +26,6 @@ module BV.Core.Types.Tag
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import Data.Functor ((<&>))
-import qualified Data.Map as M
 import Data.Monoid (Ap (..))
 import Data.Proxy (Proxy)
 import Data.Traversable (foldMapDefault)
@@ -90,12 +90,15 @@ viewAtTag = view . atTag
 viewWithTag :: Tag t => t -> ByTag t a -> WithTag t a
 viewWithTag tag = viewAtTag tag . withTags
 
-byTagFromMap :: Tag t => M.Map t a -> ByTag t a
-byTagFromMap m = withTags (pure ()) <&> \(WithTag tag _) -> m M.! tag
+byTagFrom :: Tag t => (t -> a) -> ByTag t a
+byTagFrom f = withTags (pure ()) <&> \(WithTag t _) -> f t
 
 --
 
 class Tag t => RefineTag t where
+
+byRefineTag :: RefineTag t => a -> a -> ByTag t a
+byRefineTag left right = byTagFrom $ \t -> if t == leftTag then left else right
 
 leftTag :: RefineTag t => t
 leftTag = minBound

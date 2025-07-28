@@ -73,7 +73,7 @@ prettyCheckFailure err =
 
 data Report
   = Report
-      { unwrap :: M.Map PairingId CheckResult
+      { unwrap :: M.Map PairingId' CheckResult
       }
   deriving (Eq, Generic, Ord, Show)
 

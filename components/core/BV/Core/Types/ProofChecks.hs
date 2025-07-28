@@ -29,7 +29,7 @@ import GHC.Generics (Generic)
 import Optics
 
 newtype ProofChecks a
-  = ProofChecks { unwrap :: M.Map PairingId (ProofScript [ProofCheck a]) }
+  = ProofChecks { unwrap :: M.Map PairingId' (ProofScript [ProofCheck a]) }
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 

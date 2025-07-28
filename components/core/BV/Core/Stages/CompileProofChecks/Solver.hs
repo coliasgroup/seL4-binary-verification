@@ -525,9 +525,9 @@ mergeEnvs envs = do
                     | (var, val) <- M.toAscList env
                     ]
     let flattenVal valsByPc =
-            let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
+            let Just (valsByPrightInit, (lastVal, _)) = unsnoc valsByPc
                 f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
-             in foldl f lastVal valsByPcInit
+             in foldl f lastVal valsByPrightInit
     return $ fmap (flattenVal . sortOn (compatSMTComparisonKey . fst) . M.toAscList) varEnvs
   where
     orCompat = \case

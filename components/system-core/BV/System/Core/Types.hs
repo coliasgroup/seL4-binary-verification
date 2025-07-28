@@ -55,7 +55,7 @@ data Check
 data CheckGroup
   = CheckGroup
       { fingerprint :: CheckGroupFingerprint
-      , pairingId :: PairingId
+      , pairingId :: PairingId'
       , setup :: [SExprWithPlaceholders]
       , checks :: [Check]
       }
@@ -83,7 +83,7 @@ data CheckSubgroupId
 instance Binary CheckSubgroupId where
 
 newtype Checks
-  = Checks { unwrap :: M.Map PairingId (M.Map CheckGroupFingerprint CheckSubgroup) }
+  = Checks { unwrap :: M.Map PairingId' (M.Map CheckGroupFingerprint CheckSubgroup) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
@@ -120,7 +120,7 @@ fullSubgroup group = CheckSubgroup
 
 data CheckFilter
   = CheckFilter
-      { pairings :: PairingId -> Bool
+      { pairings :: PairingId' -> Bool
       , groups :: CheckGroupFingerprint -> Bool
       , checks :: CheckFingerprint -> Bool
       }
@@ -192,7 +192,7 @@ toCoreCheckGroup subgroup = SMTProofCheckGroup
 
 data CheckPath
   = CheckPath
-      { pairingId :: PairingId
+      { pairingId :: PairingId'
       , groupFingerprint :: CheckGroupFingerprint
       , checkFingerprint :: CheckFingerprint
       }
@@ -222,7 +222,7 @@ findCheck path checks = head $ findChecks path checks
 
 data CheckSubgroupPath
   = CheckSubgroupPath
-      { pairingId :: PairingId
+      { pairingId :: PairingId'
       , subgroupId :: CheckSubgroupId
       }
   deriving (Eq, Generic, NFData, Ord, Show)

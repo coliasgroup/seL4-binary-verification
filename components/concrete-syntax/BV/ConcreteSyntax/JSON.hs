@@ -14,6 +14,7 @@ import BV.ConcreteSyntax.SExprWithPlaceholders (buildSExprWithPlaceholders)
 import BV.ConcreteSyntax.SExprWithPlaceholdersFaster (parseSExprWithPlaceholdersFaster)
 import BV.Core.Types
 
+import Control.Applicative ((<|>))
 import Data.Aeson (FromJSON (..), FromJSONKey (..),
                    FromJSONKeyFunction (FromJSONKeyTextParser), ToJSON (..),
                    ToJSONKey (..), ToJSONKeyFunction (ToJSONKeyText),
@@ -30,16 +31,16 @@ import Data.Void (Void)
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as M
 
-instance FromJSON PairingId where
+instance RefineTag t => FromJSON (PairingId t) where
     parseJSON = parseText parsePrettyPairingId
 
-instance ToJSON PairingId where
+instance RefineTag t => ToJSON (PairingId t) where
     toJSON = fromString . prettyPairingId
 
-instance FromJSONKey PairingId where
+instance RefineTag t => FromJSONKey (PairingId t) where
     fromJSONKey = FromJSONKeyTextParser $ parseText' parsePrettyPairingId
 
-instance ToJSONKey PairingId where
+instance RefineTag t => ToJSONKey (PairingId t) where
     toJSONKey = ToJSONKeyText (fromString . prettyPairingId) (A.string . prettyPairingId)
 
 deriving instance FromJSON InlineScripts
@@ -56,18 +57,18 @@ deriving instance FromJSON Pairings
 
 deriving instance ToJSON Pairings
 
-instance FromJSON Pairing where
+instance RefineTag t => FromJSON (Pairing t) where
     parseJSON = withObject "Pairing" $ \v -> Pairing
         <$> v .: "in"
         <*> v .: "out"
 
-instance ToJSON Pairing where
+instance RefineTag t => ToJSON (Pairing t) where
     toJSON v = object [ "in" .= v.inEqs, "out" .= v.outEqs ]
 
-instance FromJSON PairingEq where
+instance RefineTag t => FromJSON (PairingEq t) where
     parseJSON = parseLine
 
-instance ToJSON PairingEq where
+instance RefineTag t => ToJSON (PairingEq t) where
     toJSON = buildLine
 
 deriving instance FromJSON (Proofs ())
@@ -133,13 +134,19 @@ buildLine = fromBuilder . buildStandaloneLine . buildInLine
 fromBuilder :: Builder -> Value
 fromBuilder = String . TL.toStrict . toLazyText
 
-parsePrettyPairingId :: M.Parsec Void TL.Text PairingId
+parsePrettyPairingId :: forall t. RefineTag t => M.Parsec Void TL.Text (PairingId t)
 parsePrettyPairingId = do
-    asm <- ident
-    M.hspace *> "(ASM)" *> M.hspace *> "<=" *> M.hspace
-    c <- ident
-    M.hspace *> "(C)"
-    return $ ByAsmRefineTag { asm, c }
+    l <- ident
+    M.hspace *> tag leftTag *> M.hspace *> "<=" *> M.hspace
+    r <- ident
+    M.hspace *> tag rightTag
+    return $ byRefineTag l r
   where
     ident = Ident <$> M.some (M.satisfy isIdentChar)
     isIdentChar c = not (isSpace c || c == '(' || c == ')')
+    tag :: t -> M.Parsec Void TL.Text ()
+    tag t = do
+        "("
+        M.try (fromString (prettyTag t)) <|> fail "unrecognized tag"
+        ")"
+        return ()

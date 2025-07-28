@@ -3,11 +3,13 @@
 module BV.Core.Types.Pairing
     ( AtPairingId (..)
     , Pairing (..)
+    , Pairing'
     , PairingEq (..)
     , PairingEqDirection (..)
     , PairingEqSide (..)
     , PairingEqSideQuadrant (..)
     , PairingId
+    , PairingId'
     , Pairings (..)
     , prettyPairingEqDirection
     , prettyPairingEqSideQuadrant
@@ -21,39 +23,45 @@ import BV.Core.Types.Tag
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
+import Optics
+import Text.Printf (printf)
 
-type PairingId = ByTag' Ident
+type PairingId' = PairingId AsmRefineTag
+
+type PairingId t = ByTag t Ident
 
 class AtPairingId a m | m -> a where
-    atPairingId :: m -> PairingId -> a
+    atPairingId :: m -> PairingId' -> a
 
-instance AtPairingId a (M.Map PairingId a) where
+instance AtPairingId a (M.Map PairingId' a) where
     atPairingId = (M.!)
 
-data Pairing
+type Pairing' = Pairing AsmRefineTag
+
+data Pairing t
   = Pairing
-      { inEqs :: [PairingEq]
-      , outEqs :: [PairingEq]
+      { inEqs :: [PairingEq t]
+      , outEqs :: [PairingEq t]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data PairingEq
+data PairingEq t
   = PairingEq
-      { lhs :: PairingEqSide
-      , rhs :: PairingEqSide
+      { lhs :: PairingEqSide t
+      , rhs :: PairingEqSide t
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data PairingEqSide
+data PairingEqSide t
   = PairingEqSide
-      { quadrant :: PairingEqSideQuadrant
+      { quadrant :: PairingEqSideQuadrant t
       , expr :: Expr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data PairingEqSideQuadrant
+data PairingEqSideQuadrant t
   = PairingEqSideQuadrant
-      { tag :: Tag'
+      { tag :: t
       , direction :: PairingEqDirection
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -64,7 +72,7 @@ data PairingEqDirection
   deriving (Eq, Generic, NFData, Ord, Show)
 
 newtype Pairings
-  = Pairings { unwrap :: M.Map PairingId Pairing }
+  = Pairings { unwrap :: M.Map PairingId' Pairing' }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
@@ -74,13 +82,18 @@ instance Semigroup Pairings where
 instance Monoid Pairings where
     mempty = Pairings mempty
 
-instance AtPairingId Pairing Pairings where
+instance AtPairingId Pairing' Pairings where
     atPairingId = atPairingId . (.unwrap)
 
-prettyPairingId :: PairingId -> String
-prettyPairingId (ByAsmRefineTag { c, asm }) = asm.unwrap ++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
+prettyPairingId :: forall t. RefineTag t => PairingId t -> String
+prettyPairingId pairingId =
+    printf "%s (%s) <= %s (%s)"
+        (pairingId ^. atTag leftTag).unwrap
+        (prettyTag (leftTag :: t))
+        (pairingId ^. atTag rightTag).unwrap
+        (prettyTag (rightTag :: t))
 
-prettyPairingEqSideQuadrant :: PairingEqSideQuadrant ->  String
+prettyPairingEqSideQuadrant :: RefineTag t => PairingEqSideQuadrant t ->  String
 prettyPairingEqSideQuadrant (PairingEqSideQuadrant { tag, direction }) =
     prettyTag tag <> "_" <> prettyPairingEqDirection direction
 

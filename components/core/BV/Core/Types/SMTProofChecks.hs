@@ -24,7 +24,7 @@ import qualified Data.Map as M
 import GHC.Generics (Generic)
 
 newtype SMTProofChecks a
-  = SMTProofChecks { unwrap :: M.Map PairingId (ProofScript [SMTProofCheckGroup a]) }
+  = SMTProofChecks { unwrap :: M.Map PairingId' (ProofScript [SMTProofCheckGroup a]) }
   deriving (Eq, Functor, Generic, Ord, Show)
   deriving newtype (NFData)
 

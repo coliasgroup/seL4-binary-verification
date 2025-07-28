@@ -1,42 +1,42 @@
 module BV.Core.Types.Extras.Pairing
-    ( asmIn
-    , asmInQ
-    , asmOut
-    , asmOutQ
-    , cIn
-    , cInQ
-    , cOut
-    , cOutQ
+    ( leftIn
+    , leftInQ
+    , leftOut
+    , leftOutQ
+    , rightIn
+    , rightInQ
+    , rightOut
+    , rightOutQ
     , (===)
     ) where
 
 import BV.Core.Types
 
-asmInQ :: PairingEqSideQuadrant
-asmInQ = PairingEqSideQuadrant Asm PairingEqDirectionIn
+leftInQ :: RefineTag t => PairingEqSideQuadrant t
+leftInQ = PairingEqSideQuadrant leftTag PairingEqDirectionIn
 
-asmOutQ :: PairingEqSideQuadrant
-asmOutQ = PairingEqSideQuadrant Asm PairingEqDirectionOut
+leftOutQ :: RefineTag t => PairingEqSideQuadrant t
+leftOutQ = PairingEqSideQuadrant leftTag PairingEqDirectionOut
 
-cInQ :: PairingEqSideQuadrant
-cInQ = PairingEqSideQuadrant C PairingEqDirectionIn
+rightInQ :: RefineTag t => PairingEqSideQuadrant t
+rightInQ = PairingEqSideQuadrant rightTag PairingEqDirectionIn
 
-cOutQ :: PairingEqSideQuadrant
-cOutQ = PairingEqSideQuadrant C PairingEqDirectionOut
+rightOutQ :: RefineTag t => PairingEqSideQuadrant t
+rightOutQ = PairingEqSideQuadrant rightTag PairingEqDirectionOut
 
-asmIn :: Expr -> PairingEqSide
-asmIn = PairingEqSide asmInQ
+leftIn :: RefineTag t => Expr -> PairingEqSide t
+leftIn = PairingEqSide leftInQ
 
-asmOut :: Expr -> PairingEqSide
-asmOut = PairingEqSide asmOutQ
+leftOut :: RefineTag t => Expr -> PairingEqSide t
+leftOut = PairingEqSide leftOutQ
 
-cIn :: Expr -> PairingEqSide
-cIn = PairingEqSide cInQ
+rightIn :: RefineTag t => Expr -> PairingEqSide t
+rightIn = PairingEqSide rightInQ
 
-cOut :: Expr -> PairingEqSide
-cOut = PairingEqSide cOutQ
+rightOut :: RefineTag t => Expr -> PairingEqSide t
+rightOut = PairingEqSide rightOutQ
 
 infix 4 ===
 
-(===) :: PairingEqSide -> PairingEqSide -> PairingEq
+(===) :: PairingEqSide t -> PairingEqSide t -> PairingEq t
 (===) = PairingEq

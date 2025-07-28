@@ -59,7 +59,7 @@ data NodeSource t
 instance Binary t => Binary (NodeSource t) where
 
 newtype Problems
-  = Problems { unwrap :: M.Map PairingId Problem' }
+  = Problems { unwrap :: M.Map PairingId' Problem' }
   deriving (Eq, Generic)
   deriving newtype (NFData)
 

@@ -28,7 +28,7 @@ newtype StackBounds
 instance Binary StackBounds where
 
 newtype InlineScripts
-  = InlineScripts { unwrap :: M.Map PairingId InlineScript' }
+  = InlineScripts { unwrap :: M.Map PairingId' InlineScript' }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
@@ -51,7 +51,7 @@ data InlineScriptEntry t
 instance Binary t => Binary (InlineScriptEntry t) where
 
 newtype Proofs a
-  = Proofs { unwrap :: M.Map PairingId (ProofScript a) }
+  = Proofs { unwrap :: M.Map PairingId' (ProofScript a) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 

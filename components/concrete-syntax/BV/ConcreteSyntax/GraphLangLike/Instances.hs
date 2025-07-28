@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -16,6 +17,7 @@ import Control.Monad (replicateM)
 import Data.Bits (shiftL, (.|.))
 import Data.Char (chr, isDigit, ord)
 import Data.Functor ((<&>))
+import Data.List (elemIndices, unsnoc)
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
 import Data.Proxy (Proxy (Proxy))
@@ -392,7 +394,7 @@ instance Tag t => ParseInBlock (Problem t) where
     parseInBlock = do
         _ <- line $ inLineSymbol "Problem"
         byTagAssocs <- replicateM (numTagValues (Proxy :: Proxy AsmRefineTag)) problemSideLine
-        let sides = byTagFromMap $ M.fromList byTagAssocs
+        let sides = byTagFrom (M.fromList byTagAssocs M.!)
         nodes <- M.fromList <$> manyTill nodeLine (try endLine)
         return $ Problem
             { sides
@@ -621,16 +623,16 @@ instance BuildInLine Lambda where
 
 --
 
-instance ParseInLine PairingEq where
+instance RefineTag t => ParseInLine (PairingEq t) where
     parseInLine = PairingEq <$> parseInLine <*> parseInLine
 
-instance BuildInLine PairingEq where
+instance RefineTag t => BuildInLine (PairingEq t) where
     buildInLine eq = put eq.lhs <> put eq.rhs
 
-instance ParseInLine PairingEqSide where
+instance RefineTag t => ParseInLine (PairingEqSide t) where
     parseInLine = PairingEqSide <$> parseInLine <*> parseInLine
 
-instance BuildInLine PairingEqSide where
+instance RefineTag t => BuildInLine (PairingEqSide t) where
     buildInLine side = put side.quadrant <> put side.expr
 
 parseTag :: Tag t => Parser t
@@ -639,22 +641,23 @@ parseTag = wordWithOr "invalid tag" parsePrettyTag
 putTag :: Tag t => t -> LineBuilder
 putTag = putWord . prettyTag
 
-instance ParseInLine PairingEqSideQuadrant where
-    parseInLine = wordWithOr "invalid pairing eq side quadrant" $ \case
-        "ASM_IN" -> Just $ PairingEqSideQuadrant Asm PairingEqDirectionIn
-        "ASM_OUT" -> Just $ PairingEqSideQuadrant Asm PairingEqDirectionOut
-        "C_IN" -> Just $ PairingEqSideQuadrant C PairingEqDirectionIn
-        "C_OUT" -> Just $ PairingEqSideQuadrant C PairingEqDirectionOut
-        _ -> Nothing
+instance RefineTag t => ParseInLine (PairingEqSideQuadrant t) where
+    parseInLine = wordWithOr "invalid pairing eq side quadrant" $ \w -> do
+        (_, i) <- unsnoc $ elemIndices '_' w
+        let (tagS, '_':dirS) = splitAt i w
+        PairingEqSideQuadrant <$> parsePrettyTag tagS <*> parsePairingEqDirection dirS
 
-instance BuildInLine PairingEqSideQuadrant where
+instance RefineTag t => BuildInLine (PairingEqSideQuadrant t) where
     buildInLine = putWord . prettyPairingEqSideQuadrant
 
 instance ParseInLine PairingEqDirection where
-    parseInLine = wordWithOr "invalid pairing eq direction" $ \case
-        "IN" -> Just PairingEqDirectionIn
-        "OUT" -> Just PairingEqDirectionOut
-        _ -> Nothing
+    parseInLine = wordWithOr "invalid pairing eq direction" parsePairingEqDirection
+
+parsePairingEqDirection :: String -> Maybe PairingEqDirection
+parsePairingEqDirection = \case
+    "IN" -> Just PairingEqDirectionIn
+    "OUT" -> Just PairingEqDirectionOut
+    _ -> Nothing
 
 instance BuildInLine PairingEqDirection where
     buildInLine = putWord . prettyPairingEqDirection

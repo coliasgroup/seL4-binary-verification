@@ -30,7 +30,7 @@ import Text.Printf (printf)
 
 type NodeProofChecks = [ProofCheck ProofCheckDescription]
 
-enumerateProofChecks :: ArgRenames -> Pairing -> Problem' -> ProofScript () -> ProofScript NodeProofChecks
+enumerateProofChecks :: ArgRenames -> Pairing' -> Problem' -> ProofScript () -> ProofScript NodeProofChecks
 enumerateProofChecks argRenames pairing problem proofScript =
     ProofScript $ runReader (evalStateT m initState) context
   where
@@ -41,7 +41,7 @@ enumerateProofChecks argRenames pairing problem proofScript =
 
 data Context
   = Context
-      { pairing :: Pairing
+      { pairing :: Pairing'
       , problem :: Problem'
       , argRenames :: ArgRenames
       , nodeTag :: NodeAddr -> Tag'
@@ -50,7 +50,7 @@ data Context
       }
   deriving (Generic)
 
-initContext :: ArgRenames -> Pairing -> Problem' -> Context
+initContext :: ArgRenames -> Pairing' -> Problem' -> Context
 initContext argRenames pairing problem = Context
     { pairing
     , problem
@@ -77,7 +77,7 @@ askArgRenames = gview #argRenames
 askEntryPoints :: MonadReader Context m => m (ByTag' NodeId)
 askEntryPoints = gview $ #problem % #sides % to (fmap (.entryPoint))
 
-askPairing :: MonadReader Context m => m Pairing
+askPairing :: MonadReader Context m => m Pairing'
 askPairing = gview #pairing
 
 askNodeTag :: MonadReader Context m => NodeAddr -> m Tag'

@@ -29,15 +29,15 @@ addInlineAssemblySpecs :: ByTag' Program -> (Pairings, ByTag' Program, ByTag' [I
 addInlineAssemblySpecs progs =
     (pairings, finalProgs, unhandled)
   where
-    (cProg', (cInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun progs.c
-    (asmProg', (asmInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun progs.asm
+    (cProg', (rightInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun progs.c
+    (asmProg', (leftInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun progs.asm
 
     intermediateProgs = ByAsmRefineTag
         { c = cProg'
         , asm = asmProg'
         }
 
-    requiredInstFuns = S.toAscList (cInstFuns `S.union` asmInstFuns)
+    requiredInstFuns = S.toAscList (rightInstFuns `S.union` leftInstFuns)
 
     unhandled = S.toAscList <$> ByAsmRefineTag
         { c = cUnhandledFunNames
@@ -136,7 +136,7 @@ elaborateInstFunction instFun =
   where
     regSpec = regSpecForInstFunction instFun
 
-pairingForInstFunction :: InstFunction -> Pairing
+pairingForInstFunction :: InstFunction -> Pairing'
 pairingForInstFunction instFun = Pairing
     { inEqs
     , outEqs
@@ -144,16 +144,16 @@ pairingForInstFunction instFun = Pairing
   where
     fun = elaborateInstFunction instFun
     inEqs =
-        [ asmIn (varFromArgE arg) === cIn (varFromArgE arg)
+        [ leftIn (varFromArgE arg) === rightIn (varFromArgE arg)
         | arg <- fun.input
         ] ++
-        [ asmIn (rodataE (varE memT "mem")) === cIn trueE
+        [ leftIn (rodataE (varE memT "mem")) === rightIn trueE
         ]
     outEqs =
-        [ asmOut (varFromArgE arg) === cOut (varFromArgE arg)
+        [ leftOut (varFromArgE arg) === rightOut (varFromArgE arg)
         | arg <- fun.output
         ] ++
-        [ asmOut (rodataE (varE memT "mem")) === cOut trueE
+        [ leftOut (rodataE (varE memT "mem")) === rightOut trueE
         ]
 
 --

@@ -14,7 +14,7 @@ import Data.List (partition)
 import Data.Maybe (fromJust, mapMaybe, maybeToList)
 import Optics
 
-formulatePairing :: Expr -> FunctionSignature -> Pairing
+formulatePairing :: Expr -> FunctionSignature -> Pairing'
 formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
   where
     (varArgsC, imemC, _globArgsC) = splitScalarPairs sig.input
@@ -91,33 +91,33 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
     argSeqAddrs = mapMaybe snd (take (length varArgsC) argSeq)
 
     memIeqs = case imemC of
-        [] -> [asmIn (rodataE asmMem) === cIn trueE]
+        [] -> [leftIn (rodataE asmMem) === rightIn trueE]
         [imemC'] ->
-            [ asmIn asmMem === cIn (varFromArgE imemC')
-            , cIn (rodataE (varFromArgE imemC')) === cIn trueE
+            [ leftIn asmMem === rightIn (varFromArgE imemC')
+            , rightIn (rodataE (varFromArgE imemC')) === rightIn trueE
             ]
 
     memOeqs = case omemC of
-        [] -> [asmOut asmMem === asmIn asmMem]
+        [] -> [leftOut asmMem === leftIn asmMem]
         [omemC'] ->
-            [ asmOut asmMem === cOut (varFromArgE omemC')
-            , cOut (rodataE (varFromArgE omemC')) === cOut trueE
+            [ leftOut asmMem === rightOut (varFromArgE omemC')
+            , rightOut (rodataE (varFromArgE omemC')) === rightOut trueE
             ]
 
     outerAddr = lastOf folded (take (length varArgsC) argSeq) >>= snd
 
     argEqs =
-        [ asmIn asm === cIn (castCToAsmE asm.ty (varFromArgE c))
+        [ leftIn asm === rightIn (castCToAsmE asm.ty (varFromArgE c))
         | (c, (asm, _addr)) <- zip varArgsC argSeq
         ]
 
-    inEqs = argEqs ++ memIeqs ++ [ asmIn expr === asmIn trueE | expr <- preconds ]
+    inEqs = argEqs ++ memIeqs ++ [ leftIn expr === leftIn trueE | expr <- preconds ]
 
-    retEqs = [ asmOut asm === cOut (castCToAsmE asm.ty c) | (c, asm) <- retOutEqs ]
+    retEqs = [ leftOut asm === rightOut (castCToAsmE asm.ty c) | (c, asm) <- retOutEqs ]
 
-    asmInvs = [ asmIn vin === asmOut vout | (vin, vout) <- postEqs ]
+    leftInvs = [ leftIn vin === leftOut vout | (vin, vout) <- postEqs ]
 
-    outEqs = retEqs ++ memOeqs ++ asmInvs
+    outEqs = retEqs ++ memOeqs ++ leftInvs
 
 -- TODO join with one in FormulatePairings
 splitScalarPairs :: [Argument] -> ([Argument], [Argument], [Argument])
