@@ -11,6 +11,7 @@ import Data.Monoid (Ap (..))
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import Optics (Lens', view)
+import Data.Proxy (Proxy)
 
 class
     ( Enum t
@@ -42,6 +43,9 @@ instance (Tag t, Monoid m) => Monoid (ByTag t m) where
 
 tagValues :: Tag t => [t]
 tagValues = [minBound .. maxBound]
+
+numTagValues :: forall t. Tag t => Proxy t -> Int
+numTagValues _ = fromEnum (maxBound :: t) - fromEnum (minBound :: t)
 
 instance Tag () where
     newtype ByTag () a = ByUnitTag { unit :: a }
