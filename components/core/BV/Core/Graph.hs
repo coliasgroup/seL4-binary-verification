@@ -12,8 +12,8 @@ module BV.Core.Graph
     , makeNodeGraph
     , makeNodeGraphEdges
     , makeNodeGraphFromEdges
-    , nodeTagOf
     , reachableFrom
+    , nodeTagMap
     ) where
 
 import BV.Core.Types
@@ -85,10 +85,14 @@ loopHeadsFrom g entryPoints =
         entryPointsAsVertices = map (fromJust . g.nodeIdMapRev) entryPoints
         inOrder = foldMap toList $ G.dfs g.graph entryPointsAsVertices
 
-nodeTagOf :: Problem' -> NodeGraph -> NodeAddr -> Tag'
-nodeTagOf problem nodeGraph = \addr -> if addr `S.member` c then C else Asm
+nodeTagMap :: Tag t => Problem t -> NodeGraph -> M.Map NodeAddr t
+nodeTagMap problem nodeGraph =
+    M.fromListWith (error "unexpected") $ byTag ^.. folded % folded
   where
-    c = S.fromList $ reachableFrom nodeGraph problem.sides.c.entryPoint ^.. folded % #_Addr
+    byTag = withTags problem.sides <&> \(WithTag tag side) ->
+        [ (addr, tag)
+        | addr <- reachableFrom nodeGraph side.entryPoint ^.. folded % #_Addr
+        ]
 
 type LoopDataMap = M.Map NodeAddr LoopData
 

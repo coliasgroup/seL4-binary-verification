@@ -56,7 +56,7 @@ initContext argRenames pairing problem = Context
     , problem
     , argRenames
     , nodeGraph
-    , nodeTag = nodeTagOf problem nodeGraph
+    , nodeTag = (M.!) (nodeTagMap problem nodeGraph)
     , loopData = createLoopDataMap problem nodeGraph
     }
   where

@@ -162,7 +162,7 @@ initRepGraphEnv problem functionSigs =
         , problem
         , problemNames = S.fromList $ toListOf varNamesOfProblem problem
         , nodeGraph
-        , nodeTag = nodeTagOf problem nodeGraph
+        , nodeTag = (M.!) (nodeTagMap problem nodeGraph)
         , loopData = createLoopDataMap problem nodeGraph
         , preds = predsOf problem
         }
