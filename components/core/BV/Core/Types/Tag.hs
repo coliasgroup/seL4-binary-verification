@@ -64,7 +64,7 @@ tagValues :: Tag t => [t]
 tagValues = [minBound .. maxBound]
 
 numTagValues :: forall t. Tag t => Proxy t -> Int
-numTagValues _ = fromEnum (maxBound :: t) - fromEnum (minBound :: t)
+numTagValues _ = fromEnum (maxBound :: t) - fromEnum (minBound :: t) + 1
 
 byTagFromMap :: Tag t => M.Map t a -> ByTag t a
 byTagFromMap m = withTags (pure ()) <&> \(WithTag tag _) -> m M.! tag
