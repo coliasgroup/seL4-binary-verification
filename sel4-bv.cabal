@@ -109,6 +109,7 @@ library core
       BV.Core.Types.SearchOutputs
       BV.Core.Types.SExprWithPlaceholders
       BV.Core.Types.SMTProofChecks
+      BV.Core.Types.Tag
       BV.Core.Utils
   hs-source-dirs:
       components/core
