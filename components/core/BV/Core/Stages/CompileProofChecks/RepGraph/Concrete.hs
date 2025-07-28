@@ -25,7 +25,6 @@ data RepGraphInput
   = RepGraphInput
       { cStructs :: Map Ident Struct
       , functionSigs :: FunctionSignatures
-      , pairings :: Pairings
       , rodata :: ROData
       , argRenames :: ArgRenames
       , problem :: Problem
@@ -87,13 +86,13 @@ instance MonadSolverSend m => MonadRepGraph (M m) where
     runProblemVarRepHook = asmStackRepHook
     runPostEmitNodeHook _ = return ()
     runPreEmitCallNodeHook _ _ _ = return ()
-    runPostEmitCallNodeHook = addFunc
+    runPostEmitCallNodeHook _ _ _ _ = return ()
 
 initEnv :: RepGraphInput -> Env
 initEnv (RepGraphInput {..}) = Env
     { structs = initStructsEnv rodata problem cStructs
     , solver = initSolverEnv rodata
-    , repGraph = initRepGraphEnv functionSigs pairings argRenames problem
+    , repGraph = initRepGraphEnv functionSigs argRenames problem
     }
 
 initState :: State

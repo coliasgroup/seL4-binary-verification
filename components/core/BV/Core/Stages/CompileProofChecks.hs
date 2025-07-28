@@ -10,6 +10,7 @@ module BV.Core.Stages.CompileProofChecks
 import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.Grouping
 import BV.Core.Stages.CompileProofChecks.RepGraph
+import BV.Core.Stages.CompileProofChecks.RepGraph.AddFunc
 import BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
@@ -20,24 +21,26 @@ import Data.Traversable (for)
 
 compileProofChecks
     :: RepGraphInput
+    -> Pairings
     -> [ProofCheck a]
     -> [SMTProofCheckGroup a]
-compileProofChecks input checks =
+compileProofChecks repGraphInput pairings checks =
     map
-        (compileProofCheckGroup input)
+        (compileProofCheckGroup repGraphInput pairings)
         (proofCheckGroups checks)
 
 compileProofCheckGroup
     :: RepGraphInput
+    -> Pairings
     -> ProofCheckGroup a
     -> SMTProofCheckGroup a
-compileProofCheckGroup input group =
+compileProofCheckGroup repGraphInput pairings group =
     SMTProofCheckGroup setup imps
   where
-    (imps, setup) = runWriter (runM input m)
+    (imps, setup) = runWriter (runM repGraphInput (runWithAddFunc pairings m))
     m = interpretGroup group <* finalizeSolver
 
-interpretGroup :: MonadSolverSend m => ProofCheckGroup a -> M m [SMTProofCheckImp a]
+interpretGroup :: MonadRepGraph m => ProofCheckGroup a -> m [SMTProofCheckImp a]
 interpretGroup group = do
     hyps <- for group $ \check -> do
         concl <- interpretHyp check.hyp
@@ -47,7 +50,7 @@ interpretGroup group = do
         sexpr <- withoutEnv $ convertExprNoSplit term
         return $ SMTProofCheckImp check.meta sexpr
 
-interpretHyp :: MonadSolverSend m => Hyp -> M m Expr
+interpretHyp :: MonadRepGraph m => Hyp -> m Expr
 interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case

@@ -9,11 +9,15 @@
 
 module BV.Core.Stages.CompileProofChecks.RepGraph
     ( FunctionSignatures
+    , MemCalls
+    , MemCallsForFunction (..)
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
     , RepGraphEnv
     , RepGraphState
     , askCont
+    , askFunctionSigs
+    , askProblem
     , convertInnerExprWithPcEnv
     , getInductVar
     , getNodePcEnv
@@ -22,9 +26,10 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , initRepGraphEnv
     , initRepGraphState
     , instEqWithEnvs
+    , scanMemCalls
     , substInduct
+    , zeroMemCallsForFunction
       -- TODO
-    , addFunc
     , asmStackRepHook
     ) where
 
@@ -54,7 +59,7 @@ import Data.List (intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -122,8 +127,6 @@ instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
 data RepGraphEnv
   = RepGraphEnv
       { functionSigs :: FunctionSignatures
-      , pairings :: Pairings
-      , pairingsAccess :: M.Map Ident PairingId
       , problem :: Problem
       , argRenames :: ArgRenames
       , problemNames :: S.Set Ident
@@ -140,8 +143,6 @@ data RepGraphState
       , memCalls :: Map SExprWithPlaceholders MemCalls
       , nodePcEnvs :: Map VisitWithTag (Maybe (Expr, ExprEnv))
       , arcPcEnvs :: Map Visit (Map NodeId (Expr, ExprEnv))
-      , funcs :: M.Map Visit (ExprEnv, ExprEnv, Expr)
-      , funcsByName :: M.Map (PairingOf Ident) [Visit]
       , inductVarEnv :: Map EqHypInduct Name
       , contractions :: Map SExprWithPlaceholders MaybeSplit
       , extraProblemNames :: S.Set Ident
@@ -155,13 +156,10 @@ data TooGeneral
       }
   deriving (Eq, Generic, Ord, Show)
 
-initRepGraphEnv :: FunctionSignatures -> Pairings -> ArgRenames -> Problem -> RepGraphEnv
-initRepGraphEnv functionSigs pairings argRenames problem =
+initRepGraphEnv :: FunctionSignatures -> ArgRenames -> Problem -> RepGraphEnv
+initRepGraphEnv functionSigs argRenames problem =
     RepGraphEnv
         { functionSigs
-        , pairings
-        , pairingsAccess = M.fromListWith (error "unexpected") $
-            concat [ [(p.c, p), (p.asm, p)] | p <- M.keys pairings.unwrap]
         , problem
         , argRenames
         , problemNames = S.fromList $ toListOf varNamesOfProblem problem
@@ -179,8 +177,6 @@ initRepGraphState = RepGraphState
     , memCalls = M.empty
     , nodePcEnvs = M.empty
     , arcPcEnvs = M.empty
-    , funcs = M.empty
-    , funcsByName = M.empty
     , inductVarEnv = M.empty
     , contractions = M.empty
     , extraProblemNames = S.empty
@@ -202,6 +198,12 @@ withMapSlot l k m = do
         return v
 
 --
+
+askFunctionSigs :: MonadRepGraph m => m FunctionSignatures
+askFunctionSigs = liftRepGraph $ gview $ #functionSigs
+
+askProblem :: MonadRepGraph m => m Problem
+askProblem = liftRepGraph $ gview $ #problem
 
 askNodeTag :: MonadRepGraph m => NodeAddr -> m Tag
 askNodeTag n = liftRepGraph $ gview $ #nodeTag % to ($ n)
@@ -406,31 +408,6 @@ mergeMemCalls xcalls ycalls =
         , max = liftA2 max x.max y.max
         }
 
-memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> m (Bool, Maybe String)
-memCallsCompatible = \case
-    PairingOf { asm = Just lcalls, c = Just rcalls } -> do
-        rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
-            pairingId <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
-            let rfname = pairingId.c
-            rsig <- liftRepGraph $ gview $ #functionSigs % to ($ WithTag C rfname)
-            return $
-                if any (\arg -> arg.ty == memT) rsig.output
-                then Just (rfname, calls)
-                else Nothing
-        let isIncompat fname =
-                let rcast = fromMaybe zeroMemCallsForFunction $ rcastcalls !? fname
-                    ractual = fromMaybe zeroMemCallsForFunction $ rcalls !? fname
-                    x = case rcast.max of
-                            Just n -> n < ractual.min
-                            _ -> False
-                    y = case ractual.max of
-                            Just n -> n < rcast.min
-                            _ -> False
-                    in x || y
-        let incompat = any isIncompat $ S.toList $ M.keysSet rcastcalls <> M.keysSet rcalls
-        return $ if incompat then (False, error "unimplemented") else (True, Nothing)
-    _ -> return (True, Nothing)
-
 --
 
 -- TODO
@@ -459,80 +436,6 @@ specialize visit split = ensure (isOptionsVC vc)
   where
     m = toMapVC visit.restrs
     vc = m ! split
-
---
-
-askFnName :: MonadRepGraph m => Visit -> m Ident
-askFnName v = liftRepGraph $ gview $
-    #problem % #nodes % at (nodeAddrFromNodeId v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
-
-addFunc :: MonadRepGraph m => Visit -> ExprEnv -> ExprEnv -> Expr -> m ()
-addFunc visit inputs outputs success = do
-    liftRepGraph $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
-    name <- askFnName visit
-    pairingIdOpt <- liftRepGraph $ gview $ #pairingsAccess % at name
-    whenJust_ pairingIdOpt $ \pairingId -> do
-        group <- liftRepGraph $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
-        for_ group $ \visit2 -> do
-            ok <- isJust <$> getFuncPairing visit visit2
-            when ok $ do
-                addFuncAssert visit visit2
-        liftRepGraph $ #funcsByName %= M.insert pairingId (group ++ [visit])
-
-getFuncPairingNoCheck :: MonadRepGraph m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairingNoCheck visit visit2 = do
-    fname <- askFnName visit
-    fname2 <- askFnName visit2
-    pairingId <- liftRepGraph $ gview $ #pairingsAccess % at fname % unwrapped
-    p <- liftRepGraph $ gview $ #pairings % #unwrap % at pairingId % unwrapped
-    return $ (p ,) <$> if
-        | pairingId == PairingOf { asm = fname, c = fname2 } -> Just $ PairingOf { asm = visit, c = visit2 }
-        | pairingId == PairingOf { asm = fname2, c = fname } -> Just $ PairingOf { asm = visit2, c = visit }
-        | otherwise -> Nothing
-
-getFuncPairing :: MonadRepGraph m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
-getFuncPairing visit visit2 = do
-    opt <- getFuncPairingNoCheck visit visit2
-    whenJustThen opt $ \(p, visits) -> do
-        (lin, _, _) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
-        (rin, _, _) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
-        lcalls <- scanMemCalls lin
-        rcalls <- scanMemCalls rin
-        (compatible, _s) <- memCallsCompatible $ PairingOf
-            { asm = lcalls
-            , c = rcalls
-            }
-        -- unless compatible $ do
-        --     warn _s
-        return $ if compatible then Just (p, visits) else Nothing
-
-getFuncAssert :: MonadRepGraph m => Visit -> Visit -> m Expr
-getFuncAssert visit visit2 = do
-    (pairing, visits) <- fromJust <$> getFuncPairing visit visit2
-    (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
-    (rin, rout, rsucc) <- liftRepGraph $ use $ #funcs % at visits.c % unwrapped
-    _lpc <- getPc visits.asm Nothing
-    rpc <- getPc visits.c Nothing
-    let envs = \case
-            PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
-            PairingEqSideQuadrant C PairingEqDirectionIn -> rin
-            PairingEqSideQuadrant Asm PairingEqDirectionOut -> lout
-            PairingEqSideQuadrant C PairingEqDirectionOut -> rout
-    inEqs <- instEqs pairing.inEqs envs
-    outEqs <- instEqs pairing.outEqs envs
-    let succImp = impliesE rsucc lsucc
-    return $ impliesE
-        (foldr1 andE (inEqs ++ [rpc]))
-        (foldr1 andE (outEqs ++ [succImp]))
-  where
-    instEqs :: MonadSolver m => [PairingEq] -> (PairingEqSideQuadrant -> ExprEnv) -> m [Expr]
-    instEqs eqs envs = for eqs $ \eq ->
-        instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
-
-addFuncAssert :: MonadRepGraph m => Visit -> Visit -> m ()
-addFuncAssert visit visit2 = do
-    imp <- weakenAssert <$> getFuncAssert visit visit2
-    withoutEnv $ assertFact imp
 
 --
 
