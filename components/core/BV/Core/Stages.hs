@@ -126,7 +126,7 @@ stages input = StagesOutput
 
     finalPrograms = alteredProgramsWithInlineAsm
 
-    lookupFunction (WithTag tag funName) = (pairingSide tag finalPrograms).functions ! funName
+    lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions ! funName
 
     functionSigs = signatureOfFunction . lookupFunction
 

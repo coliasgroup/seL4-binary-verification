@@ -9,8 +9,6 @@ module BV.Core.Types.Pairing
     , PairingEqSideQuadrant (..)
     , PairingId
     , Pairings (..)
-    , pairingSide
-    , pairingSideWithTag
     , prettyPairingEqDirection
     , prettyPairingEqSideQuadrant
     , prettyPairingId
@@ -23,12 +21,6 @@ import BV.Core.Types.Tag
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
-
-pairingSide :: Tag' -> ByTag' a -> a
-pairingSide = viewAtTag
-
-pairingSideWithTag :: Tag' -> ByTag' a -> WithTag' a
-pairingSideWithTag = viewWithTag
 
 type PairingId = ByTag' Ident
 

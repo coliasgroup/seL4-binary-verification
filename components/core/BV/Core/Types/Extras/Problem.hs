@@ -20,11 +20,11 @@ argRenamesOf :: (WithTag' Ident -> Function) -> Problem -> ArgRenames
 argRenamesOf lookupFunction problem quadrant mangledName =
     fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
   where
-    fun = lookupFunction (pairingSideWithTag quadrant.tag (pairingIdOfProblem problem))
+    fun = lookupFunction (viewWithTag quadrant.tag (pairingIdOfProblem problem))
     origArgs = case quadrant.direction of
         PairingEqDirectionIn -> fun.input
         PairingEqDirectionOut -> fun.output
-    probSide = pairingSide quadrant.tag problem.sides
+    probSide = viewAtTag quadrant.tag problem.sides
     mangledArgs = case quadrant.direction of
         PairingEqDirectionIn -> probSide.input
         PairingEqDirectionOut -> probSide.output

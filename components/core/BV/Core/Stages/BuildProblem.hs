@@ -77,8 +77,8 @@ beginProblemBuilder funs = ProblemBuilder
             }
     (sides, nodeMapBuilder) = flip runState emptyNodeMapBuilder $ do
         _ <- reserveNodeAddr -- HACK graph_refine.problem stats at 1
-        asm <- renameSide $ pairingSideWithTag Asm funs
-        c <- renameSide $ pairingSideWithTag C funs
+        asm <- renameSide $ viewWithTag Asm funs
+        c <- renameSide $ viewWithTag C funs
         return $ ByRefineTag { c, asm }
 
 forceSimpleLoopReturns :: State ProblemBuilder ()
