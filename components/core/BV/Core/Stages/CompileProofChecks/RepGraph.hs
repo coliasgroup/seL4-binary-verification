@@ -336,7 +336,7 @@ scanMemCalls env = do
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
 
-addLoopMemCalls :: MonadRepGraphE m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
+addLoopMemCalls :: MonadRepGraph m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCalls split = traverse $ \memCalls -> do
     loopBody <- askLoopBody split
     fnames <- fmap (S.fromList . catMaybes) $ for (S.toAscList loopBody) $ \n -> do
@@ -392,7 +392,7 @@ memCallsCompatible = \case
 --
 
 -- TODO
-addLocalDef :: MonadRepGraphE m => () -> () -> NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
+addLocalDef :: MonadRepGraph m => () -> () -> NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
 addLocalDef _ _ = addDef
 
 addVarRestrWithMemCalls :: MonadRepGraph m => NameHint -> ExprType -> Maybe MemCalls -> m Name
@@ -420,7 +420,7 @@ specialize visit split = ensure (isOptionsVC vc)
 
 --
 
-addFunc :: MonadRepGraphE m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
+addFunc :: MonadRepGraph m => Ident -> ExprEnv -> ExprEnv -> Expr -> Visit -> m ()
 addFunc name inputs outputs success visit = do
     liftRepGraph $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
     pairingIdOpt <- liftRepGraph $ gview $ #pairingsAccess % at name
@@ -432,7 +432,7 @@ addFunc name inputs outputs success visit = do
                 addFuncAssert visit visit2
         liftRepGraph $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
-getFuncPairingNoCheck :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairingNoCheck :: MonadRepGraph m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairingNoCheck visit visit2 = do
     let askFnName v = liftRepGraph $ gview $
             #problem % #nodes % at (nodeAddrFromNodeId v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
@@ -445,7 +445,7 @@ getFuncPairingNoCheck visit visit2 = do
         | pairingId == PairingOf { asm = fname2, c = fname } -> Just $ PairingOf { asm = visit2, c = visit }
         | otherwise -> Nothing
 
-getFuncPairing :: MonadRepGraphE m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
+getFuncPairing :: MonadRepGraph m => Visit -> Visit -> m (Maybe (Pairing, PairingOf Visit))
 getFuncPairing visit visit2 = do
     opt <- getFuncPairingNoCheck visit visit2
     whenJustThen opt $ \(p, visits) -> do
@@ -461,7 +461,7 @@ getFuncPairing visit visit2 = do
         --     warn _s
         return $ if compatible then Just (p, visits) else Nothing
 
-getFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m Expr
+getFuncAssert :: MonadRepGraph m => Visit -> Visit -> m Expr
 getFuncAssert visit visit2 = do
     (pairing, visits) <- fromJust <$> getFuncPairing visit visit2
     (lin, lout, lsucc) <- liftRepGraph $ use $ #funcs % at visits.asm % unwrapped
@@ -484,7 +484,7 @@ getFuncAssert visit visit2 = do
     instEqs eqs envs = for eqs $ \eq ->
         instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
 
-addFuncAssert :: MonadRepGraphE m => Visit -> Visit -> m ()
+addFuncAssert :: MonadRepGraph m => Visit -> Visit -> m ()
 addFuncAssert visit visit2 = do
     imp <- weakenAssert <$> getFuncAssert visit visit2
     withoutEnv $ assertFact imp
