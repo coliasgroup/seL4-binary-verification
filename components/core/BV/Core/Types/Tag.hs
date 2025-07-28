@@ -3,7 +3,21 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module BV.Core.Types.Tag where
+module BV.Core.Types.Tag
+    ( ByTag (..)
+    , ByTag'
+    , RefineTag (..)
+    , Tag (..)
+    , Tag'
+    , WithTag (..)
+    , WithTag'
+    , byTagFromMap
+    , numTagValues
+    , tagValues
+    , viewAtTag
+    , viewWithTag
+    , withTag
+    ) where
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
