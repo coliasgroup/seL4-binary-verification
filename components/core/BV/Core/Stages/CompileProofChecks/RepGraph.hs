@@ -43,12 +43,11 @@ import Control.Monad.Reader (Reader, ReaderT)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
                           RWST (runRWST), evalRWST)
 import Control.Monad.State (StateT (runStateT), execStateT, modify)
-import Control.Monad.Trans (MonadTrans, lift)
+import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
-import Data.Kind (Type)
 import Data.List (intercalate, isPrefixOf, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
@@ -99,33 +98,27 @@ class MonadSolver m => MonadRepGraph m where
 instance MonadRepGraph m => MonadRepGraphDefaultHelper m (ReaderT r m) where
     liftMonadRepGraphDefaultHelper = lift
 
-instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
-
 instance MonadRepGraph m => MonadRepGraphDefaultHelper m (StateT s  m) where
     liftMonadRepGraphDefaultHelper = lift
-
-instance MonadRepGraph m => MonadRepGraph (StateT s m) where
 
 instance (Monoid w, MonadRepGraph m) => MonadRepGraphDefaultHelper m (RWST r w s m) where
     liftMonadRepGraphDefaultHelper = lift
 
-instance (Monoid w, MonadRepGraph m) => MonadRepGraph (RWST r w s m) where
-
 instance MonadRepGraph m => MonadRepGraphDefaultHelper m (MaybeT m) where
     liftMonadRepGraphDefaultHelper = lift
-
-instance MonadRepGraph m => MonadRepGraph (MaybeT m) where
 
 instance MonadRepGraph m => MonadRepGraphDefaultHelper m (ExceptT e m) where
     liftMonadRepGraphDefaultHelper = lift
 
-instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
+instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
 
-data TooGeneral
-  = TooGeneral
-      { split :: NodeAddr
-      }
-  deriving (Eq, Generic, Ord, Show)
+instance MonadRepGraph m => MonadRepGraph (StateT s m) where
+
+instance (Monoid w, MonadRepGraph m) => MonadRepGraph (RWST r w s m) where
+
+instance MonadRepGraph m => MonadRepGraph (MaybeT m) where
+
+instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
 
 data RepGraphEnv
   = RepGraphEnv
@@ -156,6 +149,12 @@ data RepGraphState
       , hasInnerLoop :: M.Map NodeAddr Bool
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+data TooGeneral
+  = TooGeneral
+      { split :: NodeAddr
+      }
+  deriving (Eq, Generic, Ord, Show)
 
 initRepGraphEnv :: FunctionSignatures -> Pairings -> ArgRenames -> Problem -> RepGraphEnv
 initRepGraphEnv functionSigs pairings argRenames problem =
