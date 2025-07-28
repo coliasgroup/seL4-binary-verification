@@ -129,7 +129,7 @@ fromMapVC = map f . M.toAscList
 
 --
 
-tagV :: Tag -> Visit -> VisitWithTag
+tagV :: Tag' -> Visit -> VisitWithTag
 tagV tag visit = VisitWithTag visit tag
 
 cV :: Visit -> VisitWithTag

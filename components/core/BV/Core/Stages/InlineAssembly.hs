@@ -25,21 +25,21 @@ import Numeric (readDec)
 import Optics
 import qualified Text.ParserCombinators.ReadP as P
 
-addInlineAssemblySpecs :: PairingOf Program -> (Pairings, PairingOf Program, PairingOf [Ident])
+addInlineAssemblySpecs :: ByTag' Program -> (Pairings, ByTag' Program, ByTag' [Ident])
 addInlineAssemblySpecs progs =
     (pairings, finalProgs, unhandled)
   where
     (cProg', (cInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun progs.c
     (asmProg', (asmInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun progs.asm
 
-    intermediateProgs = PairingOf
+    intermediateProgs = ByRefineTag
         { c = cProg'
         , asm = asmProg'
         }
 
     requiredInstFuns = S.toAscList (cInstFuns `S.union` asmInstFuns)
 
-    unhandled = S.toAscList <$> PairingOf
+    unhandled = S.toAscList <$> ByRefineTag
         { c = cUnhandledFunNames
         , asm = asmUnhandledFunNames
         }
@@ -56,7 +56,7 @@ addInlineAssemblySpecs progs =
                 tell (S.singleton instFun, S.empty)
                 return $ fun & #body ?~ funBody
 
-    explodeInst :: InstFunction -> (PairingOf Program, Pairings)
+    explodeInst :: InstFunction -> (ByTag' Program, Pairings)
     explodeInst instFun =
         ( (.) programFromFunctions . M.singleton <$> pairingId <*> pairOfNewFuns
         , Pairings (M.singleton pairingId pairing)
@@ -102,8 +102,8 @@ regSpecForInstFunction = \case
     ISB -> []
     WFI -> []
 
-instFunctionName :: InstFunction -> PairingOf Ident
-instFunctionName instFun = PairingOf { c = "r", asm = "l"} <&> \prefix -> Ident (prefix ++ "_impl'" ++ suffix)
+instFunctionName :: InstFunction -> ByTag' Ident
+instFunctionName instFun = ByRefineTag { c = "r", asm = "l"} <&> \prefix -> Ident (prefix ++ "_impl'" ++ suffix)
   where
     suffix = case instFun of
         MCR -> "mcr"

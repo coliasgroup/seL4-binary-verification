@@ -1,5 +1,6 @@
 module BV.Core
     ( AsmFunctionFilter
+    , ByTag (..)
     , Ident (..)
     , IncludeExcludeFilter (..)
     , IntermediateStagesOutput (..)
@@ -8,7 +9,6 @@ module BV.Core
     , OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
     , PairingId
-    , PairingOf (..)
     , ProofCheckDescription
     , ProofCheckMeta (..)
     , ProofScriptNodePath (..)

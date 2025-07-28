@@ -24,7 +24,7 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
-buildProblem :: (WithTag Ident -> Function) -> InlineScript -> PairingOf (Named Function) -> Problem
+buildProblem :: (WithTag' Ident -> Function) -> InlineScript -> ByTag' (Named Function) -> Problem
 buildProblem lookupFun inlineScript funs = build builder
   where
     builder = flip execState (beginProblemBuilder funs) $ do
@@ -34,7 +34,7 @@ buildProblem lookupFun inlineScript funs = build builder
 
 data ProblemBuilder
   = ProblemBuilder
-      { sides :: PairingOf ProblemSide
+      { sides :: ByTag' ProblemSide
       , nodeMapBuilder :: NodeMapBuilder
       }
   deriving (Eq, Generic, Ord, Show)
@@ -60,7 +60,7 @@ data NodeMeta
       }
   deriving (Eq, Generic, Ord, Show)
 
-beginProblemBuilder :: PairingOf (Named Function) -> ProblemBuilder
+beginProblemBuilder :: ByTag' (Named Function) -> ProblemBuilder
 beginProblemBuilder funs = ProblemBuilder
     { sides
     , nodeMapBuilder
@@ -79,7 +79,7 @@ beginProblemBuilder funs = ProblemBuilder
         _ <- reserveNodeAddr -- HACK graph_refine.problem stats at 1
         asm <- renameSide $ pairingSideWithTag Asm funs
         c <- renameSide $ pairingSideWithTag C funs
-        return $ PairingOf { c, asm }
+        return $ ByRefineTag { c, asm }
 
 forceSimpleLoopReturns :: State ProblemBuilder ()
 forceSimpleLoopReturns = do
@@ -103,7 +103,7 @@ forceSimpleLoopReturns = do
                         then Addr simpleRetNodeAddr
                         else cont
 
-inline :: (WithTag Ident -> Function) -> NodeBySource -> State ProblemBuilder ()
+inline :: (WithTag' Ident -> Function) -> NodeBySource -> State ProblemBuilder ()
 inline lookupFun nodeBySource = do
     zoom #nodeMapBuilder $ nodeMapBuilderInline lookupFun nodeBySource
     forceSimpleLoopReturns
@@ -176,7 +176,7 @@ data AddFunctionRenames
   deriving (Eq, Generic, Ord, Show)
 
 addFunction
-    :: WithTag (Named Function) -> NodeId -> State NodeMapBuilder AddFunctionRenames
+    :: WithTag' (Named Function) -> NodeId -> State NodeMapBuilder AddFunctionRenames
 addFunction (WithTag tag (Named funName fun)) retTarget = do
     varRenames <- M.fromList <$>
         forM (S.toAscList origVars) (\name -> (name,) <$> getFreshName name)
@@ -238,7 +238,7 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
     insertNode exitNodeAddr exitNode Nothing
 
 nodeMapBuilderInline
-    :: (WithTag Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
+    :: (WithTag' Ident -> Function) -> NodeBySource -> State NodeMapBuilder ()
 nodeMapBuilderInline lookupFun nodeBySource = do
     let tag = nodeBySource.nodeSource.tag
     nodeAddr <- use $

@@ -139,7 +139,7 @@ parsePrettyPairingId = do
     M.hspace *> "(ASM)" *> M.hspace *> "<=" *> M.hspace
     c <- ident
     M.hspace *> "(C)"
-    return $ PairingOf { asm, c }
+    return $ ByRefineTag { asm, c }
   where
     ident = Ident <$> M.some (M.satisfy isIdentChar)
     isIdentChar c = not (isSpace c || c == '(' || c == ')')

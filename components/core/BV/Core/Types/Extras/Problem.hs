@@ -16,7 +16,7 @@ import Optics
 
 type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident
 
-argRenamesOf :: (WithTag Ident -> Function) -> Problem -> ArgRenames
+argRenamesOf :: (WithTag' Ident -> Function) -> Problem -> ArgRenames
 argRenamesOf lookupFunction problem quadrant mangledName =
     fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
   where

@@ -21,6 +21,7 @@ module BV.Core.Types.ProofChecks
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
 import BV.Core.Types.ProofScript
+import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
@@ -90,7 +91,7 @@ data EqHypInduct
 data VisitWithTag
   = VisitWithTag
       { visit :: Visit
-      , tag :: Tag
+      , tag :: Tag'
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

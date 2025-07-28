@@ -44,7 +44,7 @@ data Env
 data State
   = State
       { funcs :: M.Map Visit (ExprEnv, ExprEnv, Expr)
-      , funcsByName :: M.Map (PairingOf Ident) [Visit]
+      , funcsByName :: M.Map (ByTag' Ident) [Visit]
       }
   deriving (Generic)
 
@@ -93,18 +93,18 @@ addFunc visit inputs outputs success = do
                 addFuncAssert visit visit2
         WithAddFunc $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
-getFuncPairingNoCheck :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing, PairingOf Visit))
+getFuncPairingNoCheck :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing, ByTag' Visit))
 getFuncPairingNoCheck visit visit2 = do
     fname <- askFnName visit
     fname2 <- askFnName visit2
     pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
     p <- WithAddFunc $ gview $ #pairings % #unwrap % at pairingId % unwrapped
     return $ (p ,) <$> if
-        | pairingId == PairingOf { asm = fname, c = fname2 } -> Just $ PairingOf { asm = visit, c = visit2 }
-        | pairingId == PairingOf { asm = fname2, c = fname } -> Just $ PairingOf { asm = visit2, c = visit }
+        | pairingId == ByRefineTag { asm = fname, c = fname2 } -> Just $ ByRefineTag { asm = visit, c = visit2 }
+        | pairingId == ByRefineTag { asm = fname2, c = fname } -> Just $ ByRefineTag { asm = visit2, c = visit }
         | otherwise -> Nothing
 
-getFuncPairing :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing, PairingOf Visit))
+getFuncPairing :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing, ByTag' Visit))
 getFuncPairing visit visit2 = do
     opt <- getFuncPairingNoCheck visit visit2
     whenJustThen opt $ \(p, visits) -> do
@@ -112,7 +112,7 @@ getFuncPairing visit visit2 = do
         (rin, _, _) <- WithAddFunc $ use $ #funcs % at visits.c % unwrapped
         lcalls <- scanMemCalls lin
         rcalls <- scanMemCalls rin
-        (compatible, _s) <- memCallsCompatible $ PairingOf
+        (compatible, _s) <- memCallsCompatible $ ByRefineTag
             { asm = lcalls
             , c = rcalls
             }
@@ -148,9 +148,9 @@ addFuncAssert visit visit2 = do
     imp <- weakenAssert <$> getFuncAssert visit visit2
     withoutEnv $ assertFact imp
 
-memCallsCompatible :: MonadRepGraph m => PairingOf (Maybe MemCalls) -> WithAddFunc m (Bool, Maybe String)
+memCallsCompatible :: MonadRepGraph m => ByTag' (Maybe MemCalls) -> WithAddFunc m (Bool, Maybe String)
 memCallsCompatible = \case
-    PairingOf { asm = Just lcalls, c = Just rcalls } -> do
+    ByRefineTag { asm = Just lcalls, c = Just rcalls } -> do
         rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
             pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
             let rfname = pairingId.c

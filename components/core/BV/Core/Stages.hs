@@ -47,7 +47,7 @@ import Optics
 
 data StagesInput
   = StagesInput
-      { programs :: PairingOf Program
+      { programs :: ByTag' Program
       , objDumpInfo :: ObjDumpInfo
       , rodata :: ROData
       , stackBounds :: StackBounds
@@ -115,7 +115,7 @@ stages input = StagesOutput
 
   where
 
-    alteredPrograms = fixupProgram <$> PairingOf
+    alteredPrograms = fixupProgram <$> ByRefineTag
         { asm = input.programs.asm & #functions %~ M.filterWithKey (\k _v ->
             applyIncludeExcludeFilter input.earlyAsmFunctionFilter k)
         , c = pseudoCompile input.objDumpInfo input.programs.c
@@ -137,7 +137,7 @@ stages input = StagesOutput
         asm <- M.keys finalPrograms.asm.functions
         let c = asmFunNameToCFunName asm
         guard $ c `M.member` finalPrograms.c.functions
-        return $ PairingOf { c = asmFunNameToCFunName asm, asm }
+        return $ ByRefineTag { c = asmFunNameToCFunName asm, asm }
 
     normalPairings = M.fromList
         [ let stackBound = input.stackBounds.unwrap ! pairingId.asm

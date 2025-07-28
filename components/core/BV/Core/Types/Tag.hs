@@ -105,3 +105,11 @@ viewAtTag = view . atTag
 
 viewWithTag :: Tag t => t -> ByTag t a -> WithTag t a
 viewWithTag tag = viewAtTag tag . withTags
+
+-- TODO
+
+type ByTag' = ByTag RefineTag
+
+type WithTag' = WithTag RefineTag
+
+type Tag' = RefineTag

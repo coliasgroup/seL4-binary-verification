@@ -397,7 +397,7 @@ instance ParseInBlock Problem where
                 _ -> fail "invalid problem side tags"
         nodes <- M.fromList <$> manyTill nodeLine (try endLine)
         return $ Problem
-            { sides = PairingOf { c, asm }
+            { sides = ByRefineTag { c, asm }
             , nodes
             }
       where
@@ -522,7 +522,7 @@ instance ParseInLine (SplitProofNode ()) where
         SplitProofNode
             <$> parseInLine
             <*> parseInLine
-            <*> ((\asm c -> PairingOf { asm, c }) <$> parseInLine <*> parseInLine)
+            <*> ((\asm c -> ByRefineTag { asm, c }) <$> parseInLine <*> parseInLine)
             <*> parseInLine
             <*> parseInLine
             <*> parseInLine
@@ -636,13 +636,13 @@ instance ParseInLine PairingEqSide where
 instance BuildInLine PairingEqSide where
     buildInLine side = put side.quadrant <> put side.expr
 
-instance ParseInLine Tag where
+instance ParseInLine Tag' where
     parseInLine = wordWithOr "invalid tag" $ \case
         "C" -> Just C
         "ASM" -> Just Asm
         _ -> Nothing
 
-instance BuildInLine Tag where
+instance BuildInLine Tag' where
     buildInLine = putWord . prettyTag
 
 instance ParseInLine PairingEqSideQuadrant where

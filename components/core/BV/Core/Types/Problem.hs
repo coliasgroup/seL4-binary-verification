@@ -10,6 +10,7 @@ module BV.Core.Types.Problem
 
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
+import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
@@ -18,7 +19,7 @@ import GHC.Generics (Generic)
 
 data Problem
   = Problem
-      { sides :: PairingOf ProblemSide
+      { sides :: ByTag' ProblemSide
       , nodes :: NodeMap
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -43,7 +44,7 @@ instance Binary NodeBySource where
 
 data NodeSource
   = NodeSource
-      { tag :: Tag
+      { tag :: Tag'
       , functionName :: Ident
       , nodeAddr :: NodeAddr
       }

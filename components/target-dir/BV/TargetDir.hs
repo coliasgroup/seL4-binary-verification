@@ -138,7 +138,7 @@ readStagesInputEither earlyAsmFunctionFilter rodataInputRanges targetDir = runEx
     inlineScripts <- f targetDirFiles.inlineScripts
     proofs <- f targetDirFiles.proofs
     return $ StagesInput
-        { programs = PairingOf
+        { programs = ByRefineTag
             { c = cFunctions
             , asm = asmFunctions
             }

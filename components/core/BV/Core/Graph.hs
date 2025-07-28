@@ -85,7 +85,7 @@ loopHeadsFrom g entryPoints =
         entryPointsAsVertices = map (fromJust . g.nodeIdMapRev) entryPoints
         inOrder = foldMap toList $ G.dfs g.graph entryPointsAsVertices
 
-nodeTagOf :: Problem -> NodeGraph -> NodeAddr -> Tag
+nodeTagOf :: Problem -> NodeGraph -> NodeAddr -> Tag'
 nodeTagOf problem nodeGraph = \addr -> if addr `S.member` c then C else Asm
   where
     c = S.fromList $ reachableFrom nodeGraph problem.sides.c.entryPoint ^.. folded % #_Addr

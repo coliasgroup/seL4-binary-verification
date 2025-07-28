@@ -9,6 +9,7 @@ module BV.Core.Types
     , module BV.Core.Types.SExprWithPlaceholders
     , module BV.Core.Types.SMTProofChecks
     , module BV.Core.Types.SearchOutputs
+    , module BV.Core.Types.Tag
     ) where
 
 import BV.Core.Types.Compat
@@ -21,3 +22,4 @@ import BV.Core.Types.ProofScript
 import BV.Core.Types.SearchOutputs
 import BV.Core.Types.SExprWithPlaceholders
 import BV.Core.Types.SMTProofChecks
+import BV.Core.Types.Tag

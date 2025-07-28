@@ -8,98 +8,29 @@ module BV.Core.Types.Pairing
     , PairingEqSide (..)
     , PairingEqSideQuadrant (..)
     , PairingId
-    , PairingOf (..)
     , Pairings (..)
-    , Tag (..)
-    , WithTag (..)
-    , intoPairingSide
     , pairingSide
     , pairingSideWithTag
     , prettyPairingEqDirection
     , prettyPairingEqSideQuadrant
     , prettyPairingId
     , prettyTag
-    , withTag
-    , withTags
     ) where
 
 import BV.Core.Types.Program
+import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
-import Data.Binary (Binary)
 import qualified Data.Map as M
-import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
-import Optics (Lens', view)
 
-data PairingOf a
-  = PairingOf
-      { c :: a
-      , asm :: a
-      }
-  deriving (Eq, Functor, Generic, NFData, Ord, Show)
+pairingSide :: Tag' -> ByTag' a -> a
+pairingSide = viewAtTag
 
-instance Semigroup a => Semigroup (PairingOf a) where
-    x <> y = PairingOf
-        { c = x.c <> y.c
-        , asm = x.asm <> y.asm
-        }
+pairingSideWithTag :: Tag' -> ByTag' a -> WithTag' a
+pairingSideWithTag = viewWithTag
 
-instance Monoid a => Monoid (PairingOf a) where
-    mempty = PairingOf
-        { c = mempty
-        , asm = mempty
-        }
-
-instance Applicative PairingOf where
-    pure x = PairingOf x x
-    ff <*> fx = PairingOf
-        { c = ff.c fx.c
-        , asm = ff.asm fx.asm
-        }
-
-instance Foldable PairingOf where
-    foldMap = foldMapDefault
-
-instance Traversable PairingOf where
-    traverse f p = (\c asm -> PairingOf { c, asm }) <$> f p.c <*> f p.asm
-
-instance Binary a => Binary (PairingOf a) where
-
-data Tag
-  = C
-  | Asm
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary Tag where
-
-data WithTag a
-  = WithTag
-      { tag :: Tag
-      , value :: a
-      }
-  deriving (Eq, Functor, Generic, NFData, Ord, Show)
-
-withTag :: (Tag -> a -> b) -> WithTag a -> b
-withTag f (WithTag tag value) = f tag value
-
-withTags :: PairingOf a -> PairingOf (WithTag a)
-withTags pairing = PairingOf
-    { asm = WithTag Asm pairing.asm
-    , c = WithTag C pairing.c
-    }
-
-pairingSide :: Tag -> PairingOf a -> a
-pairingSide tag = view (intoPairingSide tag)
-
-pairingSideWithTag :: Tag -> PairingOf a -> WithTag a
-pairingSideWithTag tag = WithTag tag . pairingSide tag
-
-intoPairingSide :: Tag -> Lens' (PairingOf a) a
-intoPairingSide C = #c
-intoPairingSide Asm = #asm
-
-type PairingId = PairingOf Ident
+type PairingId = ByTag' Ident
 
 class AtPairingId a m | m -> a where
     atPairingId :: m -> PairingId -> a
@@ -130,7 +61,7 @@ data PairingEqSide
 
 data PairingEqSideQuadrant
   = PairingEqSideQuadrant
-      { tag :: Tag
+      { tag :: Tag'
       , direction :: PairingEqDirection
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -155,11 +86,7 @@ instance AtPairingId Pairing Pairings where
     atPairingId = atPairingId . (.unwrap)
 
 prettyPairingId :: PairingId -> String
-prettyPairingId (PairingOf { c, asm }) = asm.unwrap ++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
-
-prettyTag :: Tag ->  String
-prettyTag C = "C"
-prettyTag Asm = "ASM"
+prettyPairingId (ByRefineTag { c, asm }) = asm.unwrap ++ " (ASM)" ++ " <= " ++ c.unwrap ++ " (C)"
 
 prettyPairingEqSideQuadrant :: PairingEqSideQuadrant ->  String
 prettyPairingEqSideQuadrant (PairingEqSideQuadrant { tag, direction }) =

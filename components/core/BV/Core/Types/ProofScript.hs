@@ -20,8 +20,8 @@ module BV.Core.Types.ProofScript
     , traverseSplitProofNodeChildren
     ) where
 
-import BV.Core.Types.Pairing
 import BV.Core.Types.Program
+import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData, NFData1)
 import Data.Binary (Binary)
@@ -78,7 +78,7 @@ instance Binary a => Binary (ProofNode a) where
 data RestrProofNode a
   = RestrProofNode
       { point :: NodeAddr
-      , tag :: Tag
+      , tag :: Tag'
       , range :: RestrProofNodeRange
       , child :: ProofNodeWith a
       }
@@ -122,7 +122,7 @@ prettyRestrProofNodeRangeKind = \case
 data CaseSplitProofNode a
   = CaseSplitProofNode
       { addr :: NodeAddr
-      , tag :: Tag
+      , tag :: Tag'
       , left :: ProofNodeWith a
       , right :: ProofNodeWith a
       }
@@ -145,7 +145,7 @@ data SplitProofNode a
   = SplitProofNode
       { n :: Integer
       , loopRMax :: Integer
-      , details :: PairingOf SplitProofNodeDetails
+      , details :: ByTag' SplitProofNodeDetails
       , eqs :: [(Lambda, Lambda)]
       , p1 :: ProofNodeWith a
       , p2 :: ProofNodeWith a
@@ -179,7 +179,7 @@ instance Binary SplitProofNodeDetails where
 data SingleRevInductProofNode a
   = SingleRevInductProofNode
       { point :: NodeAddr
-      , tag :: Tag
+      , tag :: Tag'
       , n :: Integer
       , eqs :: [Lambda]
       , pred_ :: Expr

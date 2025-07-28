@@ -71,7 +71,7 @@ import Text.Printf (printf)
 
 -- TODO cache more accross groups?
 
-type FunctionSignatures = WithTag Ident -> FunctionSignature
+type FunctionSignatures = WithTag' Ident -> FunctionSignature
 
 class MonadRepGraph n => MonadRepGraphDefaultHelper n m | m -> n where
     liftMonadRepGraphDefaultHelper :: n a -> m a
@@ -130,7 +130,7 @@ data RepGraphEnv
       , problem :: Problem
       , problemNames :: S.Set Ident
       , nodeGraph :: NodeGraph
-      , nodeTag :: NodeAddr -> Tag
+      , nodeTag :: NodeAddr -> Tag'
       , loopData :: Map NodeAddr LoopData
       , preds :: Map NodeId (Set NodeAddr)
       }
@@ -203,7 +203,7 @@ askFunctionSigs = liftRepGraph $ gview $ #functionSigs
 askProblem :: MonadRepGraph m => m Problem
 askProblem = liftRepGraph $ gview $ #problem
 
-askNodeTag :: MonadRepGraph m => NodeAddr -> m Tag
+askNodeTag :: MonadRepGraph m => NodeAddr -> m Tag'
 askNodeTag n = liftRepGraph $ gview $ #nodeTag % to ($ n)
 
 askIsNonTriviallyReachableFrom :: MonadRepGraph m => NodeAddr -> NodeId -> m Bool
@@ -479,10 +479,10 @@ addInputEnvs = do
         env <- execStateT m M.empty
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
 
-getPc :: MonadRepGraph m => Visit -> Maybe Tag -> m Expr
+getPc :: MonadRepGraph m => Visit -> Maybe Tag' -> m Expr
 getPc visit tag = view (expecting _Right) <$> runExceptT (tryGetPc visit tag)
 
-tryGetPc :: (MonadRepGraph m, MonadError TooGeneral m) => Visit -> Maybe Tag -> m Expr
+tryGetPc :: (MonadRepGraph m, MonadError TooGeneral m) => Visit -> Maybe Tag' -> m Expr
 tryGetPc visit tag = tryGetNodePcEnv visit tag >>= \case
     Nothing -> return falseE
     Just (pc, env) -> withEnv env $ convertInnerExpr pc
@@ -517,10 +517,10 @@ instEqWithEnvs (x, xenv) (y, yenv) = do
 
 --
 
-getNodePcEnv :: MonadRepGraph m => Visit -> Maybe Tag -> m (Maybe (Expr, ExprEnv))
+getNodePcEnv :: MonadRepGraph m => Visit -> Maybe Tag' -> m (Maybe (Expr, ExprEnv))
 getNodePcEnv visit tag = view (expecting _Right) <$> runExceptT (tryGetNodePcEnv visit tag)
 
-tryGetNodePcEnv :: (MonadRepGraph m, MonadError TooGeneral m) => Visit -> Maybe Tag -> m (Maybe (Expr, ExprEnv))
+tryGetNodePcEnv :: (MonadRepGraph m, MonadError TooGeneral m) => Visit -> Maybe Tag' -> m (Maybe (Expr, ExprEnv))
 tryGetNodePcEnv visit tag' = do
     (tag, restrsOpt) <- getTagVCount visit tag'
     runMaybeT $ do
@@ -643,7 +643,7 @@ getArcPcEnv visit' otherVisit = do
                         liftRepGraph $ #arcPcEnvs %= M.insert visit arcs'
                         return $ arcs' !? otherVisit.nodeId
 
-getTagVCount :: (MonadRepGraph m, MonadError TooGeneral m) => Visit -> Maybe Tag -> m (Tag, Maybe [Restr])
+getTagVCount :: (MonadRepGraph m, MonadError TooGeneral m) => Visit -> Maybe Tag' -> m (Tag', Maybe [Restr])
 getTagVCount visit tagOpt = do
     tag <- whenNothing tagOpt $ askNodeTag $ nodeAddrFromNodeId visit.nodeId
     vcountWithReachable <- fmap catMaybes $ for visit.restrs $ \restr -> runMaybeT $ do
@@ -802,7 +802,7 @@ isSyntacticConstant origName ty split = do
 
 --
 
-convertInnerExprWithPcEnv :: (MonadRepGraph m, MonadError TooGeneral m) => Expr -> Visit -> Maybe Tag -> m Expr
+convertInnerExprWithPcEnv :: (MonadRepGraph m, MonadError TooGeneral m) => Expr -> Visit -> Maybe Tag' -> m Expr
 convertInnerExprWithPcEnv expr visit tag = do
     pcEnv <- tryGetNodePcEnv visit tag
     let Just (_pc, env) = pcEnv
