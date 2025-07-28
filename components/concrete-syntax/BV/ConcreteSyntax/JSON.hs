@@ -46,10 +46,10 @@ deriving instance FromJSON InlineScripts
 
 deriving instance ToJSON InlineScripts
 
-instance FromJSON InlineScriptEntry where
+instance FromJSON (InlineScriptEntry RefineTag) where
     parseJSON = parseLine
 
-instance ToJSON InlineScriptEntry where
+instance ToJSON (InlineScriptEntry RefineTag) where
     toJSON = buildLine
 
 deriving instance FromJSON Pairings

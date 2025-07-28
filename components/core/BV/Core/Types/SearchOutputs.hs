@@ -2,6 +2,7 @@
 
 module BV.Core.Types.SearchOutputs
     ( InlineScript
+    , InlineScript'
     , InlineScriptEntry (..)
     , InlineScripts (..)
     , Proofs (..)
@@ -12,6 +13,7 @@ import BV.Core.Types.Pairing
 import BV.Core.Types.Problem
 import BV.Core.Types.Program
 import BV.Core.Types.ProofScript
+import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
@@ -26,25 +28,27 @@ newtype StackBounds
 instance Binary StackBounds where
 
 newtype InlineScripts
-  = InlineScripts { unwrap :: M.Map PairingId InlineScript }
+  = InlineScripts { unwrap :: M.Map PairingId InlineScript' }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
 instance Binary InlineScripts where
 
-instance AtPairingId InlineScript InlineScripts where
+instance AtPairingId InlineScript' InlineScripts where
     atPairingId = atPairingId . (.unwrap)
 
-type InlineScript = [InlineScriptEntry]
+type InlineScript' = InlineScript RefineTag
 
-data InlineScriptEntry
+type InlineScript t = [InlineScriptEntry t]
+
+data InlineScriptEntry t
   = InlineScriptEntry
-      { nodeBySource :: NodeBySource
+      { nodeBySource :: (NodeBySource t)
       , inlinedFunctionName :: Ident
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary InlineScriptEntry where
+instance Binary t => Binary (InlineScriptEntry t) where
 
 newtype Proofs a
   = Proofs { unwrap :: M.Map PairingId (ProofScript a) }

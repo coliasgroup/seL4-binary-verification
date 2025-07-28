@@ -39,24 +39,24 @@ data ProblemSide
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data NodeBySource
+data NodeBySource t
   = NodeBySource
-      { nodeSource :: NodeSource
+      { nodeSource :: NodeSource t
       , indexInProblem :: Int
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary NodeBySource where
+instance Binary t => Binary (NodeBySource t) where
 
-data NodeSource
+data NodeSource t
   = NodeSource
-      { tag :: Tag'
+      { tag :: t
       , functionName :: Ident
       , nodeAddr :: NodeAddr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary NodeSource where
+instance Binary t => Binary (NodeSource t) where
 
 newtype Problems
   = Problems { unwrap :: M.Map PairingId Problem' }

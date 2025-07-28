@@ -413,7 +413,7 @@ instance ParseInBlock Problem' where
             let side = ProblemSide { name, input, output, entryPoint }
             return (tag, side)
 
-instance ParseInLine NodeSource where
+instance ParseInLine (NodeSource RefineTag) where
     parseInLine = NodeSource <$> parseInLine <*> parseInLine <*> parseInLine
 
 --
@@ -438,7 +438,7 @@ instance BuildInBlock Problem' where
                 <> put output
         nodeLine (addr, node) = lineInBlock $ put addr <> put node
 
-instance BuildInLine NodeSource where
+instance BuildInLine (NodeSource RefineTag) where
     buildInLine (NodeSource { tag, functionName, nodeAddr }) = put tag <> put functionName <> put nodeAddr
 
 --
@@ -459,16 +459,16 @@ instance BuildToFile StackBounds where
 
 --
 
-instance ParseInLine InlineScriptEntry where
+instance ParseInLine (InlineScriptEntry RefineTag) where
     parseInLine = InlineScriptEntry <$> parseInLine <*> parseInLine
 
-instance ParseInLine NodeBySource where
+instance ParseInLine (NodeBySource RefineTag) where
     parseInLine = NodeBySource <$> parseInLine <*> parseInLine
 
-instance BuildInLine InlineScriptEntry where
+instance BuildInLine (InlineScriptEntry RefineTag) where
     buildInLine (InlineScriptEntry { nodeBySource, inlinedFunctionName }) = put nodeBySource <> put inlinedFunctionName
 
-instance BuildInLine NodeBySource where
+instance BuildInLine (NodeBySource RefineTag) where
     buildInLine (NodeBySource { nodeSource, indexInProblem }) = put nodeSource <> putDec indexInProblem
 
 --

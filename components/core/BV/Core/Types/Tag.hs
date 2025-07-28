@@ -8,13 +8,16 @@ module BV.Core.Types.Tag where
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import Data.Monoid (Ap (..))
+import Data.Proxy (Proxy)
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import Optics (Lens', view)
-import Data.Proxy (Proxy)
 
 class
-    ( Enum t
+    ( Eq t
+    , Ord t
+    , Show t
+    , Enum t
     , Bounded t
     , Applicative (ByTag t)
     , Traversable (ByTag t)

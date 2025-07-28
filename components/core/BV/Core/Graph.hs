@@ -12,8 +12,8 @@ module BV.Core.Graph
     , makeNodeGraph
     , makeNodeGraphEdges
     , makeNodeGraphFromEdges
-    , reachableFrom
     , nodeTagMap
+    , reachableFrom
     ) where
 
 import BV.Core.Types

@@ -35,7 +35,7 @@ discoverInlineScript
     :: (Monad m, S.MonadSolver n)
     => ((ModelConfig -> n a) -> m a)
     -> DiscoverInlineScriptInput
-    -> m InlineScript
+    -> m InlineScript'
 discoverInlineScript = undefined
 
 newtype InlineM m a
@@ -93,5 +93,5 @@ nextInlinePoint modelConfig repGraphInput = preview (_Left % #nodeAddr) <$> ret
 
 type Inliner m = Problem' -> m (Maybe [NodeAddr])
 
-buildProblemWith :: Monad m => [Inliner m] -> (WithTag' Ident -> Function) -> ByTag' (Named Function) -> InlineScript
+buildProblemWith :: Monad m => [Inliner m] -> (WithTag' Ident -> Function) -> ByTag' (Named Function) -> InlineScript'
 buildProblemWith _inliners _lookupFun _funs = undefined
