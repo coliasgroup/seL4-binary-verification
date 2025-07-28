@@ -63,6 +63,11 @@ type FunctionSignatures = WithTag Ident -> FunctionSignature
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: StateT RepGraphState (Reader RepGraphEnv) a -> m a
 
+    runProblemVarRepHook :: Ident -> ExprType -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
+    -- runProblemVarRepHook _ _ _ _ = return Nothing
+    -- TODO
+    runProblemVarRepHook = asmStackRepHook
+
     runPostEmitNodeHook :: Visit -> m ()
     runPostEmitNodeHook _ = return ()
 
@@ -70,36 +75,41 @@ class MonadSolver m => MonadRepGraph m where
     runPreEmitCallNodeHook _ _ _ = return ()
 
     runPostEmitCallNodeHook :: Visit -> ExprEnv -> ExprEnv -> Expr -> m ()
-    runPostEmitCallNodeHook = addFunc
-    -- TODO
     -- runPostEmitCallNodeHook _ _ _ _ = return ()
+    -- TODO
+    runPostEmitCallNodeHook = addFunc
 
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
     liftRepGraph = lift . liftRepGraph
+    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
     runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (StateT s m) where
     liftRepGraph = lift . liftRepGraph
+    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
     runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
 
 instance (Monoid w, MonadRepGraph m) => MonadRepGraph (RWST r w s m) where
     liftRepGraph = lift . liftRepGraph
+    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
     runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (MaybeT m) where
     liftRepGraph = lift . liftRepGraph
+    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
     runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
     liftRepGraph = lift . liftRepGraph
+    runProblemVarRepHook = ((.) . (.) . (.) . (.)) lift runProblemVarRepHook
     runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
     runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
@@ -518,9 +528,8 @@ data VarRepRequestKind
 
 varRepRequest :: MonadRepGraph m => Ident -> ExprType -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
 varRepRequest name ty kind visit env = runMaybeT $ do
-    let hook = asmStackRepHook
     let n = nodeAddrFromNodeId visit.nodeId
-    addrExpr <- MaybeT $ hook name ty kind n
+    addrExpr <- MaybeT $ runProblemVarRepHook name ty kind n
     addrSexpr <- withEnv env $ convertExpr addrExpr
     let name' = printf "%s_for_%s" name.unwrap (nodeCountName visit)
     addSplitMemVar (addrSexpr ^. expecting #_NotSplit) name' ty
