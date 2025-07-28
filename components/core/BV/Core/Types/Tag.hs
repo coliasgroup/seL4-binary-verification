@@ -14,6 +14,7 @@ module BV.Core.Types.Tag
     , WithTag'
     , byRefineTag
     , byTagFrom
+    , byTagFromList
     , leftTag
     , numTagValues
     , rightTag
@@ -23,14 +24,16 @@ module BV.Core.Types.Tag
     , withTag
     ) where
 
+import BV.Core.Utils (ensure, zipWithTraversable)
+
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
-import Data.Functor ((<&>))
 import Data.Monoid (Ap (..))
-import Data.Proxy (Proxy)
+import Data.Proxy (Proxy (Proxy))
 import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
-import Optics (Lens', view)
+import GHC.IsList (IsList (..))
+import Optics
 
 class
     ( Eq t
@@ -68,6 +71,18 @@ instance (Tag t, Semigroup m) => Semigroup (ByTag t m) where
 instance (Tag t, Monoid m) => Monoid (ByTag t m) where
     mempty = getAp mempty
 
+instance Tag t => IsList (ByTag t a) where
+    type Item (ByTag t a) = a
+
+    toList = toListOf folded -- avoid name conflict with Data.Foldable.toList
+
+    fromListN n xs =
+        ensure
+            (n == numTagValues (Proxy :: Proxy t))
+            (zipWithTraversable const xs (pure ()))
+
+    fromList xs = fromListN (length xs) xs
+
 tagValues :: Tag t => [t]
 tagValues = [minBound .. maxBound]
 
@@ -92,6 +107,9 @@ viewWithTag tag = viewAtTag tag . withTags
 
 byTagFrom :: Tag t => (t -> a) -> ByTag t a
 byTagFrom f = withTags (pure ()) <&> \(WithTag t _) -> f t
+
+byTagFromList :: Tag t => [a] -> ByTag t a
+byTagFromList = fromList
 
 --
 
