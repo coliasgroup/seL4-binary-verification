@@ -13,6 +13,7 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , MonadRepGraphDefaultHelper (..)
     , RepGraphEnv
     , RepGraphState
+    , askCont
     , getInductVar
     , getNodePcEnv
     , getPc
@@ -39,7 +40,7 @@ import Control.DeepSeq (NFData)
 import Control.Monad (filterM, guard, replicateM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
-import Control.Monad.Reader (Reader, ReaderT)
+import Control.Monad.Reader (Reader, ReaderT, asks)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
                           RWST (runRWST), evalRWST)
 import Control.Monad.State (StateT (runStateT), execStateT, modify)
@@ -231,6 +232,17 @@ askPrevs visit = do
             then incrVCs visit.restrs p (-1)
             else Just visit.restrs
     return $ mapMaybe f preds
+
+askCont :: MonadRepGraph m => Visit -> m Visit
+askCont visit = do
+    let nodeAddr = nodeAddrFromNodeId visit.nodeId
+    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at nodeAddr % unwrapped % nodeConts
+    let [cont] = conts
+    let p = any (\restr -> restr.nodeAddr == nodeAddr) visit.restrs
+    return $ Visit
+        { nodeId = cont
+        , restrs = if p then fromJust (incrVCs visit.restrs nodeAddr 1) else visit.restrs
+        }
 
 incrVCs :: [Restr] -> NodeAddr -> Integer -> Maybe [Restr]
 incrVCs vcount n incr =
@@ -906,18 +918,6 @@ isSyntacticConstant origName ty split = do
                 Left r -> return r
 
 --
-
--- -- TODO
--- askCont :: MonadRepGraph m => Visit -> m Visit
--- askCont visit = do
---     let nodeAddr = nodeAddrFromNodeId visit.nodeId
---     conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at nodeAddr % unwrapped % nodeConts
---     let [cont] = conts
---     let p = any (\restr -> restr.nodeAddr == nodeAddr) visit.restrs
---     return $ Visit
---         { nodeId = cont
---         , restrs = if p then fromJust (incrVCs visit.restrs nodeAddr 1) else visit.restrs
---         }
 
 -- -- TODO
 -- convertInnerExprWithPcEnv :: MonadRepGraphE m => Expr -> Visit -> Maybe Tag -> m Expr
