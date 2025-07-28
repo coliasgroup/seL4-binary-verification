@@ -137,7 +137,7 @@ stages input = StagesOutput
         asm <- M.keys (getAsm finalPrograms).functions
         let c = asmFunNameToCFunName asm
         guard $ c `M.member` (getC finalPrograms).functions
-        return $ byAsmRefineTag (ByAsmRefineTag { c = asmFunNameToCFunName asm, asm })
+        return $ byAsmRefineTag (ByAsmRefineTag { asm, c = asmFunNameToCFunName asm })
 
     normalPairings = M.fromList
         [ let stackBound = input.stackBounds.unwrap ! (getAsm pairingId)

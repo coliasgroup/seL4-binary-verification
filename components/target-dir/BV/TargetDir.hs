@@ -129,8 +129,8 @@ writeTargetDirFile targetDir targetDirFile =
 
 readStagesInputEither :: AsmFunctionFilter -> RODataInputRanges -> TargetDir -> IO (Either ReadTargetDirFileException StagesInput)
 readStagesInputEither earlyAsmFunctionFilter rodataInputRanges targetDir = runExceptT $ do
-    cFunctions <- f targetDirFiles.cFunctions
     asmFunctions <- f targetDirFiles.asmFunctions
+    cFunctions <- f targetDirFiles.cFunctions
     objDumpInfo <- f targetDirFiles.symtab
     rodata <- ExceptT $
         readTargetDirRODataEither objDumpInfo rodataInputRanges targetDir targetDirFiles.rodata
@@ -139,8 +139,8 @@ readStagesInputEither earlyAsmFunctionFilter rodataInputRanges targetDir = runEx
     proofs <- f targetDirFiles.proofs
     return $ StagesInput
         { programs = byAsmRefineTag (ByAsmRefineTag
-            { c = cFunctions
-            , asm = asmFunctions
+            { asm = asmFunctions
+            , c = cFunctions
             })
         , objDumpInfo
         , rodata

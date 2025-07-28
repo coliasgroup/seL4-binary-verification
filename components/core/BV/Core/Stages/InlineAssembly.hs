@@ -29,19 +29,19 @@ addInlineAssemblySpecs :: ByTag' Program -> (Pairings, ByTag' Program, ByTag' [I
 addInlineAssemblySpecs progs =
     (pairings, finalProgs, unhandled)
   where
-    (cProg', (rightInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun (getC progs)
     (asmProg', (leftInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun (getAsm progs)
+    (cProg', (rightInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun (getC progs)
 
     intermediateProgs = byAsmRefineTag (ByAsmRefineTag
-        { c = cProg'
-        , asm = asmProg'
+        { asm = asmProg'
+        , c = cProg'
         })
 
     requiredInstFuns = S.toAscList (rightInstFuns `S.union` leftInstFuns)
 
     unhandled = S.toAscList <$> byAsmRefineTag (ByAsmRefineTag
-        { c = cUnhandledFunNames
-        , asm = asmUnhandledFunNames
+        { asm = asmUnhandledFunNames
+        , c = cUnhandledFunNames
         })
 
     applyDecoder :: InstFunDecoder -> Program -> (Program, (S.Set InstFunction, S.Set Ident))
