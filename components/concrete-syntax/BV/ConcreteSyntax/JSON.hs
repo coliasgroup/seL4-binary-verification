@@ -47,10 +47,10 @@ deriving instance FromJSON InlineScripts
 
 deriving instance ToJSON InlineScripts
 
-instance FromJSON (InlineScriptEntry AsmRefineTag) where
+instance Tag t => FromJSON (InlineScriptEntry t) where
     parseJSON = parseLine
 
-instance ToJSON (InlineScriptEntry AsmRefineTag) where
+instance Tag t => ToJSON (InlineScriptEntry t) where
     toJSON = buildLine
 
 deriving instance FromJSON Pairings
