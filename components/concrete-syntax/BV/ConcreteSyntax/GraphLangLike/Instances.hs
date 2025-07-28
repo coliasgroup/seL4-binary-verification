@@ -12,11 +12,13 @@ import BV.ConcreteSyntax.GraphLangLike.Parsing
 import BV.ConcreteSyntax.SExprWithPlaceholders
 import BV.Core.Types
 
+import Control.Monad (replicateM)
 import Data.Bits (shiftL, (.|.))
 import Data.Char (chr, isDigit, ord)
 import Data.Functor ((<&>))
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
+import Data.Proxy (Proxy (Proxy))
 import Data.String (fromString)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as TL
@@ -389,15 +391,11 @@ instance ParseFile Problems where
 instance ParseInBlock Problem' where
     parseInBlock = do
         _ <- line $ inLineSymbol "Problem"
-        (tagA, sideA) <- problemSideLine
-        (tagB, sideB) <- problemSideLine
-        (c, asm) <- case (tagA, tagB) of
-                (C, Asm) -> return (sideA, sideB)
-                (Asm, C) -> return (sideB, sideA)
-                _ -> fail "invalid problem side tags"
+        byTagAssocs <- replicateM (numTagValues (Proxy :: Proxy RefineTag)) problemSideLine
+        let sides = byTagFromMap $ M.fromList byTagAssocs
         nodes <- M.fromList <$> manyTill nodeLine (try endLine)
         return $ Problem
-            { sides = ByRefineTag { c, asm }
+            { sides
             , nodes
             }
       where
