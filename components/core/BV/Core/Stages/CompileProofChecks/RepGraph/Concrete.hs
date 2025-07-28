@@ -23,9 +23,9 @@ import Optics
 data RepGraphInput
   = RepGraphInput
       { cStructs :: Map Ident Struct
-      , functionSigs :: FunctionSignatures
       , rodata :: ROData
       , problem :: Problem
+      , functionSigs :: FunctionSignatures
       }
   deriving (Generic)
 
@@ -90,7 +90,7 @@ initEnv :: RepGraphInput -> Env
 initEnv (RepGraphInput {..}) = Env
     { structs = initStructsEnv rodata problem cStructs
     , solver = initSolverEnv rodata
-    , repGraph = initRepGraphEnv functionSigs problem
+    , repGraph = initRepGraphEnv problem functionSigs
     }
 
 initState :: State

@@ -155,8 +155,8 @@ data TooGeneral
       }
   deriving (Eq, Generic, Ord, Show)
 
-initRepGraphEnv :: FunctionSignatures -> Problem -> RepGraphEnv
-initRepGraphEnv functionSigs problem =
+initRepGraphEnv :: Problem -> FunctionSignatures -> RepGraphEnv
+initRepGraphEnv problem functionSigs =
     RepGraphEnv
         { functionSigs
         , problem

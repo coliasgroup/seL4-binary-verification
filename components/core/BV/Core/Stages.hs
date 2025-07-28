@@ -185,9 +185,9 @@ stages input = StagesOutput
     smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let repGraphInput = RepGraphInput
                 { cStructs = input.programs.c.structs
-                , functionSigs
                 , rodata = input.rodata
                 , problem
+                , functionSigs
                 }
          in compileProofChecks repGraphInput pairings (lookupOrigVarNameFor problem)
                 <$> (proofChecks `atPairingId` pairingId)
