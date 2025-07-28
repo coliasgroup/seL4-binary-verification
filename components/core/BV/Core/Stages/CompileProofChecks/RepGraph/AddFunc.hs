@@ -100,8 +100,8 @@ getFuncPairingNoCheck visit visit2 = do
     pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
     p <- WithAddFunc $ gview $ #pairings % #unwrap % at pairingId % unwrapped
     return $ (p ,) <$> if
-        | pairingId == byAsmRefineTag (ByAsmRefineTag { asm = fname, c = fname2 }) -> Just $ byAsmRefineTag $ ByAsmRefineTag { asm = visit, c = visit2 }
-        | pairingId == byAsmRefineTag (ByAsmRefineTag { asm = fname2, c = fname }) -> Just $ byAsmRefineTag $ ByAsmRefineTag { asm = visit2, c = visit }
+        | pairingId == byRefineTag fname fname2 -> Just $ byRefineTag visit visit2
+        | pairingId == byRefineTag fname2 fname -> Just $ byRefineTag visit2 visit
         | otherwise -> Nothing
 
 getFuncPairing :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing', ByTag' Visit))
@@ -112,10 +112,7 @@ getFuncPairing visit visit2 = do
         (rin, _, _) <- WithAddFunc $ use $ #funcs % at (getC visits) % unwrapped
         lcalls <- scanMemCalls lin
         rcalls <- scanMemCalls rin
-        (compatible, _s) <- memCallsCompatible $ byAsmRefineTag $ ByAsmRefineTag
-            { asm = lcalls
-            , c = rcalls
-            }
+        (compatible, _s) <- memCallsCompatible $ byRefineTag lcalls rcalls
         -- unless compatible $ do
         --     warn _s
         return $ if compatible then Just (p, visits) else Nothing
