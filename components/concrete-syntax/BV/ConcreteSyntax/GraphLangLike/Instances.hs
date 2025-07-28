@@ -388,7 +388,7 @@ instance BuildInLine Op where
 instance ParseFile Problems where
     parseFile = Problems . M.fromList <$> some (parseInBlock <&> \problem -> ((.name) <$> problem.sides, problem))
 
-instance ParseInBlock Problem' where
+instance Tag t => ParseInBlock (Problem t) where
     parseInBlock = do
         _ <- line $ inLineSymbol "Problem"
         byTagAssocs <- replicateM (numTagValues (Proxy :: Proxy RefineTag)) problemSideLine
@@ -404,40 +404,39 @@ instance ParseInBlock Problem' where
         problemSideLine = line $ do
             _ <- inLineSymbol "Entry"
             entryPoint <- parseInLine
-            tag <- parseInLine
+            tag <- parseTag
             name <- parseInLine
             input <- parseInLine
             output <- parseInLine
             let side = ProblemSide { name, input, output, entryPoint }
             return (tag, side)
 
-instance ParseInLine (NodeSource RefineTag) where
-    parseInLine = NodeSource <$> parseInLine <*> parseInLine <*> parseInLine
+instance Tag t => ParseInLine (NodeSource t) where
+    parseInLine = NodeSource <$> parseTag <*> parseInLine <*> parseInLine
 
 --
 
 instance BuildToFile Problems where
     buildToFile (Problems problems) = intersperse "\n" $ map (buildBlock . buildInBlock . snd) (M.toAscList problems)
 
-instance BuildInBlock Problem' where
+instance Tag t => BuildInBlock (Problem t) where
     buildInBlock (Problem { sides, nodes }) =
         lineInBlock "Problem"
-            <> problemSideLine C sides.c
-            <> problemSideLine Asm sides.asm
+            <> foldMap (withTag problemSideLine) (withTags sides)
             <> foldMap nodeLine (M.toAscList nodes)
             <> lineInBlock "EndProblem"
       where
         problemSideLine tag (ProblemSide { name, input, output, entryPoint }) = lineInBlock $
             "Entry"
                 <> put entryPoint
-                <> put tag
+                <> putTag tag
                 <> put name
                 <> put input
                 <> put output
         nodeLine (addr, node) = lineInBlock $ put addr <> put node
 
-instance BuildInLine (NodeSource RefineTag) where
-    buildInLine (NodeSource { tag, functionName, nodeAddr }) = put tag <> put functionName <> put nodeAddr
+instance Tag t => BuildInLine (NodeSource t) where
+    buildInLine (NodeSource { tag, functionName, nodeAddr }) = putTag tag <> put functionName <> put nodeAddr
 
 --
 
@@ -457,16 +456,16 @@ instance BuildToFile StackBounds where
 
 --
 
-instance ParseInLine (InlineScriptEntry RefineTag) where
+instance Tag t => ParseInLine (InlineScriptEntry t) where
     parseInLine = InlineScriptEntry <$> parseInLine <*> parseInLine
 
-instance ParseInLine (NodeBySource RefineTag) where
+instance Tag t => ParseInLine (NodeBySource t) where
     parseInLine = NodeBySource <$> parseInLine <*> parseInLine
 
-instance BuildInLine (InlineScriptEntry RefineTag) where
+instance Tag t => BuildInLine (InlineScriptEntry t) where
     buildInLine (InlineScriptEntry { nodeBySource, inlinedFunctionName }) = put nodeBySource <> put inlinedFunctionName
 
-instance BuildInLine (NodeBySource RefineTag) where
+instance Tag t => BuildInLine (NodeBySource t) where
     buildInLine (NodeBySource { nodeSource, indexInProblem }) = put nodeSource <> putDec indexInProblem
 
 --
@@ -490,7 +489,7 @@ instance ParseInLine (RestrProofNode ()) where
     parseInLine =
         RestrProofNode
             <$> parseInLine
-            <*> parseInLine
+            <*> parseTag
             <*> parseInLine
             <*> parseInLine
 
@@ -511,7 +510,7 @@ instance ParseInLine (CaseSplitProofNode ()) where
     parseInLine =
         CaseSplitProofNode
             <$> parseInLine
-            <*> parseInLine
+            <*> parseTag
             <*> parseInLine
             <*> parseInLine
 
@@ -520,7 +519,7 @@ instance ParseInLine (SplitProofNode ()) where
         SplitProofNode
             <$> parseInLine
             <*> parseInLine
-            <*> ((\asm c -> ByRefineTag { asm, c }) <$> parseInLine <*> parseInLine)
+            <*> traverse (const parseInLine) (pure ())
             <*> parseInLine
             <*> parseInLine
             <*> parseInLine
@@ -537,7 +536,7 @@ instance ParseInLine (SingleRevInductProofNode ()) where
     parseInLine =
         SingleRevInductProofNode
             <$> parseInLine
-            <*> parseInLine
+            <*> parseTag
             <*> parseInLine
             <*> parseInLine
             <*> parseInLine
@@ -568,7 +567,7 @@ instance BuildInLine (ProofNode ()) where
 instance BuildInLine (RestrProofNode ()) where
     buildInLine range =
            put range.point
-        <> put range.tag
+        <> putTag range.tag
         <> put range.range
         <> put range.child
 
@@ -585,7 +584,7 @@ instance BuildInLine RestrProofNodeRangeKind where
 instance BuildInLine (CaseSplitProofNode ()) where
     buildInLine node =
            put node.addr
-        <> put node.tag
+        <> putTag node.tag
         <> put node.left
         <> put node.right
 
@@ -609,7 +608,7 @@ instance BuildInLine SplitProofNodeDetails where
 instance BuildInLine (SingleRevInductProofNode ()) where
     buildInLine node =
            put node.point
-        <> put node.tag
+        <> putTag node.tag
         <> putDec node.n
         <> put node.eqs
         <> put node.pred_
@@ -634,14 +633,11 @@ instance ParseInLine PairingEqSide where
 instance BuildInLine PairingEqSide where
     buildInLine side = put side.quadrant <> put side.expr
 
-instance ParseInLine Tag' where
-    parseInLine = wordWithOr "invalid tag" $ \case
-        "C" -> Just C
-        "ASM" -> Just Asm
-        _ -> Nothing
+parseTag :: Tag t => Parser t
+parseTag = wordWithOr "invalid tag" parsePrettyTag
 
-instance BuildInLine Tag' where
-    buildInLine = putWord . prettyTag
+putTag :: Tag t => t -> LineBuilder
+putTag = putWord . prettyTag
 
 instance ParseInLine PairingEqSideQuadrant where
     parseInLine = wordWithOr "invalid pairing eq side quadrant" $ \case
@@ -716,10 +712,10 @@ instance BuildInLine EqHypSide where
     buildInLine side = put side.expr <> put side.visit
 
 instance ParseInLine VisitWithTag where
-    parseInLine = VisitWithTag <$> parseInLine <*> parseInLine
+    parseInLine = VisitWithTag <$> parseInLine <*> parseTag
 
 instance BuildInLine VisitWithTag where
-    buildInLine visit = put visit.visit <> put visit.tag
+    buildInLine visit = put visit.visit <> putTag visit.tag
 
 instance ParseInLine Visit where
     parseInLine = Visit <$> parseInLine <*> parseInLine

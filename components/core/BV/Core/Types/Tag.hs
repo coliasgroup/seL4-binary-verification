@@ -51,8 +51,13 @@ class
 
     prettyTag :: t -> String
 
+    parsePrettyTag :: String -> Maybe t
+
     default prettyTag :: Show t => t -> String
     prettyTag = show
+
+    default parsePrettyTag :: Read t => String -> Maybe t
+    parsePrettyTag = Just . read
 
 instance (Tag t, Semigroup m) => Semigroup (ByTag t m) where
     x <> y = getAp $ Ap x <> Ap y
@@ -111,6 +116,11 @@ instance Tag RefineTag where
     prettyTag = \case
         Asm -> "ASM"
         C -> "C"
+
+    parsePrettyTag = \case
+        "ASM" -> Just Asm
+        "C" -> Just C
+        _ -> Nothing
 
 instance Applicative (ByTag RefineTag) where
     pure x = ByRefineTag x x
