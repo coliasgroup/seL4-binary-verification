@@ -45,7 +45,7 @@ import Control.Monad.Reader (Reader, ReaderT, asks)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
                           RWST (runRWST), evalRWST)
 import Control.Monad.State (StateT (runStateT), execStateT, modify)
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList)
@@ -70,6 +70,8 @@ type FunctionSignatures = WithTag Ident -> FunctionSignature
 
 class MonadRepGraph n => MonadRepGraphDefaultHelper n m | m -> n where
     liftMonadRepGraphDefaultHelper :: n a -> m a
+    default liftMonadRepGraphDefaultHelper :: (m ~ t n, MonadTrans t) => n a -> m a
+    liftMonadRepGraphDefaultHelper = lift
 
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: StateT RepGraphState (Reader RepGraphEnv) a -> m a
@@ -98,19 +100,14 @@ class MonadSolver m => MonadRepGraph m where
 --     liftMonadRepGraphDefaultHelper = lift
 
 instance MonadRepGraph m => MonadRepGraphDefaultHelper m (ReaderT r m) where
-    liftMonadRepGraphDefaultHelper = lift
 
 instance MonadRepGraph m => MonadRepGraphDefaultHelper m (StateT s  m) where
-    liftMonadRepGraphDefaultHelper = lift
 
 instance (Monoid w, MonadRepGraph m) => MonadRepGraphDefaultHelper m (RWST r w s m) where
-    liftMonadRepGraphDefaultHelper = lift
 
 instance MonadRepGraph m => MonadRepGraphDefaultHelper m (MaybeT m) where
-    liftMonadRepGraphDefaultHelper = lift
 
 instance MonadRepGraph m => MonadRepGraphDefaultHelper m (ExceptT e m) where
-    liftMonadRepGraphDefaultHelper = lift
 
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
 
