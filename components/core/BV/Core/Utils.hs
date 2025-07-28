@@ -22,11 +22,13 @@ module BV.Core.Utils
     , whenJust_
     , whenNothing
     , whileM
+    , zipWithTraversable
     , (!@)
     ) where
 
 import Control.DeepSeq (NFData)
 import Control.Monad (when)
+import Control.Monad.State (evalState, state)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT), hoistMaybe)
 import Data.Binary (Binary)
 import Data.Either (fromRight)
@@ -132,3 +134,10 @@ instance Binary a => Binary (IncludeExcludeFilter a)
 
 applyIncludeExcludeFilter :: Ord a => IncludeExcludeFilter a -> a -> Bool
 applyIncludeExcludeFilter f a = maybe (const True) (flip S.member) f.include a && a `S.notMember` f.exclude
+
+zipWithTraversable :: Traversable t => (a -> b -> c) -> [a] -> t b -> t c
+zipWithTraversable f xs t = evalState (traverse m t) xs
+  where
+    m b = do
+        a <- state $ fromJust . uncons
+        return $ f a b
