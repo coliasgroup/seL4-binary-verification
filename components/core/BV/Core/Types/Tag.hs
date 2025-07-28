@@ -15,6 +15,8 @@ module BV.Core.Types.Tag
     , byRefineTag
     , byTagFrom
     , byTagFromList
+    , getLeft
+    , getRight
     , leftTag
     , numTagValues
     , rightTag
@@ -123,6 +125,12 @@ leftTag = minBound
 
 rightTag :: RefineTag t => t
 rightTag = maxBound
+
+getLeft :: RefineTag t => ByTag t a -> a
+getLeft = view (atTag leftTag)
+
+getRight :: RefineTag t => ByTag t a -> a
+getRight = view (atTag rightTag)
 
 --
 
