@@ -21,63 +21,62 @@ module BV.Core.Types.ProofChecks
 import BV.Core.Types.Pairing
 import BV.Core.Types.Program
 import BV.Core.Types.ProofScript
-import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 
-newtype ProofChecks a
-  = ProofChecks { unwrap :: M.Map PairingId' (ProofScript [ProofCheck a]) }
+newtype ProofChecks t a
+  = ProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t [ProofCheck t a]) }
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
-instance AtPairingId (ProofScript [ProofCheck a]) (ProofChecks a) where
+instance AtPairingId t (ProofScript t [ProofCheck t a]) (ProofChecks t a) where
     atPairingId = atPairingId . (.unwrap)
 
-data ProofCheck a
+data ProofCheck t a
   = ProofCheck
       { meta :: a
-      , hyps :: [Hyp]
-      , hyp :: Hyp
+      , hyps :: [Hyp t]
+      , hyp :: Hyp t
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
 type ProofCheckDescription = String
 
-data Hyp
-  = HypPcImp PcImpHyp
+data Hyp t
+  = HypPcImp (PcImpHyp t)
   | HypEq
       { ifAt :: Bool
-      , eq :: EqHyp
+      , eq :: EqHyp t
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data PcImpHyp
+data PcImpHyp t
   = PcImpHyp
-      { lhs :: PcImpHypSide
-      , rhs :: PcImpHypSide
+      { lhs :: PcImpHypSide t
+      , rhs :: PcImpHypSide t
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data PcImpHypSide
+data PcImpHypSide t
   = PcImpHypSideBool Bool
-  | PcImpHypSidePc VisitWithTag
+  | PcImpHypSidePc (VisitWithTag t)
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data EqHyp
+data EqHyp t
   = EqHyp
-      { lhs :: EqHypSide
-      , rhs :: EqHypSide
+      { lhs :: EqHypSide t
+      , rhs :: EqHypSide t
       , induct :: Maybe EqHypInduct
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data EqHypSide
+data EqHypSide t
   = EqHypSide
       { expr :: Expr
-      , visit :: VisitWithTag
+      , visit :: VisitWithTag t
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -88,10 +87,10 @@ data EqHypInduct
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data VisitWithTag
+data VisitWithTag t
   = VisitWithTag
       { visit :: Visit
-      , tag :: Tag'
+      , tag :: t
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -125,11 +124,11 @@ instance Semigroup VisitCount where
 instance Monoid VisitCount where
     mempty = VisitCount [] []
 
-hypVisits :: Traversal' Hyp VisitWithTag
+hypVisits :: Traversal' (Hyp t) (VisitWithTag t)
 hypVisits =
     (#_HypPcImp % (#lhs `adjoin` #rhs) % #_PcImpHypSidePc)
     `adjoin`
     (#_HypEq % _2 % (#lhs `adjoin` #rhs) % #visit)
 
-checkVisits :: Traversal' (ProofCheck a) VisitWithTag
+checkVisits :: Traversal' (ProofCheck t a) (VisitWithTag t)
 checkVisits = (#hyps % traversed `adjoin` #hyp) % hypVisits

@@ -472,13 +472,13 @@ instance Tag t => BuildInLine (NodeBySource t) where
 
 --
 
-instance ParseInLine (ProofScript ()) where
+instance RefineTag t => ParseInLine (ProofScript t ()) where
     parseInLine = ProofScript <$> parseInLine
 
-instance ParseInLine (ProofNodeWith ()) where
+instance RefineTag t => ParseInLine (ProofNodeWith t ()) where
     parseInLine = ProofNodeWith () <$> parseInLine
 
-instance ParseInLine (ProofNode ()) where
+instance RefineTag t => ParseInLine (ProofNode t ()) where
     parseInLine = word >>= \case
         "Leaf" -> return ProofNodeLeaf
         "Restr" -> ProofNodeRestr <$> parseInLine
@@ -487,7 +487,7 @@ instance ParseInLine (ProofNode ()) where
         "SingleRevInduct" -> ProofNodeSingleRevInduct <$> parseInLine
         _ -> fail "invalid proof node"
 
-instance ParseInLine (RestrProofNode ()) where
+instance RefineTag t => ParseInLine (RestrProofNode t ()) where
     parseInLine =
         RestrProofNode
             <$> parseInLine
@@ -508,7 +508,7 @@ instance ParseInLine RestrProofNodeRangeKind where
         "Offset" -> Just RestrProofNodeRangeKindOffset
         _ -> Nothing
 
-instance ParseInLine (CaseSplitProofNode ()) where
+instance RefineTag t => ParseInLine (CaseSplitProofNode t ()) where
     parseInLine =
         CaseSplitProofNode
             <$> parseInLine
@@ -516,7 +516,7 @@ instance ParseInLine (CaseSplitProofNode ()) where
             <*> parseInLine
             <*> parseInLine
 
-instance ParseInLine (SplitProofNode ()) where
+instance RefineTag t => ParseInLine (SplitProofNode t ()) where
     parseInLine =
         SplitProofNode
             <$> parseInLine
@@ -534,7 +534,7 @@ instance ParseInLine SplitProofNodeDetails where
             <*> parseInLine
             <*> parseInLine
 
-instance ParseInLine (SingleRevInductProofNode ()) where
+instance RefineTag t => ParseInLine (SingleRevInductProofNode t ()) where
     parseInLine =
         SingleRevInductProofNode
             <$> parseInLine
@@ -552,13 +552,13 @@ instance ParseInLine Lambda where
 
 --
 
-instance BuildInLine (ProofScript ()) where
+instance RefineTag t => BuildInLine (ProofScript t ()) where
     buildInLine proofScript = put proofScript.root
 
-instance BuildInLine (ProofNodeWith ()) where
+instance RefineTag t => BuildInLine (ProofNodeWith t ()) where
     buildInLine proofNodeWith = put proofNodeWith.node
 
-instance BuildInLine (ProofNode ()) where
+instance RefineTag t => BuildInLine (ProofNode t ()) where
     buildInLine = \case
         ProofNodeLeaf -> "Leaf"
         ProofNodeRestr node-> "Restr" <> put node
@@ -566,7 +566,7 @@ instance BuildInLine (ProofNode ()) where
         ProofNodeSplit node -> "Split" <> put node
         ProofNodeSingleRevInduct node -> "SingleRevInduct" <> put node
 
-instance BuildInLine (RestrProofNode ()) where
+instance RefineTag t => BuildInLine (RestrProofNode t ()) where
     buildInLine range =
            put range.point
         <> putTag range.tag
@@ -583,19 +583,19 @@ instance BuildInLine RestrProofNodeRangeKind where
     buildInLine RestrProofNodeRangeKindNumber = "Number"
     buildInLine RestrProofNodeRangeKindOffset = "Offset"
 
-instance BuildInLine (CaseSplitProofNode ()) where
+instance RefineTag t => BuildInLine (CaseSplitProofNode t ()) where
     buildInLine node =
            put node.addr
         <> putTag node.tag
         <> put node.left
         <> put node.right
 
-instance BuildInLine (SplitProofNode ()) where
+instance RefineTag t => BuildInLine (SplitProofNode t ()) where
     buildInLine node =
            putDec node.n
         <> putDec node.loopRMax
-        <> put (getAsm node.details)
-        <> put (getC node.details)
+        <> put (getLeft node.details)
+        <> put (getRight node.details)
         <> put node.eqs
         <> put node.p1
         <> put node.p2
@@ -607,7 +607,7 @@ instance BuildInLine SplitProofNodeDetails where
         <> putDec details.step
         <> put details.eqs
 
-instance BuildInLine (SingleRevInductProofNode ()) where
+instance RefineTag t => BuildInLine (SingleRevInductProofNode t ()) where
     buildInLine node =
            put node.point
         <> putTag node.tag
@@ -664,38 +664,38 @@ instance BuildInLine PairingEqDirection where
 
 --
 
-instance ParseInLine Hyp where
+instance Tag t => ParseInLine (Hyp t) where
     parseInLine = word >>= \case
         "PCImp" -> HypPcImp <$> parseInLine
         "Eq" -> HypEq False <$> parseInLine
         "EqIfAt" -> HypEq True <$> parseInLine
         _ -> fail "invalid pc imp hyp side"
 
-instance BuildInLine Hyp where
+instance Tag t => BuildInLine (Hyp t) where
     buildInLine = \case
         HypPcImp hyp -> putWord "PCImp" <> put hyp
         HypEq False hyp -> putWord "Eq" <> put hyp
         HypEq True hyp -> putWord "EqIfAt" <> put hyp
 
-instance ParseInLine PcImpHyp where
+instance Tag t => ParseInLine (PcImpHyp t) where
     parseInLine = PcImpHyp <$> parseInLine <*> parseInLine
 
-instance BuildInLine PcImpHyp where
+instance Tag t => BuildInLine (PcImpHyp t) where
     buildInLine hyp = put hyp.lhs <> put hyp.rhs
 
-instance ParseInLine PcImpHypSide where
+instance Tag t => ParseInLine (PcImpHypSide t) where
     parseInLine = word >>= \case
         "True" -> return $ PcImpHypSideBool True
         "False" -> return $ PcImpHypSideBool False
         "PC" -> PcImpHypSidePc <$> parseInLine
         _ -> fail "invalid pc imp hyp side"
 
-instance BuildInLine PcImpHypSide where
+instance Tag t => BuildInLine (PcImpHypSide t) where
     buildInLine = \case
         PcImpHypSideBool val -> putWord (show val)
         PcImpHypSidePc visit -> putWord "PC" <> put visit
 
-instance ParseInLine EqHyp where
+instance Tag t => ParseInLine (EqHyp t) where
     parseInLine = do
         lhs <- parseInLine
         rhs <- parseInLine
@@ -703,21 +703,21 @@ instance ParseInLine EqHyp where
             <|> (Just <$> (EqHypInduct <$> parseInLine <*> parseInLine))
         return $ EqHyp lhs rhs induct
 
-instance BuildInLine EqHyp where
+instance Tag t => BuildInLine (EqHyp t) where
     buildInLine hyp = put hyp.lhs <> put hyp.rhs <> case hyp.induct of
         Just induct -> putDec induct.a <> putDec induct.b
         Nothing -> putWord "None" <> putWord "None"
 
-instance ParseInLine EqHypSide where
+instance Tag t => ParseInLine (EqHypSide t) where
     parseInLine = EqHypSide <$> parseInLine <*> parseInLine
 
-instance BuildInLine EqHypSide where
+instance Tag t => BuildInLine (EqHypSide t) where
     buildInLine side = put side.expr <> put side.visit
 
-instance ParseInLine VisitWithTag where
+instance Tag t => ParseInLine (VisitWithTag t) where
     parseInLine = VisitWithTag <$> parseInLine <*> parseTag
 
-instance BuildInLine VisitWithTag where
+instance Tag t => BuildInLine (VisitWithTag t) where
     buildInLine visit = put visit.visit <> putTag visit.tag
 
 instance ParseInLine Visit where

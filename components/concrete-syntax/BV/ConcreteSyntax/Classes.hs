@@ -86,8 +86,8 @@ deriving via (JSONBVFile InlineScripts) instance WriteBVFile BL.ByteString Inlin
 deriving via (JSONBVFile (Proofs ())) instance ReadBVFile BL.ByteString (Proofs ())
 deriving via (JSONBVFile (Proofs ())) instance WriteBVFile BL.ByteString (Proofs ())
 
-deriving via (JSONBVFile Pairings) instance ReadBVFile BL.ByteString Pairings
-deriving via (JSONBVFile Pairings) instance WriteBVFile BL.ByteString Pairings
+deriving via (JSONBVFile (Pairings t)) instance RefineTag t => ReadBVFile BL.ByteString (Pairings t)
+deriving via (JSONBVFile (Pairings t)) instance RefineTag t => WriteBVFile BL.ByteString (Pairings t)
 
 deriving via (JSONBVFile CompatProofChecks) instance ReadBVFile BL.ByteString CompatProofChecks
 deriving via (JSONBVFile CompatProofChecks) instance WriteBVFile BL.ByteString CompatProofChecks
@@ -97,5 +97,8 @@ deriving via (JSONBVFile CompatSMTProofChecks) instance WriteBVFile BL.ByteStrin
 
 -- HACK just for test in graph-refine/loop-example
 
-deriving via (GraphLangLikeBVFile (InBlockAsFile (InLineAsInBlock (ProofScript ())))) instance ReadBVFile TL.Text (ProofScript ())
-deriving via (GraphLangLikeBVFile (InBlockAsFile (InLineAsInBlock (ProofScript ())))) instance WriteBVFile TL.Text (ProofScript ())
+deriving via (GraphLangLikeBVFile (InBlockAsFile (InLineAsInBlock (ProofScript t ()))))
+    instance RefineTag t => ReadBVFile TL.Text (ProofScript t ())
+
+deriving via (GraphLangLikeBVFile (InBlockAsFile (InLineAsInBlock (ProofScript t ()))))
+    instance RefineTag t => WriteBVFile TL.Text (ProofScript t ())

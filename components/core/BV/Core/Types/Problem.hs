@@ -63,5 +63,5 @@ newtype Problems
   deriving (Eq, Generic)
   deriving newtype (NFData)
 
-instance AtPairingId Problem' Problems where
+instance AtPairingId AsmRefineTag Problem' Problems where
     atPairingId = atPairingId . (.unwrap)

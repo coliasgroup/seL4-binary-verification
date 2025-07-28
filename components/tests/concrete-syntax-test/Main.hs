@@ -98,7 +98,7 @@ parsePrintGraphRefine = testGroup "graph-refine" $
     , f @Program $ "loop-example" </> "synth" </> "Functions.txt"
     , let rel = "loop-example" </> "O2" </> "proof"
           abs = graphRefineDir </> rel
-       in testCase rel $ testRoundTripPath @(ProofScript ()) (graphRefineDir </> rel)
+       in testCase rel $ testRoundTripPath @(ProofScript AsmRefineTag ()) (graphRefineDir </> rel)
     ] ++ concatMap g ["O1", "O2"]
   where
     f :: forall a c. (Eq a, ReadBVFile c a, WriteBVFile c a) => FilePath -> TestTree

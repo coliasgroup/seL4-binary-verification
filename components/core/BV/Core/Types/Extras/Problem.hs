@@ -14,9 +14,9 @@ import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import Optics
 
-type ArgRenames = PairingEqSideQuadrant AsmRefineTag -> Ident -> Ident
+type ArgRenames t = PairingEqSideQuadrant t -> Ident -> Ident
 
-argRenamesOf :: (WithTag' Ident -> Function) -> Problem' -> ArgRenames
+argRenamesOf :: Tag t => (WithTag t Ident -> Function) -> Problem t -> ArgRenames t
 argRenamesOf lookupFunction problem quadrant mangledName =
     fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
   where
@@ -29,7 +29,7 @@ argRenamesOf lookupFunction problem quadrant mangledName =
         PairingEqDirectionIn -> probSide.input
         PairingEqDirectionOut -> probSide.output
 
-pairingIdOfProblem :: Problem' -> PairingId'
+pairingIdOfProblem :: Problem t -> PairingId t
 pairingIdOfProblem problem = view #name <$> problem.sides
 
 varNamesOfProblem :: Tag t => Traversal' (Problem t) Ident

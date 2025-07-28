@@ -51,7 +51,7 @@ data TargetDirFiles
       , problems :: TargetDirFile Problems
       , stackBounds :: TargetDirFile StackBounds
       , inlineScripts :: TargetDirFile InlineScripts
-      , pairings :: TargetDirFile Pairings
+      , pairings :: TargetDirFile (Pairings AsmRefineTag)
       , proofs :: TargetDirFile (Proofs ())
       , proofChecks :: TargetDirFile CompatProofChecks
       , smtProofChecks :: TargetDirFile CompatSMTProofChecks

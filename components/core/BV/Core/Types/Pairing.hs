@@ -30,10 +30,10 @@ type PairingId' = PairingId AsmRefineTag
 
 type PairingId t = ByTag t Ident
 
-class AtPairingId a m | m -> a where
-    atPairingId :: m -> PairingId' -> a
+class AtPairingId t a m | m -> t, m -> a where
+    atPairingId :: m -> PairingId t -> a
 
-instance AtPairingId a (M.Map PairingId' a) where
+instance AtPairingId t a (M.Map (PairingId t) a) where
     atPairingId = (M.!)
 
 type Pairing' = Pairing AsmRefineTag
@@ -71,18 +71,18 @@ data PairingEqDirection
   | PairingEqDirectionOut
   deriving (Eq, Generic, NFData, Ord, Show)
 
-newtype Pairings
-  = Pairings { unwrap :: M.Map PairingId' Pairing' }
+newtype Pairings t
+  = Pairings { unwrap :: M.Map (PairingId t) (Pairing t) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance Semigroup Pairings where
+instance Semigroup (Pairings t) where
     x <> y = Pairings (x.unwrap <> y.unwrap)
 
-instance Monoid Pairings where
+instance Monoid (Pairings t) where
     mempty = Pairings mempty
 
-instance AtPairingId Pairing' Pairings where
+instance AtPairingId t (Pairing t) (Pairings t) where
     atPairingId = atPairingId . (.unwrap)
 
 prettyPairingId :: forall t. RefineTag t => PairingId t -> String

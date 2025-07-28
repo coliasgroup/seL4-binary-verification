@@ -16,10 +16,10 @@ import qualified Data.Map as M
 import Optics
 import Text.Printf (printf)
 
-initStructsEnv :: ROData -> Problem' -> Map Ident Struct -> (Ident -> Struct)
+initStructsEnv :: ROData -> Problem t -> Map Ident Struct -> (Ident -> Struct)
 initStructsEnv rodata problem cStructs = (M.!) $ augmentStructs rodata problem cStructs
 
-augmentStructs :: ROData -> Problem' -> Map Ident Struct -> Map Ident Struct
+augmentStructs :: ROData -> Problem t -> Map Ident Struct -> Map Ident Struct
 augmentStructs rodata problem cStructs =
     nonGlobal <> global
   where

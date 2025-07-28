@@ -15,12 +15,12 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
-type ProofCheckGroup a = [ProofCheck a]
+type ProofCheckGroup t a = [ProofCheck t a]
 
-proofCheckGroups :: [ProofCheck a] -> [ProofCheckGroup a]
+proofCheckGroups :: Tag t => [ProofCheck t a] -> [ProofCheckGroup t a]
 proofCheckGroups = toList . proofCheckGroupsWithKeys
 
-proofCheckGroupsWithKeys :: [ProofCheck a] -> Map CheckGroupKey (ProofCheckGroup a)
+proofCheckGroupsWithKeys :: Tag t => [ProofCheck t a] -> Map CheckGroupKey (ProofCheckGroup t a)
 proofCheckGroupsWithKeys checks = M.unionsWith (<>)
     [ M.singleton (compatKey (groupKey check)) [check]
     | check <- checks
@@ -31,10 +31,10 @@ newtype CheckGroupKey
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-groupKey :: ProofCheck a -> Set VisitWithTag
+groupKey :: Tag t => ProofCheck t a -> Set (VisitWithTag t)
 groupKey check = S.fromList (check ^.. checkVisits)
 
-compatKey :: Set VisitWithTag -> CheckGroupKey
+compatKey :: Tag t => Set (VisitWithTag t) -> CheckGroupKey
 compatKey visits = CheckGroupKey $ sort
     [ ((prettyNodeId visit.nodeId, map compatRestr visit.restrs), prettyTag tag)
     | VisitWithTag visit tag <- S.toList visits

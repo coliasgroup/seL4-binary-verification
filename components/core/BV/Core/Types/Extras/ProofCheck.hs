@@ -2,8 +2,6 @@
 
 module BV.Core.Types.Extras.ProofCheck
     ( SimpleVisitCountView (..)
-    , asmV
-    , cV
     , doubleRangeVC
     , enumerateSimpleVC
     , eqH
@@ -129,63 +127,57 @@ fromMapVC = map f . M.toAscList
 
 --
 
-tagV :: Tag' -> Visit -> VisitWithTag
+tagV :: t -> Visit -> VisitWithTag t
 tagV tag visit = VisitWithTag visit tag
-
-cV :: Visit -> VisitWithTag
-cV = tagV C
-
-asmV :: Visit -> VisitWithTag
-asmV = tagV Asm
 
 --
 
-eqH :: EqHypSide -> EqHypSide -> Maybe EqHypInduct -> Hyp
+eqH :: EqHypSide t -> EqHypSide t -> Maybe EqHypInduct -> Hyp t
 eqH = eqWithIfAtH False
 
-eqH' :: EqHypSide -> EqHypSide -> Hyp
+eqH' :: EqHypSide t -> EqHypSide t -> Hyp t
 eqH' lhs rhs = eqH lhs rhs Nothing
 
-eqIfAtH :: EqHypSide -> EqHypSide -> Maybe EqHypInduct -> Hyp
+eqIfAtH :: EqHypSide t -> EqHypSide t -> Maybe EqHypInduct -> Hyp t
 eqIfAtH = eqWithIfAtH True
 
-eqIfAtH' :: EqHypSide -> EqHypSide -> Hyp
+eqIfAtH' :: EqHypSide t -> EqHypSide t -> Hyp t
 eqIfAtH' lhs rhs = eqIfAtH lhs rhs Nothing
 
-eqWithIfAtH :: Bool -> EqHypSide -> EqHypSide -> Maybe EqHypInduct -> Hyp
+eqWithIfAtH :: Bool -> EqHypSide t -> EqHypSide t -> Maybe EqHypInduct -> Hyp t
 eqWithIfAtH ifAt lhs rhs induct = HypEq
     { ifAt
     , eq = EqHyp { lhs, rhs, induct }
     }
 
-trueIfAt :: Expr -> VisitWithTag -> Maybe EqHypInduct -> Hyp
+trueIfAt :: Expr -> VisitWithTag t -> Maybe EqHypInduct -> Hyp t
 trueIfAt expr visit = eqIfAtH (eqSideH expr visit) (eqSideH trueE visit)
 
-trueIfAt' :: Expr -> VisitWithTag -> Hyp
+trueIfAt' :: Expr -> VisitWithTag t -> Hyp t
 trueIfAt' expr visit = trueIfAt expr visit Nothing
 
-pcTrueH :: VisitWithTag -> Hyp
+pcTrueH :: VisitWithTag t -> Hyp t
 pcTrueH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSideBool True
     , rhs = PcImpHypSidePc visit
     })
 
-pcFalseH :: VisitWithTag -> Hyp
+pcFalseH :: VisitWithTag t -> Hyp t
 pcFalseH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSideBool False
     })
 
-pcTrivH :: VisitWithTag -> Hyp
+pcTrivH :: VisitWithTag t -> Hyp t
 pcTrivH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSidePc visit
     })
 
-pcImpH :: PcImpHypSide -> PcImpHypSide -> Hyp
+pcImpH :: PcImpHypSide t -> PcImpHypSide t -> Hyp t
 pcImpH lhs rhs = HypPcImp (PcImpHyp { lhs, rhs })
 
-eqSideH :: Expr -> VisitWithTag -> EqHypSide
+eqSideH :: Expr -> VisitWithTag t -> EqHypSide t
 eqSideH = EqHypSide
 
 eqInductH :: Integer -> Integer -> EqHypInduct

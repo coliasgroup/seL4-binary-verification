@@ -26,61 +26,61 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 
-newtype WithAddFunc m a
-  = WithAddFunc { run :: StateT State (ReaderT Env m) a }
+newtype WithAddFunc t m a
+  = WithAddFunc { run :: StateT (State t) (ReaderT (Env t) m) a }
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
-instance MonadTrans WithAddFunc where
+instance MonadTrans (WithAddFunc t) where
     lift = WithAddFunc . lift . lift
 
-data Env
+data Env t
   = Env
-      { pairings :: Pairings
-      , pairingsAccess :: M.Map Ident PairingId'
+      { pairings :: Pairings t
+      , pairingsAccess :: M.Map Ident (PairingId t)
       }
   deriving (Generic)
 
-data State
+data State t
   = State
       { funcs :: M.Map Visit (ExprEnv, ExprEnv, Expr)
-      , funcsByName :: M.Map (ByTag' Ident) [Visit]
+      , funcsByName :: M.Map (ByTag t Ident) [Visit]
       }
   deriving (Generic)
 
-runWithAddFunc :: MonadRepGraph m => Pairings -> WithAddFunc m a -> m a
+runWithAddFunc :: RefineTag t => MonadRepGraph t m => Pairings t -> WithAddFunc t m a -> m a
 runWithAddFunc pairings m = runReaderT (evalStateT m.run initState) (initEnv pairings)
 
-initEnv :: Pairings -> Env
+initEnv :: RefineTag t => Pairings t -> Env t
 initEnv pairings = Env
     { pairings
     , pairingsAccess = M.fromListWith (error "unexpected") $
-        concat [ [(getC p, p), (getAsm p, p)] | p <- M.keys pairings.unwrap]
+        concat [ [(getRight p, p), (getLeft p, p)] | p <- M.keys pairings.unwrap]
     }
 
-initState :: State
+initState :: State t
 initState = State
     { funcs = M.empty
     , funcsByName = M.empty
     }
 
-instance MonadSolverSend m => MonadSolverSend (WithAddFunc m) where
+instance MonadSolverSend m => MonadSolverSend (WithAddFunc t m) where
     sendSExprWithPlaceholders = WithAddFunc . sendSExprWithPlaceholders
 
-instance MonadStructs m => MonadStructs (WithAddFunc m) where
+instance MonadStructs m => MonadStructs (WithAddFunc t m) where
     askLookupStruct = WithAddFunc askLookupStruct
 
-instance MonadSolver m => MonadSolver (WithAddFunc m) where
+instance MonadSolver m => MonadSolver (WithAddFunc t m) where
     liftSolver = WithAddFunc . liftSolver
 
-instance MonadRepGraph m => MonadRepGraphDefaultHelper m (WithAddFunc m) where
+instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (WithAddFunc t m) where
 
-instance MonadRepGraph m => MonadRepGraph (WithAddFunc m) where
+instance (RefineTag t, MonadRepGraph t m) => MonadRepGraph t (WithAddFunc t m) where
     runPostEmitCallNodeHook = addFunc
 
 --
 
-addFunc :: MonadRepGraph m => Visit -> ExprEnv -> ExprEnv -> Expr -> WithAddFunc m ()
+addFunc :: RefineTag t => MonadRepGraph t m => Visit -> ExprEnv -> ExprEnv -> Expr -> WithAddFunc t m ()
 addFunc visit inputs outputs success = do
     WithAddFunc $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
     name <- askFnName visit
@@ -93,7 +93,7 @@ addFunc visit inputs outputs success = do
                 addFuncAssert visit visit2
         WithAddFunc $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
-getFuncPairingNoCheck :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing', ByTag' Visit))
+getFuncPairingNoCheck :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m (Maybe (Pairing t, ByTag t Visit))
 getFuncPairingNoCheck visit visit2 = do
     fname <- askFnName visit
     fname2 <- askFnName visit2
@@ -104,12 +104,12 @@ getFuncPairingNoCheck visit visit2 = do
         | pairingId == byRefineTag fname2 fname -> Just $ byRefineTag visit2 visit
         | otherwise -> Nothing
 
-getFuncPairing :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m (Maybe (Pairing', ByTag' Visit))
+getFuncPairing :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m (Maybe (Pairing t, ByTag t Visit))
 getFuncPairing visit visit2 = do
     opt <- getFuncPairingNoCheck visit visit2
     whenJustThen opt $ \(p, visits) -> do
-        (lin, _, _) <- WithAddFunc $ use $ #funcs % at (getAsm visits) % unwrapped
-        (rin, _, _) <- WithAddFunc $ use $ #funcs % at (getC visits) % unwrapped
+        (lin, _, _) <- WithAddFunc $ use $ #funcs % at (getLeft visits) % unwrapped
+        (rin, _, _) <- WithAddFunc $ use $ #funcs % at (getRight visits) % unwrapped
         lcalls <- scanMemCalls lin
         rcalls <- scanMemCalls rin
         (compatible, _s) <- memCallsCompatible $ byRefineTag lcalls rcalls
@@ -117,18 +117,19 @@ getFuncPairing visit visit2 = do
         --     warn _s
         return $ if compatible then Just (p, visits) else Nothing
 
-getFuncAssert :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m Expr
+getFuncAssert :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m Expr
 getFuncAssert visit visit2 = do
     (pairing, visits) <- fromJust <$> getFuncPairing visit visit2
-    (lin, lout, lsucc) <- WithAddFunc $ use $ #funcs % at (getAsm visits) % unwrapped
-    (rin, rout, rsucc) <- WithAddFunc $ use $ #funcs % at (getC visits) % unwrapped
-    _lpc <- getPc (getAsm visits) Nothing
-    rpc <- getPc (getC visits) Nothing
+    (lin, lout, lsucc) <- WithAddFunc $ use $ #funcs % at (getLeft visits) % unwrapped
+    (rin, rout, rsucc) <- WithAddFunc $ use $ #funcs % at (getRight visits) % unwrapped
+    _lpc <- getPc (getLeft visits) Nothing
+    rpc <- getPc (getRight visits) Nothing
     let envs = \case
-            PairingEqSideQuadrant Asm PairingEqDirectionIn -> lin
-            PairingEqSideQuadrant C PairingEqDirectionIn -> rin
-            PairingEqSideQuadrant Asm PairingEqDirectionOut -> lout
-            PairingEqSideQuadrant C PairingEqDirectionOut -> rout
+            PairingEqSideQuadrant t PairingEqDirectionIn | t == leftTag -> lin
+            PairingEqSideQuadrant t PairingEqDirectionIn | t == rightTag -> rin
+            PairingEqSideQuadrant t PairingEqDirectionOut | t == leftTag -> lout
+            PairingEqSideQuadrant t PairingEqDirectionOut | t == rightTag -> rout
+            _ -> error "unreachable"
     inEqs <- instEqs pairing.inEqs envs
     outEqs <- instEqs pairing.outEqs envs
     let succImp = impliesE rsucc lsucc
@@ -136,22 +137,22 @@ getFuncAssert visit visit2 = do
         (foldr1 andE (inEqs ++ [rpc]))
         (foldr1 andE (outEqs ++ [succImp]))
   where
-    instEqs :: MonadSolver m => [PairingEq AsmRefineTag] -> (PairingEqSideQuadrant AsmRefineTag -> ExprEnv) -> m [Expr]
+    instEqs :: MonadSolver m => [PairingEq t] -> (PairingEqSideQuadrant t -> ExprEnv) -> m [Expr]
     instEqs eqs envs = for eqs $ \eq ->
         instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
 
-addFuncAssert :: MonadRepGraph m => Visit -> Visit -> WithAddFunc m ()
+addFuncAssert :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m ()
 addFuncAssert visit visit2 = do
     imp <- weakenAssert <$> getFuncAssert visit visit2
     withoutEnv $ assertFact imp
 
-memCallsCompatible :: MonadRepGraph m => ByTag' (Maybe MemCalls) -> WithAddFunc m (Bool, Maybe String)
+memCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t (Maybe MemCalls) -> WithAddFunc t m (Bool, Maybe String)
 memCallsCompatible byTag = case toList byTag of
     [Just lcalls, Just rcalls] -> do
         rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
             pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
-            let rfname = getC pairingId
-            rsig <- askFunctionSigs <&> ($ WithTag C rfname)
+            let rfname = getRight pairingId
+            rsig <- askFunctionSigs <&> ($ WithTag rightTag rfname)
             return $
                 if any (\arg -> arg.ty == memT) rsig.output
                 then Just (rfname, calls)
@@ -172,7 +173,7 @@ memCallsCompatible byTag = case toList byTag of
 
 --
 
-askFnName :: MonadRepGraph m => Visit -> m Ident
+askFnName :: MonadRepGraph t m => Visit -> m Ident
 askFnName v = do
     p <- askProblem
     return $ p ^. #nodes % at (nodeAddrFromNodeId v.nodeId) % unwrapped % expecting #_NodeCall % #functionName

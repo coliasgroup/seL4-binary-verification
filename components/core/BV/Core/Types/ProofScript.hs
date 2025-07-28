@@ -27,17 +27,17 @@ import Control.DeepSeq (NFData, NFData1)
 import Data.Binary (Binary)
 import GHC.Generics (Generic, Generic1)
 
-newtype ProofScript a
-  = ProofScript { root :: ProofNodeWith a }
+newtype ProofScript t a
+  = ProofScript { root :: ProofNodeWith t a }
   deriving (Eq, Foldable, Functor, Generic, Generic1, Ord, Show, Traversable)
   deriving newtype (NFData, NFData1)
 
-instance Binary a => Binary (ProofScript a) where
+instance (Tag t, Binary t, Binary a) => Binary (ProofScript t a) where
 
-data ProofNodeWith a
+data ProofNodeWith t a
   = ProofNodeWith
       { meta :: a
-      , node :: ProofNode a
+      , node :: ProofNode t a
       }
   deriving
     ( Eq
@@ -52,14 +52,14 @@ data ProofNodeWith a
     , Traversable
     )
 
-instance Binary a => Binary (ProofNodeWith a) where
+instance (Tag t, Binary t, Binary a) => Binary (ProofNodeWith t a) where
 
-data ProofNode a
+data ProofNode t a
   = ProofNodeLeaf
-  | ProofNodeRestr (RestrProofNode a)
-  | ProofNodeCaseSplit (CaseSplitProofNode a)
-  | ProofNodeSplit (SplitProofNode a)
-  | ProofNodeSingleRevInduct (SingleRevInductProofNode a)
+  | ProofNodeRestr (RestrProofNode t a)
+  | ProofNodeCaseSplit (CaseSplitProofNode t a)
+  | ProofNodeSplit (SplitProofNode t a)
+  | ProofNodeSingleRevInduct (SingleRevInductProofNode t a)
   deriving
     ( Eq
     , Foldable
@@ -73,14 +73,14 @@ data ProofNode a
     , Traversable
     )
 
-instance Binary a => Binary (ProofNode a) where
+instance (Tag t, Binary t, Binary a) => Binary (ProofNode t a) where
 
-data RestrProofNode a
+data RestrProofNode t a
   = RestrProofNode
       { point :: NodeAddr
-      , tag :: Tag'
+      , tag :: t
       , range :: RestrProofNodeRange
-      , child :: ProofNodeWith a
+      , child :: ProofNodeWith t a
       }
   deriving
     ( Eq
@@ -95,7 +95,7 @@ data RestrProofNode a
     , Traversable
     )
 
-instance Binary a => Binary (RestrProofNode a) where
+instance (Tag t, Binary t, Binary a) => Binary (RestrProofNode t a) where
 
 data RestrProofNodeRange
   = RestrProofNodeRange
@@ -119,12 +119,12 @@ prettyRestrProofNodeRangeKind = \case
     RestrProofNodeRangeKindNumber -> "Number"
     RestrProofNodeRangeKindOffset -> "Offset"
 
-data CaseSplitProofNode a
+data CaseSplitProofNode t a
   = CaseSplitProofNode
       { addr :: NodeAddr
-      , tag :: Tag'
-      , left :: ProofNodeWith a
-      , right :: ProofNodeWith a
+      , tag :: t
+      , left :: ProofNodeWith t a
+      , right :: ProofNodeWith t a
       }
   deriving
     ( Eq
@@ -139,16 +139,16 @@ data CaseSplitProofNode a
     , Traversable
     )
 
-instance Binary a => Binary (CaseSplitProofNode a) where
+instance (Tag t, Binary t, Binary a) => Binary (CaseSplitProofNode t a) where
 
-data SplitProofNode a
+data SplitProofNode t a
   = SplitProofNode
       { n :: Integer
       , loopRMax :: Integer
-      , details :: ByTag' SplitProofNodeDetails
+      , details :: ByTag t SplitProofNodeDetails
       , eqs :: [(Lambda, Lambda)]
-      , p1 :: ProofNodeWith a
-      , p2 :: ProofNodeWith a
+      , p1 :: ProofNodeWith t a
+      , p2 :: ProofNodeWith t a
       }
   deriving
     ( Eq
@@ -163,7 +163,7 @@ data SplitProofNode a
     , Traversable
     )
 
-instance Binary a => Binary (SplitProofNode a) where
+instance (Tag t, Binary t, Binary a) => Binary (SplitProofNode t a) where
 
 data SplitProofNodeDetails
   = SplitProofNodeDetails
@@ -176,15 +176,15 @@ data SplitProofNodeDetails
 
 instance Binary SplitProofNodeDetails where
 
-data SingleRevInductProofNode a
+data SingleRevInductProofNode t a
   = SingleRevInductProofNode
       { point :: NodeAddr
-      , tag :: Tag'
+      , tag :: t
       , n :: Integer
       , eqs :: [Lambda]
       , pred_ :: Expr
       , nBound :: Integer
-      , child :: ProofNodeWith a
+      , child :: ProofNodeWith t a
       }
   deriving
     ( Eq
@@ -199,7 +199,7 @@ data SingleRevInductProofNode a
     , Traversable
     )
 
-instance Binary a => Binary (SingleRevInductProofNode a) where
+instance (Tag t, Binary t, Binary a) => Binary (SingleRevInductProofNode t a) where
 
 data Lambda
   = Lambda
@@ -213,9 +213,9 @@ instance Binary Lambda where
 
 traverseRestrProofNodeChild
     :: Applicative f
-    => (ProofNodeWith a -> f (ProofNodeWith b))
-    -> RestrProofNode a
-    -> f (RestrProofNode b)
+    => (ProofNodeWith t a -> f (ProofNodeWith t b))
+    -> RestrProofNode t a
+    -> f (RestrProofNode t b)
 traverseRestrProofNodeChild f (RestrProofNode {..}) =
     g <$> f child
   where
@@ -226,10 +226,10 @@ traverseRestrProofNodeChild f (RestrProofNode {..}) =
 
 traverseCaseSplitProofNodeChildren
     :: Applicative f
-    => (ProofNodeWith a -> f (ProofNodeWith b))
-    -> (ProofNodeWith a -> f (ProofNodeWith b))
-    -> CaseSplitProofNode a
-    -> f (CaseSplitProofNode b)
+    => (ProofNodeWith t a -> f (ProofNodeWith t b))
+    -> (ProofNodeWith t a -> f (ProofNodeWith t b))
+    -> CaseSplitProofNode t a
+    -> f (CaseSplitProofNode t b)
 traverseCaseSplitProofNodeChildren f1 f2 (CaseSplitProofNode {..}) =
     g <$> f1 left <*> f2 right
   where
@@ -241,10 +241,10 @@ traverseCaseSplitProofNodeChildren f1 f2 (CaseSplitProofNode {..}) =
 
 traverseSplitProofNodeChildren
     :: Applicative f
-    => (ProofNodeWith a -> f (ProofNodeWith b))
-    -> (ProofNodeWith a -> f (ProofNodeWith b))
-    -> SplitProofNode a
-    -> f (SplitProofNode b)
+    => (ProofNodeWith t a -> f (ProofNodeWith t b))
+    -> (ProofNodeWith t a -> f (ProofNodeWith t b))
+    -> SplitProofNode t a
+    -> f (SplitProofNode t b)
 traverseSplitProofNodeChildren f1 f2 (SplitProofNode {..}) =
     g <$> f1 p1 <*> f2 p2
   where
@@ -256,9 +256,9 @@ traverseSplitProofNodeChildren f1 f2 (SplitProofNode {..}) =
 
 traverseSingleRevInductProofNodeChild
     :: Applicative f
-    => (ProofNodeWith a -> f (ProofNodeWith b))
-    -> SingleRevInductProofNode a
-    -> f (SingleRevInductProofNode b)
+    => (ProofNodeWith t a -> f (ProofNodeWith t b))
+    -> SingleRevInductProofNode t a
+    -> f (SingleRevInductProofNode t b)
 traverseSingleRevInductProofNodeChild f (SingleRevInductProofNode {..}) =
     g <$> f child
   where

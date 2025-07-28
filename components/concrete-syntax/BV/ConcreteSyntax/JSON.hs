@@ -53,9 +53,9 @@ instance Tag t => FromJSON (InlineScriptEntry t) where
 instance Tag t => ToJSON (InlineScriptEntry t) where
     toJSON = buildLine
 
-deriving instance FromJSON Pairings
+deriving instance RefineTag t => FromJSON (Pairings t)
 
-deriving instance ToJSON Pairings
+deriving instance RefineTag t => ToJSON (Pairings t)
 
 instance RefineTag t => FromJSON (Pairing t) where
     parseJSON = withObject "Pairing" $ \v -> Pairing
@@ -75,24 +75,24 @@ deriving instance FromJSON (Proofs ())
 
 deriving instance ToJSON (Proofs ())
 
-instance FromJSON (ProofScript ()) where
+instance RefineTag t => FromJSON (ProofScript t ()) where
     parseJSON = parseLine
 
-instance ToJSON (ProofScript ()) where
+instance RefineTag t => ToJSON (ProofScript t ()) where
     toJSON = buildLine
 
 deriving instance FromJSON CompatProofChecks
 
 deriving instance ToJSON CompatProofChecks
 
-instance FromJSON (ProofCheck String) where
+instance Tag t => FromJSON (ProofCheck t String) where
 
-instance ToJSON (ProofCheck String) where
+instance Tag t => ToJSON (ProofCheck t String) where
 
-instance FromJSON Hyp where
+instance Tag t => FromJSON (Hyp t) where
     parseJSON = parseLine
 
-instance ToJSON Hyp where
+instance Tag t => ToJSON (Hyp t) where
     toJSON = buildLine
 
 deriving instance FromJSON CompatSMTProofChecks

@@ -25,7 +25,7 @@ data DiscoverInlineScriptInput
   = DiscoverInlineScriptInput
       { cStructs :: Map Ident Struct
       , functions :: WithTag' Ident -> Function
-      , pairings :: Pairings
+      , pairings :: Pairings AsmRefineTag
       , rodata :: ROData
       , fnames :: ByTag' Ident
       }
@@ -39,7 +39,7 @@ discoverInlineScript
 discoverInlineScript = undefined
 
 newtype InlineM m a
-  = InlineM { run :: M (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m))) a }
+  = InlineM { run :: M AsmRefineTag (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m))) a }
   deriving (Functor)
   deriving newtype
     ( Applicative
@@ -69,18 +69,18 @@ instance S.MonadSolver m => MonadSolverSend (InnerSolver m) where
         modelConfig <- ask
         lift $ S.sendSExpr $ configureSExpr modelConfig s
 
-instance S.MonadSolver m => MonadRepGraphDefaultHelper (M (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m)))) (InlineM m) where
+instance S.MonadSolver m => MonadRepGraphDefaultHelper AsmRefineTag (M AsmRefineTag (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m)))) (InlineM m) where
     liftMonadRepGraphDefaultHelper = InlineM
 
-instance S.MonadSolver m => MonadRepGraph (InlineM m) where
+instance S.MonadSolver m => MonadRepGraph AsmRefineTag (InlineM m) where
     runPreEmitCallNodeHook _nodeId _pc _env = do
         undefined
 
-runInlineM :: S.MonadSolver m => ModelConfig -> RepGraphInput -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
+runInlineM :: S.MonadSolver m => ModelConfig -> RepGraphInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
 runInlineM modelConfig repGraphInput inlinerInput m =
     runReaderT (runReaderT (runExceptT (runM repGraphInput m.run)) inlinerInput).run modelConfig
 
-nextInlinePoint :: S.MonadSolver m => ModelConfig -> RepGraphInput -> m (Maybe NodeAddr)
+nextInlinePoint :: S.MonadSolver m => ModelConfig -> RepGraphInput AsmRefineTag -> m (Maybe NodeAddr)
 nextInlinePoint modelConfig repGraphInput = preview (_Left % #nodeAddr) <$> ret
   where
     inlinerInput = undefined

@@ -79,7 +79,7 @@ newtype StagesOutputChecks
 
 data ProofCheckMeta
   = ProofCheckMeta
-      { path :: ProofScriptNodePath
+      { path :: ProofScriptNodePath AsmRefineTag
       , desc :: ProofCheckDescription
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -90,9 +90,9 @@ prettyProofCheckMeta meta = prettyProofScriptNodePath meta.path ++ " >>> " ++ me
 data IntermediateStagesOutput
   = IntermediateStagesOutput
       { functions :: Program
-      , pairings :: Pairings
+      , pairings :: Pairings AsmRefineTag
       , problems :: Problems
-      , proofChecks :: ProofChecks ProofCheckDescription
+      , proofChecks :: ProofChecks AsmRefineTag ProofCheckDescription
       , compatProofChecks :: CompatProofChecks
       , compatSMTProofChecks :: CompatSMTProofChecks
       }

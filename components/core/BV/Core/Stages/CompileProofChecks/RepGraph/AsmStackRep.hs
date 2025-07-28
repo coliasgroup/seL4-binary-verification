@@ -18,11 +18,11 @@ import Control.Monad.Trans.Maybe (runMaybeT)
 import Data.List (isPrefixOf)
 
 newtype WithAsmStackRep m a
-  = WithAsmStackRep { run :: ReaderT ArgRenames m a }
+  = WithAsmStackRep { run :: ReaderT (ArgRenames AsmRefineTag) m a }
   deriving (Functor)
   deriving newtype (Applicative, Monad, MonadTrans)
 
-runWithAsmStackRep :: MonadRepGraph m => ArgRenames -> WithAsmStackRep m a -> m a
+runWithAsmStackRep :: MonadRepGraph AsmRefineTag m => ArgRenames AsmRefineTag -> WithAsmStackRep m a -> m a
 runWithAsmStackRep argRenames m = runReaderT m.run argRenames
 
 instance MonadSolverSend m => MonadSolverSend (WithAsmStackRep m) where
@@ -34,12 +34,12 @@ instance MonadStructs m => MonadStructs (WithAsmStackRep m) where
 instance MonadSolver m => MonadSolver (WithAsmStackRep m) where
     liftSolver = WithAsmStackRep . liftSolver
 
-instance MonadRepGraph m => MonadRepGraphDefaultHelper m (WithAsmStackRep m) where
+instance MonadRepGraph AsmRefineTag m => MonadRepGraphDefaultHelper AsmRefineTag m (WithAsmStackRep m) where
 
-instance MonadRepGraph m => MonadRepGraph (WithAsmStackRep m) where
+instance MonadRepGraph AsmRefineTag m => MonadRepGraph AsmRefineTag (WithAsmStackRep m) where
     runProblemVarRepHook = asmStackRepHook
 
-asmStackRepHook :: MonadRepGraph m => Ident -> ExprType -> VarRepRequestKind -> NodeAddr -> WithAsmStackRep m (Maybe Expr)
+asmStackRepHook :: MonadRepGraph AsmRefineTag m => Ident -> ExprType -> VarRepRequestKind -> NodeAddr -> WithAsmStackRep m (Maybe Expr)
 asmStackRepHook name ty kind n = runMaybeT $ do
     tag <- askNodeTag n
     guard $ tag == Asm

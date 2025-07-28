@@ -20,21 +20,21 @@ import Data.Map (Map)
 import GHC.Generics (Generic)
 import Optics
 
-data RepGraphInput
+data RepGraphInput t
   = RepGraphInput
       { cStructs :: Map Ident Struct
       , rodata :: ROData
-      , problem :: Problem'
-      , functionSigs :: FunctionSignatures
+      , problem :: Problem t
+      , functionSigs :: FunctionSignatures t
       }
   deriving (Generic)
 
-newtype M m a
-  = M { run :: StateT State (ReaderT Env m) a }
+newtype M t m a
+  = M { run :: StateT (State t) (ReaderT (Env t) m) a }
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
-runM :: MonadSolverSend m => RepGraphInput -> M m a -> m a
+runM :: (Tag t, MonadSolverSend m) => RepGraphInput t -> M t m a -> m a
 runM input m = runReaderT (evalStateT m'.run initState) env
   where
     env = initEnv input
@@ -43,38 +43,38 @@ runM input m = runReaderT (evalStateT m'.run initState) env
         initRepGraph
         m
 
-instance MonadTrans M where
+instance MonadTrans (M t) where
     lift = M . lift . lift
 
-instance MonadSolverSend m => MonadSolverSend (M m) where
+instance MonadSolverSend m => MonadSolverSend (M t m) where
     sendSExprWithPlaceholders = M . sendSExprWithPlaceholders
 
-data Env
+data Env t
   = Env
       { structs :: Ident -> Struct
       , solver :: SolverEnv
-      , repGraph :: RepGraphEnv
+      , repGraph :: RepGraphEnv t
       }
   deriving (Generic)
 
-data State
+data State t
   = State
       { solver :: SolverState
-      , repGraph :: RepGraphState
+      , repGraph :: RepGraphState t
       }
   deriving (Generic)
 
-instance Monad m => MonadStructs (M m) where
+instance Monad m => MonadStructs (M t m) where
     askLookupStruct = M $ gview #structs
 
-instance MonadSolverSend m => MonadSolver (M m) where
+instance MonadSolverSend m => MonadSolver (M t m) where
     liftSolver m = M
         . zoom #solver
         . magnify #solver
         . mapStateT (mapReaderT (return . runIdentity))
         $ m
 
-instance MonadSolverSend m => MonadRepGraph (M m) where
+instance (Tag t, MonadSolverSend m) => MonadRepGraph t (M t m) where
     liftRepGraph m = M
         . zoom #repGraph
         . magnify #repGraph
@@ -86,14 +86,14 @@ instance MonadSolverSend m => MonadRepGraph (M m) where
     runPreEmitCallNodeHook _ _ _ = return ()
     runPostEmitCallNodeHook _ _ _ _ = return ()
 
-initEnv :: RepGraphInput -> Env
+initEnv :: Tag t => RepGraphInput t -> Env t
 initEnv (RepGraphInput {..}) = Env
     { structs = initStructsEnv rodata problem cStructs
     , solver = initSolverEnv rodata
     , repGraph = initRepGraphEnv problem functionSigs
     }
 
-initState :: State
+initState :: State t
 initState = State
     { solver = initSolverState
     , repGraph = initRepGraphState

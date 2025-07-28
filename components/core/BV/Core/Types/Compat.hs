@@ -8,6 +8,7 @@ module BV.Core.Types.Compat
 import BV.Core.Types.Pairing
 import BV.Core.Types.ProofChecks
 import BV.Core.Types.SMTProofChecks
+import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
@@ -16,11 +17,11 @@ import qualified Data.Map as M
 import GHC.Generics (Generic)
 
 newtype CompatProofChecks
-  = CompatProofChecks { unwrap :: M.Map PairingId' [ProofCheck String] }
+  = CompatProofChecks { unwrap :: M.Map PairingId' [ProofCheck AsmRefineTag String] }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-toCompatProofChecks :: ProofChecks String -> CompatProofChecks
+toCompatProofChecks :: ProofChecks AsmRefineTag String -> CompatProofChecks
 toCompatProofChecks (ProofChecks byPairing) = CompatProofChecks (M.map fold byPairing)
 
 newtype CompatSMTProofChecks
