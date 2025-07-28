@@ -63,28 +63,46 @@ type FunctionSignatures = WithTag Ident -> FunctionSignature
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: StateT RepGraphState (Reader RepGraphEnv) a -> m a
 
+    runPostEmitNodeHook :: Visit -> m ()
+    runPostEmitNodeHook _ = return ()
+
     runPreEmitCallNodeHook :: Visit -> Expr -> ExprEnv -> m ()
     runPreEmitCallNodeHook _ _ _ = return ()
 
+    runPostEmitCallNodeHook :: Visit -> ExprEnv -> ExprEnv -> Expr -> m ()
+    runPostEmitCallNodeHook = addFunc
+    -- TODO
+    -- runPostEmitCallNodeHook _ _ _ _ = return ()
+
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
     liftRepGraph = lift . liftRepGraph
+    runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (StateT s m) where
     liftRepGraph = lift . liftRepGraph
+    runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
 
 instance (Monoid w, MonadRepGraph m) => MonadRepGraph (RWST r w s m) where
     liftRepGraph = lift . liftRepGraph
+    runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (MaybeT m) where
     liftRepGraph = lift . liftRepGraph
+    runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
     liftRepGraph = lift . liftRepGraph
+    runPostEmitNodeHook = lift . runPostEmitNodeHook
     runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
+    runPostEmitCallNodeHook = ((.) . (.) . (.) . (.)) lift runPostEmitCallNodeHook
 
 data TooGeneral
   = TooGeneral
@@ -710,6 +728,7 @@ getArcPcEnv visit' otherVisit = do
                     pcEnvOpt <- tryGetNodePcEnv visit Nothing
                     whenJustThen pcEnvOpt $ \_ -> do
                         arcs <- emitNode visit
+                        runPostEmitNodeHook visit
                         let arcs' = M.fromList [ (cont, (pc, env)) | (cont, pc, env) <- arcs ]
                         liftRepGraph $ #arcPcEnvs %= M.insert visit arcs'
                         return $ arcs' !? otherVisit.nodeId
@@ -819,7 +838,7 @@ emitNode visit = do
                                 tell [((y.name, x.ty), Split v)]
                 (_, env', outs') <- runRWST m () env
                 let outs = M.fromList outs'
-                addFunc visit ins outs success
+                runPostEmitCallNodeHook visit ins outs success
                 return [(callNode.next, pc, env')]
 
 isSyntacticConstant :: MonadRepGraph m => Ident -> ExprType -> NodeAddr -> m Bool
