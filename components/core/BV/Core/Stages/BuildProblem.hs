@@ -77,7 +77,7 @@ beginProblemBuilder funs = ProblemBuilder
             }
     (sides, nodeMapBuilder) = flip runState emptyNodeMapBuilder $ do
         _ <- reserveNodeAddr -- HACK graph_refine.problem starts at 1
-        traverse renameSide $ withTags funs
+        traverseOf (backwards traversed) renameSide $ withTags funs
 
 forceSimpleLoopReturns :: Tag t => State (ProblemBuilder t) ()
 forceSimpleLoopReturns = do
