@@ -16,7 +16,7 @@ import Optics
 
 type ArgRenames = PairingEqSideQuadrant -> Ident -> Ident
 
-argRenamesOf :: (WithTag' Ident -> Function) -> Problem -> ArgRenames
+argRenamesOf :: (WithTag' Ident -> Function) -> Problem' -> ArgRenames
 argRenamesOf lookupFunction problem quadrant mangledName =
     fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
   where
@@ -29,15 +29,15 @@ argRenamesOf lookupFunction problem quadrant mangledName =
         PairingEqDirectionIn -> probSide.input
         PairingEqDirectionOut -> probSide.output
 
-pairingIdOfProblem :: Problem -> PairingId
+pairingIdOfProblem :: Problem' -> PairingId
 pairingIdOfProblem problem = view #name <$> problem.sides
 
-varNamesOfProblem :: Traversal' Problem Ident
+varNamesOfProblem :: Traversal' Problem' Ident
 varNamesOfProblem =
     (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
         `adjoin` (#nodes % traversed % varNamesOf)
 
-predsOf :: Problem -> M.Map NodeId (S.Set NodeAddr)
+predsOf :: Problem' -> M.Map NodeId (S.Set NodeAddr)
 predsOf problem =
     M.fromListWith (<>) $ concat $ [defaults] ++
         [ [ (cont, S.singleton nodeAddr)

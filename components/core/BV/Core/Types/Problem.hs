@@ -4,6 +4,7 @@ module BV.Core.Types.Problem
     ( NodeBySource (..)
     , NodeSource (..)
     , Problem (..)
+    , Problem'
     , ProblemSide (..)
     , Problems (..)
     ) where
@@ -17,12 +18,17 @@ import Data.Binary (Binary)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-data Problem
+type Problem' = Problem RefineTag
+
+data Problem t
   = Problem
-      { sides :: ByTag' ProblemSide
+      { sides :: ByTag t ProblemSide
       , nodes :: NodeMap
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Generic)
+
+deriving instance Tag t => Eq (Problem t)
+deriving instance Tag t => NFData (Problem t)
 
 data ProblemSide
   = ProblemSide
@@ -53,9 +59,9 @@ data NodeSource
 instance Binary NodeSource where
 
 newtype Problems
-  = Problems { unwrap :: M.Map PairingId Problem }
-  deriving (Eq, Generic, Ord, Show)
+  = Problems { unwrap :: M.Map PairingId Problem' }
+  deriving (Eq, Generic)
   deriving newtype (NFData)
 
-instance AtPairingId Problem Problems where
+instance AtPairingId Problem' Problems where
     atPairingId = atPairingId . (.unwrap)

@@ -24,7 +24,7 @@ data RepGraphInput
   = RepGraphInput
       { cStructs :: Map Ident Struct
       , rodata :: ROData
-      , problem :: Problem
+      , problem :: Problem'
       , functionSigs :: FunctionSignatures
       }
   deriving (Generic)

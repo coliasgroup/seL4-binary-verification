@@ -70,7 +70,7 @@ data StagesOutput
         -- intermediate, for checking
       , intermediate :: IntermediateStagesOutput
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, NFData)
 
 newtype StagesOutputChecks
   = StagesOutputChecks { unwrap :: M.Map PairingId [SMTProofCheckGroup ProofCheckMeta] }
@@ -96,7 +96,7 @@ data IntermediateStagesOutput
       , compatProofChecks :: CompatProofChecks
       , compatSMTProofChecks :: CompatSMTProofChecks
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, NFData)
 
 stages :: StagesInput -> StagesOutput
 stages input = StagesOutput

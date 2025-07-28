@@ -24,7 +24,7 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
-buildProblem :: (WithTag' Ident -> Function) -> InlineScript -> ByTag' (Named Function) -> Problem
+buildProblem :: (WithTag' Ident -> Function) -> InlineScript -> ByTag' (Named Function) -> Problem'
 buildProblem lookupFun inlineScript funs = build builder
   where
     builder = flip execState (beginProblemBuilder funs) $ do
@@ -108,7 +108,7 @@ inline lookupFun nodeBySource = do
     zoom #nodeMapBuilder $ nodeMapBuilderInline lookupFun nodeBySource
     forceSimpleLoopReturns
 
-build :: ProblemBuilder -> Problem
+build :: ProblemBuilder -> Problem'
 build builder =
     Problem
         { sides = finalBuilder.sides

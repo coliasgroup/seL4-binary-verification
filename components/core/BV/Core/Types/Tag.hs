@@ -1,5 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module BV.Core.Types.Tag where
@@ -11,7 +12,17 @@ import Data.Traversable (foldMapDefault)
 import GHC.Generics (Generic)
 import Optics (Lens', view)
 
-class (Enum t, Bounded t, Applicative (ByTag t), Traversable (ByTag t)) => Tag t where
+class
+    ( Enum t
+    , Bounded t
+    , Applicative (ByTag t)
+    , Traversable (ByTag t)
+    , forall a. NFData a => NFData (ByTag t a)
+    , forall a. Ord a => Ord (ByTag t a)
+    , forall a. Eq a => Eq (ByTag t a)
+    , forall a. Show a => Show (ByTag t a)
+    ) => Tag t where
+
     data ByTag t a
 
     atTag :: t -> Lens' (ByTag t a) a

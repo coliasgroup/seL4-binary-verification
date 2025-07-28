@@ -85,7 +85,7 @@ loopHeadsFrom g entryPoints =
         entryPointsAsVertices = map (fromJust . g.nodeIdMapRev) entryPoints
         inOrder = foldMap toList $ G.dfs g.graph entryPointsAsVertices
 
-nodeTagOf :: Problem -> NodeGraph -> NodeAddr -> Tag'
+nodeTagOf :: Problem' -> NodeGraph -> NodeAddr -> Tag'
 nodeTagOf problem nodeGraph = \addr -> if addr `S.member` c then C else Asm
   where
     c = S.fromList $ reachableFrom nodeGraph problem.sides.c.entryPoint ^.. folded % #_Addr
@@ -97,7 +97,7 @@ data LoopData
   | LoopMember NodeAddr
   deriving (Eq, Generic, Ord, Show)
 
-createLoopDataMap :: Problem -> NodeGraph -> LoopDataMap
+createLoopDataMap :: Problem' -> NodeGraph -> LoopDataMap
 createLoopDataMap problem nodeGraph =
     M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
         [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->

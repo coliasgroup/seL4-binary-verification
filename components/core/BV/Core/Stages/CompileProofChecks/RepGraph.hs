@@ -127,7 +127,7 @@ instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
 data RepGraphEnv
   = RepGraphEnv
       { functionSigs :: FunctionSignatures
-      , problem :: Problem
+      , problem :: Problem'
       , problemNames :: S.Set Ident
       , nodeGraph :: NodeGraph
       , nodeTag :: NodeAddr -> Tag'
@@ -155,7 +155,7 @@ data TooGeneral
       }
   deriving (Eq, Generic, Ord, Show)
 
-initRepGraphEnv :: Problem -> FunctionSignatures -> RepGraphEnv
+initRepGraphEnv :: Problem' -> FunctionSignatures -> RepGraphEnv
 initRepGraphEnv problem functionSigs =
     RepGraphEnv
         { functionSigs
@@ -200,7 +200,7 @@ withMapSlot l k m = do
 askFunctionSigs :: MonadRepGraph m => m FunctionSignatures
 askFunctionSigs = liftRepGraph $ gview $ #functionSigs
 
-askProblem :: MonadRepGraph m => m Problem
+askProblem :: MonadRepGraph m => m Problem'
 askProblem = liftRepGraph $ gview $ #problem
 
 askNodeTag :: MonadRepGraph m => NodeAddr -> m Tag'
@@ -257,7 +257,7 @@ getHasInnerLoop loopHead = withMapSlot #hasInnerLoop loopHead $ do
     loopBody <- askLoopBody loopHead
     return $ not $ null $ loopBodyInnerLoops p loopHead loopBody
 
-loopBodyInnerLoops :: Problem -> NodeAddr -> Set NodeAddr -> [Set NodeAddr]
+loopBodyInnerLoops :: Problem' -> NodeAddr -> Set NodeAddr -> [Set NodeAddr]
 loopBodyInnerLoops p loopHead loopBody =
     [ S.map (view _2 . toNodeAddr) component
     | component <- S.fromList . toList <$> G.scc g

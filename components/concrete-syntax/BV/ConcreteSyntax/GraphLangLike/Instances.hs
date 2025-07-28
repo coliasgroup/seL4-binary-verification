@@ -386,7 +386,7 @@ instance BuildInLine Op where
 instance ParseFile Problems where
     parseFile = Problems . M.fromList <$> some (parseInBlock <&> \problem -> ((.name) <$> problem.sides, problem))
 
-instance ParseInBlock Problem where
+instance ParseInBlock Problem' where
     parseInBlock = do
         _ <- line $ inLineSymbol "Problem"
         (tagA, sideA) <- problemSideLine
@@ -421,7 +421,7 @@ instance ParseInLine NodeSource where
 instance BuildToFile Problems where
     buildToFile (Problems problems) = intersperse "\n" $ map (buildBlock . buildInBlock . snd) (M.toAscList problems)
 
-instance BuildInBlock Problem where
+instance BuildInBlock Problem' where
     buildInBlock (Problem { sides, nodes }) =
         lineInBlock "Problem"
             <> problemSideLine C sides.c

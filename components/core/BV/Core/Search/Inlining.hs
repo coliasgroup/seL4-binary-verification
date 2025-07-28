@@ -91,7 +91,7 @@ nextInlinePoint modelConfig repGraphInput = preview (_Left % #nodeAddr) <$> ret
 
 -- TODO move
 
-type Inliner m = Problem -> m (Maybe [NodeAddr])
+type Inliner m = Problem' -> m (Maybe [NodeAddr])
 
 buildProblemWith :: Monad m => [Inliner m] -> (WithTag' Ident -> Function) -> ByTag' (Named Function) -> InlineScript
 buildProblemWith _inliners _lookupFun _funs = undefined
