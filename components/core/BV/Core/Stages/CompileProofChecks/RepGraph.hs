@@ -63,28 +63,28 @@ type FunctionSignatures = WithTag Ident -> FunctionSignature
 class MonadSolver m => MonadRepGraph m where
     liftRepGraph :: StateT RepGraphState (Reader RepGraphEnv) a -> m a
 
-    runPreEmitNodeHook :: Visit -> m ()
-    runPreEmitNodeHook _ = return ()
+    runPreEmitCallNodeHook :: NodeId -> Expr -> ExprEnv -> m ()
+    runPreEmitCallNodeHook _ _ _ = return ()
 
 instance MonadRepGraph m => MonadRepGraph (ReaderT r m) where
     liftRepGraph = lift . liftRepGraph
-    runPreEmitNodeHook = lift . runPreEmitNodeHook
+    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (StateT s m) where
     liftRepGraph = lift . liftRepGraph
-    runPreEmitNodeHook = lift . runPreEmitNodeHook
+    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
 
 instance (Monoid w, MonadRepGraph m) => MonadRepGraph (RWST r w s m) where
     liftRepGraph = lift . liftRepGraph
-    runPreEmitNodeHook = lift . runPreEmitNodeHook
+    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (MaybeT m) where
     liftRepGraph = lift . liftRepGraph
-    runPreEmitNodeHook = lift . runPreEmitNodeHook
+    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
 
 instance MonadRepGraph m => MonadRepGraph (ExceptT e m) where
     liftRepGraph = lift . liftRepGraph
-    runPreEmitNodeHook = lift . runPreEmitNodeHook
+    runPreEmitCallNodeHook = ((.) . (.) . (.)) lift runPreEmitCallNodeHook
 
 data TooGeneral
   = TooGeneral
@@ -706,7 +706,6 @@ getArcPcEnv visit' otherVisit = do
                 Nothing -> do
                     pcEnvOpt <- tryGetNodePcEnv visit Nothing
                     whenJustThen pcEnvOpt $ \_ -> do
-                        runPreEmitNodeHook visit
                         arcs <- emitNode visit
                         let arcs' = M.fromList [ (cont, (pc, env)) | (cont, pc, env) <- arcs ]
                         liftRepGraph $ #arcPcEnvs %= M.insert visit arcs'
@@ -795,6 +794,7 @@ emitNode visit = do
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, lpc, env'), (condNode.right, rpc, env')]
             NodeCall callNode -> do
+                runPreEmitCallNodeHook visit.nodeId pc env
                 let name = successName callNode.functionName visit
                 success <- smtExprE boolT . NotSplit . nameS <$> addVar name boolT
                 sigs <- liftRepGraph $ gview #functionSigs

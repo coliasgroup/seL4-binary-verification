@@ -70,7 +70,7 @@ instance S.MonadSolver m => MonadSolverSend (InnerSolver m) where
 instance S.MonadSolver m => MonadRepGraph (InlineM m) where
     liftRepGraph = InlineM . liftRepGraph
 
-    runPreEmitNodeHook _visit = do
+    runPreEmitCallNodeHook _nodeId _pc _env = do
         undefined
 
 runInlineM :: S.MonadSolver m => ModelConfig -> RepGraphInput -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
