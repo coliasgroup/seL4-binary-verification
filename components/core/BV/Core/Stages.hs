@@ -187,10 +187,10 @@ stages input = StagesOutput
                 { cStructs = input.programs.c.structs
                 , functionSigs
                 , rodata = input.rodata
-                , argRenames = (lookupOrigVarNameFor problem)
                 , problem
                 }
-         in compileProofChecks repGraphInput pairings <$> (proofChecks `atPairingId` pairingId)
+         in compileProofChecks repGraphInput pairings (lookupOrigVarNameFor problem)
+                <$> (proofChecks `atPairingId` pairingId)
 
     compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)
 

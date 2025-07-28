@@ -11,6 +11,7 @@ import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.Grouping
 import BV.Core.Stages.CompileProofChecks.RepGraph
 import BV.Core.Stages.CompileProofChecks.RepGraph.AddFunc
+import BV.Core.Stages.CompileProofChecks.RepGraph.AsmStackRep
 import BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
@@ -22,22 +23,24 @@ import Data.Traversable (for)
 compileProofChecks
     :: RepGraphInput
     -> Pairings
+    -> ArgRenames
     -> [ProofCheck a]
     -> [SMTProofCheckGroup a]
-compileProofChecks repGraphInput pairings checks =
+compileProofChecks repGraphInput pairings argRenames checks =
     map
-        (compileProofCheckGroup repGraphInput pairings)
+        (compileProofCheckGroup repGraphInput pairings argRenames)
         (proofCheckGroups checks)
 
 compileProofCheckGroup
     :: RepGraphInput
     -> Pairings
+    -> ArgRenames
     -> ProofCheckGroup a
     -> SMTProofCheckGroup a
-compileProofCheckGroup repGraphInput pairings group =
+compileProofCheckGroup repGraphInput pairings argRenames group =
     SMTProofCheckGroup setup imps
   where
-    (imps, setup) = runWriter (runM repGraphInput (runWithAddFunc pairings m))
+    (imps, setup) = runWriter (runM repGraphInput (runWithAddFunc pairings (runWithAsmStackRep argRenames m)))
     m = interpretGroup group <* finalizeSolver
 
 interpretGroup :: MonadRepGraph m => ProofCheckGroup a -> m [SMTProofCheckImp a]

@@ -82,6 +82,7 @@ library core
       BV.Core.Stages.CompileProofChecks.Grouping
       BV.Core.Stages.CompileProofChecks.RepGraph
       BV.Core.Stages.CompileProofChecks.RepGraph.AddFunc
+      BV.Core.Stages.CompileProofChecks.RepGraph.AsmStackRep
       BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
       BV.Core.Stages.CompileProofChecks.Solver
       BV.Core.Stages.CompileProofChecks.Structs

@@ -15,8 +15,10 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , MonadRepGraphDefaultHelper (..)
     , RepGraphEnv
     , RepGraphState
+    , VarRepRequestKind (..)
     , askCont
     , askFunctionSigs
+    , askNodeTag
     , askProblem
     , convertInnerExprWithPcEnv
     , getInductVar
@@ -29,8 +31,6 @@ module BV.Core.Stages.CompileProofChecks.RepGraph
     , scanMemCalls
     , substInduct
     , zeroMemCallsForFunction
-      -- TODO
-    , asmStackRepHook
     ) where
 
 import BV.Core.Graph
@@ -55,7 +55,7 @@ import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
-import Data.List (intercalate, isPrefixOf, sort, tails)
+import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
@@ -128,7 +128,6 @@ data RepGraphEnv
   = RepGraphEnv
       { functionSigs :: FunctionSignatures
       , problem :: Problem
-      , argRenames :: ArgRenames
       , problemNames :: S.Set Ident
       , nodeGraph :: NodeGraph
       , nodeTag :: NodeAddr -> Tag
@@ -156,12 +155,11 @@ data TooGeneral
       }
   deriving (Eq, Generic, Ord, Show)
 
-initRepGraphEnv :: FunctionSignatures -> ArgRenames -> Problem -> RepGraphEnv
-initRepGraphEnv functionSigs argRenames problem =
+initRepGraphEnv :: FunctionSignatures -> Problem -> RepGraphEnv
+initRepGraphEnv functionSigs problem =
     RepGraphEnv
         { functionSigs
         , problem
-        , argRenames
         , problemNames = S.fromList $ toListOf varNamesOfProblem problem
         , nodeGraph
         , nodeTag = nodeTagOf problem nodeGraph
@@ -452,22 +450,6 @@ varRepRequest name ty kind visit env = runMaybeT $ do
     addrSexpr <- withEnv env $ convertExpr addrExpr
     let name' = printf "%s_for_%s" name.unwrap (nodeCountName visit)
     addSplitMemVar (addrSexpr ^. expecting #_NotSplit) name' ty
-
--- TOD rename
-asmStackRepHook :: MonadRepGraph m => Ident -> ExprType -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
-asmStackRepHook name ty kind n = runMaybeT $ do
-    tag <- askNodeTag n
-    guard $ tag == Asm
-    guard $ "stack" `isPrefixOf` name.unwrap
-    guard $ ty == ExprTypeMem
-    guard $ kind /= VarRepRequestKindInit
-    argRenames <- liftRepGraph $ gview #argRenames
-    return $ varE word32T $ argRenames
-        (PairingEqSideQuadrant
-            { tag
-            , direction = PairingEqDirectionIn
-            })
-        (Ident "r13")
 
 --
 

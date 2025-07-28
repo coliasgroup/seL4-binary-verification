@@ -11,7 +11,6 @@ import BV.Core.Stages.CompileProofChecks.RepGraph
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Stages.CompileProofChecks.Structs
 import BV.Core.Types
-import BV.Core.Types.Extras
 
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT)
@@ -26,7 +25,6 @@ data RepGraphInput
       { cStructs :: Map Ident Struct
       , functionSigs :: FunctionSignatures
       , rodata :: ROData
-      , argRenames :: ArgRenames
       , problem :: Problem
       }
   deriving (Generic)
@@ -83,7 +81,7 @@ instance MonadSolverSend m => MonadRepGraph (M m) where
         . mapStateT (mapReaderT (return . runIdentity))
         $ m
 
-    runProblemVarRepHook = asmStackRepHook
+    runProblemVarRepHook _ _ _ _ = return Nothing
     runPostEmitNodeHook _ = return ()
     runPreEmitCallNodeHook _ _ _ = return ()
     runPostEmitCallNodeHook _ _ _ _ = return ()
@@ -92,7 +90,7 @@ initEnv :: RepGraphInput -> Env
 initEnv (RepGraphInput {..}) = Env
     { structs = initStructsEnv rodata problem cStructs
     , solver = initSolverEnv rodata
-    , repGraph = initRepGraphEnv functionSigs argRenames problem
+    , repGraph = initRepGraphEnv functionSigs problem
     }
 
 initState :: State
