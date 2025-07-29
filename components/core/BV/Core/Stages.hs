@@ -198,5 +198,6 @@ stages input = StagesOutput
          in StagesOutputChecks $ M.map (fold . f) smtProofChecks.unwrap
 
 
+-- TODO move
 asmFunNameToCFunName :: Ident -> Ident
 asmFunNameToCFunName = #unwrap %~ ("Kernel_C." ++)

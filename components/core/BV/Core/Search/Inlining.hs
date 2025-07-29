@@ -1,9 +1,8 @@
-{-# LANGUAGE TypeFamilies #-}
-
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Core.Search.Inlining
-    (
+    ( DiscoverInlineScriptInput (..)
+    , discoverInlineScript
     ) where
 
 import BV.Core.Logic (MonadStructs (..))
@@ -23,11 +22,10 @@ import Optics
 
 data DiscoverInlineScriptInput
   = DiscoverInlineScriptInput
-      { cStructs :: Map Ident Struct
-      , functions :: WithTag' Ident -> Function
-      , pairings :: Pairings'
+      { structs :: ByTag' (Map Ident Struct)
       , rodata :: ROData
-      , fnames :: ByTag' Ident
+      , functions :: WithTag' Ident -> Function
+      , pairingId :: PairingId'
       }
   deriving (Generic)
 
