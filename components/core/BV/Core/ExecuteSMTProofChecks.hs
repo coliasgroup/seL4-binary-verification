@@ -82,8 +82,7 @@ executeSMTProofCheckGroupOnline timeout config group = do
             sendSimpleCommandExpectingSuccess $ Push 1
             mapM_ sendAssert hyps
             checkSatWithTimeout timeout >>=
-                let
-                    throwErrorWithIndex = throwError . OnlineSolverFailureInfo i
+                let throwErrorWithIndex = throwError . OnlineSolverFailureInfo i
                  in \case
                     Nothing -> throwErrorWithIndex OnlineSolverTimedOut
                     Just Sat -> throwErrorWithIndex OnlineSolverAnsweredSat
