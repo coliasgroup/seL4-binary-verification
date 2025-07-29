@@ -176,8 +176,8 @@ stages input = StagesOutput
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
 
     proofChecks' = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
-        let pairing = pairings `atPairingId` pairingId
-            proofScript = input.proofs `atPairingId` pairingId
+        let pairing = pairings.unwrap M.! pairingId
+            proofScript = input.proofs.unwrap M.! pairingId
          in enumerateProofChecks (lookupOrigVarNameFor problem) pairing problem proofScript
 
     compatProofChecks = toCompatProofChecks proofChecks
@@ -190,7 +190,7 @@ stages input = StagesOutput
                 , functionSigs
                 }
          in compileProofChecks repGraphInput pairings (lookupOrigVarNameFor problem)
-                <$> (proofChecks `atPairingId` pairingId)
+                <$> (proofChecks.unwrap M.! pairingId)
 
     compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)
 

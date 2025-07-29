@@ -1,8 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.Core.Types.Pairing
-    ( AtPairingId (..)
-    , Pairing (..)
+    ( Pairing (..)
     , Pairing'
     , PairingEq (..)
     , PairingEqDirection (..)
@@ -29,12 +28,6 @@ import Text.Printf (printf)
 type PairingId' = PairingId AsmRefineTag
 
 type PairingId t = ByTag t Ident
-
-class AtPairingId t a m | m -> t, m -> a where
-    atPairingId :: m -> PairingId t -> a
-
-instance AtPairingId t a (M.Map (PairingId t) a) where
-    atPairingId = (M.!)
 
 type Pairing' = Pairing AsmRefineTag
 
@@ -81,9 +74,6 @@ instance Semigroup (Pairings t) where
 
 instance Monoid (Pairings t) where
     mempty = Pairings mempty
-
-instance AtPairingId t (Pairing t) (Pairings t) where
-    atPairingId = atPairingId . (.unwrap)
 
 prettyPairingId :: forall t. RefineTag t => PairingId t -> String
 prettyPairingId pairingId =

@@ -32,9 +32,6 @@ newtype ProofChecks t a
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
-instance AtPairingId t (ProofScript t [ProofCheck t a]) (ProofChecks t a) where
-    atPairingId = atPairingId . (.unwrap)
-
 data ProofCheck t a
   = ProofCheck
       { meta :: a

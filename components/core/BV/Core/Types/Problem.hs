@@ -62,6 +62,3 @@ newtype Problems
   = Problems { unwrap :: M.Map PairingId' Problem' }
   deriving (Eq, Generic)
   deriving newtype (NFData)
-
-instance AtPairingId AsmRefineTag Problem' Problems where
-    atPairingId = atPairingId . (.unwrap)

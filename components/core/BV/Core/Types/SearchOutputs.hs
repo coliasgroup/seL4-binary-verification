@@ -34,9 +34,6 @@ newtype InlineScripts
 
 instance Binary InlineScripts where
 
-instance AtPairingId AsmRefineTag (InlineScript AsmRefineTag) InlineScripts where
-    atPairingId = atPairingId . (.unwrap)
-
 type InlineScript' = InlineScript AsmRefineTag
 
 type InlineScript t = [InlineScriptEntry t]
@@ -56,6 +53,3 @@ newtype Proofs a
   deriving newtype (NFData)
 
 instance Binary a => Binary (Proofs a) where
-
-instance AtPairingId AsmRefineTag (ProofScript AsmRefineTag a) (Proofs a) where
-    atPairingId = atPairingId . (.unwrap)
