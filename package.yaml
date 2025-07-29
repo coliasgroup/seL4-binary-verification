@@ -304,6 +304,23 @@ tests:
       - tasty-hunit
     ghc-options: *test-ghc-options
 
+  search-test:
+    source-dirs: components/tests/search-test
+    main: Main
+    dependencies:
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:target-dir
+      - sel4-bv:system
+      - sel4-bv:system-core
+      - sel4-bv:test-utils
+      # external
+      - monad-logger
+      - filepath
+      - tasty
+      - tasty-hunit
+    ghc-options: *test-ghc-options
+
   concrete-syntax-test:
     source-dirs: components/tests/concrete-syntax-test
     main: Main

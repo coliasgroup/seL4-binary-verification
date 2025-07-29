@@ -721,6 +721,47 @@ test-suite logging-test
     , vector
   default-language: GHC2024
 
+test-suite search-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs:
+      components/tests/search-test
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N -main-is Main
+  build-depends:
+      array
+    , async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , filepath
+    , monad-logger
+    , mtl
+    , optics
+    , parallel
+    , safe-exceptions
+    , sel4-bv:concrete-syntax
+    , sel4-bv:core
+    , sel4-bv:system
+    , sel4-bv:system-core
+    , sel4-bv:target-dir
+    , sel4-bv:test-utils
+    , stm
+    , tasty
+    , tasty-hunit
+    , text
+    , transformers
+    , transformers-base
+    , vector
+  default-language: GHC2024
+
 test-suite smtlib2-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
