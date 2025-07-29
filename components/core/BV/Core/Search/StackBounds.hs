@@ -8,7 +8,7 @@ module BV.Core.Search.StackBounds
 
 import BV.Core.ModelConfig (ModelConfig)
 import BV.Core.Types
-import qualified BV.SMTLIB2.Monad as S
+import BV.SMTLIB2.Monad
 
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -22,7 +22,7 @@ data DiscoverStackBoundsInput
   deriving (Generic)
 
 discoverStackBounds
-    :: (Monad m, S.MonadSolver n)
+    :: (Monad m, MonadSolver n)
     => ((ModelConfig -> n a) -> m a)
     -> DiscoverStackBoundsInput
     -> m StackBounds

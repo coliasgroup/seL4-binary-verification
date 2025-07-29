@@ -8,7 +8,7 @@ import BV.Core.Search.Inlining
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Utils
-import qualified BV.SMTLIB2.Monad as S
+import BV.SMTLIB2.Monad
 
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -26,7 +26,7 @@ data DiscoverAllInlineScriptInput
   deriving (Generic)
 
 discoverAllInlineScripts
-    :: (Applicative f, S.MonadSolver n)
+    :: (Applicative f, MonadSolver n)
     => ((ModelConfig -> n a) -> f a)
     -> DiscoverAllInlineScriptInput
     -> f InlineScripts'

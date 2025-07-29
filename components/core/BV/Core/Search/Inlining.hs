@@ -10,7 +10,7 @@ import BV.Core.ModelConfig (ModelConfig, configureSExpr)
 import BV.Core.Stages.CompileProofChecks.RepGraph
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Types
-import qualified BV.SMTLIB2.Monad as S
+import BV.SMTLIB2.Monad
 
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (MonadReader (ask), ReaderT, runReaderT)
@@ -29,7 +29,7 @@ data DiscoverInlineScriptInput
   deriving (Generic)
 
 discoverInlineScript
-    :: (Applicative f, S.MonadSolver n)
+    :: (Applicative f, MonadSolver n)
     => ((ModelConfig -> n a) -> f a)
     -> DiscoverInlineScriptInput
     -> f InlineScript'
@@ -61,23 +61,23 @@ newtype InnerSolver m a
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
-instance S.MonadSolver m => MonadRepGraphSolverSend (InnerSolver m) where
+instance MonadSolver m => MonadRepGraphSolverSend (InnerSolver m) where
     sendSExprWithPlaceholders s = InnerSolver $ do
         modelConfig <- ask
-        lift $ S.sendSExpr $ configureSExpr modelConfig s
+        lift $ sendSExpr $ configureSExpr modelConfig s
 
-instance S.MonadSolver m => MonadRepGraphDefaultHelper AsmRefineTag (RepGraphBase AsmRefineTag (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m)))) (InlineM m) where
+instance MonadSolver m => MonadRepGraphDefaultHelper AsmRefineTag (RepGraphBase AsmRefineTag (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m)))) (InlineM m) where
     liftMonadRepGraphDefaultHelper = InlineM
 
-instance S.MonadSolver m => MonadRepGraph AsmRefineTag (InlineM m) where
+instance MonadSolver m => MonadRepGraph AsmRefineTag (InlineM m) where
     runPreEmitCallNodeHook _nodeId _pc _env = do
         undefined
 
-runInlineM :: S.MonadSolver m => ModelConfig -> RepGraphBaseInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
+runInlineM :: MonadSolver m => ModelConfig -> RepGraphBaseInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
 runInlineM modelConfig repGraphInput inlinerInput m =
     runReaderT (runReaderT (runExceptT (runRepGraphBase repGraphInput m.run)) inlinerInput).run modelConfig
 
-nextInlinePoint :: S.MonadSolver m => ModelConfig -> RepGraphBaseInput AsmRefineTag -> m (Maybe NodeAddr)
+nextInlinePoint :: MonadSolver m => ModelConfig -> RepGraphBaseInput AsmRefineTag -> m (Maybe NodeAddr)
 nextInlinePoint modelConfig repGraphInput = preview (_Left % #nodeAddr) <$> ret
   where
     inlinerInput = undefined
