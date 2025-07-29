@@ -46,6 +46,9 @@ structT = ExprTypeStruct
 ptrT :: ExprType -> ExprType
 ptrT = ExprTypePtr
 
+globalWrapperT :: ExprType -> ExprType
+globalWrapperT = ExprTypeGlobalWrapper
+
 --
 
 isBoolT :: ExprType -> Bool

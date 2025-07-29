@@ -88,7 +88,7 @@ instance (Tag t, MonadSolverSend m) => MonadRepGraph t (M t m) where
 
 initEnv :: Tag t => RepGraphInput t -> Env t
 initEnv (RepGraphInput {..}) = Env
-    { structs = initStructsEnv rodata problem cStructs
+    { structs = initStructsEnv rodata cStructs
     , solver = initSolverEnv rodata
     , repGraph = initRepGraphEnv problem functionSigs
     }

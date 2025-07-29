@@ -39,7 +39,6 @@ module BV.Core.Stages.CompileProofChecks.Solver
     ) where
 
 import BV.Core.Logic
-import BV.Core.Stages.CompileProofChecks.Structs
 import BV.Core.Stages.Utils
 import BV.Core.Types
 import BV.Core.Types.Extras

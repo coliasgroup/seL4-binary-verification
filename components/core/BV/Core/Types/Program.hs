@@ -257,6 +257,7 @@ data ExprType
       }
   | ExprTypeStruct Ident
   | ExprTypePtr ExprType
+  | ExprTypeGlobalWrapper ExprType
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary ExprType where

@@ -101,6 +101,7 @@ sizeOfType = \case
     ExprTypeArray { ty, len } -> (* len) <$> sizeOfType ty
     ExprTypeStruct name -> (.size) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
+    ExprTypeGlobalWrapper ty' -> sizeOfType ty'
 
 alignOfType :: MonadStructs m => ExprType -> m Integer
 alignOfType ty = case ty of
@@ -108,6 +109,7 @@ alignOfType ty = case ty of
     ExprTypeArray { ty = ty' } -> alignOfType ty'
     ExprTypeStruct name -> (.align) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
+    ExprTypeGlobalWrapper ty' -> alignOfType ty'
 
 --
 
@@ -269,6 +271,9 @@ getSTypConditionInner2 innerPvTy outerPvTy = case (innerPvTy, outerPvTy) of
             return $ condOpt <&> \cond -> case outerBound of
                 Just PArrayValidStrengthStrong -> \offs -> andE (lessE offs outerSize) (cond (modulusE offs outerElSize))
                 _ -> \offs -> cond (modulusE offs outerElSize)
+    (_, PValidTypeWithStrengthType (ExprTypeGlobalWrapper inner)) -> do
+        fOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType inner)
+        return $ fOpt <&> \f offs -> f (minusE offs (machineWordE 0)) -- HACK `- 0` to match graph-refine
     _ -> return Nothing
 
 pvalidAssertion2 :: MonadStructs m => (PValidType, PValidKind, Expr, Expr) -> (PValidType, PValidKind, Expr, Expr) -> m Expr
