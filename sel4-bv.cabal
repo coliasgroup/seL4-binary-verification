@@ -93,8 +93,8 @@ library core
       BV.Core.Stages.InlineAssembly
       BV.Core.Stages.PseudoCompile
       BV.Core.Stages.Utils
+      BV.Core.Types.Aggregate
       BV.Core.Types.AsmRefineTag
-      BV.Core.Types.Compat
       BV.Core.Types.Extras
       BV.Core.Types.Extras.Expr
       BV.Core.Types.Extras.Pairing
@@ -108,7 +108,6 @@ library core
       BV.Core.Types.Program
       BV.Core.Types.ProofChecks
       BV.Core.Types.ProofScript
-      BV.Core.Types.SearchOutputs
       BV.Core.Types.SExprWithPlaceholders
       BV.Core.Types.SMTProofChecks
       BV.Core.Types.Tag

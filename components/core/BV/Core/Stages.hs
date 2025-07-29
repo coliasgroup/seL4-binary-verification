@@ -155,7 +155,7 @@ stages input = StagesOutput
     problems = problems'
     -- problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
 
-    problems' = Problems $ M.fromList $ do
+    problems' = Problems' $ M.fromList $ do
         pairingId <- normalFunctionPairingIds
         let namedFuns =
                 let f funName prog = Named funName (prog.functions ! funName)

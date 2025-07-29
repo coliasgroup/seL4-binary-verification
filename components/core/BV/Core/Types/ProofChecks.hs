@@ -9,7 +9,6 @@ module BV.Core.Types.ProofChecks
     , PcImpHypSide (..)
     , ProofCheck (..)
     , ProofCheckDescription
-    , ProofChecks (..)
     , Restr (..)
     , Visit (..)
     , VisitCount (..)
@@ -18,19 +17,11 @@ module BV.Core.Types.ProofChecks
     , hypVisits
     ) where
 
-import BV.Core.Types.Pairing
 import BV.Core.Types.Program
-import BV.Core.Types.ProofScript
 
 import Control.DeepSeq (NFData)
-import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
-
-newtype ProofChecks t a
-  = ProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t [ProofCheck t a]) }
-  deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
-  deriving newtype (NFData)
 
 data ProofCheck t a
   = ProofCheck

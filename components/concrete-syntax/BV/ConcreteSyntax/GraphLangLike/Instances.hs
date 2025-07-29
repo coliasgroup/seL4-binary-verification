@@ -388,7 +388,7 @@ instance BuildInLine Op where
 --
 
 instance ParseFile Problems' where
-    parseFile = Problems . M.fromList <$> some (parseInBlock <&> \problem -> ((.name) <$> problem.sides, problem))
+    parseFile = Problems' . M.fromList <$> some (parseInBlock <&> \problem -> ((.name) <$> problem.sides, problem))
 
 instance Tag t => ParseInBlock (Problem t) where
     parseInBlock = do
@@ -419,7 +419,7 @@ instance Tag t => ParseInLine (NodeSource t) where
 --
 
 instance BuildToFile Problems' where
-    buildToFile (Problems problems) = intersperse "\n" $ map (buildBlock . buildInBlock . snd) (M.toAscList problems)
+    buildToFile (Problems' problems) = intersperse "\n" $ map (buildBlock . buildInBlock . snd) (M.toAscList problems)
 
 instance Tag t => BuildInBlock (Problem t) where
     buildInBlock (Problem { sides, nodes }) =

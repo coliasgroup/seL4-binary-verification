@@ -48,7 +48,7 @@ data TargetDirFiles
       , cFunctions :: TargetDirFile Program
       , asmFunctions :: TargetDirFile Program
       , functions :: TargetDirFile Program
-      , problems :: TargetDirFile Problems
+      , problems :: TargetDirFile Problems'
       , stackBounds :: TargetDirFile StackBounds
       , inlineScripts :: TargetDirFile (InlineScripts AsmRefineTag)
       , pairings :: TargetDirFile (Pairings AsmRefineTag)

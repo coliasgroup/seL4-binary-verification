@@ -9,7 +9,6 @@ module BV.Core.Types.AsmRefineTag
     , Pairing'
     , PairingId'
     , Problem'
-    , Problems' (..)
     , WithTag'
     , byAsmRefineTag
     , getAsm
@@ -18,12 +17,10 @@ module BV.Core.Types.AsmRefineTag
 
 import BV.Core.Types.Pairing
 import BV.Core.Types.Problem
-import BV.Core.Types.SearchOutputs
 import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
-import qualified Data.Map as M
 import Data.Vector.Binary ()
 import GHC.Generics (Generic)
 import GHC.IsList (fromList)
@@ -78,10 +75,5 @@ type PairingId' = PairingId AsmRefineTag
 type Pairing' = Pairing AsmRefineTag
 
 type Problem' = Problem AsmRefineTag
-
-newtype Problems'
-  = Problems { unwrap :: M.Map PairingId' Problem' }
-  deriving (Eq, Generic)
-  deriving newtype (NFData)
 
 type InlineScript' = InlineScript AsmRefineTag

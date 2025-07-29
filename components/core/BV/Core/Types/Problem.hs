@@ -1,7 +1,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.Core.Types.Problem
-    ( NodeBySource (..)
+    ( InlineScript
+    , InlineScriptEntry (..)
+    , NodeBySource (..)
     , NodeSource (..)
     , Problem (..)
     , ProblemSide (..)
@@ -51,3 +53,14 @@ data NodeSource t
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary t => Binary (NodeSource t) where
+
+type InlineScript t = [InlineScriptEntry t]
+
+data InlineScriptEntry t
+  = InlineScriptEntry
+      { nodeBySource :: (NodeBySource t)
+      , inlinedFunctionName :: Ident
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary t => Binary (InlineScriptEntry t) where
