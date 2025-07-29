@@ -584,7 +584,7 @@ getLoopPcEnv split restrs = do
                     ExprTypeHtd -> True
                     ExprTypeDom -> True
                     _ -> False
-            isSyntConst <- if checkConst then isSyntacticConstant var.name var.ty split else return False
+            isSyntConst <- if checkConst then isSyntacticConstant var split else return False
             if isSyntConst
                 then do
                     modify $ S.insert var
@@ -748,8 +748,8 @@ emitNode visit = do
                 runPostEmitCallNodeHook visit ins outs success
                 return [(callNode.next, pc, env')]
 
-isSyntacticConstant :: MonadRepGraph t m => Ident -> ExprType -> NodeAddr -> m Bool
-isSyntacticConstant origName ty split = do
+isSyntacticConstant :: MonadRepGraph t m => NameTy -> NodeAddr -> m Bool
+isSyntacticConstant var split = do
     hasInnerLoop <- getHasInnerLoop split
     if hasInnerLoop
         then return False
@@ -760,14 +760,14 @@ isSyntacticConstant origName ty split = do
                     let newName = name
                     newName' <- case node of
                         NodeCall callNode ->
-                            if NameTy name ty `elem` callNode.output
+                            if NameTy name var.ty `elem` callNode.output
                             then throwError False
                             else return newName
                         NodeBasic basicNode -> do
                             let updateExprs =
                                     [ u.val
                                     | u <- basicNode.varUpdates
-                                    , u.var == NameTy name ty
+                                    , u.var == NameTy name var.ty
                                     ]
                             let updateExprsOpt = for updateExprs $ \v -> case v.value of
                                     ExprValueVar i -> Just i
@@ -794,7 +794,7 @@ isSyntacticConstant origName ty split = do
                                         then throwError False
                                         else go v' safe' hd
                     f visit'
-            runExceptT (go mempty (S.singleton (origName, split)) (origName, split)) >>= \case
+            runExceptT (go mempty (S.singleton (var.name, split)) (var.name, split)) >>= \case
                 Left r -> return r
 
 --
