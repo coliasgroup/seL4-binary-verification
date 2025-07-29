@@ -8,7 +8,6 @@ module BV.Core.Types.Tag
     , ByTag'
     , RefineTag
     , Tag (..)
-    , Tag'
     , TrivialTag (..)
     , WithTag (..)
     , WithTag'
@@ -192,5 +191,3 @@ byAsmRefineTag (ByAsmRefineTag { asm, c }) = fromList [asm, c]
 type ByTag' = ByTag AsmRefineTag
 
 type WithTag' = WithTag AsmRefineTag
-
-type Tag' = AsmRefineTag
