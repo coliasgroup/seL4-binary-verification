@@ -12,12 +12,12 @@ module BV.Core.Types.ProofChecks
     , Restr (..)
     , Visit (..)
     , VisitCount (..)
-    , VisitWithTag (..)
     , checkVisits
     , hypVisits
     ) where
 
 import BV.Core.Types.Program
+import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import GHC.Generics (Generic)
@@ -50,7 +50,7 @@ data PcImpHyp t
 
 data PcImpHypSide t
   = PcImpHypSideBool Bool
-  | PcImpHypSidePc (VisitWithTag t)
+  | PcImpHypSidePc (WithTag t Visit)
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data EqHyp t
@@ -64,7 +64,7 @@ data EqHyp t
 data EqHypSide t
   = EqHypSide
       { expr :: Expr
-      , visit :: VisitWithTag t
+      , visit :: WithTag t Visit
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -72,13 +72,6 @@ data EqHypInduct
   = EqHypInduct
       { a :: Integer
       , b :: Integer
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-data VisitWithTag t
-  = VisitWithTag
-      { visit :: Visit
-      , tag :: t
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -112,11 +105,11 @@ instance Semigroup VisitCount where
 instance Monoid VisitCount where
     mempty = VisitCount [] []
 
-hypVisits :: Traversal' (Hyp t) (VisitWithTag t)
+hypVisits :: Traversal' (Hyp t) (WithTag t Visit)
 hypVisits =
     (#_HypPcImp % (#lhs `adjoin` #rhs) % #_PcImpHypSidePc)
     `adjoin`
     (#_HypEq % _2 % (#lhs `adjoin` #rhs) % #visit)
 
-checkVisits :: Traversal' (ProofCheck t a) (VisitWithTag t)
+checkVisits :: Traversal' (ProofCheck t a) (WithTag t Visit)
 checkVisits = (#hyps % traversed `adjoin` #hyp) % hypVisits

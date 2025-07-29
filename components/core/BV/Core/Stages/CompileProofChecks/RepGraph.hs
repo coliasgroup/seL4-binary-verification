@@ -143,7 +143,7 @@ data RepGraphState t
   = RepGraphState
       { inpEnvs :: Map NodeId ExprEnv
       , memCalls :: Map SExprWithPlaceholders MemCalls
-      , nodePcEnvs :: Map (VisitWithTag t) (Maybe (Expr, ExprEnv))
+      , nodePcEnvs :: Map (WithTag t Visit) (Maybe (Expr, ExprEnv))
       , arcPcEnvs :: Map Visit (Map NodeId (Expr, ExprEnv))
       , inductVarEnv :: Map EqHypInduct Name
       , contractions :: Map SExprWithPlaceholders MaybeSplit
@@ -297,8 +297,8 @@ localName s vis = printf "%s_after_%s" s.unwrap (nodeCountName vis)
 condName :: Visit -> NameHint
 condName  vis = printf "cond_at_%s" (nodeCountName vis)
 
-pathCondName :: Tag t => VisitWithTag t -> NameHint
-pathCondName vt = printf "path_cond_to_%s_%s" (nodeCountName vt.visit) (prettyTag vt.tag)
+pathCondName :: Tag t => WithTag t Visit -> NameHint
+pathCondName vt = printf "path_cond_to_%s_%s" (nodeCountName vt.value) (prettyTag vt.tag)
 
 successName :: Ident -> Visit -> NameHint
 successName fname vis =
@@ -527,37 +527,34 @@ tryGetNodePcEnv visit tag' = do
     (tag, restrsOpt) <- getTagVCount visit tag'
     runMaybeT $ do
         restrs <- hoistMaybe restrsOpt
-        let vt = VisitWithTag
-                { visit = Visit
-                    { nodeId = visit.nodeId
-                    , restrs
-                    }
-                , tag
+        let vt = WithTag tag $ Visit
+                { nodeId = visit.nodeId
+                , restrs
                 }
         MaybeT $ withMapSlot #nodePcEnvs vt $ do
             warmPcEnvCache vt
             getNodePcEnvRaw vt
 
-getNodePcEnvRaw :: (MonadRepGraph t m, MonadError TooGeneral m) => VisitWithTag t -> m (Maybe (Expr, ExprEnv))
+getNodePcEnvRaw :: (MonadRepGraph t m, MonadError TooGeneral m) => WithTag t Visit -> m (Maybe (Expr, ExprEnv))
 getNodePcEnvRaw visitWithTag = do
-    liftRepGraph (use $ #inpEnvs % at visitWithTag.visit.nodeId) >>= \case
+    liftRepGraph (use $ #inpEnvs % at visitWithTag.value.nodeId) >>= \case
         Just env -> return $ Just (trueE, env)
         Nothing -> do
-            let f restr = Addr restr.nodeAddr == visitWithTag.visit.nodeId && restr.visitCount == offsetVC 0
-            case filter f visitWithTag.visit.restrs of
-                restr:_ -> getLoopPcEnv restr.nodeAddr visitWithTag.visit.restrs
+            let f restr = Addr restr.nodeAddr == visitWithTag.value.nodeId && restr.visitCount == offsetVC 0
+            case filter f visitWithTag.value.restrs of
+                restr:_ -> getLoopPcEnv restr.nodeAddr visitWithTag.value.restrs
                 [] -> do
                     pcEnvs <- concatMap catMaybes <$> do
-                        preds <- askPreds visitWithTag.visit.nodeId
+                        preds <- askPreds visitWithTag.value.nodeId
                         for (S.toList preds) $ \pred_ -> do
                             tag <- askNodeTag pred_
                             if tag /= visitWithTag.tag
                                 then return []
-                                else getArcPcEnvs pred_ visitWithTag.visit
+                                else getArcPcEnvs pred_ visitWithTag.value
                     case pcEnvs of
                         [] -> return Nothing
                         _ -> do
-                            pcEnvs' <- case visitWithTag.visit.nodeId of
+                            pcEnvs' <- case visitWithTag.value.nodeId of
                                 Err -> for pcEnvs $ \(pc, env) -> do
                                     pc' <- withEnv env $ convertInnerExpr pc
                                     return (pc', M.empty)
@@ -570,7 +567,7 @@ getNodePcEnvRaw visitWithTag = do
                                     return $ smtExprE boolT name
                             env' <- flip M.traverseWithKey env $ \(name, ty) v -> do
                                 case v of
-                                    NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contract name visitWithTag.visit v' ty
+                                    NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contract name visitWithTag.value v' ty
                                     _ -> return v
                             return $ Just (pc', env')
 
@@ -668,13 +665,13 @@ getTagVCount visit tagOpt = do
                         throwError $ TooGeneral { split = restr.nodeAddr }
             return (tag, Just vcount)
 
-warmPcEnvCache :: MonadRepGraph t m => VisitWithTag t -> m ()
+warmPcEnvCache :: MonadRepGraph t m => WithTag t Visit -> m ()
 warmPcEnvCache visitWithTag = do
     let go = do
             visit <- get
             prevs <- askPrevs visit
             let f prev = do
-                    present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member (VisitWithTag prev visitWithTag.tag))
+                    present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member (WithTag visitWithTag.tag prev))
                     if present
                         then return False
                         else do
@@ -687,7 +684,7 @@ warmPcEnvCache visitWithTag = do
                     put visit'
                 _ -> do
                     hoistMaybe Nothing
-    (_, prevChain) <- evalRWST (runMaybeT (replicateM iters go)) () visitWithTag.visit
+    (_, prevChain) <- evalRWST (runMaybeT (replicateM iters go)) () visitWithTag.value
     ensureM $ length prevChain < iters
     for_ (reverse prevChain) $ \visit -> do
         getNodePcEnv visit (Just visitWithTag.tag)

@@ -127,8 +127,8 @@ fromMapVC = map f . M.toAscList
 
 --
 
-tagV :: t -> Visit -> VisitWithTag t
-tagV tag visit = VisitWithTag visit tag
+tagV :: t -> Visit -> WithTag t Visit
+tagV = WithTag
 
 --
 
@@ -150,25 +150,25 @@ eqWithIfAtH ifAt lhs rhs induct = HypEq
     , eq = EqHyp { lhs, rhs, induct }
     }
 
-trueIfAt :: Expr -> VisitWithTag t -> Maybe EqHypInduct -> Hyp t
+trueIfAt :: Expr -> WithTag t Visit -> Maybe EqHypInduct -> Hyp t
 trueIfAt expr visit = eqIfAtH (eqSideH expr visit) (eqSideH trueE visit)
 
-trueIfAt' :: Expr -> VisitWithTag t -> Hyp t
+trueIfAt' :: Expr -> WithTag t Visit -> Hyp t
 trueIfAt' expr visit = trueIfAt expr visit Nothing
 
-pcTrueH :: VisitWithTag t -> Hyp t
+pcTrueH :: WithTag t Visit -> Hyp t
 pcTrueH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSideBool True
     , rhs = PcImpHypSidePc visit
     })
 
-pcFalseH :: VisitWithTag t -> Hyp t
+pcFalseH :: WithTag t Visit -> Hyp t
 pcFalseH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSideBool False
     })
 
-pcTrivH :: VisitWithTag t -> Hyp t
+pcTrivH :: WithTag t Visit -> Hyp t
 pcTrivH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSidePc visit
@@ -177,7 +177,7 @@ pcTrivH visit = HypPcImp (PcImpHyp
 pcImpH :: PcImpHypSide t -> PcImpHypSide t -> Hyp t
 pcImpH lhs rhs = HypPcImp (PcImpHyp { lhs, rhs })
 
-eqSideH :: Expr -> VisitWithTag t -> EqHypSide t
+eqSideH :: Expr -> WithTag t Visit -> EqHypSide t
 eqSideH = EqHypSide
 
 eqInductH :: Integer -> Integer -> EqHypInduct

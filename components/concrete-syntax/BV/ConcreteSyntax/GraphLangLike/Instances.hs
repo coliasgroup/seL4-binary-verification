@@ -406,7 +406,7 @@ instance Tag t => ParseInBlock (Problem t) where
         problemSideLine = line $ do
             _ <- inLineSymbol "Entry"
             entryPoint <- parseInLine
-            tag <- parseTag
+            tag <- parseTagInLine
             name <- parseInLine
             input <- parseInLine
             output <- parseInLine
@@ -414,7 +414,7 @@ instance Tag t => ParseInBlock (Problem t) where
             return (tag, side)
 
 instance Tag t => ParseInLine (NodeSource t) where
-    parseInLine = NodeSource <$> parseTag <*> parseInLine <*> parseInLine
+    parseInLine = NodeSource <$> parseTagInLine <*> parseInLine <*> parseInLine
 
 --
 
@@ -491,7 +491,7 @@ instance RefineTag t => ParseInLine (RestrProofNode t ()) where
     parseInLine =
         RestrProofNode
             <$> parseInLine
-            <*> parseTag
+            <*> parseTagInLine
             <*> parseInLine
             <*> parseInLine
 
@@ -512,7 +512,7 @@ instance RefineTag t => ParseInLine (CaseSplitProofNode t ()) where
     parseInLine =
         CaseSplitProofNode
             <$> parseInLine
-            <*> parseTag
+            <*> parseTagInLine
             <*> parseInLine
             <*> parseInLine
 
@@ -538,7 +538,7 @@ instance RefineTag t => ParseInLine (SingleRevInductProofNode t ()) where
     parseInLine =
         SingleRevInductProofNode
             <$> parseInLine
-            <*> parseTag
+            <*> parseTagInLine
             <*> parseInLine
             <*> parseInLine
             <*> parseInLine
@@ -635,8 +635,8 @@ instance RefineTag t => ParseInLine (PairingEqSide t) where
 instance RefineTag t => BuildInLine (PairingEqSide t) where
     buildInLine side = put side.quadrant <> put side.expr
 
-parseTag :: Tag t => Parser t
-parseTag = wordWithOr "invalid tag" parsePrettyTag
+parseTagInLine :: Tag t => Parser t
+parseTagInLine = wordWithOr "invalid tag" parsePrettyTag
 
 putTag :: Tag t => t -> LineBuilder
 putTag = putWord . prettyTag
@@ -687,13 +687,13 @@ instance Tag t => ParseInLine (PcImpHypSide t) where
     parseInLine = word >>= \case
         "True" -> return $ PcImpHypSideBool True
         "False" -> return $ PcImpHypSideBool False
-        "PC" -> PcImpHypSidePc <$> parseInLine
+        "PC" -> PcImpHypSidePc <$> parseVisitWithTagInLine
         _ -> fail "invalid pc imp hyp side"
 
 instance Tag t => BuildInLine (PcImpHypSide t) where
     buildInLine = \case
         PcImpHypSideBool val -> putWord (show val)
-        PcImpHypSidePc visit -> putWord "PC" <> put visit
+        PcImpHypSidePc visit -> putWord "PC" <> putVisitWithTag visit
 
 instance Tag t => ParseInLine (EqHyp t) where
     parseInLine = do
@@ -709,16 +709,16 @@ instance Tag t => BuildInLine (EqHyp t) where
         Nothing -> putWord "None" <> putWord "None"
 
 instance Tag t => ParseInLine (EqHypSide t) where
-    parseInLine = EqHypSide <$> parseInLine <*> parseInLine
+    parseInLine = EqHypSide <$> parseInLine <*> parseVisitWithTagInLine
 
 instance Tag t => BuildInLine (EqHypSide t) where
-    buildInLine side = put side.expr <> put side.visit
+    buildInLine side = put side.expr <> putVisitWithTag side.visit
 
-instance Tag t => ParseInLine (VisitWithTag t) where
-    parseInLine = VisitWithTag <$> parseInLine <*> parseTag
+parseVisitWithTagInLine :: Tag t => Parser (WithTag t Visit)
+parseVisitWithTagInLine = flip WithTag <$> parseInLine <*> parseTagInLine
 
-instance Tag t => BuildInLine (VisitWithTag t) where
-    buildInLine visit = put visit.visit <> putTag visit.tag
+putVisitWithTag :: Tag t => WithTag t Visit -> LineBuilder
+putVisitWithTag visit = put visit.value <> putTag visit.tag
 
 instance ParseInLine Visit where
     parseInLine = Visit <$> parseInLine <*> parseInLine

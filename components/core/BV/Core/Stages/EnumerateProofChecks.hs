@@ -180,7 +180,7 @@ concludeWith meta hyps hyp = branch $ do
 getVisit :: MonadChecks t m => NodeId -> m Visit
 getVisit n = Visit n <$> getRestrs
 
-getVisitWithTag :: MonadChecks t m => t -> NodeId -> m (VisitWithTag t)
+getVisitWithTag :: MonadChecks t m => t -> NodeId -> m (WithTag t Visit)
 getVisitWithTag tag n = tagV tag <$> getVisit n
 
 --
@@ -385,11 +385,11 @@ assumeSplitNoLoop splitNode = branchRestrs $ do
     visits <- getSplitVisitsAt splitNode (numberVC splitNode.n)
     assume1R $ pcFalseH (getLeft visits)
 
-getSplitVisitsAt :: MonadChecks t m => SplitProofNode t () -> VisitCount -> m (ByTag t (VisitWithTag t))
+getSplitVisitsAt :: MonadChecks t m => SplitProofNode t () -> VisitCount -> m (ByTag t (WithTag t Visit))
 getSplitVisitsAt splitNode visit = for (withTags splitNode.details) $ \detailsWithTag ->
     getSplitVisitAt detailsWithTag visit
 
-getSplitVisitAt :: MonadChecks t m => WithTag t SplitProofNodeDetails -> VisitCount -> m (VisitWithTag t)
+getSplitVisitAt :: MonadChecks t m => WithTag t SplitProofNodeDetails -> VisitCount -> m (WithTag t Visit)
 getSplitVisitAt (WithTag tag details) visit = branch $ do
     restrict1L $
         Restr details.split $
