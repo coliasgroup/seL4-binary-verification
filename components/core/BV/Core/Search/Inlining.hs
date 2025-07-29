@@ -41,8 +41,8 @@ newtype InlineM m a
   deriving newtype
     ( Applicative
     , Monad
-    , MonadSolver
-    , MonadSolverSend
+    , MonadRepGraphSolver
+    , MonadRepGraphSolverSend
     , MonadStructs
     )
 
@@ -61,7 +61,7 @@ newtype InnerSolver m a
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
-instance S.MonadSolver m => MonadSolverSend (InnerSolver m) where
+instance S.MonadSolver m => MonadRepGraphSolverSend (InnerSolver m) where
     sendSExprWithPlaceholders s = InnerSolver $ do
         modelConfig <- ask
         lift $ S.sendSExpr $ configureSExpr modelConfig s

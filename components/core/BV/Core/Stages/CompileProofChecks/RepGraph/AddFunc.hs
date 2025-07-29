@@ -64,13 +64,13 @@ initState = State
     , funcsByName = M.empty
     }
 
-instance MonadSolverSend m => MonadSolverSend (WithAddFunc t m) where
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (WithAddFunc t m) where
     sendSExprWithPlaceholders = WithAddFunc . sendSExprWithPlaceholders
 
 instance MonadStructs m => MonadStructs (WithAddFunc t m) where
     askLookupStruct = WithAddFunc askLookupStruct
 
-instance MonadSolver m => MonadSolver (WithAddFunc t m) where
+instance MonadRepGraphSolver m => MonadRepGraphSolver (WithAddFunc t m) where
     liftSolver = WithAddFunc . liftSolver
 
 instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (WithAddFunc t m) where
@@ -137,7 +137,7 @@ getFuncAssert visit visit2 = do
         (foldr1 andE (inEqs ++ [rpc]))
         (foldr1 andE (outEqs ++ [succImp]))
   where
-    instEqs :: MonadSolver m => [PairingEq t] -> (PairingEqSideQuadrant t -> ExprEnv) -> m [Expr]
+    instEqs :: MonadRepGraphSolver m => [PairingEq t] -> (PairingEqSideQuadrant t -> ExprEnv) -> m [Expr]
     instEqs eqs envs = for eqs $ \eq ->
         instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
 

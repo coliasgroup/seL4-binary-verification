@@ -10,8 +10,8 @@
 
 module BV.Core.Stages.CompileProofChecks.Solver
     ( ExprEnv
-    , MonadSolver (..)
-    , MonadSolverSend (..)
+    , MonadRepGraphSolver (..)
+    , MonadRepGraphSolverSend (..)
     , Name (..)
     , NameHint
     , PcEnv (..)
@@ -76,43 +76,43 @@ cheatMemDoms = True
 
 --
 
-class Monad m => MonadSolverSend m where
+class Monad m => MonadRepGraphSolverSend m where
     sendSExprWithPlaceholders :: SExprWithPlaceholders -> m ()
 
-instance Monad m => MonadSolverSend (WriterT SolverOutput m) where
+instance Monad m => MonadRepGraphSolverSend (WriterT SolverOutput m) where
     sendSExprWithPlaceholders s = tell [s]
 
-class (MonadStructs m, MonadSolverSend m) => MonadSolver m where
+class (MonadStructs m, MonadRepGraphSolverSend m) => MonadRepGraphSolver m where
     liftSolver :: StateT SolverState (Reader SolverEnv) a -> m a
 
-instance (Monoid w, MonadSolver m) => MonadSolver (RWST r w s m) where
+instance (Monoid w, MonadRepGraphSolver m) => MonadRepGraphSolver (RWST r w s m) where
     liftSolver = lift . liftSolver
 
-instance (Monoid w, MonadSolverSend m) => MonadSolverSend (RWST r w s m) where
+instance (Monoid w, MonadRepGraphSolverSend m) => MonadRepGraphSolverSend (RWST r w s m) where
     sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
 
-instance MonadSolver m => MonadSolver (ReaderT r m) where
+instance MonadRepGraphSolver m => MonadRepGraphSolver (ReaderT r m) where
     liftSolver = lift . liftSolver
 
-instance MonadSolverSend m => MonadSolverSend (ReaderT r m) where
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (ReaderT r m) where
     sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
 
-instance MonadSolver m => MonadSolver (StateT s m) where
+instance MonadRepGraphSolver m => MonadRepGraphSolver (StateT s m) where
     liftSolver = lift . liftSolver
 
-instance MonadSolverSend m => MonadSolverSend (StateT s m) where
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (StateT s m) where
     sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
 
-instance MonadSolver m => MonadSolver (MaybeT m) where
+instance MonadRepGraphSolver m => MonadRepGraphSolver (MaybeT m) where
     liftSolver = lift . liftSolver
 
-instance MonadSolverSend m => MonadSolverSend (MaybeT m) where
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (MaybeT m) where
     sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
 
-instance MonadSolver m => MonadSolver (ExceptT e m) where
+instance MonadRepGraphSolver m => MonadRepGraphSolver (ExceptT e m) where
     liftSolver = lift . liftSolver
 
-instance MonadSolverSend m => MonadSolverSend (ExceptT e m) where
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (ExceptT e m) where
     sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
 
 data SolverEnv
@@ -169,16 +169,16 @@ initSolverState = SolverState
 
 --
 
-send :: MonadSolver m => SExprWithPlaceholders -> m ()
+send :: MonadRepGraphSolver m => SExprWithPlaceholders -> m ()
 send = sendSExprWithPlaceholders
 
 --
 
-initSolver :: MonadSolver m => m ()
+initSolver :: MonadRepGraphSolver m => m ()
 initSolver = do
     addRODataDef
 
-finalizeSolver :: MonadSolver m => m ()
+finalizeSolver :: MonadRepGraphSolver m => m ()
 finalizeSolver = do
     addPValidDomAssertions
 
@@ -207,7 +207,7 @@ instance IsString Name where
 nameS :: Name -> S
 nameS name = symbolS name.unwrap
 
-takeFreshName :: MonadSolver m => NameHint -> m Name
+takeFreshName :: MonadRepGraphSolver m => NameHint -> m Name
 takeFreshName =
     return . sanitize
         >=> takeFreshNameIn #externalNames
@@ -224,13 +224,13 @@ takeFreshName =
 
 --
 
-withSetSlot :: (MonadSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
+withSetSlot :: (MonadRepGraphSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
 withSetSlot l k m = do
     seen <- liftSolver $ use $ l % to (S.member k)
     unless seen m
     liftSolver $ l %= S.insert k
 
-withMapSlot :: (MonadSolver m, Ord k) => Lens' SolverState (M.Map k v) -> k -> m v -> m v
+withMapSlot :: (MonadRepGraphSolver m, Ord k) => Lens' SolverState (M.Map k v) -> k -> m v -> m v
 withMapSlot l k m = do
     opt <- liftSolver (use (l % at k))
     whenNothing opt $ do
@@ -240,7 +240,7 @@ withMapSlot l k m = do
 
 --
 
-askRODataPtrs :: MonadSolver m => m [(Expr, ExprType)]
+askRODataPtrs :: MonadRepGraphSolver m => m [(Expr, ExprType)]
 askRODataPtrs = do
     rodata <- liftSolver $ gview #rodata
     return
@@ -287,21 +287,21 @@ opS x = case x of
 
 --
 
-getDef :: MonadSolver m => Name -> m S
+getDef :: MonadRepGraphSolver m => Name -> m S
 getDef name = fromJust <$> tryGetDef name
 
-tryGetDef :: MonadSolver m => Name -> m (Maybe S)
+tryGetDef :: MonadRepGraphSolver m => Name -> m (Maybe S)
 tryGetDef name = liftSolver $ use $ #defs % at name
 
-addDef :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
+addDef :: MonadRepGraphSolver m => NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
 addDef nameHint val =
     either (NotSplit . nameS) Split <$> addDefInner nameHint val
 
-addDefNotSplit :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m Name
+addDefNotSplit :: MonadRepGraphSolver m => NameHint -> Expr -> ReaderT ExprEnv m Name
 addDefNotSplit nameHint val =
     view (expecting #_Left) <$> addDefInner nameHint val
 
-addDefInner :: MonadSolver m => NameHint -> Expr -> ReaderT ExprEnv m (Either Name SplitMem)
+addDefInner :: MonadRepGraphSolver m => NameHint -> Expr -> ReaderT ExprEnv m (Either Name SplitMem)
 addDefInner nameHint expr = convertExpr expr >>= \case
     NotSplit s -> Left <$> do
         name <- takeFreshName nameHint
@@ -352,7 +352,7 @@ typeToSMT = \case
 compiledTokenType :: ExprType
 compiledTokenType = wordT 64
 
-addVar :: MonadSolver m => NameHint -> ExprType -> m Name
+addVar :: MonadRepGraphSolver m => NameHint -> ExprType -> m Name
 addVar nameHint ty = do
     name <- takeFreshName nameHint
     unless (isTypeOmitted ty) $ do
@@ -361,34 +361,34 @@ addVar nameHint ty = do
             liftSolver $ #modelVars %= S.insert name
     return name
 
-addVarRestr :: MonadSolver m => NameHint -> ExprType -> m Name
+addVarRestr :: MonadRepGraphSolver m => NameHint -> ExprType -> m Name
 addVarRestr = addVar
 
-assertSMTFact :: MonadSolver m => S -> m ()
+assertSMTFact :: MonadRepGraphSolver m => S -> m ()
 assertSMTFact = send . assertS
 
-assertFact :: MonadSolver m => Expr -> ReaderT ExprEnv m ()
+assertFact :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m ()
 assertFact = convertExprNoSplit >=> assertSMTFact
 
-noteModelExpr :: MonadSolver m => S -> ExprType -> m ()
+noteModelExpr :: MonadRepGraphSolver m => S -> ExprType -> m ()
 noteModelExpr s ty = withSetSlot #modelExprs s $ do
     let sanitized = take 20 $ filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders s)
     withoutEnv $ addDef ("query_" ++ sanitized) (smtExprE ty (NotSplit s))
     return ()
 
-maybeNoteModelExpr :: MonadSolver m => S -> ExprType -> [Expr] -> m ()
+maybeNoteModelExpr :: MonadRepGraphSolver m => S -> ExprType -> [Expr] -> m ()
 maybeNoteModelExpr s ty subexprs =
     when (isTypeRepresentable ty && not (all (isTypeRepresentable . (.ty)) subexprs)) $ do
         noteModelExpr s ty
 
-notePtr :: MonadSolver m => S -> m Name
+notePtr :: MonadRepGraphSolver m => S -> m Name
 notePtr p_s = withMapSlot #ptrs p_s $
     withoutEnv $ addDefNotSplit "ptr" (smtExprE machineWordT (NotSplit p_s))
 
-noteMemDom :: MonadSolver m => S -> S -> S -> m ()
+noteMemDom :: MonadRepGraphSolver m => S -> S -> S -> m ()
 noteMemDom p d md = liftSolver $ #doms %= S.insert (p, d, md)
 
-cacheLargeExpr :: MonadSolver m => S -> NameHint -> ExprType -> m S
+cacheLargeExpr :: MonadRepGraphSolver m => S -> NameHint -> ExprType -> m S
 cacheLargeExpr s nameHint ty =
     liftSolver (use (#cachedExprs % at s)) >>= \case
         Just name -> return $ nameS name
@@ -403,7 +403,7 @@ cacheLargeExpr s nameHint ty =
                     #cachedExprNames %= S.insert name
                 return $ nameS name
 
-getToken :: MonadSolver m => Ident -> m MaybeSplit
+getToken :: MonadRepGraphSolver m => Ident -> m MaybeSplit
 getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokenTokens ident $ do
     n <- liftSolver $ (+)
         <$> use (#tokenTokens % to M.size)
@@ -415,7 +415,7 @@ getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokenTokens ident $ do
 
 --
 
-addRODataDef :: MonadSolver m => m ()
+addRODataDef :: MonadRepGraphSolver m => m ()
 addRODataDef = do
     roName <- takeFreshName "rodata"
     impRoName <- takeFreshName "implies-rodata"
@@ -462,14 +462,14 @@ addRODataDef = do
         impRoDef
 
 -- TODO
-addPValidDomAssertions :: MonadSolver m => m ()
+addPValidDomAssertions :: MonadRepGraphSolver m => m ()
 addPValidDomAssertions = do
     ensureM cheatMemDoms
     return ()
 
 --
 
-addSplitMemVar :: MonadSolver m => S -> NameHint -> ExprType -> m SplitMem
+addSplitMemVar :: MonadRepGraphSolver m => S -> NameHint -> ExprType -> m SplitMem
 addSplitMemVar split nameHint ty@ExprTypeMem = do
     bottom <- nameS <$> addVar (nameHint ++ "_bot") ty
     top <- nameS <$> addVar (nameHint ++ "_top") ty
@@ -490,7 +490,7 @@ data PcEnv
   deriving (Eq, Generic, NFData, Ord, Show)
 
 -- TODO move to RepGraph
-mergeEnvsPcs :: MonadSolver m => [PcEnv] -> m (PcEnv, Bool)
+mergeEnvsPcs :: MonadRepGraphSolver m => [PcEnv] -> m (PcEnv, Bool)
 mergeEnvsPcs unfilteredPcEnvs = do
     let pcEnvs = filter (\pcEnv -> pcEnv.pc /= falseE) unfilteredPcEnvs
     let pc = case pcEnvs of
@@ -512,7 +512,7 @@ foldAssocBalanced f = go
                     foldr1 f xs
 
 -- TODO move to RepGraph
-mergeEnvs :: MonadSolver m => [PcEnv] -> m ExprEnv
+mergeEnvs :: MonadRepGraphSolver m => [PcEnv] -> m ExprEnv
 mergeEnvs envs = do
     varEnvs <-
         fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty . concat)
@@ -550,7 +550,7 @@ compatSMTComparisonKey = \case
 --
 
 -- TODO rename
-convertInnerExpr :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
+convertInnerExpr :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m Expr
 convertInnerExpr expr = case expr.ty of
     ExprTypeRelWrapper -> case expr.value of
         ExprValueOp op args -> do
@@ -558,10 +558,10 @@ convertInnerExpr expr = case expr.ty of
             return $ Expr expr.ty (ExprValueOp op args')
     _ -> smtExprE expr.ty <$> convertExpr expr
 
-convertExprNoSplit :: MonadSolver m => Expr -> ReaderT ExprEnv m S
+convertExprNoSplit :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m S
 convertExprNoSplit expr = view (expecting #_NotSplit) <$> convertExpr expr
 
-convertExpr :: MonadSolver m => Expr -> ReaderT ExprEnv m MaybeSplit
+convertExpr :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m MaybeSplit
 convertExpr expr = do
     case expr.value of
         ExprValueOp op args -> case op of
@@ -705,7 +705,7 @@ convertThenElse cond x y =
             , bottom = s
             }
 
-getDerivedOp :: MonadSolver m => Op -> Integer -> m S
+getDerivedOp :: MonadRepGraphSolver m => Op -> Integer -> m S
 getDerivedOp op n = do
     fname <- withMapSlot #smtDerivedOps (op, n) $ do
         let fname = case op of
@@ -737,7 +737,7 @@ getDerivedOp op n = do
         return fname
     return $ symbolS fname
 
-convertMemUpdate :: MonadSolver m => MaybeSplit -> S -> S -> ExprType -> m MaybeSplit
+convertMemUpdate :: MonadRepGraphSolver m => MaybeSplit -> S -> S -> ExprType -> m MaybeSplit
 convertMemUpdate mMaybeSplit p v ty@(ExprTypeWord bits) = do
     case mMaybeSplit of
         Split splitMem -> do
@@ -769,7 +769,7 @@ convertMemUpdate mMaybeSplit p v ty@(ExprTypeWord bits) = do
                 noteModelExpr p word32T
                 return $ NotSplit $ storeWord64S m p v
 
-convertMemAccess :: MonadSolver m => MaybeSplit -> S -> ExprType -> m S
+convertMemAccess :: MonadRepGraphSolver m => MaybeSplit -> S -> ExprType -> m S
 convertMemAccess mMaybeSplit p ty@(ExprTypeWord bits) = do
     case mMaybeSplit of
         Split splitMem -> do
@@ -787,7 +787,7 @@ convertMemAccess mMaybeSplit p ty@(ExprTypeWord bits) = do
             noteModelExpr s ty
             return s
 
-addImpliesStackEq :: MonadSolver m => Expr -> Expr -> Expr -> ReaderT ExprEnv m S
+addImpliesStackEq :: MonadRepGraphSolver m => Expr -> Expr -> Expr -> ReaderT ExprEnv m S
 addImpliesStackEq sp s1 s2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (sp, s1, s2) $ do
     addr <- addVar "stack-eq-witness" word32T
     assertSMTFact $ eqS (bvandS (nameS addr) (hexS "00000003")) (hexS "00000000")
@@ -796,7 +796,7 @@ addImpliesStackEq sp s1 s2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (s
     let ptr = smtExprE word32T (NotSplit (nameS addr))
     addDefNotSplit "stack-eq" $ eqE (memAccE word32T ptr s1) (memAccE word32T ptr s2)
 
-getStackEqImplies :: MonadSolver m => S -> S -> MaybeSplit -> ReaderT ExprEnv m S
+getStackEqImplies :: MonadRepGraphSolver m => S -> S -> MaybeSplit -> ReaderT ExprEnv m S
 getStackEqImplies split stTop other = do
     let (rhs, cond) = case other of
             Split splitMem -> (splitMem.top, bvuleS splitMem.split split)
@@ -810,7 +810,7 @@ getStackEqImplies split stTop other = do
         Just oldVal -> ensureM $ oldVal == rhs
     return $ impliesS cond (eqS stTop rhs)
 
-getImmBasisMems :: MonadSolver m => S -> m (Set S)
+getImmBasisMems :: MonadRepGraphSolver m => S -> m (Set S)
 getImmBasisMems = flip execStateT S.empty . go
   where
     go = \case
@@ -829,7 +829,7 @@ getImmBasisMems = flip execStateT S.empty . go
                 then getDef (Name sym) >>= go
                 else modify $ S.insert m
 
-addPValids :: MonadSolver m => S -> PValidType -> S -> PValidKind -> m S
+addPValids :: MonadRepGraphSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValids = go False
   where
     go recursion htd pvTy ptr pvKind = do

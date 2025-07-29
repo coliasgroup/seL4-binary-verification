@@ -25,13 +25,13 @@ newtype WithAsmStackRep m a
 runWithAsmStackRep :: MonadRepGraph AsmRefineTag m => ArgRenames AsmRefineTag -> WithAsmStackRep m a -> m a
 runWithAsmStackRep argRenames m = runReaderT m.run argRenames
 
-instance MonadSolverSend m => MonadSolverSend (WithAsmStackRep m) where
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (WithAsmStackRep m) where
     sendSExprWithPlaceholders = WithAsmStackRep . sendSExprWithPlaceholders
 
 instance MonadStructs m => MonadStructs (WithAsmStackRep m) where
     askLookupStruct = WithAsmStackRep askLookupStruct
 
-instance MonadSolver m => MonadSolver (WithAsmStackRep m) where
+instance MonadRepGraphSolver m => MonadRepGraphSolver (WithAsmStackRep m) where
     liftSolver = WithAsmStackRep . liftSolver
 
 instance MonadRepGraph AsmRefineTag m => MonadRepGraphDefaultHelper AsmRefineTag m (WithAsmStackRep m) where

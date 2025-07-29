@@ -80,7 +80,7 @@ class MonadRepGraph t n => MonadRepGraphDefaultHelper t n m | m -> t, m -> n whe
     default liftMonadRepGraphDefaultHelper :: (m ~ t' n, MonadTrans t') => n a -> m a
     liftMonadRepGraphDefaultHelper = lift
 
-class (Tag t, MonadSolver m) => MonadRepGraph t m | m -> t where
+class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
     liftRepGraph :: StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
     runProblemVarRepHook :: NameTy -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
     runPostEmitNodeHook :: Visit -> m ()
@@ -499,7 +499,7 @@ substInduct expr inductVar = varSubst f expr
     f (NameTy { name = Ident "%n", ty = ExprTypeWord 32 }) = Just inductVar
     f _ = Nothing
 
-instEqWithEnvs :: MonadSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
+instEqWithEnvs :: MonadRepGraphSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
 instEqWithEnvs (x, xenv) (y, yenv) = do
     x' <- withEnv xenv $ convertUnderOp x
     y' <- withEnv yenv $ convertUnderOp y
@@ -508,7 +508,7 @@ instEqWithEnvs (x, xenv) (y, yenv) = do
             _ -> eqE
     return $ f x' y'
   where
-    convertUnderOp :: MonadSolver m => Expr -> ReaderT ExprEnv m Expr
+    convertUnderOp :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m Expr
     convertUnderOp expr = case expr.value of
         ExprValueOp op args -> do
             args' <- traverse convertInnerExpr args

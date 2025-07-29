@@ -35,7 +35,7 @@ newtype RepGraphBase t m a
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
-runRepGraphBase :: (Tag t, MonadSolverSend m) => RepGraphBaseInput t -> RepGraphBase t m a -> m a
+runRepGraphBase :: (Tag t, MonadRepGraphSolverSend m) => RepGraphBaseInput t -> RepGraphBase t m a -> m a
 runRepGraphBase input m = runReaderT (evalStateT m'.run initState) env
   where
     env = initEnv input
@@ -47,7 +47,7 @@ runRepGraphBase input m = runReaderT (evalStateT m'.run initState) env
 instance MonadTrans (RepGraphBase t) where
     lift = RepGraphBase . lift . lift
 
-instance MonadSolverSend m => MonadSolverSend (RepGraphBase t m) where
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (RepGraphBase t m) where
     sendSExprWithPlaceholders = RepGraphBase . sendSExprWithPlaceholders
 
 data Env t
@@ -68,14 +68,14 @@ data State t
 instance Monad m => MonadStructs (RepGraphBase t m) where
     askLookupStruct = RepGraphBase $ gview #structs
 
-instance MonadSolverSend m => MonadSolver (RepGraphBase t m) where
+instance MonadRepGraphSolverSend m => MonadRepGraphSolver (RepGraphBase t m) where
     liftSolver m = RepGraphBase
         . zoom #solver
         . magnify #solver
         . mapStateT (mapReaderT (return . runIdentity))
         $ m
 
-instance (Tag t, MonadSolverSend m) => MonadRepGraph t (RepGraphBase t m) where
+instance (Tag t, MonadRepGraphSolverSend m) => MonadRepGraph t (RepGraphBase t m) where
     liftRepGraph m = RepGraphBase
         . zoom #repGraph
         . magnify #repGraph
