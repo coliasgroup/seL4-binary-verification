@@ -9,14 +9,15 @@ module BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
 import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.RepGraph
 import BV.Core.Stages.CompileProofChecks.Solver
-import BV.Core.Stages.CompileProofChecks.Structs
 import BV.Core.Types
 
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans, lift)
+import Data.Foldable (toList)
 import Data.Map (Map)
+import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 
@@ -87,11 +88,14 @@ instance (Tag t, MonadSolverSend m) => MonadRepGraph t (M t m) where
     runPostEmitCallNodeHook _ _ _ _ = return ()
 
 initEnv :: Tag t => RepGraphInput t -> Env t
-initEnv (RepGraphInput {..}) = Env
-    { structs = initStructsEnv rodata structs
-    , solver = initSolverEnv rodata
-    , repGraph = initRepGraphEnv problem functionSigs
+initEnv input = Env
+    { structs
+    , solver = initSolverEnv input.rodata
+    , repGraph = initRepGraphEnv input.problem input.functionSigs
     }
+  where
+    structs = (M.!) $ M.unionsWith (error "unexpected") $
+        rodataStructsOf input.rodata : toList input.structs
 
 initState :: State t
 initState = State
