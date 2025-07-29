@@ -1,13 +1,12 @@
 {-# LANGUAGE MultiWayIf #-}
 
-module BV.Core.Stages.RepGraph.AsmStackRep
+module BV.Core.RepGraph.AsmStackRep
     ( WithAsmStackRep
     , runWithAsmStackRep
     ) where
 
-import BV.Core.Logic
-import BV.Core.Stages.RepGraph.Core
-import BV.Core.Stages.RepGraph.Solver
+import BV.Core.RepGraph.Core
+import BV.Core.RepGraph.Solver
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras

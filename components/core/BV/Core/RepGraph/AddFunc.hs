@@ -1,13 +1,13 @@
 {-# LANGUAGE MultiWayIf #-}
 
-module BV.Core.Stages.RepGraph.AddFunc
+module BV.Core.RepGraph.AddFunc
     ( WithAddFunc
     , runWithAddFunc
     ) where
 
 import BV.Core.Logic
-import BV.Core.Stages.RepGraph.Core
-import BV.Core.Stages.RepGraph.Solver
+import BV.Core.RepGraph.Core
+import BV.Core.RepGraph.Solver
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras

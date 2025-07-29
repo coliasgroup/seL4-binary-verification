@@ -1,13 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module BV.Core.Stages.RepGraph.Base
+module BV.Core.RepGraph.Base
     ( RepGraphBase
     , RepGraphBaseInput (..)
     , runRepGraphBase
     ) where
 
-import BV.Core.Stages.RepGraph.Core
-import BV.Core.Stages.RepGraph.Solver
+import BV.Core.RepGraph.Core
+import BV.Core.RepGraph.Solver
 import BV.Core.Structs
 import BV.Core.Types
 

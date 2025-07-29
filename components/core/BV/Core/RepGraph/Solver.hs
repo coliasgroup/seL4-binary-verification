@@ -8,7 +8,7 @@
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
-module BV.Core.Stages.RepGraph.Solver
+module BV.Core.RepGraph.Solver
     ( ExprEnv
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)

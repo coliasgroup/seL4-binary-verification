@@ -6,8 +6,8 @@ module BV.Core.Search.Inlining
     ) where
 
 import BV.Core.ModelConfig (ModelConfig, configureSExpr)
-import BV.Core.Stages.RepGraph
-import BV.Core.Stages.RepGraph.Solver
+import BV.Core.RepGraph
+import BV.Core.RepGraph.Solver
 import BV.Core.Structs
 import BV.Core.Types
 import BV.SMTLIB2.Monad

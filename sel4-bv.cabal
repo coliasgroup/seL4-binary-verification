@@ -76,6 +76,12 @@ library core
       BV.Core.Graph
       BV.Core.Logic
       BV.Core.ModelConfig
+      BV.Core.RepGraph
+      BV.Core.RepGraph.AddFunc
+      BV.Core.RepGraph.AsmStackRep
+      BV.Core.RepGraph.Base
+      BV.Core.RepGraph.Core
+      BV.Core.RepGraph.Solver
       BV.Core.Search.Inlining
       BV.Core.Search.Inlining.All
       BV.Core.Search.StackBounds
@@ -89,12 +95,6 @@ library core
       BV.Core.Stages.GroupProofChecks
       BV.Core.Stages.InlineAssembly
       BV.Core.Stages.PseudoCompile
-      BV.Core.Stages.RepGraph
-      BV.Core.Stages.RepGraph.AddFunc
-      BV.Core.Stages.RepGraph.AsmStackRep
-      BV.Core.Stages.RepGraph.Base
-      BV.Core.Stages.RepGraph.Core
-      BV.Core.Stages.RepGraph.Solver
       BV.Core.Stages.Utils
       BV.Core.Structs
       BV.Core.Types.Aggregate

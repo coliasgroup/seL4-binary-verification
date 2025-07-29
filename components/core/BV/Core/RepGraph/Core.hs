@@ -9,7 +9,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
-module BV.Core.Stages.RepGraph.Core
+module BV.Core.RepGraph.Core
     ( FunctionSignatures
     , MemCalls
     , MemCallsForFunction (..)
@@ -37,7 +37,7 @@ module BV.Core.Stages.RepGraph.Core
 
 import BV.Core.Graph
 import BV.Core.Logic
-import BV.Core.Stages.RepGraph.Solver
+import BV.Core.RepGraph.Solver
 import BV.Core.Stages.Utils (chooseFreshName)
 import BV.Core.Types
 import BV.Core.Types.Extras
