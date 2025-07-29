@@ -374,7 +374,7 @@ getMemCalls sexpr = do
 
 scanMemCalls :: MonadRepGraph t m => ExprEnv -> m (Maybe MemCalls)
 scanMemCalls env = do
-    let vals = [ v | ((_, ty), v) <- M.toAscList env, ty == memT ]
+    let vals = [ v | (var, v) <- M.toAscList env, var.ty == memT ]
     memCalls <- traverse getMemCalls (vals ^.. folded % #_NotSplit)
     return $ case memCalls of
         [] -> Nothing
@@ -467,7 +467,7 @@ addInputEnvs = do
                         (arg.name.unwrap ++ "_init")
                         arg.ty
                         (Just M.empty)
-                    modify $ M.insert (arg.name, arg.ty) (NotSplit (nameS var))
+                    modify $ M.insert arg (NotSplit (nameS var))
                 for_ side.input $ \arg -> do
                     env <- get
                     opt <- varRepRequest
@@ -476,7 +476,7 @@ addInputEnvs = do
                         VarRepRequestKindInit
                         (Visit { nodeId = side.entryPoint, restrs = []})
                         env
-                    whenJust_ opt $ \splitMem -> modify $ M.insert (arg.name, arg.ty) (Split splitMem)
+                    whenJust_ opt $ \splitMem -> modify $ M.insert arg (Split splitMem)
         env <- execStateT m M.empty
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
 
@@ -564,9 +564,9 @@ getNodePcEnvRaw visitWithTag = do
                                 _ -> do
                                     name <- withEnv env $ addDef (pathCondName visitWithTag) pc
                                     return $ smtExprE boolT name
-                            env' <- flip M.traverseWithKey env $ \(name, ty) v -> do
+                            env' <- flip M.traverseWithKey env $ \var v -> do
                                 case v of
-                                    NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contract name visitWithTag.value v' ty
+                                    NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contract var.name visitWithTag.value v' var.ty
                                     _ -> return v
                             return $ Just (pc', env')
 
@@ -580,23 +580,23 @@ getLoopPcEnv split restrs = do
         let add name ty = do
                 let name2 = printf "%s_loop_at_%s" name (prettyNodeId (Addr split))
                 addVarRestrWithMemCalls name2 ty memCalls
-        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevEnv $ \(name, ty) _v -> do
-            let checkConst = case ty of
+        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevEnv $ \var _v -> do
+            let checkConst = case var.ty of
                     ExprTypeHtd -> True
                     ExprTypeDom -> True
                     _ -> False
-            isSyntConst <- if checkConst then isSyntacticConstant name ty split else return False
+            isSyntConst <- if checkConst then isSyntacticConstant var.name var.ty split else return False
             if isSyntConst
                 then do
-                    modify $ S.insert (name, ty)
-                    return $ prevEnv ! (name, ty)
+                    modify $ S.insert var
+                    return $ prevEnv ! var
                 else do
-                    NotSplit . nameS <$> lift (add (name.unwrap ++ "_after") ty)
-        env' <- flip M.traverseWithKey env $ \(name, ty) v -> do
-            if S.member (name, ty) consts
+                    NotSplit . nameS <$> lift (add (var.name.unwrap ++ "_after") var.ty)
+        env' <- flip M.traverseWithKey env $ \var v -> do
+            if S.member var consts
                 then return v
                 else do
-                    v' <- varRepRequest name ty VarRepRequestKindLoop (Visit (Addr split) restrs) env
+                    v' <- varRepRequest var.name var.ty VarRepRequestKindLoop (Visit (Addr split) restrs) env
                     return $ maybe v Split v'
         pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
         return $ Just (pc', env')
@@ -707,11 +707,11 @@ emitNode visit = do
                 updates <- for basicNode.varUpdates $ \update -> do
                     val <- case update.val.value of
                         ExprValueVar name -> do
-                            return $ env ! (name, update.val.ty)
+                            return $ env ! NameTy name update.val.ty
                         _ -> do
                             let name = localName update.var.name visit
                             withEnv env $ addLocalDef () () name update.val
-                    return ((update.var.name, update.var.ty), val)
+                    return (update.var, val)
                 let env' = M.union (M.fromList updates) env
                 return [(basicNode.next, pc, env')]
             NodeCond condNode -> do
@@ -719,7 +719,7 @@ emitNode visit = do
                 freshName <- getFreshIdent name
                 let cond = varE boolT freshName
                 def <- withEnv env $ addLocalDef () () name condNode.expr
-                let env' = M.insert (freshName, boolT) def env
+                let env' = M.insert (NameTy freshName boolT) def env
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, lpc, env'), (condNode.right, rpc, env')]
@@ -731,19 +731,19 @@ emitNode visit = do
                 let sig = sigs $ WithTag tag callNode.functionName
                 ins <- fmap M.fromList $ for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
                     v <- withEnv env $ convertExpr callArg
-                    return ((funArg.name, funArg.ty), v)
+                    return (NameTy funArg.name funArg.ty, v)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
                 let m = do
                         for_ (zip callNode.output sig.output) $ \(x, y) -> do
                             ensureM $ x.ty == y.ty
                             var <- addVarRestrWithMemCalls (localName x.name visit) x.ty memCalls
-                            modify $ M.insert (x.name, x.ty) (NotSplit (nameS var))
-                            tell [((y.name, y.ty), NotSplit (nameS var))]
+                            modify $ M.insert x (NotSplit (nameS var))
+                            tell [(y, NotSplit (nameS var))]
                         for (zip callNode.output sig.output) $ \(x, y) -> do
                             opt <- get >>= varRepRequest x.name x.ty VarRepRequestKindCall visit
                             whenJust_ opt $ \v -> do
-                                modify $ M.insert (x.name, x.ty) (Split v)
-                                tell [((y.name, x.ty), Split v)]
+                                modify $ M.insert x (Split v)
+                                tell [(NameTy y.name x.ty, Split v)]
                 (_, env', outs') <- runRWST m () env
                 let outs = M.fromList outs'
                 runPostEmitCallNodeHook visit ins outs success

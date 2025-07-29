@@ -183,7 +183,7 @@ finalizeSolver = do
 
 --
 
-type ExprEnv = Map (Ident, ExprType) MaybeSplit
+type ExprEnv = Map NameTy MaybeSplit
 
 -- TODO
 -- data ExprEnvKey = ExprEnvKey
@@ -606,7 +606,7 @@ convertExpr expr = do
                         OpPGlobalValid -> globalWrapperT ty
                         _ -> ty
                 let ExprValueVar htdName = htd.value
-                htd' <- gview $ at (htdName, htd.ty) % unwrapped % expecting #_NotSplit
+                htd' <- gview $ at (NameTy htdName htd.ty) % unwrapped % expecting #_NotSplit
                 p' <- convertExprNoSplit p
                 NotSplit <$> addPValids htd' pvTy p' (pvalidKindFromOp op)
             OpMemDom -> do
@@ -674,7 +674,7 @@ convertExpr expr = do
         ExprValueNum n -> do
             return $ NotSplit $ intWithWidthS (wordTBits expr.ty) n
         ExprValueVar var -> do
-            let envKey = (var, expr.ty)
+            let envKey = NameTy var expr.ty
             let err = error $ "env miss: " ++ show envKey
             asks $ fromMaybe err . M.lookup envKey
         ExprValueSMTExpr s -> do
