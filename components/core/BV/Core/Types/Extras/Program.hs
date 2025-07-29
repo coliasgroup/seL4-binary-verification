@@ -112,7 +112,7 @@ renameVars :: HasVarNames a => (Ident -> Ident) -> a -> a
 renameVars f = runIdentity . renameVarsA (Identity . f)
 
 class HasVarDecls a where
-    varDeclsOf :: Traversal' a (Ident, ExprType)
+    varDeclsOf :: Traversal' a NameTy
 
 instance HasVarDecls Function where
     varDeclsOf =
@@ -124,7 +124,7 @@ instance HasVarDecls FunctionBody where
     varDeclsOf = #nodes % varDeclsOf
 
 instance HasVarDecls NameTy where
-    varDeclsOf = castOptic $ adjacently #name #ty
+    varDeclsOf = castOptic simple
 
 instance HasVarDecls NodeMap where
     varDeclsOf = traversed % varDeclsOf
@@ -135,7 +135,7 @@ instance HasVarDecls Node where
         (#_NodeCall % #output % traversed % varDeclsOf)
 
 instance HasVarDecls VarUpdate where
-    varDeclsOf = castOptic $ #var % adjacently #name #ty
+    varDeclsOf = castOptic #var
 
 nodeConts :: Traversal' Node NodeId
 nodeConts = castOptic $
