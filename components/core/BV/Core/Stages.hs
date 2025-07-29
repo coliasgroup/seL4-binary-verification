@@ -51,8 +51,8 @@ data StagesInput
       , objDumpInfo :: ObjDumpInfo
       , rodata :: ROData
       , stackBounds :: StackBounds
-      , inlineScripts :: InlineScripts AsmRefineTag
-      , proofs :: Proofs AsmRefineTag ()
+      , inlineScripts :: InlineScripts'
+      , proofs :: Proofs' ()
       , earlyAsmFunctionFilter :: IncludeExcludeFilter Ident
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -90,9 +90,9 @@ prettyProofCheckMeta meta = prettyProofScriptNodePath meta.path ++ " >>> " ++ me
 data IntermediateStagesOutput
   = IntermediateStagesOutput
       { functions :: Program
-      , pairings :: Pairings AsmRefineTag
+      , pairings :: Pairings'
       , problems :: Problems'
-      , proofChecks :: ProofChecks AsmRefineTag ProofCheckDescription
+      , proofChecks :: ProofChecks' ProofCheckDescription
       , compatProofChecks :: CompatProofChecks
       , compatSMTProofChecks :: CompatSMTProofChecks
       }
@@ -155,7 +155,7 @@ stages input = StagesOutput
     problems = problems'
     -- problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
 
-    problems' = Problems' $ M.fromList $ do
+    problems' = Problems $ M.fromList $ do
         pairingId <- normalFunctionPairingIds
         let namedFuns =
                 let f funName prog = Named funName (prog.functions ! funName)

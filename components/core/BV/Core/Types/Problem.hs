@@ -21,10 +21,7 @@ data Problem t
       { sides :: ByTag t ProblemSide
       , nodes :: NodeMap
       }
-  deriving (Generic)
-
-deriving instance Tag t => Eq (Problem t)
-deriving instance Tag t => NFData (Problem t)
+  deriving (Eq, Generic, NFData, Ord)
 
 data ProblemSide
   = ProblemSide

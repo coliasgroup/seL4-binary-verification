@@ -22,7 +22,7 @@ import Data.Traversable (for)
 
 compileProofChecks
     :: RepGraphInput AsmRefineTag
-    -> Pairings AsmRefineTag
+    -> Pairings'
     -> ArgRenames AsmRefineTag
     -> [ProofCheck AsmRefineTag a]
     -> [SMTProofCheckGroup a]
@@ -33,7 +33,7 @@ compileProofChecks repGraphInput pairings argRenames checks =
 
 compileProofCheckGroup
     :: RepGraphInput AsmRefineTag
-    -> Pairings AsmRefineTag
+    -> Pairings'
     -> ArgRenames AsmRefineTag
     -> ProofCheckGroup AsmRefineTag a
     -> SMTProofCheckGroup a

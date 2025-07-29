@@ -2,10 +2,15 @@ module BV.Core.Types.Aggregate
     ( CompatProofChecks (..)
     , CompatSMTProofChecks (..)
     , InlineScripts (..)
-    , Problems' (..)
+    , InlineScripts'
+    , Problems (..)
+    , Problems'
     , ProofChecks (..)
+    , ProofChecks'
     , Proofs (..)
+    , Proofs'
     , SMTProofChecks (..)
+    , SMTProofChecks'
     , StackBounds (..)
     , toCompatProofChecks
     , toCompatSMTProofChecks
@@ -26,20 +31,26 @@ import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 
-newtype Problems'
-  = Problems' { unwrap :: M.Map PairingId' Problem' }
+newtype Problems t
+  = Problems { unwrap :: M.Map (PairingId t) (Problem t) }
   deriving (Eq, Generic)
   deriving newtype (NFData)
+
+type Problems' = Problems AsmRefineTag
 
 newtype ProofChecks t a
   = ProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t [ProofCheck t a]) }
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
+type ProofChecks' = ProofChecks AsmRefineTag
+
 newtype SMTProofChecks t a
   = SMTProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t [SMTProofCheckGroup a]) }
   deriving (Eq, Functor, Generic, Ord, Show)
   deriving newtype (NFData)
+
+type SMTProofChecks' = SMTProofChecks AsmRefineTag
 
 -- compat
 
@@ -75,9 +86,13 @@ newtype InlineScripts t
 
 instance (Tag t, Binary t) => Binary (InlineScripts t) where
 
+type InlineScripts' = InlineScripts AsmRefineTag
+
 newtype Proofs t a
   = Proofs { unwrap :: M.Map (PairingId t) (ProofScript t a) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
 instance (Tag t, Binary t, Binary a) => Binary (Proofs t a) where
+
+type Proofs' = Proofs AsmRefineTag

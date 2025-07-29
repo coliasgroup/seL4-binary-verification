@@ -25,7 +25,7 @@ data DiscoverInlineScriptInput
   = DiscoverInlineScriptInput
       { cStructs :: Map Ident Struct
       , functions :: WithTag' Ident -> Function
-      , pairings :: Pairings AsmRefineTag
+      , pairings :: Pairings'
       , rodata :: ROData
       , fnames :: ByTag' Ident
       }

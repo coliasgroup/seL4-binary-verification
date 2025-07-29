@@ -25,7 +25,7 @@ import Numeric (readDec)
 import Optics
 import qualified Text.ParserCombinators.ReadP as P
 
-addInlineAssemblySpecs :: ByTag' Program -> (Pairings AsmRefineTag, ByTag' Program, ByTag' [Ident])
+addInlineAssemblySpecs :: ByTag' Program -> (Pairings', ByTag' Program, ByTag' [Ident])
 addInlineAssemblySpecs progs =
     (pairings, finalProgs, unhandled)
   where
@@ -56,7 +56,7 @@ addInlineAssemblySpecs progs =
                 tell (S.singleton instFun, S.empty)
                 return $ fun & #body ?~ funBody
 
-    explodeInst :: InstFunction -> (ByTag' Program, Pairings AsmRefineTag)
+    explodeInst :: InstFunction -> (ByTag' Program, Pairings')
     explodeInst instFun =
         ( (.) programFromFunctions . M.singleton <$> pairingId <*> pairOfNewFuns
         , Pairings (M.singleton pairingId pairing)
