@@ -82,7 +82,7 @@ class MonadRepGraph t n => MonadRepGraphDefaultHelper t n m | m -> t, m -> n whe
 
 class (Tag t, MonadSolver m) => MonadRepGraph t m | m -> t where
     liftRepGraph :: StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
-    runProblemVarRepHook :: Ident -> ExprType -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
+    runProblemVarRepHook :: NameTy -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
     runPostEmitNodeHook :: Visit -> m ()
     runPreEmitCallNodeHook :: Visit -> Expr -> ExprEnv -> m ()
     runPostEmitCallNodeHook :: Visit -> ExprEnv -> ExprEnv -> Expr -> m ()
@@ -90,8 +90,8 @@ class (Tag t, MonadSolver m) => MonadRepGraph t m | m -> t where
     default liftRepGraph :: MonadRepGraphDefaultHelper t n m => StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
     liftRepGraph = liftMonadRepGraphDefaultHelper . liftRepGraph
 
-    default runProblemVarRepHook :: MonadRepGraphDefaultHelper t n m => Ident -> ExprType -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
-    runProblemVarRepHook = compose4 liftMonadRepGraphDefaultHelper runProblemVarRepHook
+    default runProblemVarRepHook :: MonadRepGraphDefaultHelper t n m => NameTy -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
+    runProblemVarRepHook = compose3 liftMonadRepGraphDefaultHelper runProblemVarRepHook
 
     default runPostEmitNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> m ()
     runPostEmitNodeHook = liftMonadRepGraphDefaultHelper . runPostEmitNodeHook
@@ -445,13 +445,13 @@ data VarRepRequestKind
   | VarRepRequestKindLoop
   deriving (Eq, Generic, Ord, Show)
 
-varRepRequest :: MonadRepGraph t m => Ident -> ExprType -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
-varRepRequest name ty kind visit env = runMaybeT $ do
+varRepRequest :: MonadRepGraph t m => NameTy -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
+varRepRequest var kind visit env = runMaybeT $ do
     let n = nodeAddrFromNodeId visit.nodeId
-    addrExpr <- MaybeT $ runProblemVarRepHook name ty kind n
+    addrExpr <- MaybeT $ runProblemVarRepHook var kind n
     addrSexpr <- withEnv env $ convertExpr addrExpr
-    let name' = printf "%s_for_%s" name.unwrap (nodeCountName visit)
-    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) name' ty
+    let name' = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
+    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) name' var.ty
 
 --
 
@@ -471,8 +471,7 @@ addInputEnvs = do
                 for_ side.input $ \arg -> do
                     env <- get
                     opt <- varRepRequest
-                        arg.name
-                        arg.ty
+                        arg
                         VarRepRequestKindInit
                         (Visit { nodeId = side.entryPoint, restrs = []})
                         env
@@ -497,8 +496,8 @@ getInductVar induct =
 substInduct :: Expr -> Expr -> Expr
 substInduct expr inductVar = varSubst f expr
   where
-    f (Ident "%n") (ExprTypeWord 32) = Just inductVar
-    f _ _ = Nothing
+    f (NameTy { name = Ident "%n", ty = ExprTypeWord 32 }) = Just inductVar
+    f _ = Nothing
 
 instEqWithEnvs :: MonadSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
 instEqWithEnvs (x, xenv) (y, yenv) = do
@@ -596,7 +595,7 @@ getLoopPcEnv split restrs = do
             if S.member var consts
                 then return v
                 else do
-                    v' <- varRepRequest var.name var.ty VarRepRequestKindLoop (Visit (Addr split) restrs) env
+                    v' <- varRepRequest var VarRepRequestKindLoop (Visit (Addr split) restrs) env
                     return $ maybe v Split v'
         pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
         return $ Just (pc', env')
@@ -740,7 +739,7 @@ emitNode visit = do
                             modify $ M.insert x (NotSplit (nameS var))
                             tell [(y, NotSplit (nameS var))]
                         for (zip callNode.output sig.output) $ \(x, y) -> do
-                            opt <- get >>= varRepRequest x.name x.ty VarRepRequestKindCall visit
+                            opt <- get >>= varRepRequest x VarRepRequestKindCall visit
                             whenJust_ opt $ \v -> do
                                 modify $ M.insert x (Split v)
                                 tell [(NameTy y.name x.ty, Split v)]

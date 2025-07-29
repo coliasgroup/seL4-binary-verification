@@ -79,9 +79,9 @@ walkExprsM f expr = do
 walkExprs :: (Expr -> Expr) -> Expr -> Expr
 walkExprs f = runIdentity . walkExprsM (Identity . f)
 
-varSubst :: (Ident -> ExprType -> Maybe Expr) -> Expr -> Expr
+varSubst :: (NameTy -> Maybe Expr) -> Expr -> Expr
 varSubst f = walkExprs $ \case
-        expr@(Expr ty (ExprValueVar ident)) -> fromMaybe expr $ f ident ty
+        expr@(Expr ty (ExprValueVar ident)) -> fromMaybe expr $ f $ NameTy ident ty
         expr -> expr
 
 class HasVarNames a where
