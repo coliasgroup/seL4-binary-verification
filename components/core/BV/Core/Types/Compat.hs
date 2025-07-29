@@ -11,7 +11,6 @@ import BV.Core.Types.SMTProofChecks
 import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
-import Data.Binary (Binary)
 import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
@@ -29,7 +28,6 @@ newtype CompatSMTProofChecks
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance Binary CompatSMTProofChecks where
 
 toCompatSMTProofChecks :: SMTProofChecks () -> CompatSMTProofChecks
 toCompatSMTProofChecks (SMTProofChecks byPairing) = CompatSMTProofChecks (M.map fold byPairing)
