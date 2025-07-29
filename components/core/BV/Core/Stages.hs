@@ -117,11 +117,13 @@ stages input = StagesOutput
 
   where
 
-    alteredPrograms = fixupProgram <$> byAsmRefineTag (ByAsmRefineTag
-        { asm = getAsm input.programs & #functions %~ M.filterWithKey (\k _v ->
+    alterProgramByTag = byAsmRefineTag (ByAsmRefineTag
+        { asm = #functions %~ M.filterWithKey (\k _v ->
             applyIncludeExcludeFilter input.earlyAsmFunctionFilter k)
-        , c = pseudoCompile input.objDumpInfo (getC input.programs)
+        , c = pseudoCompile input.objDumpInfo
         })
+
+    alteredPrograms = fixupProgram <$> (alterProgramByTag <*> input.programs)
 
     (inlineAsmPairings, alteredProgramsWithInlineAsm, unhandledAsmFunctionNames) =
         addInlineAssemblySpecs alteredPrograms
