@@ -74,6 +74,7 @@ library core
       BV.Core.DecorateProofScript
       BV.Core.ExecuteSMTProofChecks
       BV.Core.GenerateFreshName
+      BV.Core.Glue
       BV.Core.Graph
       BV.Core.Logic
       BV.Core.ModelConfig
