@@ -26,10 +26,10 @@ data DiscoverAllInlineScriptInput
   deriving (Generic)
 
 discoverAllInlineScripts
-    :: (Monad m, S.MonadSolver n)
-    => ((ModelConfig -> n a) -> m a)
+    :: (Applicative f, S.MonadSolver n)
+    => ((ModelConfig -> n a) -> f a)
     -> DiscoverAllInlineScriptInput
-    -> m InlineScripts'
+    -> f InlineScripts'
 discoverAllInlineScripts run input = scripts
 
   where

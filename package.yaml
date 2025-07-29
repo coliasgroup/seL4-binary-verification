@@ -166,6 +166,7 @@ internal-libraries:
     source-dirs: components/system-core
     exposed-modules:
       - BV.System.Core
+      - BV.System.Core.Utils.Logging # TODO
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
@@ -304,23 +305,6 @@ tests:
       - tasty-hunit
     ghc-options: *test-ghc-options
 
-  search-test:
-    source-dirs: components/tests/search-test
-    main: Main
-    dependencies:
-      - sel4-bv:core
-      - sel4-bv:concrete-syntax
-      - sel4-bv:target-dir
-      - sel4-bv:system
-      - sel4-bv:system-core
-      - sel4-bv:test-utils
-      # external
-      - monad-logger
-      - filepath
-      - tasty
-      - tasty-hunit
-    ghc-options: *test-ghc-options
-
   concrete-syntax-test:
     source-dirs: components/tests/concrete-syntax-test
     main: Main
@@ -346,6 +330,29 @@ tests:
     dependencies:
       - sel4-bv:system
       - sel4-bv:system-core
+    ghc-options: *test-ghc-options
+
+  search-test:
+    source-dirs: components/tests/search-test
+    main: Main
+    dependencies:
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:target-dir
+      - sel4-bv:system
+      - sel4-bv:system-core
+      - sel4-bv:system-utils
+      - sel4-bv:smtlib2
+      - sel4-bv:smtlib2-process
+      - sel4-bv:test-utils
+      - sel4-bv:logging
+      # external
+      - unliftio-core
+      - monad-logger
+      - filepath
+      - process
+      - tasty
+      - tasty-hunit
     ghc-options: *test-ghc-options
 
 # NOTES

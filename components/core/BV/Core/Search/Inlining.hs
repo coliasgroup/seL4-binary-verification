@@ -30,10 +30,10 @@ data DiscoverInlineScriptInput
   deriving (Generic)
 
 discoverInlineScript
-    :: (Monad m, S.MonadSolver n)
-    => ((ModelConfig -> n a) -> m a)
+    :: (Applicative f, S.MonadSolver n)
+    => ((ModelConfig -> n a) -> f a)
     -> DiscoverInlineScriptInput
-    -> m InlineScript'
+    -> f InlineScript'
 discoverInlineScript = undefined
 
 newtype InlineM m a
