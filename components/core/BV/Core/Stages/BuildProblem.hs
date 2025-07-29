@@ -282,6 +282,6 @@ getFreshName :: Ident -> State (NodeMapBuilder t) Ident
 getFreshName hint = do
     zoom #vars $ do
         taken <- get
-        let name = Ident $ chooseFreshName (flip S.member taken . Ident) hint.unwrap
+        let name = Ident $ generateFreshName (flip S.member taken . Ident) hint.unwrap
         modify $ S.insert name
         return name

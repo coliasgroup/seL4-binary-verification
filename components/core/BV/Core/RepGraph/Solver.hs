@@ -219,7 +219,7 @@ takeFreshName =
     takeFreshNameIn l = liftSolver . zoom l . takeFreshNameHere
     takeFreshNameHere hint = do
         taken <- get
-        let name = chooseFreshName (flip S.member taken . Name) hint
+        let name = generateFreshName (flip S.member taken . Name) hint
         modify $ S.insert (Name name)
         return name
 

@@ -38,7 +38,7 @@ module BV.Core.RepGraph.Core
 import BV.Core.Graph
 import BV.Core.Logic
 import BV.Core.RepGraph.Solver
-import BV.Core.Stages.Utils (chooseFreshName)
+import BV.Core.Stages.Utils (generateFreshName)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
@@ -281,7 +281,7 @@ getFreshIdent nameHint = do
     problemNames <- liftRepGraph $ gview #problemNames
     extraProblemNames <- liftRepGraph $ use #extraProblemNames
     let taken n = S.member n problemNames || S.member n extraProblemNames
-    let n = Ident $ chooseFreshName (taken . Ident) nameHint
+    let n = Ident $ generateFreshName (taken . Ident) nameHint
     liftRepGraph $ #extraProblemNames %= S.insert n
     return n
 

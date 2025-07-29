@@ -1,12 +1,12 @@
 module BV.Core.Stages.Utils
-    ( chooseFreshName
+    ( generateFreshName
     ) where
 
 import BV.Core.Utils
 
 -- Implementation matches graph_refine.syntax.fresh_name
-chooseFreshName :: (String -> Bool) -> String -> String
-chooseFreshName isTaken n =
+generateFreshName :: (String -> Bool) -> String -> String
+generateFreshName isTaken n =
     if not (isTaken n)
     then n
     else loop1 1 (1 :: Integer)
