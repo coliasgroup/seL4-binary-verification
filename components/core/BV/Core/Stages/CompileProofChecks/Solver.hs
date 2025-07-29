@@ -185,12 +185,6 @@ finalizeSolver = do
 
 type ExprEnv = Map NameTy MaybeSplit
 
--- TODO
--- data ExprEnvKey = ExprEnvKey
---     { name :: Ident
---     , ty :: ExprType
---     }
-
 withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
 withEnv = flip runReaderT
 
