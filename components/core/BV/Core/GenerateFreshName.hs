@@ -1,4 +1,4 @@
-module BV.Core.Stages.Utils
+module BV.Core.GenerateFreshName
     ( generateFreshName
     ) where
 

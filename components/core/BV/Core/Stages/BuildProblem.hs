@@ -4,9 +4,9 @@ module BV.Core.Stages.BuildProblem
     ( buildProblem
     ) where
 
+import BV.Core.GenerateFreshName
 import BV.Core.Graph
 import BV.Core.Logic
-import BV.Core.Stages.Utils
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils

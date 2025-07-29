@@ -39,8 +39,8 @@ module BV.Core.RepGraph.Solver
     , withoutEnv
     ) where
 
+import BV.Core.GenerateFreshName
 import BV.Core.Logic
-import BV.Core.Stages.Utils
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras

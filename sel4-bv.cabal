@@ -73,6 +73,7 @@ library core
       BV.Core.Debug.Utils
       BV.Core.DecorateProofScript
       BV.Core.ExecuteSMTProofChecks
+      BV.Core.GenerateFreshName
       BV.Core.Graph
       BV.Core.Logic
       BV.Core.ModelConfig
@@ -95,7 +96,6 @@ library core
       BV.Core.Stages.GroupProofChecks
       BV.Core.Stages.InlineAssembly
       BV.Core.Stages.PseudoCompile
-      BV.Core.Stages.Utils
       BV.Core.Structs
       BV.Core.Types.Aggregate
       BV.Core.Types.AsmRefineTag

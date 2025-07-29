@@ -35,10 +35,10 @@ module BV.Core.RepGraph.Core
     , zeroMemCallsForFunction
     ) where
 
+import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Graph
 import BV.Core.Logic
 import BV.Core.RepGraph.Solver
-import BV.Core.Stages.Utils (generateFreshName)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
