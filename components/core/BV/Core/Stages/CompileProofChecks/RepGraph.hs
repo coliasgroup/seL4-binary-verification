@@ -1,7 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE TypeFamilies #-}
 
 -- TODO
 {-# LANGUAGE UndecidableInstances #-}
