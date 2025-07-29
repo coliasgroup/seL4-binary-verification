@@ -39,6 +39,7 @@ import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (isJust)
+import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
@@ -137,15 +138,13 @@ stages input = StagesOutput
         asm <- M.keys (getAsm finalPrograms).functions
         let c = asmFunNameToCFunName asm
         guard $ c `M.member` (getC finalPrograms).functions
-        return $ byAsmRefineTag (ByAsmRefineTag { asm, c = asmFunNameToCFunName asm })
+        return $ byAsmRefineTag (ByAsmRefineTag { asm, c })
 
-    normalPairings = M.fromList
-        [ let stackBound = input.stackBounds.unwrap ! (getAsm pairingId)
-              sig = functionSigs $ WithTag C (getC pairingId)
-              pairing = formulatePairing stackBound sig
-           in (pairingId, pairing)
-        | pairingId <- normalFunctionPairingIds
-        ]
+    normalPairings =
+        let f pairingId = formulatePairing
+                (input.stackBounds.unwrap ! getAsm pairingId)
+                (functionSigs (viewWithTag C pairingId))
+         in M.fromSet f (S.fromList normalFunctionPairingIds)
 
     pairings = Pairings $ normalPairings `M.union` inlineAsmPairings.unwrap
 
