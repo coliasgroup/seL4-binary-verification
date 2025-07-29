@@ -89,7 +89,7 @@ library core
       BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
       BV.Core.Stages.CompileProofChecks.Solver
       BV.Core.Stages.EnumerateProofChecks
-      BV.Core.Stages.Fixup
+      BV.Core.Stages.FixupProgram
       BV.Core.Stages.FormulatePairing
       BV.Core.Stages.GroupProofChecks
       BV.Core.Stages.InlineAssembly

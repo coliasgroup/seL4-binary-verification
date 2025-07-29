@@ -1,4 +1,4 @@
-module BV.Core.Stages.Fixup
+module BV.Core.Stages.FixupProgram
     ( fixupProgram
     ) where
 
