@@ -52,7 +52,7 @@ instance TraverseTopLevelExprs Node where
             `adjoin` (#_NodeCall % #input % traversed)
 
 instance TraverseTopLevelExprs VarUpdate where
-    traverseTopLevelLevelExprs = castOptic #expr
+    traverseTopLevelLevelExprs = castOptic #val
 
 instance TraverseTopLevelExprs Expr where
     traverseTopLevelLevelExprs = castOptic simple
@@ -97,7 +97,7 @@ instance HasVarNames Node where
             `adjoin` (#_NodeCall % adjoin (#input % traversed % varNamesOf) (#output % traversed % varNamesOf))
 
 instance HasVarNames VarUpdate where
-    varNamesOf = #varName `adjoin` #expr % varNamesOf
+    varNamesOf = (#var % #name) `adjoin` #val % varNamesOf
 
 instance HasVarNames Expr where
     varNamesOf = #value % (#_ExprValueVar `adjoin` (#_ExprValueOp % _2 % traversed % varNamesOf))
@@ -135,7 +135,7 @@ instance HasVarDecls Node where
         (#_NodeCall % #output % traversed % varDeclsOf)
 
 instance HasVarDecls VarUpdate where
-    varDeclsOf = castOptic $ adjacently #varName #ty
+    varDeclsOf = castOptic $ #var % adjacently #name #ty
 
 nodeConts :: Traversal' Node NodeId
 nodeConts = castOptic $

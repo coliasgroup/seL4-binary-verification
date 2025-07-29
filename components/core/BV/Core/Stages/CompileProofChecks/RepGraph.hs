@@ -705,13 +705,13 @@ emitNode visit = do
                 return [(condNode.left, pc, env), (condNode.right, falseE, env)]
             NodeBasic basicNode -> do
                 updates <- for basicNode.varUpdates $ \update -> do
-                    val <- case update.expr.value of
+                    val <- case update.val.value of
                         ExprValueVar name -> do
-                            return $ env ! (name, update.expr.ty)
+                            return $ env ! (name, update.val.ty)
                         _ -> do
-                            let name = localName update.varName visit
-                            withEnv env $ addLocalDef () () name update.expr
-                    return ((update.varName, update.ty), val)
+                            let name = localName update.var.name visit
+                            withEnv env $ addLocalDef () () name update.val
+                    return ((update.var.name, update.var.ty), val)
                 let env' = M.union (M.fromList updates) env
                 return [(basicNode.next, pc, env')]
             NodeCond condNode -> do
@@ -766,9 +766,9 @@ isSyntacticConstant origName ty split = do
                             else return newName
                         NodeBasic basicNode -> do
                             let updateExprs =
-                                    [ u.expr
+                                    [ u.val
                                     | u <- basicNode.varUpdates
-                                    , NameTy u.varName u.ty == NameTy name ty
+                                    , u.var == NameTy name ty
                                     ]
                             let updateExprsOpt = for updateExprs $ \v -> case v.value of
                                     ExprValueVar i -> Just i

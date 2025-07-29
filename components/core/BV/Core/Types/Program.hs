@@ -217,9 +217,8 @@ instance Binary CallNode where
 
 data VarUpdate
   = VarUpdate
-      { varName :: Ident
-      , ty :: ExprType
-      , expr :: Expr
+      { var :: NameTy
+      , val :: Expr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

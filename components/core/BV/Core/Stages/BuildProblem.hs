@@ -214,9 +214,11 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
             { next = Addr entryNodeAddr
             , varUpdates =
                 [ VarUpdate
-                    { varName = renames.var ! arg.name
-                    , ty = arg.ty
-                    , expr = callInput
+                    { var = NameTy
+                        { name = renames.var ! arg.name
+                        , ty = arg.ty
+                        }
+                    , val = callInput
                     }
                 | (arg, callInput) <- zip fun.input callNode.input
                 ]
@@ -226,9 +228,11 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
             { next = callNode.next
             , varUpdates =
                 [ VarUpdate
-                    { varName = callOutput.name
-                    , ty = arg.ty
-                    , expr = varE arg.ty (renames.var ! arg.name)
+                    { var = NameTy
+                        { name = callOutput.name
+                        , ty = arg.ty
+                        }
+                    , val = varE arg.ty (renames.var ! arg.name)
                     }
                 | (arg, callOutput) <- zip fun.output callNode.output
                 ]

@@ -115,7 +115,7 @@ instance ParseInLine Node where
             _ -> fail "invalid node type"
 
 instance ParseInLine VarUpdate where
-    parseInLine = VarUpdate <$> parseInLine <*> parseInLine <*> parseInLine
+    parseInLine = VarUpdate <$> parseInLine <*> parseInLine
 
 instance ParseInLine Expr where
     parseInLine = do
@@ -295,7 +295,7 @@ instance BuildInLine Node where
     buildInLine (NodeCall (CallNode { next, functionName, input, output })) = "Call" <> put next <> put functionName <> put input <> put output
 
 instance BuildInLine VarUpdate where
-    buildInLine (VarUpdate { varName, ty, expr }) = put varName <> put ty <> put expr
+    buildInLine (VarUpdate { var, val }) = put var <> put val
 
 instance BuildInLine Expr where
     buildInLine (Expr { ty, value }) = case value of
