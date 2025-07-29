@@ -1,9 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
-    ( M
-    , RepGraphInput (..)
-    , runM
+    ( RepGraphBase
+    , RepGraphBaseInput (..)
+    , runRepGraphBase
     ) where
 
 import BV.Core.Logic
@@ -21,8 +21,8 @@ import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 
-data RepGraphInput t
-  = RepGraphInput
+data RepGraphBaseInput t
+  = RepGraphBaseInput
       { structs :: ByTag t (Map Ident Struct)
       , rodata :: ROData
       , problem :: Problem t
@@ -30,13 +30,13 @@ data RepGraphInput t
       }
   deriving (Generic)
 
-newtype M t m a
-  = M { run :: StateT (State t) (ReaderT (Env t) m) a }
+newtype RepGraphBase t m a
+  = RepGraphBase { run :: StateT (State t) (ReaderT (Env t) m) a }
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
-runM :: (Tag t, MonadSolverSend m) => RepGraphInput t -> M t m a -> m a
-runM input m = runReaderT (evalStateT m'.run initState) env
+runRepGraphBase :: (Tag t, MonadSolverSend m) => RepGraphBaseInput t -> RepGraphBase t m a -> m a
+runRepGraphBase input m = runReaderT (evalStateT m'.run initState) env
   where
     env = initEnv input
     m' = do
@@ -44,11 +44,11 @@ runM input m = runReaderT (evalStateT m'.run initState) env
         initRepGraph
         m
 
-instance MonadTrans (M t) where
-    lift = M . lift . lift
+instance MonadTrans (RepGraphBase t) where
+    lift = RepGraphBase . lift . lift
 
-instance MonadSolverSend m => MonadSolverSend (M t m) where
-    sendSExprWithPlaceholders = M . sendSExprWithPlaceholders
+instance MonadSolverSend m => MonadSolverSend (RepGraphBase t m) where
+    sendSExprWithPlaceholders = RepGraphBase . sendSExprWithPlaceholders
 
 data Env t
   = Env
@@ -65,18 +65,18 @@ data State t
       }
   deriving (Generic)
 
-instance Monad m => MonadStructs (M t m) where
-    askLookupStruct = M $ gview #structs
+instance Monad m => MonadStructs (RepGraphBase t m) where
+    askLookupStruct = RepGraphBase $ gview #structs
 
-instance MonadSolverSend m => MonadSolver (M t m) where
-    liftSolver m = M
+instance MonadSolverSend m => MonadSolver (RepGraphBase t m) where
+    liftSolver m = RepGraphBase
         . zoom #solver
         . magnify #solver
         . mapStateT (mapReaderT (return . runIdentity))
         $ m
 
-instance (Tag t, MonadSolverSend m) => MonadRepGraph t (M t m) where
-    liftRepGraph m = M
+instance (Tag t, MonadSolverSend m) => MonadRepGraph t (RepGraphBase t m) where
+    liftRepGraph m = RepGraphBase
         . zoom #repGraph
         . magnify #repGraph
         . mapStateT (mapReaderT (return . runIdentity))
@@ -87,7 +87,7 @@ instance (Tag t, MonadSolverSend m) => MonadRepGraph t (M t m) where
     runPreEmitCallNodeHook _ _ _ = return ()
     runPostEmitCallNodeHook _ _ _ _ = return ()
 
-initEnv :: Tag t => RepGraphInput t -> Env t
+initEnv :: Tag t => RepGraphBaseInput t -> Env t
 initEnv input = Env
     { structs
     , solver = initSolverEnv input.rodata

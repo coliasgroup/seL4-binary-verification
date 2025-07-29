@@ -184,7 +184,7 @@ stages input = StagesOutput
     compatProofChecks = toCompatProofChecks proofChecks
 
     smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
-        let repGraphInput = RepGraphInput
+        let repGraphInput = RepGraphBaseInput
                 { structs = input.programs <&> (.structs)
                 , rodata = input.rodata
                 , problem
