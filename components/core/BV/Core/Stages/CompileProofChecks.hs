@@ -43,7 +43,7 @@ compileProofCheckGroup repGraphInput pairings argRenames group =
     (imps, setup) = runWriter (runM repGraphInput (runWithAddFunc pairings (runWithAsmStackRep argRenames m)))
     m = interpretGroup group <* finalizeSolver
 
-interpretGroup :: MonadRepGraph AsmRefineTag m => ProofCheckGroup AsmRefineTag a -> m [SMTProofCheckImp a]
+interpretGroup :: (RefineTag t, MonadRepGraph t m) => ProofCheckGroup t a -> m [SMTProofCheckImp a]
 interpretGroup group = do
     hyps <- for group $ \check -> do
         concl <- interpretHyp check.hyp
@@ -53,7 +53,7 @@ interpretGroup group = do
         sexpr <- withoutEnv $ convertExprNoSplit term
         return $ SMTProofCheckImp check.meta sexpr
 
-interpretHyp :: MonadRepGraph AsmRefineTag m => Hyp AsmRefineTag -> m Expr
+interpretHyp :: (RefineTag t, MonadRepGraph t m) => Hyp t -> m Expr
 interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case

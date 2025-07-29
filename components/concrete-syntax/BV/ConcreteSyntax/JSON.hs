@@ -43,9 +43,9 @@ instance RefineTag t => FromJSONKey (PairingId t) where
 instance RefineTag t => ToJSONKey (PairingId t) where
     toJSONKey = ToJSONKeyText (fromString . prettyPairingId) (A.string . prettyPairingId)
 
-deriving instance FromJSON InlineScripts
+deriving instance RefineTag t => FromJSON (InlineScripts t)
 
-deriving instance ToJSON InlineScripts
+deriving instance RefineTag t => ToJSON (InlineScripts t)
 
 instance Tag t => FromJSON (InlineScriptEntry t) where
     parseJSON = parseLine
@@ -71,9 +71,9 @@ instance RefineTag t => FromJSON (PairingEq t) where
 instance RefineTag t => ToJSON (PairingEq t) where
     toJSON = buildLine
 
-deriving instance FromJSON (Proofs ())
+deriving instance RefineTag t => FromJSON (Proofs t ())
 
-deriving instance ToJSON (Proofs ())
+deriving instance RefineTag t => ToJSON (Proofs t ())
 
 instance RefineTag t => FromJSON (ProofScript t ()) where
     parseJSON = parseLine

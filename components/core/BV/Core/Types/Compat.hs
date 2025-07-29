@@ -5,10 +5,9 @@ module BV.Core.Types.Compat
     , toCompatSMTProofChecks
     ) where
 
-import BV.Core.Types.Pairing
+import BV.Core.Types.AsmRefineTag
 import BV.Core.Types.ProofChecks
 import BV.Core.Types.SMTProofChecks
-import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import Data.Foldable (fold)
@@ -28,6 +27,5 @@ newtype CompatSMTProofChecks
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-
-toCompatSMTProofChecks :: SMTProofChecks () -> CompatSMTProofChecks
+toCompatSMTProofChecks :: SMTProofChecks AsmRefineTag () -> CompatSMTProofChecks
 toCompatSMTProofChecks (SMTProofChecks byPairing) = CompatSMTProofChecks (M.map fold byPairing)

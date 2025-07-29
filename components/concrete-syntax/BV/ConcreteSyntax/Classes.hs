@@ -77,14 +77,14 @@ deriving via (GraphLangLikeBVFile Program) instance WriteBVFile TL.Text Program
 deriving via (GraphLangLikeBVFile StackBounds) instance ReadBVFile TL.Text StackBounds
 deriving via (GraphLangLikeBVFile StackBounds) instance WriteBVFile TL.Text StackBounds
 
-deriving via (GraphLangLikeBVFile Problems) instance ReadBVFile TL.Text Problems
-deriving via (GraphLangLikeBVFile Problems) instance WriteBVFile TL.Text Problems
+deriving via (GraphLangLikeBVFile Problems') instance ReadBVFile TL.Text Problems'
+deriving via (GraphLangLikeBVFile Problems') instance WriteBVFile TL.Text Problems'
 
-deriving via (JSONBVFile InlineScripts) instance ReadBVFile BL.ByteString InlineScripts
-deriving via (JSONBVFile InlineScripts) instance WriteBVFile BL.ByteString InlineScripts
+deriving via (JSONBVFile (InlineScripts t)) instance RefineTag t => ReadBVFile BL.ByteString (InlineScripts t)
+deriving via (JSONBVFile (InlineScripts t)) instance RefineTag t => WriteBVFile BL.ByteString (InlineScripts t)
 
-deriving via (JSONBVFile (Proofs ())) instance ReadBVFile BL.ByteString (Proofs ())
-deriving via (JSONBVFile (Proofs ())) instance WriteBVFile BL.ByteString (Proofs ())
+deriving via (JSONBVFile (Proofs t ())) instance RefineTag t => ReadBVFile BL.ByteString (Proofs t ())
+deriving via (JSONBVFile (Proofs t ())) instance RefineTag t => WriteBVFile BL.ByteString (Proofs t ())
 
 deriving via (JSONBVFile (Pairings t)) instance RefineTag t => ReadBVFile BL.ByteString (Pairings t)
 deriving via (JSONBVFile (Pairings t)) instance RefineTag t => WriteBVFile BL.ByteString (Pairings t)

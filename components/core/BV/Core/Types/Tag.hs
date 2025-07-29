@@ -2,22 +2,15 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.Core.Types.Tag
-    ( AsmRefineTag (..)
-    , ByAsmRefineTag (..)
-    , ByTag
-    , ByTag'
+    ( ByTag
     , RefineTag
     , Tag (..)
     , TrivialTag (..)
     , WithTag (..)
-    , WithTag'
     , atTag
-    , byAsmRefineTag
     , byRefineTag
     , byTagFrom
     , byTagFromList
-    , getAsm
-    , getC
     , getLeft
     , getRight
     , leftTag
@@ -144,50 +137,3 @@ data TrivialTag
   deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Read, Show)
 
 instance Tag TrivialTag where
-
---
-
-data AsmRefineTag
-  = Asm
-  | C
-  deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Show)
-
-instance Binary AsmRefineTag where
-
-instance Tag AsmRefineTag where
-    prettyTag = \case
-        Asm -> "ASM"
-        C -> "C"
-    parsePrettyTag = \case
-        "ASM" -> Just Asm
-        "C" -> Just C
-        _ -> Nothing
-
-instance RefineTag AsmRefineTag
-
-getAsm :: ByTag AsmRefineTag a -> a
-getAsm = getLeft
-
-getC :: ByTag AsmRefineTag a -> a
-getC = getRight
-
--- TODO
--- {-# LANGUAGE PatternSynonyms #-}
--- pattern ByAsmRefineTag :: a -> a -> ByTag AsmRefineTag a
--- pattern ByAsmRefineTag { asm, c } <- TODO
-
-data ByAsmRefineTag a
-  = ByAsmRefineTag
-      { asm :: a
-      , c :: a
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-byAsmRefineTag :: ByAsmRefineTag a -> ByTag AsmRefineTag a
-byAsmRefineTag (ByAsmRefineTag { asm, c }) = fromList [asm, c]
-
--- TODO
-
-type ByTag' = ByTag AsmRefineTag
-
-type WithTag' = WithTag AsmRefineTag

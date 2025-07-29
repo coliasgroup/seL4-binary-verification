@@ -2,7 +2,6 @@
 
 module BV.Core.Types.SearchOutputs
     ( InlineScript
-    , InlineScript'
     , InlineScriptEntry (..)
     , InlineScripts (..)
     , Proofs (..)
@@ -27,14 +26,12 @@ newtype StackBounds
 
 instance Binary StackBounds where
 
-newtype InlineScripts
-  = InlineScripts { unwrap :: M.Map PairingId' InlineScript' }
+newtype InlineScripts t
+  = InlineScripts { unwrap :: M.Map (PairingId t) (InlineScript t) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance Binary InlineScripts where
-
-type InlineScript' = InlineScript AsmRefineTag
+instance (Tag t, Binary t) => Binary (InlineScripts t) where
 
 type InlineScript t = [InlineScriptEntry t]
 
@@ -47,9 +44,9 @@ data InlineScriptEntry t
 
 instance Binary t => Binary (InlineScriptEntry t) where
 
-newtype Proofs a
-  = Proofs { unwrap :: M.Map PairingId' (ProofScript AsmRefineTag a) }
+newtype Proofs t a
+  = Proofs { unwrap :: M.Map (PairingId t) (ProofScript t a) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance Binary a => Binary (Proofs a) where
+instance (Tag t, Binary t, Binary a) => Binary (Proofs t a) where

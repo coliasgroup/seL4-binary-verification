@@ -1,5 +1,6 @@
 module BV.Core.Types
-    ( module BV.Core.Types.Compat
+    ( module BV.Core.Types.AsmRefineTag
+    , module BV.Core.Types.Compat
     , module BV.Core.Types.ObjDump
     , module BV.Core.Types.Pairing
     , module BV.Core.Types.Problem
@@ -12,6 +13,7 @@ module BV.Core.Types
     , module BV.Core.Types.Tag
     ) where
 
+import BV.Core.Types.AsmRefineTag
 import BV.Core.Types.Compat
 import BV.Core.Types.ObjDump
 import BV.Core.Types.Pairing

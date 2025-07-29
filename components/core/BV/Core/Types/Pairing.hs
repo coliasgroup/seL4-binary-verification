@@ -2,13 +2,11 @@
 
 module BV.Core.Types.Pairing
     ( Pairing (..)
-    , Pairing'
     , PairingEq (..)
     , PairingEqDirection (..)
     , PairingEqSide (..)
     , PairingEqSideQuadrant (..)
     , PairingId
-    , PairingId'
     , Pairings (..)
     , prettyPairingEqDirection
     , prettyPairingEqSideQuadrant
@@ -25,11 +23,7 @@ import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
 
-type PairingId' = PairingId AsmRefineTag
-
 type PairingId t = ByTag t Ident
-
-type Pairing' = Pairing AsmRefineTag
 
 data Pairing t
   = Pairing

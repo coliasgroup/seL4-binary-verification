@@ -4,21 +4,15 @@ module BV.Core.Types.Problem
     ( NodeBySource (..)
     , NodeSource (..)
     , Problem (..)
-    , Problem'
     , ProblemSide (..)
-    , Problems (..)
     ) where
 
-import BV.Core.Types.Pairing
 import BV.Core.Types.Program
 import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
-import qualified Data.Map as M
 import GHC.Generics (Generic)
-
-type Problem' = Problem AsmRefineTag
 
 data Problem t
   = Problem
@@ -57,8 +51,3 @@ data NodeSource t
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary t => Binary (NodeSource t) where
-
-newtype Problems
-  = Problems { unwrap :: M.Map PairingId' Problem' }
-  deriving (Eq, Generic)
-  deriving newtype (NFData)

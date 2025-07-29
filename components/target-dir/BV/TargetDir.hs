@@ -50,9 +50,9 @@ data TargetDirFiles
       , functions :: TargetDirFile Program
       , problems :: TargetDirFile Problems
       , stackBounds :: TargetDirFile StackBounds
-      , inlineScripts :: TargetDirFile InlineScripts
+      , inlineScripts :: TargetDirFile (InlineScripts AsmRefineTag)
       , pairings :: TargetDirFile (Pairings AsmRefineTag)
-      , proofs :: TargetDirFile (Proofs ())
+      , proofs :: TargetDirFile (Proofs AsmRefineTag ())
       , proofChecks :: TargetDirFile CompatProofChecks
       , smtProofChecks :: TargetDirFile CompatSMTProofChecks
       }

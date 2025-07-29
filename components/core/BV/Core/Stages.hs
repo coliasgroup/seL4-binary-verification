@@ -51,8 +51,8 @@ data StagesInput
       , objDumpInfo :: ObjDumpInfo
       , rodata :: ROData
       , stackBounds :: StackBounds
-      , inlineScripts :: InlineScripts
-      , proofs :: Proofs ()
+      , inlineScripts :: InlineScripts AsmRefineTag
+      , proofs :: Proofs AsmRefineTag ()
       , earlyAsmFunctionFilter :: IncludeExcludeFilter Ident
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -91,7 +91,7 @@ data IntermediateStagesOutput
   = IntermediateStagesOutput
       { functions :: Program
       , pairings :: Pairings AsmRefineTag
-      , problems :: Problems
+      , problems :: Problems'
       , proofChecks :: ProofChecks AsmRefineTag ProofCheckDescription
       , compatProofChecks :: CompatProofChecks
       , compatSMTProofChecks :: CompatSMTProofChecks
