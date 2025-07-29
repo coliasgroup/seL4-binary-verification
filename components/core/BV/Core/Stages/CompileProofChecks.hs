@@ -9,9 +9,6 @@ module BV.Core.Stages.CompileProofChecks
 
 import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.RepGraph
-import BV.Core.Stages.CompileProofChecks.RepGraph.AddFunc
-import BV.Core.Stages.CompileProofChecks.RepGraph.AsmStackRep
-import BV.Core.Stages.CompileProofChecks.RepGraph.Base
 import BV.Core.Stages.CompileProofChecks.Solver
 import BV.Core.Stages.GroupProofChecks
 import BV.Core.Types
