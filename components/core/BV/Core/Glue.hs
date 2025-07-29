@@ -42,7 +42,7 @@ data StagesInput
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts'
       , proofs :: Proofs' ()
-      , earlyAsmFunctionFilter :: IncludeExcludeFilter Ident
+      , earlyAsmFunctionFilter :: AsmFunctionFilter
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
