@@ -1,8 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.Core.Types.Program
-    ( Argument
-    , BasicNode (..)
+    ( BasicNode (..)
     , CallNode (..)
     , CondNode (..)
     , ConstGlobal (..)
@@ -79,6 +78,8 @@ data NameTy
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+instance Binary NameTy where
+
 data Program
   = Program
       { structs :: Map Ident Struct
@@ -132,8 +133,8 @@ instance Binary ConstGlobal where
 
 data Function
   = Function
-      { input :: [Argument]
-      , output :: [Argument]
+      { input :: [NameTy]
+      , output :: [NameTy]
       , body :: Maybe FunctionBody
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -150,10 +151,6 @@ data FunctionBody
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary FunctionBody where
-
-type Argument = NameTy
-
-instance Binary Argument where
 
 newtype NodeAddr
   = NodeAddr { unwrap :: Integer }
@@ -212,7 +209,7 @@ data CallNode
       { next :: NodeId
       , functionName :: Ident
       , input :: [Expr]
-      , output :: [Argument]
+      , output :: [NameTy]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

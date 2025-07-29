@@ -144,13 +144,13 @@ pairingForInstFunction instFun = Pairing
   where
     fun = elaborateInstFunction instFun
     inEqs =
-        [ leftIn (varFromArgE arg) === rightIn (varFromArgE arg)
+        [ leftIn (varFromNameTyE arg) === rightIn (varFromNameTyE arg)
         | arg <- fun.input
         ] ++
         [ leftIn (rodataE (varE memT "mem")) === rightIn trueE
         ]
     outEqs =
-        [ leftOut (varFromArgE arg) === rightOut (varFromArgE arg)
+        [ leftOut (varFromNameTyE arg) === rightOut (varFromNameTyE arg)
         | arg <- fun.output
         ] ++
         [ leftOut (rodataE (varE memT "mem")) === rightOut trueE
@@ -185,19 +185,19 @@ decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
         Just (instFun, token) -> Right $
             let (iscs, imems) = splitScalarPairs fun.input
                 (oscs, omems) = splitScalarPairs fun.output
-                input = map varFromArgE iscs ++ [ tokenE token ] ++ map varFromArgE imems
+                input = map varFromNameTyE iscs ++ [ tokenE token ] ++ map varFromNameTyE imems
                 output = oscs ++ omems
                 funBody = trivialProxyFunctionBody (getC (instFunctionName instFun)) input output
              in (funBody, instFun)
 
 -- TODO join with one in FormulatePairings
-splitScalarPairs :: [Argument] -> ([Argument], [Argument])
+splitScalarPairs :: [NameTy] -> ([NameTy], [NameTy])
 splitScalarPairs args = (scalars, mems)
   where
     (scalars, globals) = span (\arg -> isWordT arg.ty || isBoolT arg.ty) args
     mems = filter (\arg -> isMemT arg.ty) globals
 
-trivialProxyFunctionBody :: Ident -> [Expr] -> [Argument] -> FunctionBody
+trivialProxyFunctionBody :: Ident -> [Expr] -> [NameTy] -> FunctionBody
 trivialProxyFunctionBody functionName input output =
     FunctionBody
         { entryPoint = Addr 1

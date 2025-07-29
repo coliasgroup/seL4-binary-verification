@@ -63,7 +63,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
     (retPreconds, retPostEqs, retOutEqs, saveAddrs) =
         if not multiRet
         then
-            let theseRetOutEqs = zip (map varFromArgE varRetsC) [r 0]
+            let theseRetOutEqs = zip (map varFromNameTyE varRetsC) [r 0]
              in ([], [], theseRetOutEqs, [])
         else
             let
@@ -79,7 +79,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
                 theseSaveAddrs = saveSeq <&> \(_, Just addr) -> addr
                 theseRetPostEqs = [(r0Input, r0Input)]
                 theseRetOutEqs =
-                    [ (varFromArgE c, castE c.ty a)
+                    [ (varFromNameTyE c, castE c.ty a)
                     | (c, (a, _)) <- zip varRetsC saveSeq
                     ]
                 initSaveSeq = mkStackSequence (r 0) 4 stack machineWordT (length varRetsC)
@@ -93,21 +93,21 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
     memIeqs = case imemC of
         [] -> [leftIn (rodataE asmMem) === rightIn trueE]
         [imemC'] ->
-            [ leftIn asmMem === rightIn (varFromArgE imemC')
-            , rightIn (rodataE (varFromArgE imemC')) === rightIn trueE
+            [ leftIn asmMem === rightIn (varFromNameTyE imemC')
+            , rightIn (rodataE (varFromNameTyE imemC')) === rightIn trueE
             ]
 
     memOeqs = case omemC of
         [] -> [leftOut asmMem === leftIn asmMem]
         [omemC'] ->
-            [ leftOut asmMem === rightOut (varFromArgE omemC')
-            , rightOut (rodataE (varFromArgE omemC')) === rightOut trueE
+            [ leftOut asmMem === rightOut (varFromNameTyE omemC')
+            , rightOut (rodataE (varFromNameTyE omemC')) === rightOut trueE
             ]
 
     outerAddr = lastOf folded (take (length varArgsC) argSeq) >>= snd
 
     argEqs =
-        [ leftIn asm === rightIn (castCToAsmE asm.ty (varFromArgE c))
+        [ leftIn asm === rightIn (castCToAsmE asm.ty (varFromNameTyE c))
         | (c, (asm, _addr)) <- zip varArgsC argSeq
         ]
 
@@ -120,7 +120,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
     outEqs = retEqs ++ memOeqs ++ leftInvs
 
 -- TODO join with one in FormulatePairings
-splitScalarPairs :: [Argument] -> ([Argument], [Argument], [Argument])
+splitScalarPairs :: [NameTy] -> ([NameTy], [NameTy], [NameTy])
 splitScalarPairs args = (scalars, mems, others)
   where
     (scalars, globals) = span (\arg -> isWordT arg.ty || isBoolT arg.ty) args

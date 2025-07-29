@@ -87,7 +87,7 @@ varSubst f = walkExprs $ \case
 class HasVarNames a where
     varNamesOf :: Traversal' a Ident
 
-instance HasVarNames Argument where
+instance HasVarNames NameTy where
     varNamesOf = castOptic #name
 
 instance HasVarNames Node where
@@ -123,7 +123,7 @@ instance HasVarDecls Function where
 instance HasVarDecls FunctionBody where
     varDeclsOf = #nodes % varDeclsOf
 
-instance HasVarDecls Argument where
+instance HasVarDecls NameTy where
     varDeclsOf = castOptic $ adjacently #name #ty
 
 instance HasVarDecls NodeMap where
@@ -147,8 +147,8 @@ nodeConts = castOptic $
 
 data FunctionSignature
   = FunctionSignature
-      { input :: [Argument]
-      , output :: [Argument]
+      { input :: [NameTy]
+      , output :: [NameTy]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

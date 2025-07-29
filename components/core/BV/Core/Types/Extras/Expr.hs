@@ -222,8 +222,8 @@ tokenE = Expr tokenT . ExprValueToken
 varE :: ExprType -> Ident -> Expr
 varE ty = Expr ty . ExprValueVar
 
-varFromArgE :: Argument -> Expr
-varFromArgE arg = varE arg.ty arg.name
+varFromNameTyE :: NameTy -> Expr
+varFromNameTyE arg = varE arg.ty arg.name
 
 wordVarE :: Integer -> Ident -> Expr
 wordVarE bits = varE (wordT bits)

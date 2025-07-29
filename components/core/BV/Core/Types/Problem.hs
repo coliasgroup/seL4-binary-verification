@@ -26,8 +26,8 @@ data Problem t
 data ProblemSide
   = ProblemSide
       { name :: Ident
-      , input :: [Argument]
-      , output :: [Argument]
+      , input :: [NameTy]
+      , output :: [NameTy]
       , entryPoint :: NodeId
       }
   deriving (Eq, Generic, NFData, Ord, Show)
