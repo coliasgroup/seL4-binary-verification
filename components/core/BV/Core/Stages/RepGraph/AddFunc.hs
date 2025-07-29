@@ -8,6 +8,7 @@ module BV.Core.Stages.RepGraph.AddFunc
 import BV.Core.Logic
 import BV.Core.Stages.RepGraph.Core
 import BV.Core.Stages.RepGraph.Solver
+import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils

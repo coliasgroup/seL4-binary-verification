@@ -96,6 +96,7 @@ library core
       BV.Core.Stages.RepGraph.Core
       BV.Core.Stages.RepGraph.Solver
       BV.Core.Stages.Utils
+      BV.Core.Structs
       BV.Core.Types.Aggregate
       BV.Core.Types.AsmRefineTag
       BV.Core.Types.Extras

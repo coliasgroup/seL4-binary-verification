@@ -41,6 +41,7 @@ module BV.Core.Stages.RepGraph.Solver
 
 import BV.Core.Logic
 import BV.Core.Stages.Utils
+import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils

@@ -5,10 +5,10 @@ module BV.Core.Search.Inlining
     , discoverInlineScript
     ) where
 
-import BV.Core.Logic (MonadStructs (..))
 import BV.Core.ModelConfig (ModelConfig, configureSExpr)
 import BV.Core.Stages.RepGraph
 import BV.Core.Stages.RepGraph.Solver
+import BV.Core.Structs
 import BV.Core.Types
 import BV.SMTLIB2.Monad
 

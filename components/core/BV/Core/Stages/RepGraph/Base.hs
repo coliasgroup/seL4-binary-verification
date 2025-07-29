@@ -6,9 +6,9 @@ module BV.Core.Stages.RepGraph.Base
     , runRepGraphBase
     ) where
 
-import BV.Core.Logic
 import BV.Core.Stages.RepGraph.Core
 import BV.Core.Stages.RepGraph.Solver
+import BV.Core.Structs
 import BV.Core.Types
 
 import Control.Monad.Identity (Identity (runIdentity))

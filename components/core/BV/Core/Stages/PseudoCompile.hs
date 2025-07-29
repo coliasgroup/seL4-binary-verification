@@ -4,6 +4,7 @@ module BV.Core.Stages.PseudoCompile
 
 import BV.Core.Arch
 import BV.Core.Logic
+import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
