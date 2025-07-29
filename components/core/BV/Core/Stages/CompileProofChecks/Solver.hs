@@ -14,6 +14,7 @@ module BV.Core.Stages.CompileProofChecks.Solver
     , MonadSolverSend (..)
     , Name (..)
     , NameHint
+    , PcEnv (..)
     , SolverEnv
     , SolverOutput
     , SolverState
@@ -481,18 +482,22 @@ addSplitMemVar split nameHint ty@ExprTypeMem = do
 
 --
 
--- TODO
--- type PcEnv = (Expr, ExprEnv)
+data PcEnv
+  = PcEnv
+      { pc :: Expr
+      , env :: ExprEnv
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 -- TODO move to RepGraph
-mergeEnvsPcs :: MonadSolver m => [(Expr, ExprEnv)] -> m (Expr, ExprEnv, Bool)
+mergeEnvsPcs :: MonadSolver m => [PcEnv] -> m (PcEnv, Bool)
 mergeEnvsPcs unfilteredPcEnvs = do
-    let pcEnvs = filter (\(pc, _) -> pc /= falseE) unfilteredPcEnvs
+    let pcEnvs = filter (\pcEnv -> pcEnv.pc /= falseE) unfilteredPcEnvs
     let pc = case pcEnvs of
             [] -> falseE
-            _ -> foldAssocBalanced orE (nub (map fst pcEnvs))
+            _ -> foldAssocBalanced orE (nub (pcEnvs ^.. folded % #pc))
     env <- mergeEnvs pcEnvs
-    return (pc, env, length pcEnvs > 1)
+    return (PcEnv pc env, length pcEnvs > 1)
 
 foldAssocBalanced :: (a -> a -> a) -> [a] -> a
 foldAssocBalanced f = go
@@ -507,11 +512,11 @@ foldAssocBalanced f = go
                     foldr1 f xs
 
 -- TODO move to RepGraph
-mergeEnvs :: MonadSolver m => [(Expr, ExprEnv)] -> m ExprEnv
+mergeEnvs :: MonadSolver m => [PcEnv] -> m ExprEnv
 mergeEnvs envs = do
     varEnvs <-
         fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty . concat)
-            $ for envs $ \(pc, env) -> do
+            $ for envs $ \(PcEnv pc env) -> do
                 pc' <- withEnv env $ convertExprNoSplit pc
                 return $
                     [ M.singleton var (M.singleton val ([pc'] :: [S]))

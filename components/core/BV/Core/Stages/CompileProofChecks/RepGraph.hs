@@ -142,8 +142,8 @@ data RepGraphState t
   = RepGraphState
       { inpEnvs :: Map NodeId ExprEnv
       , memCalls :: Map SExprWithPlaceholders MemCalls
-      , nodePcEnvs :: Map (WithTag t Visit) (Maybe (Expr, ExprEnv))
-      , arcPcEnvs :: Map Visit (Map NodeId (Expr, ExprEnv))
+      , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
+      , arcPcEnvs :: Map Visit (Map NodeId PcEnv)
       , inductVarEnv :: Map EqHypInduct Name
       , contractions :: Map SExprWithPlaceholders MaybeSplit
       , extraProblemNames :: S.Set Ident
@@ -485,7 +485,7 @@ getPc visit tag = view (expecting _Right) <$> runExceptT (tryGetPc visit tag)
 tryGetPc :: (MonadRepGraph t m, MonadError TooGeneral m) => Visit -> Maybe t -> m Expr
 tryGetPc visit tag = tryGetNodePcEnv visit tag >>= \case
     Nothing -> return falseE
-    Just (pc, env) -> withEnv env $ convertInnerExpr pc
+    Just (PcEnv pc env) -> withEnv env $ convertInnerExpr pc
 
 getInductVar :: MonadRepGraph t m => EqHypInduct -> m Expr
 getInductVar induct =
@@ -517,10 +517,10 @@ instEqWithEnvs (x, xenv) (y, yenv) = do
 
 --
 
-getNodePcEnv :: MonadRepGraph t m => Visit -> Maybe t -> m (Maybe (Expr, ExprEnv))
+getNodePcEnv :: MonadRepGraph t m => Visit -> Maybe t -> m (Maybe PcEnv)
 getNodePcEnv visit tag = view (expecting _Right) <$> runExceptT (tryGetNodePcEnv visit tag)
 
-tryGetNodePcEnv :: (MonadRepGraph t m, MonadError TooGeneral m) => Visit -> Maybe t -> m (Maybe (Expr, ExprEnv))
+tryGetNodePcEnv :: (MonadRepGraph t m, MonadError TooGeneral m) => Visit -> Maybe t -> m (Maybe PcEnv)
 tryGetNodePcEnv visit tag' = do
     (tag, restrsOpt) <- getTagVCount visit tag'
     runMaybeT $ do
@@ -533,10 +533,10 @@ tryGetNodePcEnv visit tag' = do
             warmPcEnvCache vt
             getNodePcEnvRaw vt
 
-getNodePcEnvRaw :: (MonadRepGraph t m, MonadError TooGeneral m) => WithTag t Visit -> m (Maybe (Expr, ExprEnv))
+getNodePcEnvRaw :: (MonadRepGraph t m, MonadError TooGeneral m) => WithTag t Visit -> m (Maybe PcEnv)
 getNodePcEnvRaw visitWithTag = do
     liftRepGraph (use $ #inpEnvs % at visitWithTag.value.nodeId) >>= \case
-        Just env -> return $ Just (trueE, env)
+        Just env -> return $ Just $ PcEnv trueE env
         Nothing -> do
             let f restr = Addr restr.nodeAddr == visitWithTag.value.nodeId && restr.visitCount == offsetVC 0
             case filter f visitWithTag.value.restrs of
@@ -553,11 +553,11 @@ getNodePcEnvRaw visitWithTag = do
                         [] -> return Nothing
                         _ -> do
                             pcEnvs' <- case visitWithTag.value.nodeId of
-                                Err -> for pcEnvs $ \(pc, env) -> do
+                                Err -> for pcEnvs $ \(PcEnv pc env) -> do
                                     pc' <- withEnv env $ convertInnerExpr pc
-                                    return (pc', M.empty)
+                                    return $ PcEnv pc' M.empty
                                 _ -> return pcEnvs
-                            (pc, env, _large) <- mergeEnvsPcs pcEnvs'
+                            (PcEnv pc env, _large) <- mergeEnvsPcs pcEnvs'
                             pc' <- case pc.value of
                                 ExprValueSMTExpr _ -> return pc
                                 _ -> do
@@ -567,19 +567,18 @@ getNodePcEnvRaw visitWithTag = do
                                 case v of
                                     NotSplit v' | length (showSExprWithPlaceholders v') > 80 -> contract var.name visitWithTag.value v' var.ty
                                     _ -> return v
-                            return $ Just (pc', env')
+                            return $ Just $ PcEnv pc' env'
 
-getLoopPcEnv :: (MonadRepGraph t m, MonadError TooGeneral m) => NodeAddr -> [Restr] -> m (Maybe (Expr, ExprEnv))
+getLoopPcEnv :: (MonadRepGraph t m, MonadError TooGeneral m) => NodeAddr -> [Restr] -> m (Maybe PcEnv)
 getLoopPcEnv split restrs = do
     let restrs2 = withMapVC (M.insert split (numberVC 0)) restrs
     prevPcEnvOpt <- tryGetNodePcEnv (Visit (Addr split) restrs2) Nothing
     whenJustThen prevPcEnvOpt $ \prevPcEnv -> do
-        let (_, prevEnv) = prevPcEnv
-        memCalls <- scanMemCalls prevEnv >>= addLoopMemCalls split
+        memCalls <- scanMemCalls prevPcEnv.env >>= addLoopMemCalls split
         let add name ty = do
                 let name2 = printf "%s_loop_at_%s" name (prettyNodeId (Addr split))
                 addVarRestrWithMemCalls name2 ty memCalls
-        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevEnv $ \var _v -> do
+        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevPcEnv.env $ \var _v -> do
             let checkConst = case var.ty of
                     ExprTypeHtd -> True
                     ExprTypeDom -> True
@@ -588,7 +587,7 @@ getLoopPcEnv split restrs = do
             if isSyntConst
                 then do
                     modify $ S.insert var
-                    return $ prevEnv ! var
+                    return $ prevPcEnv.env ! var
                 else do
                     NotSplit . nameS <$> lift (add (var.name.unwrap ++ "_after") var.ty)
         env' <- flip M.traverseWithKey env $ \var v -> do
@@ -598,9 +597,9 @@ getLoopPcEnv split restrs = do
                     v' <- varRepRequest var VarRepRequestKindLoop (Visit (Addr split) restrs) env
                     return $ maybe v Split v'
         pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
-        return $ Just (pc', env')
+        return $ Just $ PcEnv pc' env'
 
-getArcPcEnvs :: MonadRepGraph t m => NodeAddr -> Visit -> m [Maybe (Expr, ExprEnv)]
+getArcPcEnvs :: MonadRepGraph t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs n visit2 = do
     r <- runExceptT $ do
         prevs <- askPrevs visit2 <&> filter (\visit -> visit.nodeId == Addr n)
@@ -618,7 +617,7 @@ getArcPcEnvs n visit2 = do
                     ]
             concat <$> traverse (getArcPcEnvs n) specs
 
-getArcPcEnv :: (MonadRepGraph t m, MonadError TooGeneral m) => Visit -> Visit -> m (Maybe (Expr, ExprEnv))
+getArcPcEnv :: (MonadRepGraph t m, MonadError TooGeneral m) => Visit -> Visit -> m (Maybe PcEnv)
 getArcPcEnv visit' otherVisit = do
     (_tag, restrsOpt) <- getTagVCount visit' Nothing
     case restrsOpt of
@@ -634,11 +633,10 @@ getArcPcEnv visit' otherVisit = do
                 Nothing -> do
                     pcEnvOpt <- tryGetNodePcEnv visit Nothing
                     whenJustThen pcEnvOpt $ \_ -> do
-                        arcs <- emitNode visit
+                        arcs <- M.fromList <$> emitNode visit
                         runPostEmitNodeHook visit
-                        let arcs' = M.fromList [ (cont, (pc, env)) | (cont, pc, env) <- arcs ]
-                        liftRepGraph $ #arcPcEnvs %= M.insert visit arcs'
-                        return $ arcs' !? otherVisit.nodeId
+                        liftRepGraph $ #arcPcEnvs %= M.insert visit arcs
+                        return $ arcs !? otherVisit.nodeId
 
 getTagVCount :: (MonadRepGraph t m, MonadError TooGeneral m) => Visit -> Maybe t -> m (t, Maybe [Restr])
 getTagVCount visit tagOpt = do
@@ -689,19 +687,19 @@ warmPcEnvCache visitWithTag = do
   where
     iters = 5000
 
-emitNode :: (MonadRepGraph t m, MonadError TooGeneral m) => Visit -> m [(NodeId, Expr, ExprEnv)]
+emitNode :: (MonadRepGraph t m, MonadError TooGeneral m) => Visit -> m [(NodeId, PcEnv)]
 emitNode visit = do
-    (pc, env) <- fromJust <$> tryGetNodePcEnv visit Nothing
+    pcEnv@(PcEnv pc env) <- fromJust <$> tryGetNodePcEnv visit Nothing
     let nodeAddr = nodeAddrFromNodeId visit.nodeId
     tag <- askNodeTag nodeAddr
     node <- liftRepGraph $ gview $ #problem % #nodes % at nodeAddr % unwrapped
-    if pc == falseE
-        then return [ (cont, falseE, M.empty) | cont <- node ^.. nodeConts ]
+    if pcEnv.pc == falseE
+        then return [ (cont, PcEnv falseE M.empty) | cont <- node ^.. nodeConts ]
         else case node of
             NodeCond condNode | condNode.left == condNode.right -> do
-                return [(condNode.left, pc, env)]
+                return [(condNode.left, pcEnv)]
             NodeCond condNode | condNode.expr == trueE -> do
-                return [(condNode.left, pc, env), (condNode.right, falseE, env)]
+                return [(condNode.left, pcEnv), (condNode.right, PcEnv falseE env)]
             NodeBasic basicNode -> do
                 updates <- for basicNode.varUpdates $ \update -> do
                     val <- case update.val.value of
@@ -712,7 +710,7 @@ emitNode visit = do
                             withEnv env $ addLocalDef () () name update.val
                     return (update.var, val)
                 let env' = M.union (M.fromList updates) env
-                return [(basicNode.next, pc, env')]
+                return [(basicNode.next, PcEnv pc env')]
             NodeCond condNode -> do
                 let name = condName visit
                 freshName <- getFreshIdent name
@@ -721,7 +719,7 @@ emitNode visit = do
                 let env' = M.insert (NameTy freshName boolT) def env
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
-                return [(condNode.left, lpc, env'), (condNode.right, rpc, env')]
+                return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
                 runPreEmitCallNodeHook visit pc env
                 let name = successName callNode.functionName visit
@@ -746,7 +744,7 @@ emitNode visit = do
                 (_, env', outs') <- runRWST m () env
                 let outs = M.fromList outs'
                 runPostEmitCallNodeHook visit ins outs success
-                return [(callNode.next, pc, env')]
+                return [(callNode.next, PcEnv pc env')]
 
 isSyntacticConstant :: MonadRepGraph t m => NameTy -> NodeAddr -> m Bool
 isSyntacticConstant var split = do
@@ -801,6 +799,6 @@ isSyntacticConstant var split = do
 
 convertInnerExprWithPcEnv :: (MonadRepGraph t m, MonadError TooGeneral m) => Expr -> Visit -> Maybe t -> m Expr
 convertInnerExprWithPcEnv expr visit tag = do
-    pcEnv <- tryGetNodePcEnv visit tag
-    let Just (_pc, env) = pcEnv
+    pcEnvOpt <- tryGetNodePcEnv visit tag
+    let Just (PcEnv _ env) = pcEnvOpt
     withEnv env $ convertInnerExpr expr
