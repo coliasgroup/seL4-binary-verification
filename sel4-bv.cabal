@@ -83,7 +83,6 @@ library core
       BV.Core.Stages
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
-      BV.Core.Stages.CompileProofChecks.Grouping
       BV.Core.Stages.CompileProofChecks.RepGraph
       BV.Core.Stages.CompileProofChecks.RepGraph.AddFunc
       BV.Core.Stages.CompileProofChecks.RepGraph.AsmStackRep
@@ -92,6 +91,7 @@ library core
       BV.Core.Stages.EnumerateProofChecks
       BV.Core.Stages.Fixup
       BV.Core.Stages.FormulatePairing
+      BV.Core.Stages.GroupProofChecks
       BV.Core.Stages.InlineAssembly
       BV.Core.Stages.PseudoCompile
       BV.Core.Stages.Utils

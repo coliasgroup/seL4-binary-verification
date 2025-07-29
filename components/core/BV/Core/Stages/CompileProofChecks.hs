@@ -8,12 +8,12 @@ module BV.Core.Stages.CompileProofChecks
     ) where
 
 import BV.Core.Logic
-import BV.Core.Stages.CompileProofChecks.Grouping
 import BV.Core.Stages.CompileProofChecks.RepGraph
 import BV.Core.Stages.CompileProofChecks.RepGraph.AddFunc
 import BV.Core.Stages.CompileProofChecks.RepGraph.AsmStackRep
 import BV.Core.Stages.CompileProofChecks.RepGraph.Concrete
 import BV.Core.Stages.CompileProofChecks.Solver
+import BV.Core.Stages.GroupProofChecks
 import BV.Core.Types
 import BV.Core.Types.Extras
 

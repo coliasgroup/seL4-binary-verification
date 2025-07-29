@@ -1,4 +1,4 @@
-module BV.Core.Stages.CompileProofChecks.Grouping
+module BV.Core.Stages.GroupProofChecks
     ( ProofCheckGroup
     , proofCheckGroups
     ) where
