@@ -93,8 +93,8 @@ instance ParseInBlock (Named Function) where
 instance ParseInLine Ident where
     parseInLine = Ident <$> word
 
-instance ParseInLine Argument where
-    parseInLine = Argument <$> parseInLine <*> parseInLine
+instance ParseInLine NameTy where
+    parseInLine = NameTy <$> parseInLine <*> parseInLine
 
 instance ParseInLine NodeId where
     parseInLine =
@@ -278,8 +278,8 @@ instance BuildInBlock (Named Function) where
 instance BuildInLine Ident where
     buildInLine = fromString . (.unwrap)
 
-instance BuildInLine Argument where
-    buildInLine (Argument { name, ty }) = put name <> put ty
+instance BuildInLine NameTy where
+    buildInLine (NameTy { name, ty }) = put name <> put ty
 
 instance BuildInLine NodeId where
     buildInLine Ret = "Ret"

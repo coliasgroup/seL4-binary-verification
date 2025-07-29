@@ -119,17 +119,17 @@ elaborateInstFunction :: InstFunction -> Function
 elaborateInstFunction instFun =
     Function
         { input =
-            [ Argument (Ident ("reg_val" ++ show (i + 1))) machineWordT
+            [ NameTy (Ident ("reg_val" ++ show (i + 1))) machineWordT
             | i <- [ 0 .. length (filter (== RegRoleIn) regSpec) - 1 ]
             ] ++
-            [ Argument "inst_ident" tokenT
-            , Argument "mem" memT
+            [ NameTy "inst_ident" tokenT
+            , NameTy "mem" memT
             ]
         , output =
-            [ Argument (Ident ("ret_val" ++ show (i + 1))) machineWordT
+            [ NameTy (Ident ("ret_val" ++ show (i + 1))) machineWordT
             | i <- [ 0 .. length (filter (== RegRoleOut) regSpec) - 1 ]
             ] ++
-            [ Argument "mem" memT
+            [ NameTy "mem" memT
             ]
         , body = Nothing
         }
@@ -171,8 +171,8 @@ decodeAsmInstFun funName _fun = f <$> stripPrefix "instruction'" funName.unwrap
                     [ machineWordVarE reg | (reg, RegRoleIn) <- zip regAssignments regSpec ]
                     ++ [ tokenE token, varE memT "mem" ]
                 output =
-                    [ Argument reg machineWordT | (reg, RegRoleOut) <- zip regAssignments regSpec ]
-                    ++ [ Argument "mem" memT ]
+                    [ NameTy reg machineWordT | (reg, RegRoleOut) <- zip regAssignments regSpec ]
+                    ++ [ NameTy "mem" memT ]
                 funBody = trivialProxyFunctionBody (getAsm (instFunctionName instFun)) input output
              in (funBody, instFun)
 

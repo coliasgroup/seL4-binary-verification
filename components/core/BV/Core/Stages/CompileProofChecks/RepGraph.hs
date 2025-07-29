@@ -761,14 +761,14 @@ isSyntacticConstant origName ty split = do
                     let newName = name
                     newName' <- case node of
                         NodeCall callNode ->
-                            if Argument name ty `elem` callNode.output
+                            if NameTy name ty `elem` callNode.output
                             then throwError False
                             else return newName
                         NodeBasic basicNode -> do
                             let updateExprs =
                                     [ u.expr
                                     | u <- basicNode.varUpdates
-                                    , Argument u.varName u.ty == Argument name ty
+                                    , NameTy u.varName u.ty == NameTy name ty
                                     ]
                             let updateExprsOpt = for updateExprs $ \v -> case v.value of
                                     ExprValueVar i -> Just i

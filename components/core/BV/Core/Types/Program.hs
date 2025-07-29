@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.Core.Types.Program
-    ( Argument (..)
+    ( Argument
     , BasicNode (..)
     , CallNode (..)
     , CondNode (..)
@@ -13,6 +13,7 @@ module BV.Core.Types.Program
     , FunctionBody (..)
     , Ident (..)
     , MaybeSplit (..)
+    , NameTy (..)
     , Named (..)
     , Node (..)
     , NodeAddr (..)
@@ -70,6 +71,13 @@ fromListOfNamed = M.fromList . map (\Named { name, value } -> (name, value))
 
 withNamed :: (Ident -> a -> b) -> Named a -> b
 withNamed f (Named named value) = f named value
+
+data NameTy
+  = NameTy
+      { name :: Ident
+      , ty :: ExprType
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data Program
   = Program
@@ -143,12 +151,7 @@ data FunctionBody
 
 instance Binary FunctionBody where
 
-data Argument
-  = Argument
-      { name :: Ident
-      , ty :: ExprType
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
+type Argument = NameTy
 
 instance Binary Argument where
 
