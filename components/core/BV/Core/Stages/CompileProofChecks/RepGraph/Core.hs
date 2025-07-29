@@ -37,7 +37,7 @@ module BV.Core.Stages.CompileProofChecks.RepGraph.Core
 
 import BV.Core.Graph
 import BV.Core.Logic
-import BV.Core.Stages.CompileProofChecks.Solver
+import BV.Core.Stages.CompileProofChecks.RepGraph.Solver
 import BV.Core.Stages.Utils (chooseFreshName)
 import BV.Core.Types
 import BV.Core.Types.Extras

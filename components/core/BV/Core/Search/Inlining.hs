@@ -8,7 +8,7 @@ module BV.Core.Search.Inlining
 import BV.Core.Logic (MonadStructs (..))
 import BV.Core.ModelConfig (ModelConfig, configureSExpr)
 import BV.Core.Stages.CompileProofChecks.RepGraph
-import BV.Core.Stages.CompileProofChecks.Solver
+import BV.Core.Stages.CompileProofChecks.RepGraph.Solver
 import BV.Core.Types
 import BV.SMTLIB2.Monad
 

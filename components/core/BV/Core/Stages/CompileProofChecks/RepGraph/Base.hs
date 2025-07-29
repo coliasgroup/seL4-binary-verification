@@ -8,7 +8,7 @@ module BV.Core.Stages.CompileProofChecks.RepGraph.Base
 
 import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.RepGraph.Core
-import BV.Core.Stages.CompileProofChecks.Solver
+import BV.Core.Stages.CompileProofChecks.RepGraph.Solver
 import BV.Core.Types
 
 import Control.Monad.Identity (Identity (runIdentity))

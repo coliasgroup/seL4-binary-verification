@@ -7,7 +7,7 @@ module BV.Core.Stages.CompileProofChecks.RepGraph.AddFunc
 
 import BV.Core.Logic
 import BV.Core.Stages.CompileProofChecks.RepGraph.Core
-import BV.Core.Stages.CompileProofChecks.Solver
+import BV.Core.Stages.CompileProofChecks.RepGraph.Solver
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils

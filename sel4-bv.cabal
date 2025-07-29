@@ -88,7 +88,7 @@ library core
       BV.Core.Stages.CompileProofChecks.RepGraph.AsmStackRep
       BV.Core.Stages.CompileProofChecks.RepGraph.Base
       BV.Core.Stages.CompileProofChecks.RepGraph.Core
-      BV.Core.Stages.CompileProofChecks.Solver
+      BV.Core.Stages.CompileProofChecks.RepGraph.Solver
       BV.Core.Stages.EnumerateProofChecks
       BV.Core.Stages.FixupProgram
       BV.Core.Stages.FormulatePairing
