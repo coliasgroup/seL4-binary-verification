@@ -83,18 +83,18 @@ library core
       BV.Core.Stages
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
-      BV.Core.Stages.CompileProofChecks.RepGraph
-      BV.Core.Stages.CompileProofChecks.RepGraph.AddFunc
-      BV.Core.Stages.CompileProofChecks.RepGraph.AsmStackRep
-      BV.Core.Stages.CompileProofChecks.RepGraph.Base
-      BV.Core.Stages.CompileProofChecks.RepGraph.Core
-      BV.Core.Stages.CompileProofChecks.RepGraph.Solver
       BV.Core.Stages.EnumerateProofChecks
       BV.Core.Stages.FixupProgram
       BV.Core.Stages.FormulatePairing
       BV.Core.Stages.GroupProofChecks
       BV.Core.Stages.InlineAssembly
       BV.Core.Stages.PseudoCompile
+      BV.Core.Stages.RepGraph
+      BV.Core.Stages.RepGraph.AddFunc
+      BV.Core.Stages.RepGraph.AsmStackRep
+      BV.Core.Stages.RepGraph.Base
+      BV.Core.Stages.RepGraph.Core
+      BV.Core.Stages.RepGraph.Solver
       BV.Core.Stages.Utils
       BV.Core.Types.Aggregate
       BV.Core.Types.AsmRefineTag
