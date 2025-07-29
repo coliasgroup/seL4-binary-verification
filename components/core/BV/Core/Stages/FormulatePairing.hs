@@ -7,10 +7,10 @@ module BV.Core.Stages.FormulatePairing
     ( formulatePairing
     ) where
 
+import BV.Core.Logic (splitScalarPairs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Data.List (partition)
 import Data.Maybe (fromJust, mapMaybe, maybeToList)
 import Optics
 
@@ -118,13 +118,6 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
     leftInvs = [ leftIn vin === leftOut vout | (vin, vout) <- postEqs ]
 
     outEqs = retEqs ++ memOeqs ++ leftInvs
-
--- TODO join with one in FormulatePairings
-splitScalarPairs :: [NameTy] -> ([NameTy], [NameTy], [NameTy])
-splitScalarPairs args = (scalars, mems, others)
-  where
-    (scalars, globals) = span (\arg -> isWordT arg.ty || isBoolT arg.ty) args
-    (mems, others) = partition (\arg -> isMemT arg.ty) globals
 
 mkStackSequence :: Expr -> Integer -> Expr -> ExprType -> Int -> [(Expr, Maybe Expr)]
 mkStackSequence sp offs stack ty n =

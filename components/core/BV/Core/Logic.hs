@@ -19,6 +19,7 @@ module BV.Core.Logic
     , pvalidAssertion2
     , pvalidKindFromOp
     , sizeOfType
+    , splitScalarPairs
     , strengthenHyp
     , weakenAssert
     , withStructs
@@ -40,7 +41,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT)
 import Data.Function (applyWhen)
 import Data.Functor ((<&>))
-import Data.List (nub)
+import Data.List (nub, partition)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust)
 import qualified Data.Set as S
@@ -110,6 +111,14 @@ alignOfType ty = case ty of
     ExprTypeStruct name -> (.align) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
     ExprTypeGlobalWrapper ty' -> alignOfType ty'
+
+--
+
+splitScalarPairs :: [NameTy] -> ([NameTy], [NameTy], [NameTy])
+splitScalarPairs args = (scalars, mems, others)
+  where
+    (scalars, globals) = span (\arg -> isWordT arg.ty || isBoolT arg.ty) args
+    (mems, others) = partition (\arg -> isMemT arg.ty) globals
 
 --
 

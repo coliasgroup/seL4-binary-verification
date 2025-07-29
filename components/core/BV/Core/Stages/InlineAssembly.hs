@@ -8,6 +8,7 @@ module BV.Core.Stages.InlineAssembly
     ( addInlineAssemblySpecs
     ) where
 
+import BV.Core.Logic (splitScalarPairs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
@@ -183,19 +184,12 @@ decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
     f funNameWithoutPrefix = case tryReadP parseCInstFun funNameWithoutPrefix of
         Nothing -> Left Unhandled
         Just (instFun, token) -> Right $
-            let (iscs, imems) = splitScalarPairs fun.input
-                (oscs, omems) = splitScalarPairs fun.output
+            let (iscs, imems, _) = splitScalarPairs fun.input
+                (oscs, omems, _) = splitScalarPairs fun.output
                 input = map varFromNameTyE iscs ++ [ tokenE token ] ++ map varFromNameTyE imems
                 output = oscs ++ omems
                 funBody = trivialProxyFunctionBody (getC (instFunctionName instFun)) input output
              in (funBody, instFun)
-
--- TODO join with one in FormulatePairings
-splitScalarPairs :: [NameTy] -> ([NameTy], [NameTy])
-splitScalarPairs args = (scalars, mems)
-  where
-    (scalars, globals) = span (\arg -> isWordT arg.ty || isBoolT arg.ty) args
-    mems = filter (\arg -> isMemT arg.ty) globals
 
 trivialProxyFunctionBody :: Ident -> [Expr] -> [NameTy] -> FunctionBody
 trivialProxyFunctionBody functionName input output =
