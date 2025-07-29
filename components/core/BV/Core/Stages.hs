@@ -40,6 +40,7 @@ import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (isJust)
 import qualified Data.Set as S
+import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 
@@ -159,8 +160,7 @@ stages input = StagesOutput
         let namedFuns =
                 let f funName prog = Named funName (prog.functions ! funName)
                  in f <$> pairingId <*> finalPrograms
-        guard $ isJust (getC namedFuns).value.body
-        guard $ isJust (getAsm namedFuns).value.body
+        for namedFuns $ \namedFun -> guard $ isJust namedFun.value.body
         let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
         let problem = buildProblem lookupFunction inlineScript namedFuns
         return (pairingId, problem)
