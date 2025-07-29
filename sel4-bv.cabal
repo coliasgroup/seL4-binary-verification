@@ -78,6 +78,8 @@ library core
       BV.Core.ModelConfig
       BV.Core.Search.Inlining
       BV.Core.Search.Inlining.All
+      BV.Core.Search.StackBounds
+      BV.Core.Search.StackBounds.All
       BV.Core.Stages
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
