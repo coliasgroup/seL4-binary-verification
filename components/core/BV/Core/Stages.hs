@@ -151,8 +151,8 @@ stages input = StagesOutput
     -- TODO
     -- By doing this we lose laziness, and it's probably overkill anyways (reduces eval from ~8s -> ~4s)
     -- Also, since implementing compileProofChecks, takes up too much memory
-    problems = problems'
     -- problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
+    problems = problems'
 
     problems' = Problems $ M.fromList $ do
         pairingId <- normalFunctionPairingIds
@@ -170,9 +170,9 @@ stages input = StagesOutput
     lookupOrigVarNameFor = argRenamesOf lookupFunction
 
     -- TODO (see above)
-    proofChecks = proofChecks'
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
+    proofChecks = proofChecks'
 
     proofChecks' = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings.unwrap M.! pairingId
