@@ -22,7 +22,7 @@ import Optics
 
 data RepGraphInput t
   = RepGraphInput
-      { cStructs :: Map Ident Struct
+      { structs :: ByTag t (Map Ident Struct)
       , rodata :: ROData
       , problem :: Problem t
       , functionSigs :: FunctionSignatures t
@@ -88,7 +88,7 @@ instance (Tag t, MonadSolverSend m) => MonadRepGraph t (M t m) where
 
 initEnv :: Tag t => RepGraphInput t -> Env t
 initEnv (RepGraphInput {..}) = Env
-    { structs = initStructsEnv rodata cStructs
+    { structs = initStructsEnv rodata structs
     , solver = initSolverEnv rodata
     , repGraph = initRepGraphEnv problem functionSigs
     }
