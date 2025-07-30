@@ -15,18 +15,21 @@ import BV.System.Core
 import BV.TargetDir
 
 import Control.DeepSeq (NFData, deepseq, force)
-import Control.Monad (when)
+import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
+import Data.Maybe (isJust)
 import GHC.Generics (Generic)
 import Optics
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
+import Text.Printf (printf)
 
 data EvalStagesContext
   = EvalStagesContext
-      { force :: Bool
+      { forceAll :: Bool
+      , forceFingerprints :: Bool
       , dumpTargetDir :: Maybe TargetDir
       , referenceTargetDir :: Maybe TargetDir
       , mismatchDumpDir :: Maybe FilePath
@@ -39,26 +42,39 @@ evalStages
     -> StagesInput
     -> m Checks
 evalStages ctx input = do
+
     logWarn $
         "Unhandled inline assembly functions (C side): " ++ show (map (.unwrap) output.unhandledInlineAssemblyFunctions)
     logWarn $
         "Unhandled instrcution functions (ASM side): " ++ show (map (.unwrap) output.unhandledInstructionFunctions)
-    logInfo "Registering functions"
-    register filterFunctions targetDirFiles.functions output.intermediate.functions
-    logInfo "Registering pairings"
-    register noop targetDirFiles.pairings output.intermediate.pairings
-    logInfo "Registering problems"
-    register filterProblems targetDirFiles.problems output.intermediate.problems
-    logInfo "Registering proof checks"
-    register noop targetDirFiles.proofChecks output.intermediate.compatProofChecks
-    logInfo "Registering SMT proof checks"
-    register noop targetDirFiles.smtProofChecks output.intermediate.compatSMTProofChecks
-    logInfo "Registered all intermediate artifacts"
-    return $ elaborateChecks output.checks
+
+    unless registerIsNoop $ do
+        logInfo "Registering functions"
+        register filterFunctions targetDirFiles.functions output.intermediate.functions
+        logInfo "Registering pairings"
+        register noop targetDirFiles.pairings output.intermediate.pairings
+        logInfo "Registering problems"
+        register filterProblems targetDirFiles.problems output.intermediate.problems
+        logInfo "Registering proof checks"
+        register noop targetDirFiles.proofChecks output.intermediate.compatProofChecks
+        logInfo "Registering SMT proof checks"
+        register noop targetDirFiles.smtProofChecks output.intermediate.compatSMTProofChecks
+        logInfo "Registered all intermediate artifacts"
+
+    let checks = elaborateChecks output.checks
+    when ctx.forceFingerprints $ do
+        logInfo "Enumerating check groups"
+        logInfo $ printf "Counted %d check groups" $ lengthOf (#unwrap % folded % folded) checks
+    return checks
+
   where
+
     output = stages input
+
+    registerIsNoop = not $ ctx.forceAll || isJust ctx.dumpTargetDir || isJust ctx.referenceTargetDir
+
     register :: forall a c. (Eq a, NFData a, ReadBVFile c a, WriteBVFile c a) => (a -> a -> a) -> TargetDirFile a -> a -> m ()
-    register f file actual = applyWhen ctx.force (deepseq actual) $ do
+    register f file actual = applyWhen ctx.forceAll (deepseq actual) $ do
         whenJust_ ctx.dumpTargetDir $ \dumpTargetDir -> do
             logInfo $ "Dumping " ++ file.relativePath
             liftIO $ writeTargetDirFile dumpTargetDir file actual
@@ -75,9 +91,13 @@ evalStages ctx input = do
                         writeBVFile (d </> "actual.txt") actual'
                         writeBVFile (d </> "expected.txt") expected
                 fail "Intermediate artifact mismatch"
+
     maybeForce :: forall a. NFData a => a -> a
-    maybeForce = applyWhen ctx.force force
+    maybeForce = applyWhen ctx.forceAll force
+
     filterFunctions expected actual = actual & #functions %~ M.filterWithKey (\k _v -> k `M.member` expected.functions)
     filterProblems expected actual = actual & #unwrap %~ M.filterWithKey (\k _v -> k `M.member` expected.unwrap)
+
     noop _expected actual = actual
+
     whenJust_ m f = maybe (return ()) f m
