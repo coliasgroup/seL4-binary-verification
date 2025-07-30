@@ -6,6 +6,8 @@ module BV.Core.ExecuteSMTProofChecks
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
+    , commonSolverSetup
+    , splitHyp
     ) where
 
 import BV.Core.ModelConfig
@@ -30,7 +32,7 @@ executeSMTProofCheckOffline
     :: (MonadSolver m, MonadThrow m)
     => Maybe SolverTimeout -> ModelConfig -> SMTProofCheck a -> m (Maybe SatResult)
 executeSMTProofCheckOffline timeout config check = do
-    commonSetup config check.setup
+    commonSolverSetup config check.setup
     sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $ goal
     checkSatWithTimeout timeout
   where
@@ -75,7 +77,7 @@ executeSMTProofCheckGroupOnline
     -> SMTProofCheckGroup a
     -> m (Either OnlineSolverFailureInfo ())
 executeSMTProofCheckGroupOnline timeout config group = do
-    commonSetup config group.setup
+    commonSolverSetup config group.setup
     runExceptT $ do
         forM_ (zip [0..] group.imps) $ \(i, imp) -> do
             let hyps = splitHyp (notS imp.term)
@@ -93,12 +95,12 @@ executeSMTProofCheckGroupOnline timeout config group = do
   where
     sendAssert = sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config
 
-commonSetup
+commonSolverSetup
     :: (MonadSolver m, MonadThrow m)
     => ModelConfig
     -> [SExprWithPlaceholders]
     -> m ()
-commonSetup config setup = do
+commonSolverSetup config setup = do
     sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
     sendSimpleCommandExpectingSuccess $ SetLogic logic
     mapM_ sendExpectingSuccess (modelConfigPreamble config)
