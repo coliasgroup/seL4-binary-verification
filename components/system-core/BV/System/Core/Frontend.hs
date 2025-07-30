@@ -29,7 +29,8 @@ frontend
     -> Checks
     -> m Report
 frontend gate backend config checks = do
-    let numChecks = lengthOf (#unwrap % folded % folded) checks
+    let numGroups = lengthOf (#unwrap % folded % folded) checks
+    logInfo $ printf "%d groups to check" numGroups
     completedGroups <- liftIO $ newTVarIO (0 :: Integer)
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
@@ -46,7 +47,7 @@ frontend gate backend config checks = do
                                 let n = n' + 1
                                 writeTVar completedGroups n
                                 return n
-                            logInfo $ printf "%d/%d groups checked" n numChecks
+                            logInfo $ printf "%d/%d groups checked" n numGroups
                             return result))
     logInfo $ printf "report complete after %.2fs" (fromRational (elapsedToSeconds elapsed) :: Double)
     return report
