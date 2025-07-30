@@ -240,6 +240,7 @@ library search
   other-modules:
       BV.Search.Inlining
       BV.Search.Inlining.All
+      BV.Search.Solver
       BV.Search.StackBounds
       BV.Search.StackBounds.All
   hs-source-dirs:
