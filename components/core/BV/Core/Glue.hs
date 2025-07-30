@@ -1,6 +1,8 @@
 
 {-# LANGUAGE DeriveAnyClass #-}
 
+-- TODO rename module and exports
+
 module BV.Core.Glue
     ( AsmFunctionFilter
     , IntermediateStagesOutput (..)
