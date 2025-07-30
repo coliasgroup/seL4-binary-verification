@@ -10,16 +10,13 @@ module BV.Core
     , OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
     , PairingId'
-    , ProofCheckDescription
     , ProofCheckMeta (..)
-    , ProofScriptNodePath (..)
     , RODataInputRangeType (..)
     , RODataInputRanges
     , SExprWithPlaceholders
     , SMTProofCheck (..)
     , SMTProofCheckGroup (..)
     , SMTProofCheckImp (..)
-    , SMTProofChecks (..)
     , StagesInput (..)
     , StagesOutput (..)
     , StagesOutputChecks (..)
