@@ -9,7 +9,7 @@ import BV.Core
 import BV.Logging (MonadLoggerWithContext)
 import BV.SMTLIB2.Process
 import BV.System.Core
-import BV.System.Core.Utils.Logging
+-- import BV.System.Core.Utils.Logging
 import BV.System.Utils
 import BV.System.Utils.UnliftIO.Async
 import BV.Test.Utils
@@ -51,14 +51,14 @@ testStackBounds = do
         testSeL4TargetDirSmall
         -- testSeL4TargetDirFocused
 
-runSolverInteractionConcurrently
-    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => SolverGate m -> ModelConfig -> CreateProcess -> (ModelConfig -> SolverT m a) -> ConcurrentlyUnliftIO m a
-runSolverInteractionConcurrently gate modelConfig proc interaction =
-    makeConcurrentlyUnliftIO $ gate 1 $ runSolverInteraction modelConfig proc interaction
+-- runSolverInteractionConcurrently
+--     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
+--     => SolverGate m -> ModelConfig -> CreateProcess -> (ModelConfig -> SolverT m a) -> ConcurrentlyUnliftIO m a
+-- runSolverInteractionConcurrently gate modelConfig proc interaction =
+--     makeConcurrentlyUnliftIO $ gate 1 $ runSolverInteraction modelConfig proc interaction
 
-runSolverInteraction
-    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => ModelConfig -> CreateProcess -> (ModelConfig -> SolverT m a) -> m a
-runSolverInteraction modelConfig proc interaction =
-    runSolverWithLogging proc (interaction modelConfig)
+-- runSolverInteraction
+--     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
+--     => ModelConfig -> CreateProcess -> (ModelConfig -> SolverT m a) -> m a
+-- runSolverInteraction modelConfig proc interaction =
+--     runSolverWithLogging proc (interaction modelConfig)

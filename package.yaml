@@ -166,7 +166,6 @@ internal-libraries:
     source-dirs: components/system-core
     exposed-modules:
       - BV.System.Core
-      - BV.System.Core.Utils.Logging # TODO
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
