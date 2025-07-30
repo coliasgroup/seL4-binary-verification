@@ -93,7 +93,7 @@ elaborateChecksFromInput input = elaborateChecks (stages input).checks
 elaborateChecks :: StagesOutputChecks -> Checks
 elaborateChecks stagesOutputChecks = Checks $ M.mapWithKey f stagesOutputChecks.unwrap
   where
-    f pairingId stagesOutputGroups = M.fromList
+    f pairingId stagesOutputGroups = M.fromListWith (error "unexpected")
         [ let group = CheckGroup
                 { fingerprint = fingerprintCheckGroup stagesOutputGroup
                 , pairingId
