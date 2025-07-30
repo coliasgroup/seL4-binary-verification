@@ -40,19 +40,18 @@ testSeL4TargetDirFocused = TargetDir $ testTargetDir "focused"
 testSeL4TargetDirFocusedTrace :: TargetDir
 testSeL4TargetDirFocusedTrace = TargetDir $ testTargetDir "focused-trace"
 
-testHtmlPagesDir :: FilePath
-testHtmlPagesDir = tmpDir </> "html" </> "pages"
-
-testHtmlOpts :: H.HtmlOpts
-testHtmlOpts = H.defaultHtmlOpts
-    { H.dataDir = ".."
-    }
+testHtmlDir :: FilePath
+testHtmlDir = tmpDir </> "html"
 
 writeHtml :: Show a => FilePath -> a -> IO ()
-writeHtml fname val = writeFile dst html
-  where
-    dst = testHtmlPagesDir </> fname <.> "html"
-    html = H.valToHtmlPage testHtmlOpts (fromJust (H.reify val))
+writeHtml fname val = do
+    let dst = testHtmlDir </> fname <.> "html"
+    dataDir <- H.getDataDir
+    let opts = H.defaultHtmlOpts
+            { H.dataDir = dataDir
+            }
+    let html = H.valToHtmlPage opts (fromJust (H.reify val))
+    writeFile dst html
 
 tmpOutDir :: FilePath
 tmpOutDir = tmpDir </> "out"
