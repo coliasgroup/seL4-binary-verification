@@ -1,7 +1,8 @@
 {-# LANGUAGE MultiWayIf #-}
 
 module BV.Core.RepGraph.AddFunc
-    ( WithAddFunc
+    ( FunctionSignatures
+    , WithAddFunc
     , runWithAddFunc
     ) where
 
@@ -27,6 +28,8 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 
+type FunctionSignatures t = WithTag t Ident -> FunctionSignature
+
 newtype WithAddFunc t m a
   = WithAddFunc { run :: StateT (State t) (ReaderT (Env t) m) a }
   deriving (Functor)
@@ -37,7 +40,8 @@ instance MonadTrans (WithAddFunc t) where
 
 data Env t
   = Env
-      { pairings :: Pairings t
+      { functionSigs :: FunctionSignatures t
+      , pairings :: Pairings t
       , pairingsAccess :: M.Map Ident (PairingId t)
       }
   deriving (Generic)
@@ -49,12 +53,16 @@ data State t
       }
   deriving (Generic)
 
-runWithAddFunc :: RefineTag t => MonadRepGraph t m => Pairings t -> WithAddFunc t m a -> m a
-runWithAddFunc pairings m = runReaderT (evalStateT m.run initState) (initEnv pairings)
+runWithAddFunc :: RefineTag t => MonadRepGraph t m => FunctionSignatures t -> Pairings t -> WithAddFunc t m a -> m a
+runWithAddFunc functionSigs pairings m =
+    runReaderT
+        (evalStateT m.run initState)
+        (initEnv functionSigs pairings)
 
-initEnv :: RefineTag t => Pairings t -> Env t
-initEnv pairings = Env
-    { pairings
+initEnv :: RefineTag t => FunctionSignatures t -> Pairings t -> Env t
+initEnv functionSigs pairings = Env
+    { functionSigs
+    , pairings
     , pairingsAccess = M.fromListWith (error "unexpected") $
         concat [ [(getRight p, p), (getLeft p, p)] | p <- M.keys pairings.unwrap]
     }
@@ -81,10 +89,16 @@ instance (RefineTag t, MonadRepGraph t m) => MonadRepGraph t (WithAddFunc t m) w
 
 --
 
-addFunc :: RefineTag t => MonadRepGraph t m => Visit -> ExprEnv -> ExprEnv -> Expr -> WithAddFunc t m ()
-addFunc visit inputs outputs success = do
-    WithAddFunc $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
+addFunc :: RefineTag t => MonadRepGraph t m => Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> WithAddFunc t m ()
+addFunc visit rawInputs rawOutputs success = do
     name <- askFnName visit
+    let nodeAddr = nodeAddrFromNodeId visit.nodeId
+    tag <- askNodeTag nodeAddr
+    functionSigs <- WithAddFunc $ gview #functionSigs
+    let sig = functionSigs $ WithTag tag name
+    let inputs = M.fromList $ zip sig.input rawInputs
+    let outputs = M.fromList $ zip sig.output rawOutputs
+    WithAddFunc $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
     pairingIdOpt <- WithAddFunc $ gview $ #pairingsAccess % at name
     whenJust_ pairingIdOpt $ \pairingId -> do
         group <- WithAddFunc $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
@@ -111,8 +125,8 @@ getFuncPairing visit visit2 = do
     whenJustThen opt $ \(p, visits) -> do
         (lin, _, _) <- WithAddFunc $ use $ #funcs % at (getLeft visits) % unwrapped
         (rin, _, _) <- WithAddFunc $ use $ #funcs % at (getRight visits) % unwrapped
-        lcalls <- scanMemCalls lin
-        rcalls <- scanMemCalls rin
+        lcalls <- scanMemCallsEnv lin
+        rcalls <- scanMemCallsEnv rin
         (compatible, _s) <- memCallsCompatible $ byRefineTag lcalls rcalls
         -- unless compatible $ do
         --     warn _s
@@ -153,7 +167,8 @@ memCallsCompatible byTag = case toList byTag of
         rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
             pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
             let rfname = getRight pairingId
-            rsig <- askFunctionSigs <&> ($ WithTag rightTag rfname)
+            functionSigs <- WithAddFunc $ gview #functionSigs
+            let rsig = functionSigs $ WithTag rightTag rfname
             return $
                 if any (\arg -> arg.ty == memT) rsig.output
                 then Just (rfname, calls)

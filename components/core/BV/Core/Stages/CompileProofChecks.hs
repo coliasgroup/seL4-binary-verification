@@ -2,7 +2,6 @@
 
 module BV.Core.Stages.CompileProofChecks
     ( FunctionSignature (..)
-    , FunctionSignatures
     , RepGraphBaseInput (..)
     , compileProofChecks
     ) where
@@ -19,25 +18,27 @@ import Data.Traversable (for)
 
 compileProofChecks
     :: RepGraphBaseInput AsmRefineTag
+    -> FunctionSignatures AsmRefineTag
     -> Pairings'
     -> ArgRenames AsmRefineTag
     -> [ProofCheck AsmRefineTag a]
     -> [SMTProofCheckGroup a]
-compileProofChecks repGraphInput pairings argRenames checks =
+compileProofChecks repGraphInput functionSigs pairings argRenames checks =
     map
-        (compileProofCheckGroup repGraphInput pairings argRenames)
+        (compileProofCheckGroup repGraphInput functionSigs pairings argRenames)
         (proofCheckGroups checks)
 
 compileProofCheckGroup
     :: RepGraphBaseInput AsmRefineTag
+    -> FunctionSignatures AsmRefineTag
     -> Pairings'
     -> ArgRenames AsmRefineTag
     -> ProofCheckGroup AsmRefineTag a
     -> SMTProofCheckGroup a
-compileProofCheckGroup repGraphInput pairings argRenames group =
+compileProofCheckGroup repGraphInput functionSigs pairings argRenames group =
     SMTProofCheckGroup setup imps
   where
-    (imps, setup) = runWriter (runRepGraphBase repGraphInput (runWithAddFunc pairings (runWithAsmStackRep argRenames m)))
+    (imps, setup) = runWriter (runRepGraphBase repGraphInput (runWithAddFunc functionSigs pairings (runWithAsmStackRep argRenames m)))
     m = interpretGroup group <* finalizeSolver
 
 interpretGroup :: (RefineTag t, MonadRepGraph t m) => ProofCheckGroup t a -> m [SMTProofCheckImp a]

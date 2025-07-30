@@ -10,8 +10,7 @@
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.RepGraph.Core
-    ( FunctionSignatures
-    , MemCalls
+    ( MemCalls
     , MemCallsForFunction (..)
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
@@ -19,7 +18,6 @@ module BV.Core.RepGraph.Core
     , RepGraphState
     , VarRepRequestKind (..)
     , askCont
-    , askFunctionSigs
     , askNodeTag
     , askProblem
     , convertInnerExprWithPcEnv
@@ -31,6 +29,7 @@ module BV.Core.RepGraph.Core
     , initRepGraphState
     , instEqWithEnvs
     , scanMemCalls
+    , scanMemCallsEnv
     , substInduct
     , zeroMemCallsForFunction
     ) where
@@ -49,8 +48,8 @@ import Control.Monad (filterM, guard, replicateM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT, asks)
-import Control.Monad.RWS (MonadState (get, put), MonadWriter (..),
-                          RWST (runRWST), evalRWST)
+import Control.Monad.RWS (MonadState (get, put), MonadWriter (..), RWST,
+                          evalRWST)
 import Control.Monad.State (StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
@@ -73,8 +72,6 @@ import Text.Printf (printf)
 
 -- TODO cache more accross groups?
 
-type FunctionSignatures t = WithTag t Ident -> FunctionSignature
-
 class MonadRepGraph t n => MonadRepGraphDefaultHelper t n m | m -> t, m -> n where
     liftMonadRepGraphDefaultHelper :: n a -> m a
     default liftMonadRepGraphDefaultHelper :: (m ~ t' n, MonadTrans t') => n a -> m a
@@ -85,7 +82,7 @@ class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
     runProblemVarRepHook :: NameTy -> VarRepRequestKind -> NodeAddr -> m (Maybe Expr)
     runPostEmitNodeHook :: Visit -> m ()
     runPreEmitCallNodeHook :: Visit -> Expr -> ExprEnv -> m ()
-    runPostEmitCallNodeHook :: Visit -> ExprEnv -> ExprEnv -> Expr -> m ()
+    runPostEmitCallNodeHook :: Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> m ()
 
     default liftRepGraph :: MonadRepGraphDefaultHelper t n m => StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
     liftRepGraph = liftMonadRepGraphDefaultHelper . liftRepGraph
@@ -99,7 +96,7 @@ class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
     default runPreEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> Expr -> ExprEnv -> m ()
     runPreEmitCallNodeHook = compose3 liftMonadRepGraphDefaultHelper runPreEmitCallNodeHook
 
-    default runPostEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> ExprEnv -> ExprEnv -> Expr -> m ()
+    default runPostEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> m ()
     runPostEmitCallNodeHook = compose4 liftMonadRepGraphDefaultHelper runPostEmitCallNodeHook
 
 -- TODO
@@ -128,8 +125,7 @@ instance MonadRepGraph t m => MonadRepGraph t (ExceptT e m) where
 
 data RepGraphEnv t
   = RepGraphEnv
-      { functionSigs :: FunctionSignatures t
-      , problem :: Problem t
+      { problem :: Problem t
       , problemNames :: S.Set Ident
       , nodeGraph :: NodeGraph
       , nodeTag :: NodeAddr -> t
@@ -157,11 +153,10 @@ data TooGeneral
       }
   deriving (Eq, Generic, Ord, Show)
 
-initRepGraphEnv :: Tag t => Problem t -> FunctionSignatures t -> RepGraphEnv t
-initRepGraphEnv problem functionSigs =
+initRepGraphEnv :: Tag t => Problem t -> RepGraphEnv t
+initRepGraphEnv problem =
     RepGraphEnv
-        { functionSigs
-        , problem
+        { problem
         , problemNames = S.fromList $ toListOf varNamesOfProblem problem
         , nodeGraph
         , nodeTag = (M.!) (nodeTagMap problem nodeGraph)
@@ -198,9 +193,6 @@ withMapSlot l k m = do
         return v
 
 --
-
-askFunctionSigs :: MonadRepGraph t m => m (FunctionSignatures t)
-askFunctionSigs = liftRepGraph $ gview $ #functionSigs
 
 askProblem :: MonadRepGraph t m => m (Problem t)
 askProblem = liftRepGraph $ gview $ #problem
@@ -372,9 +364,15 @@ getMemCalls sexpr = do
          , symbolS "store-word64"
          ] :: [SExprWithPlaceholders])
 
-scanMemCalls :: MonadRepGraph t m => ExprEnv -> m (Maybe MemCalls)
-scanMemCalls env = do
-    let vals = [ v | (var, v) <- M.toAscList env, var.ty == memT ]
+scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m (Maybe MemCalls)
+scanMemCallsEnv env = scanMemCalls
+    [ (var.ty, v)
+    | (var, v) <- M.toAscList env
+    ]
+
+scanMemCalls :: MonadRepGraph t m => [(ExprType, MaybeSplit)] -> m (Maybe MemCalls)
+scanMemCalls tyVals = do
+    let vals = [ v | (ty, v) <- tyVals, ty == memT ]
     memCalls <- traverse getMemCalls (vals ^.. folded % #_NotSplit)
     return $ case memCalls of
         [] -> Nothing
@@ -574,7 +572,7 @@ getLoopPcEnv split restrs = do
     let restrs2 = withMapVC (M.insert split (numberVC 0)) restrs
     prevPcEnvOpt <- tryGetNodePcEnv (Visit (Addr split) restrs2) Nothing
     whenJustThen prevPcEnvOpt $ \prevPcEnv -> do
-        memCalls <- scanMemCalls prevPcEnv.env >>= addLoopMemCalls split
+        memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls split
         let add name ty = do
                 let name2 = printf "%s_loop_at_%s" name (prettyNodeId (Addr split))
                 addVarRestrWithMemCalls name2 ty memCalls
@@ -691,7 +689,6 @@ emitNode :: (MonadRepGraph t m, MonadError TooGeneral m) => Visit -> m [(NodeId,
 emitNode visit = do
     pcEnv@(PcEnv pc env) <- fromJust <$> tryGetNodePcEnv visit Nothing
     let nodeAddr = nodeAddrFromNodeId visit.nodeId
-    tag <- askNodeTag nodeAddr
     node <- liftRepGraph $ gview $ #problem % #nodes % at nodeAddr % unwrapped
     if pcEnv.pc == falseE
         then return [ (cont, PcEnv falseE M.empty) | cont <- node ^.. nodeConts ]
@@ -724,25 +721,23 @@ emitNode visit = do
                 runPreEmitCallNodeHook visit pc env
                 let name = successName callNode.functionName visit
                 success <- smtExprE boolT . NotSplit . nameS <$> addVar name boolT
-                sigs <- liftRepGraph $ gview #functionSigs
-                let sig = sigs $ WithTag tag callNode.functionName
-                ins <- fmap M.fromList $ for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
-                    v <- withEnv env $ convertExpr callArg
-                    return (funArg, v)
+                ins <- for callNode.input $ \arg -> do
+                    v <- withEnv env $ convertExpr arg
+                    return (arg.ty, v)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
                 let m = do
-                        for_ (zip callNode.output sig.output) $ \(x, y) -> do
-                            var <- addVarRestrWithMemCalls (localName x.name visit) x.ty memCalls
-                            modify $ M.insert x (NotSplit (nameS var))
-                            tell [(y, NotSplit (nameS var))]
-                        for (zip callNode.output sig.output) $ \(x, y) -> do
-                            opt <- get >>= varRepRequest x VarRepRequestKindCall visit
-                            whenJust_ opt $ \v -> do
-                                modify $ M.insert x (Split v)
-                                tell [(y, Split v)]
-                (_, env', outs') <- runRWST m () env
-                let outs = M.fromList outs'
-                runPostEmitCallNodeHook visit ins outs success
+                        notSplit <- for callNode.output $ \out -> do
+                            var <- addVarRestrWithMemCalls (localName out.name visit) out.ty memCalls
+                            modify $ M.insert out (NotSplit (nameS var))
+                            return $ NotSplit (nameS var)
+                        split <- for callNode.output $ \out -> do
+                            opt <- get >>= varRepRequest out VarRepRequestKindCall visit
+                            for opt $ \v -> do
+                                modify $ M.insert out (Split v)
+                                return $ Split v
+                        return $ zipWith fromMaybe notSplit split
+                (outs, env') <- runStateT m env
+                runPostEmitCallNodeHook visit (map snd ins) outs success
                 return [(callNode.next, PcEnv pc env')]
 
 isSyntacticConstant :: MonadRepGraph t m => NameTy -> NodeAddr -> m Bool

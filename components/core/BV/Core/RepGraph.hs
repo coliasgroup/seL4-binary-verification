@@ -2,7 +2,6 @@ module BV.Core.RepGraph
     ( module BV.Core.RepGraph.AddFunc
     , module BV.Core.RepGraph.AsmStackRep
     , module BV.Core.RepGraph.Base
-    , FunctionSignatures
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphSolver (..)

@@ -175,9 +175,8 @@ stages input = StagesOutput
                 { structs = input.programs <&> (.structs)
                 , rodata = input.rodata
                 , problem
-                , functionSigs
                 }
-         in compileProofChecks repGraphInput pairings (lookupOrigVarNameFor problem)
+         in compileProofChecks repGraphInput functionSigs pairings (lookupOrigVarNameFor problem)
                 <$> (proofChecks.unwrap M.! pairingId)
 
     compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)

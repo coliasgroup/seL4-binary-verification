@@ -26,7 +26,6 @@ data RepGraphBaseInput t
       { structs :: ByTag t (Map Ident Struct)
       , rodata :: ROData
       , problem :: Problem t
-      , functionSigs :: FunctionSignatures t
       }
   deriving (Generic)
 
@@ -91,7 +90,7 @@ initEnv :: Tag t => RepGraphBaseInput t -> Env t
 initEnv input = Env
     { structs
     , solver = initSolverEnv input.rodata
-    , repGraph = initRepGraphEnv input.problem input.functionSigs
+    , repGraph = initRepGraphEnv input.problem
     }
   where
     structs = (M.!) $ M.unionsWith (error "unexpected") $

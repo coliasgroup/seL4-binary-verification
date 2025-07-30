@@ -8,7 +8,6 @@ module BV.Search.Inlining
 import BV.Core.RepGraph
 import BV.Core.Structs
 import BV.Core.Types
-import BV.Core.Types.Extras.Program (signatureOfFunction)
 import BV.Search.Solver
 
 import Control.Monad.Except (ExceptT, runExceptT)
@@ -38,7 +37,6 @@ discoverInlineScript input = buildProblemWith inliner lookupFun funs
         { structs = input.structs
         , rodata = input.rodata
         , problem
-        , functionSigs = signatureOfFunction <$> lookupFun
         })
 
 newtype InlineM m a
