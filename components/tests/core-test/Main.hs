@@ -45,7 +45,8 @@ testStagesWithReference referenceTargetDir = do
     return ()
   where
     ctx = EvalStagesContext
-        { force = True
+        { forceAll = True
+        , forceFingerprints = True
         , dumpTargetDir = Nothing
         , referenceTargetDir = Just referenceTargetDir
         , mismatchDumpDir = Just $ tmpDir </> "mismatch"

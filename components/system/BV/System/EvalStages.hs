@@ -14,7 +14,7 @@ import BV.Logging
 import BV.System.Core
 import BV.TargetDir
 
-import Control.DeepSeq (NFData, deepseq, force)
+import Control.DeepSeq (NFData, deepseq, force, rnf)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Function (applyWhen)
@@ -61,10 +61,14 @@ evalStages ctx input = do
         register noop targetDirFiles.smtProofChecks output.intermediate.compatSMTProofChecks
         logInfo "Registered all intermediate artifacts"
 
+
     let checks = elaborateChecks output.checks
+
     when ctx.forceFingerprints $ do
-        logInfo "Enumerating check groups"
-        logInfo $ printf "Counted %d check groups" $ lengthOf (#unwrap % folded % folded) checks
+        logInfo $ printf "Enumerating check groups"
+        !_ <- return $ rnf $ (foldMap M.keys (M.elems checks.unwrap) :: [CheckGroupFingerprint])
+        logInfo "Done enumerating check groups"
+
     return checks
 
   where
