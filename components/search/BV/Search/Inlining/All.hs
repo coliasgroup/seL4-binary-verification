@@ -3,10 +3,10 @@ module BV.Search.Inlining.All
     , discoverAllInlineScripts
     ) where
 
-import BV.Core.ModelConfig (ModelConfig)
-import BV.Core.Prelude (AsmFunctionFilter, applyIncludeExcludeFilter)
+import BV.Core.ModelConfig
 import BV.Core.Stages
 import BV.Core.Types
+import BV.Core.Utils.IncludeExcludeFilter
 import BV.SMTLIB2.Monad
 
 import BV.Search.Inlining

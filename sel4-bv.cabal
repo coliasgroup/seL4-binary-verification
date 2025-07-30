@@ -66,6 +66,8 @@ library concrete-syntax
 library core
   visibility: public
   exposed-modules:
+      BV.Core.DecorateProofScript
+      BV.Core.ExecuteSMTProofChecks
       BV.Core.Logic
       BV.Core.ModelConfig
       BV.Core.Prelude
@@ -73,11 +75,10 @@ library core
       BV.Core.Stages
       BV.Core.Structs
       BV.Core.Types
+      BV.Core.Utils.IncludeExcludeFilter
   other-modules:
       BV.Core.Arch
       BV.Core.Debug.Utils
-      BV.Core.DecorateProofScript
-      BV.Core.ExecuteSMTProofChecks
       BV.Core.GenerateFreshName
       BV.Core.Glue
       BV.Core.Graph
@@ -113,7 +114,6 @@ library core
       BV.Core.Types.SMTProofChecks
       BV.Core.Types.Tag
       BV.Core.Utils
-      BV.Core.Utils.IncludeExcludeFilter
   hs-source-dirs:
       components/core
   default-extensions:

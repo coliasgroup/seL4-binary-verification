@@ -1,6 +1,7 @@
 
 module BV.Core.Stages
-    ( module BV.Core.Stages.BuildProblem
+    ( AsmFunctionFilter
+    , module BV.Core.Stages.BuildProblem
     , module BV.Core.Stages.CompileProofChecks
     , module BV.Core.Stages.EnumerateProofChecks
     , module BV.Core.Stages.FixupProgram
@@ -16,3 +17,8 @@ import BV.Core.Stages.FixupProgram
 import BV.Core.Stages.FormulatePairing
 import BV.Core.Stages.InlineAssembly
 import BV.Core.Stages.PseudoCompile
+
+import BV.Core.Types (Ident)
+import BV.Core.Utils.IncludeExcludeFilter (IncludeExcludeFilter)
+
+type AsmFunctionFilter = IncludeExcludeFilter Ident

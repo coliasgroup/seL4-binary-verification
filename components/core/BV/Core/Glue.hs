@@ -4,8 +4,7 @@
 -- TODO rename module and exports
 
 module BV.Core.Glue
-    ( AsmFunctionFilter
-    , IntermediateStagesOutput (..)
+    ( IntermediateStagesOutput (..)
     , ProofCheckMeta (..)
     , StagesInput (..)
     , StagesOutput (..)
@@ -50,8 +49,6 @@ data StagesInput
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary StagesInput where
-
-type AsmFunctionFilter = IncludeExcludeFilter Ident
 
 data StagesOutput
   = StagesOutput

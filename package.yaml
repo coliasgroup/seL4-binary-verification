@@ -112,6 +112,8 @@ internal-libraries:
     visibility: public
     source-dirs: components/core
     exposed-modules:
+      - BV.Core.DecorateProofScript
+      - BV.Core.ExecuteSMTProofChecks
       - BV.Core.Logic
       - BV.Core.ModelConfig
       - BV.Core.Prelude
@@ -119,6 +121,7 @@ internal-libraries:
       - BV.Core.Stages
       - BV.Core.Structs
       - BV.Core.Types
+      - BV.Core.Utils.IncludeExcludeFilter
     dependencies:
       - sel4-bv:smtlib2
       # external
