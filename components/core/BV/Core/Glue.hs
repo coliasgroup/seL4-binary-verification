@@ -18,7 +18,7 @@ import BV.Core.DecorateProofScript
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils
+import BV.Core.Utils.IncludeExcludeFilter
 
 import Control.DeepSeq (NFData)
 import Control.Monad (guard)

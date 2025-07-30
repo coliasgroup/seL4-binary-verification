@@ -1,9 +1,5 @@
-{-# LANGUAGE DeriveAnyClass #-}
-
 module BV.Core.Utils
-    ( IncludeExcludeFilter (..)
-    , adjacently
-    , applyIncludeExcludeFilter
+    ( adjacently
     , compose2
     , compose3
     , compose4
@@ -26,19 +22,14 @@ module BV.Core.Utils
     , (!@)
     ) where
 
-import Control.DeepSeq (NFData)
 import Control.Monad (when)
 import Control.Monad.State (evalState, state)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT), hoistMaybe)
-import Data.Binary (Binary)
 import Data.Either (fromRight)
 import Data.Foldable (for_)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
-import Data.Set (Set)
-import qualified Data.Set as S
-import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
 
@@ -122,18 +113,6 @@ findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present:
 
 -- (!) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
 -- (!) = findWithCallstack
-
-data IncludeExcludeFilter a
-  = IncludeExcludeFilter
-      { include :: Maybe (Set a)
-      , exclude :: Set a
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary a => Binary (IncludeExcludeFilter a)
-
-applyIncludeExcludeFilter :: Ord a => IncludeExcludeFilter a -> a -> Bool
-applyIncludeExcludeFilter f a = maybe (const True) (flip S.member) f.include a && a `S.notMember` f.exclude
 
 zipWithTraversable :: Traversable t => (a -> b -> c) -> [a] -> t b -> t c
 zipWithTraversable f xs t = evalState (traverse m t) xs

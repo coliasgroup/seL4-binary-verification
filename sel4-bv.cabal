@@ -113,6 +113,7 @@ library core
       BV.Core.Types.SMTProofChecks
       BV.Core.Types.Tag
       BV.Core.Utils
+      BV.Core.Utils.IncludeExcludeFilter
   hs-source-dirs:
       components/core
   default-extensions:
