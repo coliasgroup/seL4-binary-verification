@@ -23,6 +23,7 @@ module BV.Core
     , StagesInput (..)
     , StagesOutput (..)
     , StagesOutputChecks (..)
+    , applyIncludeExcludeFilter
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline

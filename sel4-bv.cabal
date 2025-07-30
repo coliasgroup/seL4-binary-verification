@@ -67,6 +67,11 @@ library core
   visibility: public
   exposed-modules:
       BV.Core
+      BV.Core.Logic
+      BV.Core.ModelConfig
+      BV.Core.RepGraph
+      BV.Core.Stages
+      BV.Core.Structs
       BV.Core.Types
   other-modules:
       BV.Core.Arch
@@ -76,19 +81,11 @@ library core
       BV.Core.GenerateFreshName
       BV.Core.Glue
       BV.Core.Graph
-      BV.Core.Logic
-      BV.Core.ModelConfig
-      BV.Core.RepGraph
       BV.Core.RepGraph.AddFunc
       BV.Core.RepGraph.AsmStackRep
       BV.Core.RepGraph.Base
       BV.Core.RepGraph.Core
       BV.Core.RepGraph.Solver
-      BV.Core.Search.Inlining
-      BV.Core.Search.Inlining.All
-      BV.Core.Search.StackBounds
-      BV.Core.Search.StackBounds.All
-      BV.Core.Stages
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks
@@ -97,7 +94,6 @@ library core
       BV.Core.Stages.GroupProofChecks
       BV.Core.Stages.InlineAssembly
       BV.Core.Stages.PseudoCompile
-      BV.Core.Structs
       BV.Core.Types.Aggregate
       BV.Core.Types.AsmRefineTag
       BV.Core.Types.Extras
@@ -229,6 +225,45 @@ library network-transport-static
     , parallel
     , process
     , safe-exceptions
+    , stm
+    , text
+    , transformers
+    , transformers-base
+    , vector
+  default-language: GHC2024
+
+library search
+  visibility: public
+  exposed-modules:
+      BV.Search
+  other-modules:
+      BV.Search.Inlining
+      BV.Search.Inlining.All
+      BV.Search.StackBounds
+      BV.Search.StackBounds.All
+  hs-source-dirs:
+      components/search
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      array
+    , async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , mtl
+    , optics
+    , parallel
+    , safe-exceptions
+    , sel4-bv:core
+    , sel4-bv:smtlib2
     , stm
     , text
     , transformers
@@ -753,6 +788,7 @@ test-suite search-test
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
+    , sel4-bv:search
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system

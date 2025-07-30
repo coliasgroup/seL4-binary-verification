@@ -1,14 +1,15 @@
-module BV.Core.Search.StackBounds.All
+module BV.Search.StackBounds.All
     ( DiscoverAllStackBoundsInput (..)
     , discoverAllStackBounds
     ) where
 
+import BV.Core (AsmFunctionFilter, applyIncludeExcludeFilter)
 import BV.Core.ModelConfig (ModelConfig)
-import BV.Core.Search.StackBounds
 import BV.Core.Stages
 import BV.Core.Types
-import BV.Core.Utils
 import BV.SMTLIB2.Monad
+
+import BV.Search.StackBounds
 
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -19,7 +20,7 @@ data DiscoverAllStackBoundsInput
   = DiscoverAllStackBoundsInput
       { program :: Program
       , rodata :: ROData
-      , earlyAsmFunctionFilter :: IncludeExcludeFilter Ident
+      , earlyAsmFunctionFilter :: AsmFunctionFilter
       , include :: S.Set Ident
       }
   deriving (Generic)

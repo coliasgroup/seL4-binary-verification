@@ -113,6 +113,11 @@ internal-libraries:
     source-dirs: components/core
     exposed-modules:
       - BV.Core
+      - BV.Core.Logic
+      - BV.Core.ModelConfig
+      - BV.Core.RepGraph
+      - BV.Core.Stages
+      - BV.Core.Structs
       - BV.Core.Types
     dependencies:
       - sel4-bv:smtlib2
@@ -140,6 +145,15 @@ internal-libraries:
       - attoparsec
       - aeson
       - aeson-pretty
+
+  search:
+    visibility: public
+    source-dirs: components/search
+    exposed-modules:
+      - BV.Search
+    dependencies:
+      - sel4-bv:smtlib2
+      - sel4-bv:core
 
   target-dir:
     visibility: public
@@ -337,6 +351,7 @@ tests:
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
+      - sel4-bv:search
       - sel4-bv:target-dir
       - sel4-bv:system
       - sel4-bv:system-core

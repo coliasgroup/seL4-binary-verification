@@ -1,13 +1,12 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module BV.Core.Search.Inlining
+module BV.Search.Inlining
     ( DiscoverInlineScriptInput (..)
     , discoverInlineScript
     ) where
 
 import BV.Core.ModelConfig (ModelConfig, configureSExpr)
 import BV.Core.RepGraph
-import BV.Core.RepGraph.Solver
 import BV.Core.Structs
 import BV.Core.Types
 import BV.SMTLIB2.Monad

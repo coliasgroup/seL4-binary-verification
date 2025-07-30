@@ -1,14 +1,15 @@
-module BV.Core.Search.Inlining.All
+module BV.Search.Inlining.All
     ( DiscoverAllInlineScriptInput (..)
     , discoverAllInlineScripts
     ) where
 
+import BV.Core (AsmFunctionFilter, applyIncludeExcludeFilter)
 import BV.Core.ModelConfig (ModelConfig)
-import BV.Core.Search.Inlining
 import BV.Core.Stages
 import BV.Core.Types
-import BV.Core.Utils
 import BV.SMTLIB2.Monad
+
+import BV.Search.Inlining
 
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -20,7 +21,7 @@ data DiscoverAllInlineScriptInput
       { programs :: ByTag' Program
       , objDumpInfo :: ObjDumpInfo
       , rodata :: ROData
-      , earlyAsmFunctionFilter :: IncludeExcludeFilter Ident
+      , earlyAsmFunctionFilter :: AsmFunctionFilter
       , asmFunctions :: S.Set Ident
       }
   deriving (Generic)
