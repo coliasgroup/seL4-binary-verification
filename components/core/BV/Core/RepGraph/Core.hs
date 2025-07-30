@@ -728,11 +728,10 @@ emitNode visit = do
                 let sig = sigs $ WithTag tag callNode.functionName
                 ins <- fmap M.fromList $ for (zip sig.input callNode.input) $ \(funArg, callArg) -> do
                     v <- withEnv env $ convertExpr callArg
-                    return (NameTy funArg.name funArg.ty, v)
+                    return (funArg, v)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
                 let m = do
                         for_ (zip callNode.output sig.output) $ \(x, y) -> do
-                            ensureM $ x.ty == y.ty
                             var <- addVarRestrWithMemCalls (localName x.name visit) x.ty memCalls
                             modify $ M.insert x (NotSplit (nameS var))
                             tell [(y, NotSplit (nameS var))]
@@ -740,7 +739,7 @@ emitNode visit = do
                             opt <- get >>= varRepRequest x VarRepRequestKindCall visit
                             whenJust_ opt $ \v -> do
                                 modify $ M.insert x (Split v)
-                                tell [(NameTy y.name x.ty, Split v)]
+                                tell [(y, Split v)]
                 (_, env', outs') <- runRWST m () env
                 let outs = M.fromList outs'
                 runPostEmitCallNodeHook visit ins outs success
