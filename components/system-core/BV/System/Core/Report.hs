@@ -9,7 +9,7 @@ module BV.System.Core.Report
     , prettyCheckFailure
     ) where
 
-import BV.Core
+import BV.Core.Prelude
 import BV.System.Core.Fingerprinting
 import BV.System.Core.Types
 

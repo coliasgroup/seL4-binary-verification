@@ -1,6 +1,6 @@
 -- TODO clean up
 
-module BV.Core
+module BV.Core.Prelude
     ( AsmFunctionFilter
     , Ident (..)
     , IncludeExcludeFilter (..)

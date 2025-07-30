@@ -66,9 +66,9 @@ library concrete-syntax
 library core
   visibility: public
   exposed-modules:
-      BV.Core
       BV.Core.Logic
       BV.Core.ModelConfig
+      BV.Core.Prelude
       BV.Core.RepGraph
       BV.Core.Stages
       BV.Core.Structs

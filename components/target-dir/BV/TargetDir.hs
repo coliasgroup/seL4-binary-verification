@@ -17,7 +17,7 @@ module BV.TargetDir
     ) where
 
 import BV.ConcreteSyntax
-import BV.Core
+import BV.Core.Prelude
 import BV.Core.Types
 
 import Control.Exception (Exception (displayException), throwIO)

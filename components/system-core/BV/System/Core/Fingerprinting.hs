@@ -17,7 +17,7 @@ module BV.System.Core.Fingerprinting
     ) where
 
 import BV.ConcreteSyntax
-import BV.Core
+import BV.Core.Prelude
 
 import Control.DeepSeq (NFData)
 import Crypto.Hash.SHA256 (hashlazy)

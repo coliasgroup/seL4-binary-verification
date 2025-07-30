@@ -11,7 +11,7 @@ module BV.System.Core.Solvers.Backend
     , localSolverBackend
     ) where
 
-import BV.Core
+import BV.Core.Prelude
 import BV.Logging
 import BV.SMTLIB2
 import BV.SMTLIB2.Command

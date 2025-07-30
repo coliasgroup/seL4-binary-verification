@@ -5,7 +5,7 @@ module Main
     ( main
     ) where
 
-import BV.Core
+import BV.Core.Prelude
 import BV.System.EvalStages
 import BV.TargetDir
 import BV.Test.Utils

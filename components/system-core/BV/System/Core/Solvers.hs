@@ -21,7 +21,7 @@ module BV.System.Core.Solvers
     , runSolvers
     ) where
 
-import BV.Core
+import BV.Core.Prelude
 import BV.Logging
 import BV.System.Core.Cache
 import BV.System.Core.Report

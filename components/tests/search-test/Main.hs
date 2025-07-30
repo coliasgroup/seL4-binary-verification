@@ -5,7 +5,7 @@ module Main
     ( main
     ) where
 
-import BV.Core
+import BV.Core.Prelude
 import BV.Logging (MonadLoggerWithContext)
 import BV.SMTLIB2.Process
 import BV.System.Core

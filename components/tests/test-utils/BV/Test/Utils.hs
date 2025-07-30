@@ -2,7 +2,7 @@
 
 module BV.Test.Utils where
 
-import BV.Core
+import BV.Core.Prelude
 import BV.TargetDir
 
 import Data.Maybe (fromJust)

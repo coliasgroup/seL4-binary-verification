@@ -31,7 +31,7 @@ module BV.System.Core.Types
     , toCoreCheckGroup
     ) where
 
-import BV.Core
+import BV.Core.Prelude
 import BV.System.Core.Fingerprinting
 import BV.System.Core.Utils
 

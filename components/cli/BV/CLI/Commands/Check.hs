@@ -6,7 +6,7 @@ import BV.CLI.Distrib
 import BV.CLI.Opts
 import BV.CLI.SolverList
 import BV.CLI.WorkersConfig
-import BV.Core
+import BV.Core.Prelude
 import BV.Logging
 import BV.System.Cache.Postgres
 import BV.System.Cache.SQLite

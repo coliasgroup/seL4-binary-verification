@@ -11,7 +11,7 @@ module BV.System.Distrib
     , runDistrib
     ) where
 
-import BV.Core
+import BV.Core.Prelude
 import BV.Logging
 import BV.SMTLIB2.Command
 import BV.System.Core

@@ -7,7 +7,7 @@ module BV.CLI.SolverList
     , SolverListOnlineSolver (..)
     ) where
 
-import BV.Core
+import BV.Core.Prelude
 import BV.System.Core
 
 import Data.Aeson
