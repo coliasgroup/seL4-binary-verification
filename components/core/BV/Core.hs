@@ -2,7 +2,6 @@
 
 module BV.Core
     ( AsmFunctionFilter
-    , ByTag
     , Ident (..)
     , IncludeExcludeFilter (..)
     , IntermediateStagesOutput (..)
@@ -10,7 +9,6 @@ module BV.Core
     , ModelConfig (..)
     , OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
-    , PairingId
     , PairingId'
     , ProofCheckDescription
     , ProofCheckMeta (..)
@@ -30,6 +28,7 @@ module BV.Core
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
     , getAsm
+    , getC
     , prettyMemoryMode
     , prettyModelConfig
     , prettyPairingId
