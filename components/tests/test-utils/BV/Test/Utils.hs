@@ -68,6 +68,9 @@ seL4DefaultEarlyAsmFunctionFilter = IncludeExcludeFilter
         ]
     }
 
+seL4DefaultCFunctionPrefix :: String
+seL4DefaultCFunctionPrefix = "Kernel_C."
+
 seL4DefaultRODataInputRanges :: RODataInputRanges
 seL4DefaultRODataInputRanges =
     [ (RODataInputRangeTypeSection, ".rodata")
@@ -77,4 +80,4 @@ seL4DefaultRODataInputRanges =
 
 seL4DefaultReadStagesInput :: TargetDir -> IO StagesInput
 seL4DefaultReadStagesInput =
-    readStagesInput seL4DefaultEarlyAsmFunctionFilter seL4DefaultRODataInputRanges
+    readStagesInput seL4DefaultEarlyAsmFunctionFilter seL4DefaultCFunctionPrefix seL4DefaultRODataInputRanges

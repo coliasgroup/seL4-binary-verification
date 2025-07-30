@@ -43,6 +43,7 @@ data StagesInput
       , inlineScripts :: InlineScripts'
       , proofs :: Proofs' ()
       , earlyAsmFunctionFilter :: AsmFunctionFilter
+      , cFunctionPrefix :: String
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -126,7 +127,7 @@ stages input = StagesOutput
 
     normalFunctionPairingIds = do
         asm <- M.keys (getAsm finalPrograms).functions
-        let c = asmFunNameToCFunName asm
+        let c = asm & #unwrap %~ (input.cFunctionPrefix ++)
         guard $ c `M.member` (getC finalPrograms).functions
         return $ byAsmRefineTag (ByAsmRefineTag { asm, c })
 
@@ -185,8 +186,3 @@ stages input = StagesOutput
     finalChecks =
         let f = decorateProofScriptWithProofScriptNodePathsWith $ \path -> map (fmap (ProofCheckMeta path))
          in StagesOutputChecks $ M.map (fold . f) smtProofChecks.unwrap
-
-
--- TODO move
-asmFunNameToCFunName :: Ident -> Ident
-asmFunNameToCFunName = #unwrap %~ ("Kernel_C." ++)

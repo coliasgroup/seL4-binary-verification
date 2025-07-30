@@ -121,6 +121,7 @@ data CheckOpts
       , referenceTargetDir :: Maybe FilePath
       , dumpTargetDir :: Maybe FilePath
       , mismatchDir :: Maybe FilePath
+      , cFunctionPrefix :: String
       , rodataSections :: [String]
       , rodataSymbols :: [String]
       , includeFunctions :: [Ident]
@@ -354,6 +355,10 @@ checkOptsParser = do
         , metavar "DATABASE"
         , help "PostgreSQL database to use as a cache"
         ]
+    cFunctionPrefix <- option' str
+        [ long "c-function-prefix"
+        , metavar "C_FUNCTION_PREFIX"
+        ]
     rodataSections <- many $ option' str
         [ long "rodata-section"
         , metavar "SECTION"
@@ -425,6 +430,7 @@ checkOptsParser = do
         , dumpTargetDir
         , referenceTargetDir
         , mismatchDir
+        , cFunctionPrefix
         , rodataSections
         , rodataSymbols
         , includeFunctions

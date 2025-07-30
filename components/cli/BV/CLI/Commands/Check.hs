@@ -51,6 +51,7 @@ import Text.Printf (printf)
 runCheck :: (MonadUnliftIO m, MonadMask m, MonadFail m, MonadLoggerWithContext m) => CheckOpts -> m ()
 runCheck opts = do
     let earlyAsmFunctionFilter = getEarlyAsmFunctionFilter opts
+    let cFunctionPrefix = opts.cFunctionPrefix
     let rodataInputRanges = getRODataInputRanges opts
     let checkFilter = getCheckFilter opts
     let evalStagesCtx = EvalStagesContext
@@ -61,6 +62,7 @@ runCheck opts = do
             }
     input <- liftIO $ readStagesInput
         earlyAsmFunctionFilter
+        cFunctionPrefix
         rodataInputRanges
         (TargetDir opts.inputTargetDir)
     let evalChecks = filterChecks checkFilter <$> evalStages evalStagesCtx input

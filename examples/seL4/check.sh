@@ -17,6 +17,7 @@ mkdir -p $tmp
 $exe \
     check \
     --target-dir $here/target-dir \
+    --c-function-prefix Kernel_C. \
     --rodata-section .rodata \
     --rodata-symbol kernel_device_frames \
     --rodata-symbol avail_p_regs \
