@@ -1,13 +1,11 @@
 module BV.Search.Inlining.All
-    ( DiscoverAllInlineScriptInput (..)
-    , discoverAllInlineScripts
+    ( DiscoverAllInlineScriptsInput (..)
+    , prepareAllDiscoverInlineScriptInput
     ) where
 
-import BV.Core.ModelConfig
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Utils.IncludeExcludeFilter
-import BV.SMTLIB2.Monad
 
 import BV.Search.Inlining
 
@@ -16,22 +14,21 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
-data DiscoverAllInlineScriptInput
-  = DiscoverAllInlineScriptInput
+data DiscoverAllInlineScriptsInput
+  = DiscoverAllInlineScriptsInput
       { programs :: ByTag' Program
       , objDumpInfo :: ObjDumpInfo
       , rodata :: ROData
       , earlyAsmFunctionFilter :: AsmFunctionFilter
       , asmFunctions :: S.Set Ident
+      , cFunctionPrefix :: String
       }
   deriving (Generic)
 
-discoverAllInlineScripts
-    :: (Applicative f, MonadSolver n)
-    => ((ModelConfig -> n a) -> f a)
-    -> DiscoverAllInlineScriptInput
-    -> f InlineScripts'
-discoverAllInlineScripts run input = scripts
+prepareAllDiscoverInlineScriptInput
+    :: DiscoverAllInlineScriptsInput
+    -> M.Map PairingId' DiscoverInlineScriptInput
+prepareAllDiscoverInlineScriptInput input = scripts
 
   where
 
@@ -51,17 +48,14 @@ discoverAllInlineScripts run input = scripts
     lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions M.! funName
 
     pairingIds = flip S.map input.asmFunctions $ \asm ->
-        byAsmRefineTag (ByAsmRefineTag { asm, c = asmFunNameToCFunName asm})
+        let c = asm & #unwrap %~ (input.cFunctionPrefix ++)
+         in byAsmRefineTag (ByAsmRefineTag { asm, c })
 
-    script pairingId = discoverInlineScript run $ DiscoverInlineScriptInput
+    script pairingId = DiscoverInlineScriptInput
         { structs = input.programs <&> (.structs)
         , rodata = input.rodata
         , functions = lookupFunction
         , pairingId
         }
 
-    scripts = InlineScripts <$> sequenceA (M.fromSet script pairingIds)
-
-
-asmFunNameToCFunName :: Ident -> Ident
-asmFunNameToCFunName = #unwrap %~ ("Kernel_C." ++)
+    scripts = M.fromSet script pairingIds

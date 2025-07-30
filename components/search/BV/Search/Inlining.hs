@@ -5,15 +5,14 @@ module BV.Search.Inlining
     , discoverInlineScript
     ) where
 
-import BV.Core.ModelConfig (ModelConfig, configureSExpr)
 import BV.Core.RepGraph
 import BV.Core.Structs
 import BV.Core.Types
-import BV.SMTLIB2.Monad
+import BV.Core.Types.Extras.Program (signatureOfFunction)
+import BV.Search.Solver
 
 import Control.Monad.Except (ExceptT, runExceptT)
-import Control.Monad.Reader (MonadReader (ask), ReaderT, runReaderT)
-import Control.Monad.Trans (lift)
+import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.Map (Map)
 import GHC.Generics (Generic)
 import Optics
@@ -28,14 +27,22 @@ data DiscoverInlineScriptInput
   deriving (Generic)
 
 discoverInlineScript
-    :: (Applicative f, MonadSolver n)
-    => ((ModelConfig -> n a) -> f a)
-    -> DiscoverInlineScriptInput
-    -> f InlineScript'
-discoverInlineScript = undefined
+    :: MonadRepGraphSolverInteract m
+    => DiscoverInlineScriptInput
+    -> m InlineScript'
+discoverInlineScript input = buildProblemWith inliner lookupFun funs
+  where
+    lookupFun = input.functions
+    funs = withTags input.pairingId <&> \wt -> Named wt.value (lookupFun wt)
+    inliner problem = fmap (:[]) <$> nextReachableUnmatchedCInlinePoint (RepGraphBaseInput
+        { structs = input.structs
+        , rodata = input.rodata
+        , problem
+        , functionSigs = signatureOfFunction <$> lookupFun
+        })
 
 newtype InlineM m a
-  = InlineM { run :: RepGraphBase AsmRefineTag (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m))) a }
+  = InlineM { run :: RepGraphBase AsmRefineTag (ExceptT InliningEvent (ReaderT InlinerInput m)) a }
   deriving (Functor)
   deriving newtype
     ( Applicative
@@ -55,33 +62,26 @@ data InlinerInput
   = InlinerInput
   deriving (Generic)
 
-newtype InnerSolver m a
-  = InnerSolver { run :: ReaderT ModelConfig m a }
-  deriving (Functor)
-  deriving newtype (Applicative, Monad)
-
-instance MonadSolver m => MonadRepGraphSolverSend (InnerSolver m) where
-    sendSExprWithPlaceholders s = InnerSolver $ do
-        modelConfig <- ask
-        lift $ sendSExpr $ configureSExpr modelConfig s
-
-instance MonadSolver m => MonadRepGraphDefaultHelper AsmRefineTag (RepGraphBase AsmRefineTag (ExceptT InliningEvent (ReaderT InlinerInput (InnerSolver m)))) (InlineM m) where
+instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTag (RepGraphBase AsmRefineTag (ExceptT InliningEvent (ReaderT InlinerInput m))) (InlineM m) where
     liftMonadRepGraphDefaultHelper = InlineM
 
-instance MonadSolver m => MonadRepGraph AsmRefineTag (InlineM m) where
+instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
     runPreEmitCallNodeHook _nodeId _pc _env = do
         undefined
 
-runInlineM :: MonadSolver m => ModelConfig -> RepGraphBaseInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
-runInlineM modelConfig repGraphInput inlinerInput m =
-    runReaderT (runReaderT (runExceptT (runRepGraphBase repGraphInput m.run)) inlinerInput).run modelConfig
+runInlineM :: MonadRepGraphSolverInteract m => RepGraphBaseInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
+runInlineM repGraphInput inlinerInput m =
+    runReaderT (runExceptT (runRepGraphBase repGraphInput m.run)) inlinerInput
 
-nextInlinePoint :: MonadSolver m => ModelConfig -> RepGraphBaseInput AsmRefineTag -> m (Maybe NodeAddr)
-nextInlinePoint modelConfig repGraphInput = preview (_Left % #nodeAddr) <$> ret
+nextReachableUnmatchedCInlinePoint :: MonadRepGraphSolverInteract m => RepGraphBaseInput AsmRefineTag -> m (Maybe NodeAddr)
+nextReachableUnmatchedCInlinePoint repGraphInput = preview (_Left % #nodeAddr) <$> ret
   where
-    inlinerInput = undefined
-    ret = runInlineM modelConfig repGraphInput inlinerInput $ do
-        undefined
+    inlinerInput = InlinerInput
+    ret = runInlineM repGraphInput inlinerInput $ do
+        nextReachableUnmatchedCInlinePointInner
+
+nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => InlineM m (Maybe NodeAddr)
+nextReachableUnmatchedCInlinePointInner = undefined
 
 --
 
@@ -89,5 +89,5 @@ nextInlinePoint modelConfig repGraphInput = preview (_Left % #nodeAddr) <$> ret
 
 type Inliner m = Problem' -> m (Maybe [NodeAddr])
 
-buildProblemWith :: Monad m => [Inliner m] -> (WithTag' Ident -> Function) -> ByTag' (Named Function) -> InlineScript'
+buildProblemWith :: Monad m => Inliner m -> (WithTag' Ident -> Function) -> ByTag' (Named Function) -> m InlineScript'
 buildProblemWith _inliners _lookupFun _funs = undefined

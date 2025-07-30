@@ -3,10 +3,10 @@
 module BV.Core.ExecuteSMTProofChecks
     ( OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
+    , commonSolverSetup
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
-    , commonSolverSetup
     , splitHyp
     ) where
 
@@ -20,6 +20,7 @@ import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (runExceptT, throwError)
 import Data.Binary (Binary)
+import Data.Foldable (traverse_)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
@@ -32,7 +33,8 @@ executeSMTProofCheckOffline
     :: (MonadSolver m, MonadThrow m)
     => Maybe SolverTimeout -> ModelConfig -> SMTProofCheck a -> m (Maybe SatResult)
 executeSMTProofCheckOffline timeout config check = do
-    commonSolverSetup config check.setup
+    commonSolverSetup config
+    traverse_ (sendExpectingSuccess . configureSExpr config) check.setup
     sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $ goal
     checkSatWithTimeout timeout
   where
@@ -77,12 +79,13 @@ executeSMTProofCheckGroupOnline
     -> SMTProofCheckGroup a
     -> m (Either OnlineSolverFailureInfo ())
 executeSMTProofCheckGroupOnline timeout config group = do
-    commonSolverSetup config group.setup
+    commonSolverSetup config
+    traverse_ (sendExpectingSuccess . configureSExpr config) group.setup
     runExceptT $ do
         forM_ (zip [0..] group.imps) $ \(i, imp) -> do
             let hyps = splitHyp (notS imp.term)
             sendSimpleCommandExpectingSuccess $ Push 1
-            mapM_ sendAssert hyps
+            traverse_ sendAssert hyps
             checkSatWithTimeout timeout >>=
                 let throwErrorWithIndex = throwError . OnlineSolverFailureInfo i
                  in \case
@@ -98,13 +101,11 @@ executeSMTProofCheckGroupOnline timeout config group = do
 commonSolverSetup
     :: (MonadSolver m, MonadThrow m)
     => ModelConfig
-    -> [SExprWithPlaceholders]
     -> m ()
-commonSolverSetup config setup = do
+commonSolverSetup config = do
     sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
     sendSimpleCommandExpectingSuccess $ SetLogic logic
-    mapM_ sendExpectingSuccess (modelConfigPreamble config)
-    mapM_ (sendExpectingSuccess . configureSExpr config) setup
+    traverse_ sendExpectingSuccess (modelConfigPreamble config)
 
 splitHyp :: SExprWithPlaceholders -> [SExprWithPlaceholders]
 splitHyp = fromJust . traverse checkSExprWithPlaceholders . go . viewSExprWithPlaceholders

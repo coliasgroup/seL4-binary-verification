@@ -1,13 +1,11 @@
 module BV.Search.StackBounds.All
-    ( DiscoverAllStackBoundsInput (..)
-    , discoverAllStackBounds
+    ( FullDiscoverStackBoundsInput (..)
+    , prepareDiscoverStackBoundsInput
     ) where
 
-import BV.Core.ModelConfig
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Utils.IncludeExcludeFilter
-import BV.SMTLIB2.Monad
 
 import BV.Search.StackBounds
 
@@ -16,8 +14,8 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
-data DiscoverAllStackBoundsInput
-  = DiscoverAllStackBoundsInput
+data FullDiscoverStackBoundsInput
+  = DiscoverAllStacFullDiscoverStackBoundsInputkBoundsInput
       { program :: Program
       , rodata :: ROData
       , earlyAsmFunctionFilter :: AsmFunctionFilter
@@ -25,12 +23,10 @@ data DiscoverAllStackBoundsInput
       }
   deriving (Generic)
 
-discoverAllStackBounds
-    :: (Monad m, MonadSolver n)
-    => ((ModelConfig -> n a) -> m a)
-    -> DiscoverAllStackBoundsInput
-    -> m StackBounds
-discoverAllStackBounds run input = discoverStackBounds run $ DiscoverStackBoundsInput
+prepareDiscoverStackBoundsInput
+    :: FullDiscoverStackBoundsInput
+    -> DiscoverStackBoundsInput
+prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
     { rodata = input.rodata
     , functions = lookupFunction
     , include = input.include

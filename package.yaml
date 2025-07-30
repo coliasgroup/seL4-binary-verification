@@ -121,6 +121,8 @@ internal-libraries:
       - BV.Core.Stages
       - BV.Core.Structs
       - BV.Core.Types
+      - BV.Core.Types.Extras.Program # TODO
+      - BV.Core.Types.Extras.SExprWithPlaceholders # TODO
       - BV.Core.Utils.IncludeExcludeFilter
     dependencies:
       - sel4-bv:smtlib2
@@ -154,6 +156,7 @@ internal-libraries:
     source-dirs: components/search
     exposed-modules:
       - BV.Search
+      - BV.Search.Solver
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:core
@@ -183,12 +186,14 @@ internal-libraries:
     source-dirs: components/system-core
     exposed-modules:
       - BV.System.Core
+      - BV.System.Core.Search
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:concrete-syntax
+      - sel4-bv:search
       - sel4-bv:system-utils
       # external
       - binary
@@ -208,6 +213,7 @@ internal-libraries:
       - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:concrete-syntax
+      - sel4-bv:search
       - sel4-bv:target-dir
       - sel4-bv:system-core
       - sel4-bv:system-utils
@@ -225,10 +231,14 @@ internal-libraries:
   test-utils:
     source-dirs: components/tests/test-utils
     dependencies:
+      - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       # external
+      - unliftio-core
+      - monad-logger
+      - resourcet
       - filepath
       # TODO prune
       - pretty-show
@@ -245,6 +255,7 @@ executables:
       - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:concrete-syntax
+      - sel4-bv:search
       - sel4-bv:target-dir
       - sel4-bv:system-utils
       - sel4-bv:system
@@ -366,6 +377,7 @@ tests:
       # external
       - unliftio-core
       - monad-logger
+      - resourcet
       - filepath
       - process
       - tasty

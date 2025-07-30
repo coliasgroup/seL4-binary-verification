@@ -75,6 +75,8 @@ library core
       BV.Core.Stages
       BV.Core.Structs
       BV.Core.Types
+      BV.Core.Types.Extras.Program
+      BV.Core.Types.Extras.SExprWithPlaceholders
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
       BV.Core.Arch
@@ -101,9 +103,7 @@ library core
       BV.Core.Types.Extras.Expr
       BV.Core.Types.Extras.Pairing
       BV.Core.Types.Extras.Problem
-      BV.Core.Types.Extras.Program
       BV.Core.Types.Extras.ProofCheck
-      BV.Core.Types.Extras.SExprWithPlaceholders
       BV.Core.Types.ObjDump
       BV.Core.Types.Pairing
       BV.Core.Types.Problem
@@ -237,10 +237,10 @@ library search
   visibility: public
   exposed-modules:
       BV.Search
+      BV.Search.Solver
   other-modules:
       BV.Search.Inlining
       BV.Search.Inlining.All
-      BV.Search.Solver
       BV.Search.StackBounds
       BV.Search.StackBounds.All
   hs-source-dirs:
@@ -395,6 +395,7 @@ library system
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
+    , sel4-bv:search
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system-core
@@ -413,6 +414,7 @@ library system-core
   visibility: public
   exposed-modules:
       BV.System.Core
+      BV.System.Core.Search
   other-modules:
       BV.System.Core.Cache
       BV.System.Core.Fingerprinting
@@ -453,6 +455,7 @@ library system-core
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
+    , sel4-bv:search
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system-utils
@@ -539,6 +542,7 @@ library target-dir
 library test-utils
   exposed-modules:
       BV.Test.Utils
+      BV.Test.Utils.Logging
   hs-source-dirs:
       components/tests/test-utils
   default-extensions:
@@ -557,18 +561,22 @@ library test-utils
     , deepseq
     , exceptions
     , filepath
+    , monad-logger
     , mtl
     , optics
     , parallel
     , pretty-show
+    , resourcet
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , sel4-bv:logging
     , sel4-bv:target-dir
     , stm
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -623,6 +631,7 @@ executable sel4-bv-cli
     , sel4-bv:core
     , sel4-bv:logging
     , sel4-bv:network-transport-static
+    , sel4-bv:search
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system
@@ -786,6 +795,7 @@ test-suite search-test
     , optics
     , parallel
     , process
+    , resourcet
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
