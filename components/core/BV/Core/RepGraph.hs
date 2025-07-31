@@ -6,6 +6,8 @@ module BV.Core.RepGraph
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)
+    , PcEnv (..)
+    , TooGeneral (..)
     , askCont -- TODO
     , askLoopDataMap
     , askNodeTag
@@ -17,6 +19,7 @@ module BV.Core.RepGraph
     , getPc
     , instEqWithEnvs
     , substInduct
+    , tryGetNodePcEnv
     , withEnv
     ) where
 

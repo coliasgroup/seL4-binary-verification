@@ -15,7 +15,7 @@ import BV.Search.Core.Solver
 import BV.Utils (expecting, unwrapped)
 
 import Control.Monad (unless, when)
-import Control.Monad.Except (ExceptT, runExceptT, throwError, tryError)
+import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, get, put)
 import Control.Monad.Trans (lift)
@@ -92,11 +92,11 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
         }
 
 nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteractSimple m => InlineM m ()
-nextReachableUnmatchedCInlinePointInner = InlineM $ do
+nextReachableUnmatchedCInlinePointInner = do
     p <- askProblem
     heads <- loopHeadsIncludingInner p.nodes <$> askLoopDataMap
     let limits = [ Restr n (doubleRangeVC 3 3) | n <- heads ]
-    for_ (M.keys p.nodes) $ \n -> tryError $ getNodePcEnv (Visit (Addr n) limits) Nothing
+    for_ (M.keys p.nodes) $ \n -> runExceptT $ tryGetNodePcEnv (Visit (Addr n) limits) Nothing
     getNodePcEnv (Visit Ret limits) (Just C)
     getNodePcEnv (Visit Err limits) (Just C)
     return ()
@@ -110,6 +110,7 @@ newtype InlineM m a
     , Functor
     , Monad
     , MonadRepGraphSolver
+    , MonadRepGraphSolverInteractSimple
     , MonadRepGraphSolverSend
     , MonadStructs
     )
@@ -134,15 +135,15 @@ instance MonadRepGraphSolverInteractSimple m => MonadRepGraphDefaultHelper AsmRe
     liftMonadRepGraphDefaultHelper = InlineM
 
 instance MonadRepGraphSolverInteractSimple m => MonadRepGraph AsmRefineTag (InlineM m) where
-    runPreEmitCallNodeHook visit pc env = InlineM $ do
+    runPreEmitCallNodeHook visit pc env = do
         let nodeAddr = nodeAddrFromNodeId visit.nodeId
         p <- askProblem
         tag <- askNodeTag nodeAddr
         let fname = p ^. #nodes % at nodeAddr % unwrapped % expecting #_NodeCall % #functionName
-        matchedC <- gview #matchedC
+        matchedC <- InlineM $ gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do
             hyp <- withEnv env $ convertExprNoSplit $ notE pc
             res <- checkHyp hyp
-            unless res $ throwError $ InliningEvent
+            unless res $ InlineM $ throwError $ InliningEvent
                 { nodeAddr
                 }

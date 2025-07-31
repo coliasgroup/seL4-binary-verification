@@ -16,6 +16,7 @@ module BV.Core.RepGraph.Core
     , MonadRepGraphDefaultHelper (..)
     , RepGraphEnv
     , RepGraphState
+    , TooGeneral (..)
     , VarRepRequestKind (..)
     , askCont
     , askLoopDataMap
@@ -32,6 +33,7 @@ module BV.Core.RepGraph.Core
     , scanMemCalls
     , scanMemCallsEnv
     , substInduct
+    , tryGetNodePcEnv
     , zeroMemCallsForFunction
     ) where
 

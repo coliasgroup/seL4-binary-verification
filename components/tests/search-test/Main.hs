@@ -22,7 +22,7 @@ import BV.Test.Utils.Logging
 import Control.Concurrent (newMVar)
 import Control.Concurrent.Async (Concurrently)
 import Control.Concurrent.MVar (withMVar)
-import Control.Monad (when, unless)
+import Control.Monad (unless, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import Control.Monad.Trans.Resource
