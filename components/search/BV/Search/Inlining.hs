@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
-
 module BV.Search.Inlining
     ( DiscoverInlineScriptInput (..)
     , discoverInlineScript
@@ -57,10 +55,10 @@ discoverInlineScript run input =
         let matched = S.intersection (presentInProblem problem) allMatched
          in return $ nextCompletelyUnmatchedInlinePoints matched problem
     inlineReachableUnmatchedC problem =
-        let matched =
+        let matchedC =
                 let present = presentInProblem problem
                 in S.fromList $ toList $ M.restrictKeys asmToCMatch present
-         in fmap (:[]) <$> run (nextReachableUnmatchedCInlinePoint matched (RepGraphBaseInput
+         in fmap (:[]) <$> run (nextReachableUnmatchedCInlinePoint matchedC (RepGraphBaseInput
                 { structs = input.structs
                 , rodata = input.rodata
                 , problem
@@ -84,18 +82,41 @@ nextCompletelyUnmatchedInlinePoints matched p = case M.keys (M.filter f p.nodes)
         NodeCall callNode -> S.notMember callNode.functionName matched
         _ -> False
 
+nextReachableUnmatchedCInlinePoint :: MonadRepGraphSolverInteract m => S.Set Ident -> RepGraphBaseInput AsmRefineTag -> m (Maybe NodeAddr)
+nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
+    preview (_Left % #nodeAddr)
+        <$> runInlineM repGraphInput inlinerInput nextReachableUnmatchedCInlinePointInner
+  where
+    inlinerInput = InlinerInput
+        { matchedC
+        }
+
+nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => InlineM m ()
+nextReachableUnmatchedCInlinePointInner = InlineM $ do
+    p <- askProblem
+    heads <- loopHeadsIncludingInner p.nodes <$> askLoopDataMap
+    let limits = [ Restr n (doubleRangeVC 3 3) | n <- heads ]
+    for_ (M.keys p.nodes) $ \n -> tryError $ getNodePcEnv (Visit (Addr n) limits) Nothing
+    getNodePcEnv (Visit Ret limits) (Just C)
+    getNodePcEnv (Visit Err limits) (Just C)
+    return ()
+
 type InlineMInner m = ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT InlinerInput m))
 
 newtype InlineM m a
   = InlineM { run :: InlineMInner m a }
-  deriving (Functor)
   deriving newtype
     ( Applicative
+    , Functor
     , Monad
     , MonadRepGraphSolver
     , MonadRepGraphSolverSend
     , MonadStructs
     )
+
+runInlineM :: MonadRepGraphSolverInteract m => RepGraphBaseInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
+runInlineM repGraphInput inlinerInput m =
+    runReaderT (runRepGraphBase repGraphInput (runExceptT m.run)) inlinerInput
 
 data InliningEvent
   = InliningEvent
@@ -122,30 +143,6 @@ instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m)
         when (tag == C && S.notMember fname matchedC) $ do
             hyp <- withEnv env $ convertExprNoSplit $ notE pc
             res <- checkHyp hyp
-            unless res $ do
-                throwError $ InliningEvent
-                    { nodeAddr
-                    }
-
-runInlineM :: MonadRepGraphSolverInteract m => RepGraphBaseInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
-runInlineM repGraphInput inlinerInput m =
-    runReaderT (runRepGraphBase repGraphInput (runExceptT m.run)) inlinerInput
-
-nextReachableUnmatchedCInlinePoint :: MonadRepGraphSolverInteract m => S.Set Ident -> RepGraphBaseInput AsmRefineTag -> m (Maybe NodeAddr)
-nextReachableUnmatchedCInlinePoint matchedC repGraphInput = preview (_Left % #nodeAddr) <$> ret
-  where
-    inlinerInput = InlinerInput
-        { matchedC
-        }
-    ret = runInlineM repGraphInput inlinerInput nextReachableUnmatchedCInlinePointInner
-
-nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => InlineM m ()
-nextReachableUnmatchedCInlinePointInner = InlineM $ do
-    p <- askProblem
-    loopDataMap <- askLoopDataMap
-    let heads = loopHeadsIncludingInner p.nodes loopDataMap
-    let limits = [ Restr n (doubleRangeVC 3 3) | n <- heads ]
-    for_ (M.keys p.nodes) $ \n -> tryError $ getNodePcEnv (Visit (Addr n) limits) Nothing
-    getNodePcEnv (Visit Ret limits) (Just C)
-    getNodePcEnv (Visit Err limits) (Just C)
-    return ()
+            unless res $ throwError $ InliningEvent
+                { nodeAddr
+                }
