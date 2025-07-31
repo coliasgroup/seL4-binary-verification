@@ -22,7 +22,6 @@ import BV.Test.Utils.Logging
 import Control.Concurrent (newMVar)
 import Control.Concurrent.Async (Concurrently)
 import Control.Concurrent.MVar (withMVar)
-import Control.Exception.Safe
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
@@ -34,7 +33,7 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import System.FilePath ((</>))
 import System.IO (BufferMode (..), Handle, IOMode (..), hClose, hSetBuffering,
-                  openFile, stderr)
+                  openFile, stderr, withFile)
 import System.Process (CreateProcess)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -84,7 +83,8 @@ testInlining = do
             , objDumpInfo = stagesInput.objDumpInfo
             , rodata = stagesInput.rodata
             , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
-            , asmFunctions = S.fromList [Ident "handleVMFault"]
+            -- , asmFunctions = S.fromList [Ident "handleVMFault"]
+            , asmFunctions = S.fromList $ map getAsm $ S.toList $ M.keysSet stagesInput.inlineScripts.unwrap
             , cFunctionPrefix = stagesInput.cFunctionPrefix
             }
     let f pairingId input = do
@@ -93,15 +93,20 @@ testInlining = do
                 case r of
                     Left failure -> liftIO $ assertFailure $ show failure
                     Right script -> return script
-    script <- withLoggingOpts (loggingOpts "inlining.log") $ do
+    scripts <- withLoggingOpts (loggingOpts "inlining.log") $ do
         InlineScripts <$> M.traverseWithKey f allInput
-    putStrLn ""
-    putStrLn $ CL.unpack $ writeBVContents script
+    -- putStrLn ""
+    -- CL.putStrLn $ writeBVContents scripts
+    withFile (tmpOutDir </> "out-inline-scripts.json") WriteMode $ \h -> do
+        CL.hPutStrLn h $ writeBVContents scripts
+    withFile (tmpOutDir </> "in-inline-scripts.json") WriteMode $ \h -> do
+        CL.hPutStrLn h $ writeBVContents stagesInput.inlineScripts
+    assertBool "eq" $ scripts == stagesInput.inlineScripts
     return ()
   where
     referenceTargetDir =
-        -- testSeL4TargetDirBig
-        testSeL4TargetDirSmall
+        testSeL4TargetDirBig
+        -- testSeL4TargetDirSmall
         -- testSeL4TargetDirFocused
 
 testStackBounds :: IO ()
