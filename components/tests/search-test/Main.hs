@@ -88,14 +88,13 @@ testInlining = do
             -- , asmFunctions = S.fromList [Ident "handleVMFault"]
             , cFunctionPrefix = stagesInput.cFunctionPrefix
             }
-    let f pairingId input = do
-            withPushLogContext ("pairing " ++ (getAsm pairingId).unwrap) $ do
-                r <- discoverInlineScript' solverConfig input
-                case r of
-                    Left failure -> liftIO $ assertFailure $ show failure
-                    Right script -> return script
+    let f input = do
+            r <- discoverInlineScript' solverConfig input
+            case r of
+                Left failure -> liftIO $ assertFailure $ show failure
+                Right script -> return script
     scripts <- withLoggingOpts (loggingOpts "inlining.log") $ do
-        InlineScripts <$> M.traverseWithKey f allInput
+        InlineScripts <$> traverse f allInput
     let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
     unless (scripts == reference) $ do
         withFile (tmpOutDir </> "out-inline-scripts.json") WriteMode $ \h -> do
