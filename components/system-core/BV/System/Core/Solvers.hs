@@ -96,7 +96,6 @@ filterSubgroupsUsingOnlineSolver gate backend config subgroup =
                                 OnlineSolverAnsweredSat ->
                                     let (_i, check) = subgroup.checks `genericIndex` failureInfo.index
                                      in Left check
-
                                 _ -> Right notYetChecked
                          in (unsat', rest')
             for_ unsat.checks $ \(_i, check) -> do
