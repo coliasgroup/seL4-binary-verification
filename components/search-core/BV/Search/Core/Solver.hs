@@ -28,7 +28,7 @@ import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError,
                              withExceptT)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT)
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (MonadTrans, lift)
 import Data.Foldable (traverse_)
 import GHC.Generics (Generic)
 import Optics
@@ -115,7 +115,7 @@ runRepGraphSolverInteractSimple timeout modelConfig m = do
 --
 
 class MonadRepGraphSolverSend m => MonadRepGraphSolverInteractParallel m where
-    parallelCheckHyps :: [SExprWithPlaceholders] -> m ()
+    parallelCheckHyps :: [SExprWithPlaceholders] -> m Bool
 
 instance MonadRepGraphSolverInteractParallel m => MonadRepGraphSolverInteractParallel (ReaderT r m) where
     parallelCheckHyps = lift . parallelCheckHyps
@@ -133,6 +133,9 @@ newtype RepGraphSolverInteractParallel m a
   = RepGraphSolverInteractParallel { run :: RepGraphSolverInteractParallelInner m a }
   deriving newtype (Applicative, Functor, Monad)
 
+instance MonadTrans (RepGraphSolverInteractParallel) where
+    lift = RepGraphSolverInteractParallel . lift . lift . lift
+
 data ParallelEnv m
   = ParallelEnv
       { timeout :: Maybe SolverTimeout
@@ -144,10 +147,11 @@ data ParallelEnv m
 data ParallelState
   = ParallelState
       { setup :: [SExprWithPlaceholders]
+      , isOnlineSolverClosed :: Bool
       }
   deriving (Generic)
 
-type RunParallel m = SMTProofCheckGroup () -> m ()
+type RunParallel m = SMTProofCheckGroup () -> m Bool
 
 instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (RepGraphSolverInteractParallel m) where
     sendSExprWithPlaceholders s = RepGraphSolverInteractParallel $ do
@@ -167,20 +171,29 @@ instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteractParallel (R
     parallelCheckHyps hyps = do
         timeout <- RepGraphSolverInteractParallel $ gview #timeout
         modelConfig <- RepGraphSolverInteractParallel $ gview #modelConfig
-        -- r <- checkHypInner timeout modelConfig hyp
-        setup <- RepGraphSolverInteractParallel $ use #setup
-        let group = SMTProofCheckGroup
-                { setup
-                , imps =
-                    [ SMTProofCheckImp
-                        { meta = ()
-                        , term = hyp
+        let go [] = return $ Left True
+            go todo@(hyp:rest) = do
+                r <- lift $ checkHypInner timeout modelConfig hyp
+                case r of
+                    Left _ -> return $ Right todo
+                    Right True -> go rest
+                    Right False -> return $ Left False
+        go hyps >>= \case
+            Left conclusion -> return conclusion
+            Right todo -> do
+                setup <- RepGraphSolverInteractParallel $ use #setup
+                let group = SMTProofCheckGroup
+                        { setup
+                        , imps =
+                            [ SMTProofCheckImp
+                                { meta = ()
+                                , term = hyp
+                                }
+                            | hyp <- todo
+                            ]
                         }
-                    | hyp <- hyps
-                    ]
-                }
-        runParallel <- RepGraphSolverInteractParallel $ gview #runParallel
-        runParallel group
+                runParallel <- RepGraphSolverInteractParallel $ gview #runParallel
+                runParallel group
 
 testHypWhyps :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteractParallel m) => Expr -> [Hyp t] -> m Bool
 testHypWhyps hyp hyps = do
@@ -190,7 +203,6 @@ testHypWhyps hyp hyps = do
     -- fail if fast
     addPValidDomAssertions
     parallelCheckHyps [sexpr]
-    undefined
 
 data RepGraphSolverInteractParallelFailureInfo
   = RepGraphSolverInteractParallelFailureInfo
@@ -220,4 +232,5 @@ runRepGraphSolverInteractParallel runParallel timeout modelConfig m = do
         }
     initState = ParallelState
         { setup = []
+        , isOnlineSolverClosed = False
         }
