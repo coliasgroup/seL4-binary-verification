@@ -9,6 +9,7 @@ import BV.Core.Utils.IncludeExcludeFilter
 
 import BV.Search.Inlining
 
+import Control.Monad (guard)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -40,22 +41,31 @@ prepareAllDiscoverInlineScriptInput input = scripts
 
     alteredPrograms = fixupProgram <$> (alterProgramByTag <*> input.programs)
 
-    (_inlineAsmPairings, alteredProgramsWithInlineAsm, _unhandledAsmFunctionNames) =
+    (inlineAsmPairings, alteredProgramsWithInlineAsm, _unhandledAsmFunctionNames) =
         addInlineAssemblySpecs alteredPrograms
 
     finalPrograms = alteredProgramsWithInlineAsm
 
     lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions M.! funName
 
-    pairingIds = flip S.map input.asmFunctions $ \asm ->
+    requestedPairingIds = flip S.map input.asmFunctions $ \asm ->
         let c = asm & #unwrap %~ (input.cFunctionPrefix ++)
          in byAsmRefineTag (ByAsmRefineTag { asm, c })
+
+    normalFunctionPairingIds = do
+        asm <- M.keys (getAsm finalPrograms).functions
+        let c = asm & #unwrap %~ (input.cFunctionPrefix ++)
+        guard $ c `M.member` (getC finalPrograms).functions
+        return $ byAsmRefineTag (ByAsmRefineTag { asm, c })
+
+    pairings = S.fromList $ M.keys inlineAsmPairings.unwrap ++ normalFunctionPairingIds
 
     script pairingId = DiscoverInlineScriptInput
         { structs = input.programs <&> (.structs)
         , rodata = input.rodata
         , functions = lookupFunction
+        , pairings
         , pairingId
         }
 
-    scripts = M.fromSet script pairingIds
+    scripts = M.fromSet script requestedPairingIds

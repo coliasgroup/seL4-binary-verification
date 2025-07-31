@@ -5,9 +5,11 @@ module BV.Core.Graph
     , NodeGraphEdges
     , createLoopDataMap
     , isReachableFrom
+    , loopBodyInnerLoops
     , loopBodyOf
     , loopHeadOf
     , loopHeadsFrom
+    , loopHeadsIncludingInner
     , loopHeadsOf
     , makeNodeGraph
     , makeNodeGraphEdges
@@ -122,3 +124,23 @@ loopHeadOf addr loopDataMap = M.lookup addr loopDataMap <&> \case
 loopBodyOf :: NodeAddr -> LoopDataMap -> S.Set NodeAddr
 loopBodyOf n loopDataMap =
     loopDataMap ^. expectingAt (fromJust (loopHeadOf n loopDataMap)) % expecting #_LoopHead
+
+--
+
+loopBodyInnerLoops :: NodeMap -> NodeAddr -> S.Set NodeAddr -> [(NodeAddr, S.Set NodeAddr)]
+loopBodyInnerLoops nodes loopHead loopBody =
+    loopHeadsFrom g $ nodes ^.. at loopHead % unwrapped % nodeConts
+  where
+    g = makeNodeGraph $ M.toList $ M.restrictKeys nodes $ S.delete loopHead loopBody
+
+loopHeadsIncludingInner :: NodeMap -> LoopDataMap -> [NodeAddr]
+loopHeadsIncludingInner nodes m =
+    let heads = loopHeadsOf m
+     in go heads [ (h, loopBodyOf h m ) | h <- heads ]
+  where
+    go heads [] = heads
+    go heads ((h, body):check) =
+        let comps = loopBodyInnerLoops nodes h body
+         in go
+                (heads ++ map fst comps)
+                (check ++ comps)

@@ -42,7 +42,7 @@ data Env
 instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (SimpleSolver m) where
     sendSExprWithPlaceholders s = SimpleSolver $ do
         modelConfig <- gview #modelConfig
-        lift $ sendSExpr $ configureSExpr modelConfig s
+        lift $ sendExpectingSuccess $ configureSExpr modelConfig s
 
 instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteract (SimpleSolver m) where
     checkHyp hyp = SimpleSolver $ do

@@ -7,12 +7,17 @@ module BV.Core.RepGraph
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)
     , askCont -- TODO
+    , askLoopDataMap
+    , askNodeTag
+    , askProblem
+    , convertExprNoSplit
     , convertInnerExprWithPcEnv -- TODO
     , getInductVar
     , getNodePcEnv
     , getPc
     , instEqWithEnvs
     , substInduct
+    , withEnv
     ) where
 
 import BV.Core.RepGraph.AddFunc

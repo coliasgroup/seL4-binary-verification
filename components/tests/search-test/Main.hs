@@ -5,6 +5,7 @@ module Main
     ( main
     ) where
 
+import BV.ConcreteSyntax
 import BV.Core.Prelude
 import BV.Core.Types
 import BV.Logging
@@ -27,6 +28,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import Control.Monad.Trans.Resource
 import Data.ByteString.Builder (Builder, hPutBuilder)
+import qualified Data.ByteString.Lazy.Char8 as CL
 import qualified Data.Map as M
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -93,7 +95,8 @@ testInlining = do
                     Right script -> return script
     script <- withLoggingOpts (loggingOpts "inlining.log") $ do
         InlineScripts <$> M.traverseWithKey f allInput
-    print script
+    putStrLn ""
+    putStrLn $ CL.unpack $ writeBVContents script
     return ()
   where
     referenceTargetDir =

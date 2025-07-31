@@ -68,6 +68,7 @@ library core
   exposed-modules:
       BV.Core.DecorateProofScript
       BV.Core.ExecuteSMTProofChecks
+      BV.Core.Graph
       BV.Core.Logic
       BV.Core.ModelConfig
       BV.Core.Prelude
@@ -75,7 +76,9 @@ library core
       BV.Core.Stages
       BV.Core.Structs
       BV.Core.Types
+      BV.Core.Types.Extras.Expr
       BV.Core.Types.Extras.Program
+      BV.Core.Types.Extras.ProofCheck
       BV.Core.Types.Extras.SExprWithPlaceholders
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
@@ -83,7 +86,6 @@ library core
       BV.Core.Debug.Utils
       BV.Core.GenerateFreshName
       BV.Core.Glue
-      BV.Core.Graph
       BV.Core.RepGraph.AddFunc
       BV.Core.RepGraph.AsmStackRep
       BV.Core.RepGraph.Base
@@ -100,10 +102,8 @@ library core
       BV.Core.Types.Aggregate
       BV.Core.Types.AsmRefineTag
       BV.Core.Types.Extras
-      BV.Core.Types.Extras.Expr
       BV.Core.Types.Extras.Pairing
       BV.Core.Types.Extras.Problem
-      BV.Core.Types.Extras.ProofCheck
       BV.Core.Types.ObjDump
       BV.Core.Types.Pairing
       BV.Core.Types.Problem
@@ -243,6 +243,7 @@ library search
       BV.Search.Inlining.All
       BV.Search.StackBounds
       BV.Search.StackBounds.All
+      BV.Search.Utils
   hs-source-dirs:
       components/search
   default-extensions:

@@ -11,6 +11,7 @@ import BV.Core.RepGraph.Solver
 import BV.Core.Structs
 import BV.Core.Types
 
+import Control.Monad.Except (MonadError)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, mapStateT)
@@ -32,7 +33,7 @@ data RepGraphBaseInput t
 newtype RepGraphBase t m a
   = RepGraphBase { run :: StateT (State t) (ReaderT (Env t) m) a }
   deriving (Functor)
-  deriving newtype (Applicative, Monad)
+  deriving newtype (Applicative, Monad, MonadError e)
 
 runRepGraphBase :: (Tag t, MonadRepGraphSolverSend m) => RepGraphBaseInput t -> RepGraphBase t m a -> m a
 runRepGraphBase input m = runReaderT (evalStateT m'.run initState) env

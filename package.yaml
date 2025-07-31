@@ -114,6 +114,7 @@ internal-libraries:
     exposed-modules:
       - BV.Core.DecorateProofScript
       - BV.Core.ExecuteSMTProofChecks
+      - BV.Core.Graph
       - BV.Core.Logic
       - BV.Core.ModelConfig
       - BV.Core.Prelude
@@ -121,7 +122,9 @@ internal-libraries:
       - BV.Core.Stages
       - BV.Core.Structs
       - BV.Core.Types
+      - BV.Core.Types.Extras.Expr # TODO
       - BV.Core.Types.Extras.Program # TODO
+      - BV.Core.Types.Extras.ProofCheck # TODO
       - BV.Core.Types.Extras.SExprWithPlaceholders # TODO
       - BV.Core.Utils.IncludeExcludeFilter
     dependencies:

@@ -18,6 +18,7 @@ module BV.Core.RepGraph.Core
     , RepGraphState
     , VarRepRequestKind (..)
     , askCont
+    , askLoopDataMap
     , askNodeTag
     , askProblem
     , convertInnerExprWithPcEnv
@@ -54,8 +55,7 @@ import Control.Monad.State (StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
-import Data.Foldable (for_, toList, traverse_)
-import qualified Data.Graph as G
+import Data.Foldable (for_, traverse_)
 import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
@@ -206,11 +206,14 @@ askIsNonTriviallyReachableFrom from to_ = do
     fromNode <- liftRepGraph $ gview $ #problem % #nodes % at from % unwrapped
     return $ or [ isReachableFrom g fromCont to_ | fromCont <- fromNode ^.. nodeConts ]
 
+askLoopDataMap :: MonadRepGraph t m => m LoopDataMap
+askLoopDataMap = liftRepGraph $ gview #loopData
+
 askLoopHead :: MonadRepGraph t m => NodeAddr -> m (Maybe NodeAddr)
-askLoopHead addr = liftRepGraph $ loopHeadOf addr <$> gview #loopData
+askLoopHead addr = loopHeadOf addr <$> askLoopDataMap
 
 askLoopBody :: MonadRepGraph t m => NodeAddr -> m (S.Set NodeAddr)
-askLoopBody n = liftRepGraph $ loopBodyOf n <$> gview #loopData
+askLoopBody n = loopBodyOf n <$> askLoopDataMap
 
 askPreds :: MonadRepGraph t m => NodeId -> m (Set NodeAddr)
 askPreds n = liftRepGraph $ gview $ #preds % at n % unwrapped
@@ -249,24 +252,7 @@ getHasInnerLoop :: MonadRepGraph t m => NodeAddr -> m Bool
 getHasInnerLoop loopHead = withMapSlot #hasInnerLoop loopHead $ do
     p <- liftRepGraph $ gview #problem
     loopBody <- askLoopBody loopHead
-    return $ not $ null $ loopBodyInnerLoops p loopHead loopBody
-
-loopBodyInnerLoops :: Problem t -> NodeAddr -> Set NodeAddr -> [Set NodeAddr]
-loopBodyInnerLoops p loopHead loopBody =
-    [ S.map (view _2 . toNodeAddr) component
-    | component <- S.fromList . toList <$> G.scc g
-    , S.size component > 1
-    ]
-  where
-    loopSet = S.delete loopHead loopBody
-    addrConts n = p ^.. #nodes % at n % unwrapped % nodeConts % #_Addr
-    (g, toNodeAddr, _) = G.graphFromEdges
-        [ ( ()
-          , n
-          , filter (`S.member` loopSet) (addrConts n)
-          )
-        | n <- S.toList loopBody
-        ]
+    return $ not $ null $ loopBodyInnerLoops p.nodes loopHead loopBody
 
 getFreshIdent :: MonadRepGraph t m => NameHint -> m Ident
 getFreshIdent nameHint = do
