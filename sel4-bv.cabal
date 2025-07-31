@@ -238,7 +238,7 @@ library search-core
   visibility: public
   exposed-modules:
       BV.Search.Core
-      BV.Search.Core.Solver
+      BV.Search.Core.Solver.Simple
   other-modules:
       BV.Search.Core.Inlining
       BV.Search.Core.Inlining.All

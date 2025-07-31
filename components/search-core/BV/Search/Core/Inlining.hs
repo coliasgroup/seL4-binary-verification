@@ -11,7 +11,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
-import BV.Search.Core.Solver
+import BV.Search.Core.Solver.Simple
 import BV.Utils (expecting, unwrapped)
 
 import Control.Monad (unless, when)

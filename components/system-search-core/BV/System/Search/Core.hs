@@ -6,7 +6,7 @@ module BV.System.Search.Core
 import BV.Core.Types
 import BV.Logging
 import BV.Search.Core
-import BV.Search.Core.Solver
+import BV.Search.Core.Solver.Simple
 import BV.SMTLIB2.Process
 import BV.System.Core
 import BV.System.Core.Utils.Logging (runSolverWithLogging,

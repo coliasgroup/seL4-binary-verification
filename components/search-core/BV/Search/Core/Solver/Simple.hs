@@ -1,4 +1,4 @@
-module BV.Search.Core.Solver
+module BV.Search.Core.Solver.Simple
     ( MonadRepGraphSolverInteractSimple (..)
     , RepGraphSolverInteractSimple
     , RepGraphSolverInteractSimpleFailureInfo (..)
