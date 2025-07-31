@@ -38,8 +38,7 @@ instance MonadRepGraphSolverInteractParallel m => MonadRepGraphSolverInteractPar
 
 newtype RepGraphSolverInteractParallel m a
   = RepGraphSolverInteractParallel { run :: ExceptT RepGraphSolverInteractParallelFailureReason (ReaderT Env m) a }
-  deriving (Functor)
-  deriving newtype (Applicative, Monad)
+  deriving newtype (Applicative, Functor, Monad)
 
 data Env
   = Env

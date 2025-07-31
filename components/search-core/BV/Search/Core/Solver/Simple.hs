@@ -38,8 +38,7 @@ instance MonadRepGraphSolverInteractSimple m => MonadRepGraphSolverInteractSimpl
 
 newtype RepGraphSolverInteractSimple m a
   = RepGraphSolverInteractSimple { run :: ExceptT RepGraphSolverInteractSimpleFailureReason (ReaderT Env m) a }
-  deriving (Functor)
-  deriving newtype (Applicative, Monad)
+  deriving newtype (Applicative, Functor, Monad)
 
 data Env
   = Env
