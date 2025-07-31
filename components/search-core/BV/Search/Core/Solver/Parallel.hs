@@ -36,8 +36,10 @@ instance MonadRepGraphSolverInteractParallel m => MonadRepGraphSolverInteractPar
 instance MonadRepGraphSolverInteractParallel m => MonadRepGraphSolverInteractParallel (RepGraphBase t m) where
     checkHyp = lift . checkHyp
 
+type RepGraphSolverInteractParallelInner m = ExceptT RepGraphSolverInteractParallelFailureReason (ReaderT Env m)
+
 newtype RepGraphSolverInteractParallel m a
-  = RepGraphSolverInteractParallel { run :: ExceptT RepGraphSolverInteractParallelFailureReason (ReaderT Env m) a }
+  = RepGraphSolverInteractParallel { run :: RepGraphSolverInteractParallelInner m a }
   deriving newtype (Applicative, Functor, Monad)
 
 data Env
