@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module BV.Core.RepGraph.Base
     ( RepGraphBase
@@ -13,9 +14,10 @@ import BV.Core.Types
 
 import Control.Monad.Except (MonadError)
 import Control.Monad.Identity (Identity (runIdentity))
-import Control.Monad.Reader (ReaderT, mapReaderT, runReaderT)
-import Control.Monad.State (StateT, evalStateT, mapStateT)
+import Control.Monad.Reader (MonadReader (..), ReaderT, mapReaderT, runReaderT)
+import Control.Monad.State (MonadState, StateT, evalStateT, mapStateT, state)
 import Control.Monad.Trans (MonadTrans, lift)
+import Control.Monad.Writer (MonadWriter)
 import Data.Foldable (toList)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -32,23 +34,8 @@ data RepGraphBaseInput t
 
 newtype RepGraphBase t m a
   = RepGraphBase { run :: StateT (State t) (ReaderT (Env t) m) a }
-  deriving (Functor)
-  deriving newtype (Applicative, Monad, MonadError e)
-
-runRepGraphBase :: (Tag t, MonadRepGraphSolverSend m) => RepGraphBaseInput t -> RepGraphBase t m a -> m a
-runRepGraphBase input m = runReaderT (evalStateT m'.run initState) env
-  where
-    env = initEnv input
-    m' = do
-        initSolver
-        initRepGraph
-        m
-
-instance MonadTrans (RepGraphBase t) where
-    lift = RepGraphBase . lift . lift
-
-instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (RepGraphBase t m) where
-    sendSExprWithPlaceholders = RepGraphBase . sendSExprWithPlaceholders
+  deriving (Functor, Generic)
+  deriving newtype (Applicative, Monad, MonadError e, MonadWriter w)
 
 data Env t
   = Env
@@ -64,6 +51,19 @@ data State t
       , repGraph :: RepGraphState t
       }
   deriving (Generic)
+
+instance MonadTrans (RepGraphBase t) where
+    lift = RepGraphBase . lift . lift
+
+instance MonadReader r m => MonadReader r (RepGraphBase t m) where
+    ask = lift ask
+    local f = #run %~ (mapStateT . mapReaderT) (local f)
+
+instance MonadState s m => MonadState s (RepGraphBase t m) where
+    state = lift . state
+
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (RepGraphBase t m) where
+    sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
 
 instance Monad m => MonadStructs (RepGraphBase t m) where
     askLookupStruct = RepGraphBase $ gview #structs
@@ -86,6 +86,15 @@ instance (Tag t, MonadRepGraphSolverSend m) => MonadRepGraph t (RepGraphBase t m
     runPostEmitNodeHook _ = return ()
     runPreEmitCallNodeHook _ _ _ = return ()
     runPostEmitCallNodeHook _ _ _ _ = return ()
+
+runRepGraphBase :: (Tag t, MonadRepGraphSolverSend m) => RepGraphBaseInput t -> RepGraphBase t m a -> m a
+runRepGraphBase input m = runReaderT (evalStateT m'.run initState) env
+  where
+    env = initEnv input
+    m' = do
+        initSolver
+        initRepGraph
+        m
 
 initEnv :: Tag t => RepGraphBaseInput t -> Env t
 initEnv input = Env

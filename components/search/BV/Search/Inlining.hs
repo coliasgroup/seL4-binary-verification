@@ -17,8 +17,7 @@ import BV.Search.Solver
 import BV.Search.Utils
 
 import Control.Monad (unless, when)
-import Control.Monad.Except (ExceptT, MonadError, runExceptT, throwError,
-                             tryError)
+import Control.Monad.Except (ExceptT, runExceptT, throwError, tryError)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, get, put)
 import Control.Monad.Trans (lift)
@@ -44,22 +43,28 @@ discoverInlineScript
     => (forall a. n a -> m a)
     -> DiscoverInlineScriptInput
     -> m InlineScript'
-discoverInlineScript run input = evalStateT (buildInlineScript composeInliners lookupFun funs) inliners
+discoverInlineScript run input =
+    evalStateT
+        (buildInlineScript composeInliners lookupFun funs)
+        [inlineCompletelyUnmatched, inlineReachableUnmatchedC]
   where
     lookupFun = input.functions
-    funs = withTags input.pairingId <&> \wt -> Named wt.value (lookupFun wt)
-    matched = S.fromList $ input.matches ^.. folded % folded
-    matchedC problem =
-        let present = S.fromList $ problem ^.. #nodes % folded % #_NodeCall % #functionName
-            asmToC = M.fromList $ [ (getAsm p, getC p) | p <- S.toList input.matches ]
-         in S.fromList $ toList $ M.restrictKeys asmToC present
-    inliners = [inlineCompletelyUnmatched, inlineReachableUnmatchedC]
-    inlineCompletelyUnmatched = return . nextCompletelyUnmatchedInlinePoints matched
-    inlineReachableUnmatchedC problem = fmap (:[]) <$> run (nextReachableUnmatchedCInlinePoint (matchedC problem) (RepGraphBaseInput
-        { structs = input.structs
-        , rodata = input.rodata
-        , problem
-        }))
+    funs = withTags input.pairingId <&> \nameWithTag -> Named nameWithTag.value (lookupFun nameWithTag)
+    allMatched = S.fromList $ input.matches ^.. folded % folded
+    asmToCMatch = M.fromList $ [ (getAsm match, getC match) | match <- S.toList input.matches ]
+    presentInProblem problem = S.fromList $ problem ^.. #nodes % folded % #_NodeCall % #functionName
+    inlineCompletelyUnmatched problem =
+        let matched = S.intersection (presentInProblem problem) allMatched
+         in return $ nextCompletelyUnmatchedInlinePoints matched problem
+    inlineReachableUnmatchedC problem =
+        let matched =
+                let present = presentInProblem problem
+                in S.fromList $ toList $ M.restrictKeys asmToCMatch present
+         in fmap (:[]) <$> run (nextReachableUnmatchedCInlinePoint matched (RepGraphBaseInput
+                { structs = input.structs
+                , rodata = input.rodata
+                , problem
+                }))
 
 composeInliners :: Monad m => Inliner t (StateT [Inliner t m] m)
 composeInliners problem = go
@@ -67,8 +72,8 @@ composeInliners problem = go
     go = get >>= \case
         [] -> return Nothing
         x:xs -> lift (x problem) >>= \case
-            Nothing -> put xs >> go
             Just y -> return (Just y)
+            Nothing -> put xs >> go
 
 nextCompletelyUnmatchedInlinePoints :: S.Set Ident -> Problem' -> Maybe [NodeAddr]
 nextCompletelyUnmatchedInlinePoints matched p = case M.keys (M.filter f p.nodes) of
@@ -79,13 +84,14 @@ nextCompletelyUnmatchedInlinePoints matched p = case M.keys (M.filter f p.nodes)
         NodeCall callNode -> S.notMember callNode.functionName matched
         _ -> False
 
+type InlineMInner m = ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT InlinerInput m))
+
 newtype InlineM m a
-  = InlineM { run :: ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT InlinerInput m)) a }
+  = InlineM { run :: InlineMInner m a }
   deriving (Functor)
   deriving newtype
     ( Applicative
     , Monad
-    , MonadError InliningEvent
     , MonadRepGraphSolver
     , MonadRepGraphSolverSend
     , MonadStructs
@@ -103,19 +109,19 @@ data InlinerInput
       }
   deriving (Generic)
 
-instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTag (ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT InlinerInput m))) (InlineM m) where
+instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTag (InlineMInner m) (InlineM m) where
     liftMonadRepGraphDefaultHelper = InlineM
 
 instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
-    runPreEmitCallNodeHook visit pc env = do
+    runPreEmitCallNodeHook visit pc env = InlineM $ do
         let nodeAddr = nodeAddrFromNodeId visit.nodeId
         p <- askProblem
         tag <- askNodeTag nodeAddr
         let fname = p ^. #nodes % at nodeAddr % unwrapped % expecting #_NodeCall % #functionName
-        matchedC <- InlineM $ lift $ lift $ gview #matchedC
+        matchedC <- gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do
             hyp <- withEnv env $ convertExprNoSplit $ notE pc
-            res <- InlineM $ lift $ lift $ lift $ checkHyp hyp -- TODO get rid of lifts
+            res <- checkHyp hyp
             unless res $ do
                 throwError $ InliningEvent
                     { nodeAddr
@@ -134,7 +140,7 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput = preview (_Left % #no
     ret = runInlineM repGraphInput inlinerInput nextReachableUnmatchedCInlinePointInner
 
 nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => InlineM m ()
-nextReachableUnmatchedCInlinePointInner = do
+nextReachableUnmatchedCInlinePointInner = InlineM $ do
     p <- askProblem
     loopDataMap <- askLoopDataMap
     let heads = loopHeadsIncludingInner p.nodes loopDataMap

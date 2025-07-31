@@ -27,6 +27,15 @@ import Optics
 class MonadRepGraphSolverSend m => MonadRepGraphSolverInteract m where
     checkHyp :: SExprWithPlaceholders -> m Bool
 
+instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ReaderT r m) where
+    checkHyp = lift . checkHyp
+
+instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ExceptT e m) where
+    checkHyp = lift . checkHyp
+
+instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphBase t m) where
+    checkHyp = lift . checkHyp
+
 newtype SimpleSolver m a
   = SimpleSolver { run :: ReaderT Env (ExceptT SimpleSolverFailureReason m) a }
   deriving (Functor)
