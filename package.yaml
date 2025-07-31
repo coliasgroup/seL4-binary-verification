@@ -197,7 +197,7 @@ internal-libraries:
     source-dirs: components/system-core
     exposed-modules:
       - BV.System.Core
-      - BV.System.Core.Search
+      - BV.System.Core.Utils.Logging # TODO
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
@@ -214,6 +214,26 @@ internal-libraries:
       - process
       - base16-bytestring
       - cryptohash-sha256
+
+  system-search-core:
+    visibility: public
+    source-dirs: components/system-search-core
+    exposed-modules:
+      - BV.System.Search.Core
+    dependencies:
+      - sel4-bv:smtlib2
+      - sel4-bv:smtlib2-process
+      - sel4-bv:logging
+      - sel4-bv:core
+      - sel4-bv:search-core
+      - sel4-bv:utils
+      - sel4-bv:system-utils
+      - sel4-bv:system-core
+      # external
+      - binary
+      - unliftio-core
+      - monad-logger
+      - process
 
   system:
     visibility: public
@@ -381,6 +401,7 @@ tests:
       - sel4-bv:target-dir
       - sel4-bv:system
       - sel4-bv:system-core
+      - sel4-bv:system-search-core
       - sel4-bv:system-utils
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process

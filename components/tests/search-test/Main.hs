@@ -13,7 +13,7 @@ import BV.Search.Core
 import BV.SMTLIB2.Monad
 import BV.SMTLIB2.Process
 import BV.System.Core
-import BV.System.Core.Search
+import BV.System.Search.Core
 import BV.System.Utils
 import BV.System.Utils.UnliftIO.Async
 import BV.Test.Utils

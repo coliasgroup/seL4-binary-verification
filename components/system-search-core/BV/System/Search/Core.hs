@@ -1,4 +1,4 @@
-module BV.System.Core.Search
+module BV.System.Search.Core
     ( discoverInlineScript'
     , runRepGraphSolverInteractSimple'
     ) where
@@ -8,8 +8,8 @@ import BV.Logging
 import BV.Search.Core
 import BV.Search.Core.Solver
 import BV.SMTLIB2.Process
-import BV.System.Core.Solvers
-import BV.System.Core.Utils.Logging
+import BV.System.Core
+import BV.System.Core.Utils.Logging (runSolverWithLogging)
 
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
