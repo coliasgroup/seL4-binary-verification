@@ -20,7 +20,7 @@ import BV.Test.Utils
 import BV.Test.Utils.Logging
 
 import Control.Concurrent (newMVar)
-import Control.Concurrent.Async (Concurrently)
+import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently))
 import Control.Concurrent.MVar (withMVar)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (liftIO)
@@ -52,7 +52,9 @@ tests = testGroup "Tests"
 loggingOpts :: FilePath -> LoggingOpts
 loggingOpts fname = LoggingOpts
     { stderrLogOpts = LogOpts
-        { level = LevelInfo
+        { level =
+            LevelInfo
+            -- LevelDebug
         , format = LogFormatHuman
         }
     , fileLogOpts = Just $ FileLogOpts
@@ -76,6 +78,13 @@ solverConfig = OnlineSolverConfig
     , timeout = solverTimeoutFromSeconds 30
     }
 
+numThreads :: IO Integer
+numThreads =
+    return
+        1
+        -- 6
+        -- 16
+
 testInlining :: IO ()
 testInlining = withLoggingOpts (loggingOpts "inlining.log") $ do
     stagesInput <- liftIO $ seL4DefaultReadStagesInput referenceTargetDir
@@ -88,12 +97,13 @@ testInlining = withLoggingOpts (loggingOpts "inlining.log") $ do
             -- , asmFunctions = S.fromList [Ident "handleVMFault"]
             , cFunctionPrefix = stagesInput.cFunctionPrefix
             }
-    let f input = do
+    gate <- liftIO $ newSemGate =<< numThreads
+    let f input = makeConcurrentlyUnliftIO $ applySemGate gate 1 $ do
             r <- discoverInlineScript' solverConfig input
             case r of
                 Right script -> return script
                 Left failure -> liftIO $ assertFailure $ show failure
-    scripts <- InlineScripts <$> traverse f allInput
+    scripts <- runConcurrentlyUnliftIO $ InlineScripts <$> traverse f allInput
     let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
     unless (scripts == reference) $ liftIO $ do
         withFile (tmpOutDir </> "out-inline-scripts.json") WriteMode $ \h -> do

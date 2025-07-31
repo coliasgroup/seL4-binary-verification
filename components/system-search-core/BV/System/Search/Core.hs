@@ -11,6 +11,7 @@ import BV.SMTLIB2.Process
 import BV.System.Core
 import BV.System.Core.Utils.Logging (runSolverWithLogging,
                                      withPushLogContextPairing)
+import BV.System.Utils.Stopwatch
 
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
@@ -20,6 +21,7 @@ import Control.Monad.Trans (lift)
 import Optics
 import Optics.State.Operators ((<<%=))
 import System.Process (CreateProcess, proc)
+import Text.Printf (printf)
 
 runRepGraphSolverInteractSimple'
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
@@ -34,10 +36,11 @@ discoverInlineScript'
     => OnlineSolverConfig -> DiscoverInlineScriptInput -> m (Either RepGraphSolverInteractSimpleFailureReason InlineScript')
 discoverInlineScript' config input = withPushLogContextPairing input.pairingId $ do
     logDebug "searching"
-    r <- runExceptT $ flip evalStateT 0 $ discoverInlineScript run input
-    case r of
-        Right script -> logDebug $ "discovered script of length " ++ show (length script)
-        Left failure -> logDebug $ "failed with " ++ show failure
+    (r, elapsed) <- time $ runExceptT $ flip evalStateT 0 $ discoverInlineScript run input
+    let msg = case r of
+            Right script -> "discovered script of length " ++ show (length script)
+            Left failure -> "failed with " ++ show failure
+    logDebug $ msg ++ makeElapsedSuffix elapsed
     return r
   where
     run :: RepGraphSolverInteractSimple (SolverT m) a -> StateT Integer (ExceptT RepGraphSolverInteractSimpleFailureReason m) a
@@ -45,6 +48,10 @@ discoverInlineScript' config input = withPushLogContextPairing input.pairingId $
         i <- simple <<%= (+ 1)
         withPushLogContext ("solver run " ++ show i) $ do
             lift $ ExceptT $ runRepGraphSolverInteractSimple' config m
+
+-- TODO unify with other def
+makeElapsedSuffix :: Elapsed -> String
+makeElapsedSuffix elapsed = printf " (%.2fs)" (fromRational (elapsedToSeconds elapsed) :: Double)
 
 -- TODO unify with other def
 solverProc :: SolverCommand -> CreateProcess
