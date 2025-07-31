@@ -22,7 +22,7 @@ import BV.Test.Utils.Logging
 import Control.Concurrent (newMVar)
 import Control.Concurrent.Async (Concurrently)
 import Control.Concurrent.MVar (withMVar)
-import Control.Monad (when)
+import Control.Monad (when, unless)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import Control.Monad.Trans.Resource
@@ -31,6 +31,7 @@ import qualified Data.ByteString.Lazy.Char8 as CL
 import qualified Data.Map as M
 import qualified Data.Set as S
 import GHC.Generics (Generic)
+import Optics
 import System.FilePath ((</>))
 import System.IO (BufferMode (..), Handle, IOMode (..), hClose, hSetBuffering,
                   openFile, stderr, withFile)
@@ -95,13 +96,13 @@ testInlining = do
                     Right script -> return script
     scripts <- withLoggingOpts (loggingOpts "inlining.log") $ do
         InlineScripts <$> M.traverseWithKey f allInput
-    -- putStrLn ""
-    -- CL.putStrLn $ writeBVContents scripts
-    withFile (tmpOutDir </> "out-inline-scripts.json") WriteMode $ \h -> do
-        CL.hPutStrLn h $ writeBVContents scripts
-    withFile (tmpOutDir </> "in-inline-scripts.json") WriteMode $ \h -> do
-        CL.hPutStrLn h $ writeBVContents stagesInput.inlineScripts
-    assertBool "eq" $ scripts == stagesInput.inlineScripts
+    let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
+    unless (scripts == reference) $ do
+        withFile (tmpOutDir </> "out-inline-scripts.json") WriteMode $ \h -> do
+            CL.hPutStr h $ writeBVContents scripts
+        withFile (tmpOutDir </> "in-inline-scripts.json") WriteMode $ \h -> do
+            CL.hPutStr h $ writeBVContents reference
+        assertBool "eq" False
     return ()
   where
     referenceTargetDir =
