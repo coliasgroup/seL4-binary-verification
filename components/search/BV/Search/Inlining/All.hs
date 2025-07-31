@@ -58,13 +58,13 @@ prepareAllDiscoverInlineScriptInput input = scripts
         guard $ c `M.member` (getC finalPrograms).functions
         return $ byAsmRefineTag (ByAsmRefineTag { asm, c })
 
-    pairings = S.fromList $ M.keys inlineAsmPairings.unwrap ++ normalFunctionPairingIds
+    matches = S.fromList $ M.keys inlineAsmPairings.unwrap ++ normalFunctionPairingIds
 
     script pairingId = DiscoverInlineScriptInput
         { structs = input.programs <&> (.structs)
         , rodata = input.rodata
         , functions = lookupFunction
-        , pairings
+        , matches
         , pairingId
         }
 

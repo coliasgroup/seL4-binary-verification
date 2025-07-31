@@ -34,7 +34,7 @@ data DiscoverInlineScriptInput
       { structs :: ByTag' (Map Ident Struct)
       , rodata :: ROData
       , functions :: WithTag' Ident -> Function
-      , pairings :: S.Set PairingId'
+      , matches :: S.Set PairingId'
       , pairingId :: PairingId'
       }
   deriving (Generic)
@@ -48,10 +48,10 @@ discoverInlineScript run input = evalStateT (buildInlineScript composeInliners l
   where
     lookupFun = input.functions
     funs = withTags input.pairingId <&> \wt -> Named wt.value (lookupFun wt)
-    matched = S.fromList $ input.pairings ^.. folded % folded
+    matched = S.fromList $ input.matches ^.. folded % folded
     matchedC problem =
         let present = S.fromList $ problem ^.. #nodes % folded % #_NodeCall % #functionName
-            asmToC = M.fromList $ [ (getAsm p, getC p) | p <- S.toList input.pairings ]
+            asmToC = M.fromList $ [ (getAsm p, getC p) | p <- S.toList input.matches ]
          in S.fromList $ toList $ M.restrictKeys asmToC present
     inliners = [inlineCompletelyUnmatched, inlineReachableUnmatchedC]
     inlineCompletelyUnmatched = return . nextCompletelyUnmatchedInlinePoints matched
