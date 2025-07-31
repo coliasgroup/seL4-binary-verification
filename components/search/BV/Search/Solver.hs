@@ -1,5 +1,5 @@
 module BV.Search.Solver
-    ( MonadRepGraphSolverInteract (..)
+    ( MonadRepGraphSolverInteractSimple (..)
     , SimpleSolver
     , SimpleSolverFailureInfo (..)
     , SimpleSolverFailureReason (..)
@@ -11,10 +11,10 @@ import BV.Core.ModelConfig
 import BV.Core.RepGraph
 import BV.Core.Types
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS)
+import BV.SMTLIB2 (SExpr)
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Monad
 
-import BV.SMTLIB2 (SExpr)
 import Control.Monad (unless)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
@@ -24,16 +24,16 @@ import Data.Foldable (traverse_)
 import GHC.Generics (Generic)
 import Optics
 
-class MonadRepGraphSolverSend m => MonadRepGraphSolverInteract m where
+class MonadRepGraphSolverSend m => MonadRepGraphSolverInteractSimple m where
     checkHyp :: SExprWithPlaceholders -> m Bool
 
-instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ReaderT r m) where
+instance MonadRepGraphSolverInteractSimple m => MonadRepGraphSolverInteractSimple (ReaderT r m) where
     checkHyp = lift . checkHyp
 
-instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ExceptT e m) where
+instance MonadRepGraphSolverInteractSimple m => MonadRepGraphSolverInteractSimple (ExceptT e m) where
     checkHyp = lift . checkHyp
 
-instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphBase t m) where
+instance MonadRepGraphSolverInteractSimple m => MonadRepGraphSolverInteractSimple (RepGraphBase t m) where
     checkHyp = lift . checkHyp
 
 newtype SimpleSolver m a
@@ -53,7 +53,7 @@ instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (SimpleSolver 
         modelConfig <- gview #modelConfig
         sendExpectingSuccess $ configureSExpr modelConfig s
 
-instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteract (SimpleSolver m) where
+instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteractSimple (SimpleSolver m) where
     checkHyp hyp = SimpleSolver $ do
         timeout <- gview #timeout
         modelConfig <- gview #modelConfig
