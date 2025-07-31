@@ -1,9 +1,5 @@
 module BV.Core.Utils
     ( adjacently
-    , compose2
-    , compose3
-    , compose4
-    , compose5
     , optionals
     , whenJustThen
     , whenJust_
@@ -18,18 +14,6 @@ import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT), hoistMaybe)
 import Data.Foldable (for_)
 import Data.Maybe (fromJust)
 import Optics
-
-compose2 :: (b -> c) -> (a1 -> a2 -> b) -> (a1 -> a2 -> c)
-compose2 = (.) . (.)
-
-compose3 :: (b -> c) -> (a1 -> a2 -> a3 -> b) -> (a1 -> a2 -> a3 -> c)
-compose3 = (.) . compose2
-
-compose4 :: (b -> c) -> (a1 -> a2 -> a3 -> a4 -> b) -> (a1 -> a2 -> a3 -> a4 -> c)
-compose4 = (.) . compose3
-
-compose5 :: (b -> c) -> (a1 -> a2 -> a3 -> a4 -> a5 -> b) -> (a1 -> a2 -> a3 -> a4 -> a5 -> c)
-compose5 = (.) . compose4
 
 liftIso :: Iso' c (a, b) -> Lens' s a -> Lens' s b -> Lens' s c
 liftIso f l r =

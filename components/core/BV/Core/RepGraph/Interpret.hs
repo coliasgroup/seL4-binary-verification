@@ -6,12 +6,8 @@ module BV.Core.RepGraph.Interpret
 import BV.Core.Logic
 import BV.Core.RepGraph.Core
 import BV.Core.RepGraph.Solver
-import BV.Core.Stages.GroupProofChecks
 import BV.Core.Types
 import BV.Core.Types.Extras
-
-import Control.Monad.Writer (runWriter)
-import Data.Traversable (for)
 
 interpretHypImp :: (RefineTag t, MonadRepGraph t m) => [Hyp t] -> Expr -> m Expr
 interpretHypImp hyps concl = do

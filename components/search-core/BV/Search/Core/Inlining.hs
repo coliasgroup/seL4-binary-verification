@@ -11,7 +11,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
-import BV.Search.Core.Solver.Simple
+import BV.Search.Core.Solver
 import BV.Utils (expecting, unwrapped)
 
 import Control.Monad (unless, when)
@@ -143,7 +143,7 @@ instance MonadRepGraphSolverInteractSimple m => MonadRepGraph AsmRefineTag (Inli
         matchedC <- InlineM $ gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do
             hyp <- withEnv env $ convertExprNoSplit $ notE pc
-            res <- checkHyp hyp
+            res <- testHyp hyp
             unless res $ InlineM $ throwError $ InliningEvent
                 { nodeAddr
                 }

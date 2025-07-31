@@ -45,7 +45,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.SMTLIB2.SExpr (GenericSExpr (List))
-import BV.Utils (ensure, ensureM, expecting, unwrapped)
+import BV.Utils
 
 import Control.DeepSeq (NFData)
 import Control.Monad (filterM, guard, replicateM, when)

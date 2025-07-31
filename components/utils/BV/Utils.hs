@@ -1,5 +1,9 @@
 module BV.Utils
-    ( ensure
+    ( compose2
+    , compose3
+    , compose4
+    , compose5
+    , ensure
     , ensureM
     , expecting
     , expectingAt
@@ -17,6 +21,20 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
 import GHC.Stack (HasCallStack)
 import Optics
+
+--
+
+compose2 :: (b -> c) -> (a1 -> a2 -> b) -> (a1 -> a2 -> c)
+compose2 = (.) . (.)
+
+compose3 :: (b -> c) -> (a1 -> a2 -> a3 -> b) -> (a1 -> a2 -> a3 -> c)
+compose3 = (.) . compose2
+
+compose4 :: (b -> c) -> (a1 -> a2 -> a3 -> a4 -> b) -> (a1 -> a2 -> a3 -> a4 -> c)
+compose4 = (.) . compose3
+
+compose5 :: (b -> c) -> (a1 -> a2 -> a3 -> a4 -> a5 -> b) -> (a1 -> a2 -> a3 -> a4 -> a5 -> c)
+compose5 = (.) . compose4
 
 --
 

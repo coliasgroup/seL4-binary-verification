@@ -145,8 +145,7 @@ internal-libraries:
     source-dirs: components/search-core
     exposed-modules:
       - BV.Search.Core
-      - BV.Search.Core.Solver.Simple
-      - BV.Search.Core.Solver.Parallel
+      - BV.Search.Core.Solver
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:core
