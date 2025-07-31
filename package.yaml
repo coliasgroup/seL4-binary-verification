@@ -247,8 +247,9 @@ internal-libraries:
       - sel4-bv:search-core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
-      - sel4-bv:system-core
+      - sel4-bv:utils
       - sel4-bv:system-utils
+      - sel4-bv:system-core
       # external
       - unliftio-core
       - monad-logger

@@ -403,6 +403,7 @@ library system
     , sel4-bv:system-core
     , sel4-bv:system-utils
     , sel4-bv:target-dir
+    , sel4-bv:utils
     , sqlite-simple
     , stm
     , text

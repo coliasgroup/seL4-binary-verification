@@ -17,6 +17,7 @@ import BV.SMTLIB2.Command
 import BV.System.Core
 import BV.System.Utils
 import BV.System.Utils.Async
+import BV.Utils (expecting)
 
 import Control.Concurrent (newChan, newEmptyMVar, putMVar, readChan, takeMVar,
                            threadDelay, writeChan)
