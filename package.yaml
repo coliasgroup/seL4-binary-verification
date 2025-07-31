@@ -155,12 +155,12 @@ internal-libraries:
       - aeson
       - aeson-pretty
 
-  search:
+  search-core:
     visibility: public
-    source-dirs: components/search
+    source-dirs: components/search-core
     exposed-modules:
-      - BV.Search
-      - BV.Search.Solver
+      - BV.Search.Core
+      - BV.Search.Core.Solver
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:core
@@ -204,7 +204,7 @@ internal-libraries:
       - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:concrete-syntax
-      - sel4-bv:search
+      - sel4-bv:search-core
       - sel4-bv:utils
       - sel4-bv:system-utils
       # external
@@ -225,7 +225,7 @@ internal-libraries:
       - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:concrete-syntax
-      - sel4-bv:search
+      - sel4-bv:search-core
       - sel4-bv:target-dir
       - sel4-bv:system-core
       - sel4-bv:system-utils
@@ -267,7 +267,7 @@ executables:
       - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:concrete-syntax
-      - sel4-bv:search
+      - sel4-bv:search-core
       - sel4-bv:target-dir
       - sel4-bv:system-utils
       - sel4-bv:system
@@ -377,7 +377,7 @@ tests:
     dependencies:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
-      - sel4-bv:search
+      - sel4-bv:search-core
       - sel4-bv:target-dir
       - sel4-bv:system
       - sel4-bv:system-core

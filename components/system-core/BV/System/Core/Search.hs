@@ -5,8 +5,8 @@ module BV.System.Core.Search
 
 import BV.Core.Types
 import BV.Logging
-import BV.Search
-import BV.Search.Solver
+import BV.Search.Core
+import BV.Search.Core.Solver
 import BV.SMTLIB2.Process
 import BV.System.Core.Solvers
 import BV.System.Core.Utils.Logging

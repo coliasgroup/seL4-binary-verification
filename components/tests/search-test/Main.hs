@@ -9,7 +9,7 @@ import BV.ConcreteSyntax
 import BV.Core.Prelude
 import BV.Core.Types
 import BV.Logging
-import BV.Search
+import BV.Search.Core
 import BV.SMTLIB2.Monad
 import BV.SMTLIB2.Process
 import BV.System.Core

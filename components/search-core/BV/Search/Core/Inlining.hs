@@ -1,4 +1,4 @@
-module BV.Search.Inlining
+module BV.Search.Core.Inlining
     ( DiscoverInlineScriptInput (..)
     , discoverInlineScript
     ) where
@@ -11,7 +11,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
-import BV.Search.Solver
+import BV.Search.Core.Solver
 import BV.Utils (expecting, unwrapped)
 
 import Control.Monad (unless, when)

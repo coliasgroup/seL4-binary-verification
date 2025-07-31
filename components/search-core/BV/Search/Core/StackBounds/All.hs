@@ -1,4 +1,4 @@
-module BV.Search.StackBounds.All
+module BV.Search.Core.StackBounds.All
     ( FullDiscoverStackBoundsInput (..)
     , prepareDiscoverStackBoundsInput
     ) where
@@ -7,7 +7,7 @@ import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Utils.IncludeExcludeFilter
 
-import BV.Search.StackBounds
+import BV.Search.Core.StackBounds
 
 import qualified Data.Map as M
 import qualified Data.Set as S

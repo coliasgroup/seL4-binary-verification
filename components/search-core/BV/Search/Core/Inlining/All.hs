@@ -1,4 +1,4 @@
-module BV.Search.Inlining.All
+module BV.Search.Core.Inlining.All
     ( DiscoverAllInlineScriptsInput (..)
     , prepareAllDiscoverInlineScriptInput
     ) where
@@ -7,7 +7,7 @@ import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Utils.IncludeExcludeFilter
 
-import BV.Search.Inlining
+import BV.Search.Core.Inlining
 
 import Control.Monad (guard)
 import qualified Data.Map as M

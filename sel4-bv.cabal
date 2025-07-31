@@ -234,18 +234,18 @@ library network-transport-static
     , vector
   default-language: GHC2024
 
-library search
+library search-core
   visibility: public
   exposed-modules:
-      BV.Search
-      BV.Search.Solver
+      BV.Search.Core
+      BV.Search.Core.Solver
   other-modules:
-      BV.Search.Inlining
-      BV.Search.Inlining.All
-      BV.Search.StackBounds
-      BV.Search.StackBounds.All
+      BV.Search.Core.Inlining
+      BV.Search.Core.Inlining.All
+      BV.Search.Core.StackBounds
+      BV.Search.Core.StackBounds.All
   hs-source-dirs:
-      components/search
+      components/search-core
   default-extensions:
       FunctionalDependencies
       DuplicateRecordFields
@@ -397,7 +397,7 @@ library system
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
-    , sel4-bv:search
+    , sel4-bv:search-core
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system-core
@@ -456,7 +456,7 @@ library system-core
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
-    , sel4-bv:search
+    , sel4-bv:search-core
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system-utils
@@ -665,7 +665,7 @@ executable sel4-bv-cli
     , sel4-bv:core
     , sel4-bv:logging
     , sel4-bv:network-transport-static
-    , sel4-bv:search
+    , sel4-bv:search-core
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system
@@ -834,7 +834,7 @@ test-suite search-test
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
-    , sel4-bv:search
+    , sel4-bv:search-core
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system

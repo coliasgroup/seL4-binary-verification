@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module BV.Search.StackBounds
+module BV.Search.Core.StackBounds
     ( DiscoverStackBoundsInput (..)
     , discoverStackBounds
     ) where
