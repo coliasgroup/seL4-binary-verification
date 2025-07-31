@@ -25,7 +25,7 @@ import Text.Printf (printf)
 
 runRepGraphSolverInteractSimple'
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OnlineSolverConfig -> RepGraphSolverInteractSimple (SolverT m) a -> m (Either RepGraphSolverInteractSimpleFailureReason a)
+    => OnlineSolverConfig -> RepGraphSolverInteractSimple (SolverT m) a -> m (Either RepGraphSolverInteractSimpleFailureInfo a)
 runRepGraphSolverInteractSimple' config m =
     runSolverWithLogging
         (solverProc config.command)
@@ -33,7 +33,7 @@ runRepGraphSolverInteractSimple' config m =
 
 discoverInlineScript'
     :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OnlineSolverConfig -> DiscoverInlineScriptInput -> m (Either RepGraphSolverInteractSimpleFailureReason InlineScript')
+    => OnlineSolverConfig -> DiscoverInlineScriptInput -> m (Either RepGraphSolverInteractSimpleFailureInfo InlineScript')
 discoverInlineScript' config input = withPushLogContextPairing input.pairingId $ do
     logDebug "searching"
     (r, elapsed) <- time $ runExceptT $ flip evalStateT 0 $ discoverInlineScript run input
@@ -43,7 +43,7 @@ discoverInlineScript' config input = withPushLogContextPairing input.pairingId $
     logDebug $ msg ++ makeElapsedSuffix elapsed
     return r
   where
-    run :: RepGraphSolverInteractSimple (SolverT m) a -> StateT Integer (ExceptT RepGraphSolverInteractSimpleFailureReason m) a
+    run :: RepGraphSolverInteractSimple (SolverT m) a -> StateT Integer (ExceptT RepGraphSolverInteractSimpleFailureInfo m) a
     run m = do
         i <- simple <<%= (+ 1)
         withPushLogContext ("solver run " ++ show i) $ do

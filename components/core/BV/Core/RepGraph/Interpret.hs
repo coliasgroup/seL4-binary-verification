@@ -1,6 +1,6 @@
 module BV.Core.RepGraph.Interpret
     ( interpretHyp
-    , interpretHypImp
+    , interpretHypImps
     ) where
 
 import BV.Core.Logic
@@ -9,8 +9,8 @@ import BV.Core.RepGraph.Solver
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-interpretHypImp :: (RefineTag t, MonadRepGraph t m) => [Hyp t] -> Expr -> m Expr
-interpretHypImp hyps concl = do
+interpretHypImps :: (RefineTag t, MonadRepGraph t m) => [Hyp t] -> Expr -> m Expr
+interpretHypImps hyps concl = do
     hyps' <- traverse interpretHyp hyps
     return $ strengthenHyp $ nImpliesE hyps' concl
 

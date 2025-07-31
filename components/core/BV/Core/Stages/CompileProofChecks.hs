@@ -43,7 +43,7 @@ interpretGroup :: (RefineTag t, MonadRepGraph t m) => ProofCheckGroup t a -> m [
 interpretGroup group = do
     hyps <- for group $ \check -> do
         concl <- interpretHyp check.hyp
-        expr <- interpretHypImp check.hyps concl
+        expr <- interpretHypImps check.hyps concl
         return (check, expr)
     for hyps $ \(check, term) -> do
         sexpr <- withoutEnv $ convertExprNoSplit term
