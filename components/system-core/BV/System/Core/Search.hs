@@ -1,6 +1,6 @@
 module BV.System.Core.Search
     ( discoverInlineScript'
-    , runSimpleSolver'
+    , runRepGraphSolverInteractSimple'
     ) where
 
 import BV.Core.Types
@@ -16,22 +16,22 @@ import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import System.Process (CreateProcess, proc)
 
-runSimpleSolver'
+runRepGraphSolverInteractSimple'
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OnlineSolverConfig -> SimpleSolver (SolverT m) a -> m (Either SimpleSolverFailureReason a)
-runSimpleSolver' config m =
+    => OnlineSolverConfig -> RepGraphSolverInteractSimple (SolverT m) a -> m (Either RepGraphSolverInteractSimpleFailureReason a)
+runRepGraphSolverInteractSimple' config m =
     runSolverWithLogging
         (solverProc config.command)
-        (runSimpleSolver (Just config.timeout) config.modelConfig m)
+        (runRepGraphSolverInteractSimple (Just config.timeout) config.modelConfig m)
 
 discoverInlineScript'
     :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OnlineSolverConfig -> DiscoverInlineScriptInput -> m (Either SimpleSolverFailureReason InlineScript')
+    => OnlineSolverConfig -> DiscoverInlineScriptInput -> m (Either RepGraphSolverInteractSimpleFailureReason InlineScript')
 discoverInlineScript' config input =
     runExceptT $ discoverInlineScript run input
   where
-    run :: SimpleSolver (SolverT m) a -> ExceptT SimpleSolverFailureReason m a
-    run m = ExceptT $ runSimpleSolver' config m
+    run :: RepGraphSolverInteractSimple (SolverT m) a -> ExceptT RepGraphSolverInteractSimpleFailureReason m a
+    run m = ExceptT $ runRepGraphSolverInteractSimple' config m
 
 -- TODO unify with other def
 solverProc :: SolverCommand -> CreateProcess

@@ -1,9 +1,9 @@
 module BV.Search.Solver
     ( MonadRepGraphSolverInteractSimple (..)
-    , SimpleSolver
-    , SimpleSolverFailureInfo (..)
-    , SimpleSolverFailureReason (..)
-    , runSimpleSolver
+    , RepGraphSolverInteractSimple
+    , RepGraphSolverInteractSimpleFailureInfo (..)
+    , RepGraphSolverInteractSimpleFailureReason (..)
+    , runRepGraphSolverInteractSimple
     ) where
 
 import BV.Core.ExecuteSMTProofChecks (commonSolverSetup, splitHyp)
@@ -36,8 +36,8 @@ instance MonadRepGraphSolverInteractSimple m => MonadRepGraphSolverInteractSimpl
 instance MonadRepGraphSolverInteractSimple m => MonadRepGraphSolverInteractSimple (RepGraphBase t m) where
     checkHyp = lift . checkHyp
 
-newtype SimpleSolver m a
-  = SimpleSolver { run :: ExceptT SimpleSolverFailureReason (ReaderT Env m) a }
+newtype RepGraphSolverInteractSimple m a
+  = RepGraphSolverInteractSimple { run :: ExceptT RepGraphSolverInteractSimpleFailureReason (ReaderT Env m) a }
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
@@ -48,13 +48,13 @@ data Env
       }
   deriving (Generic)
 
-instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (SimpleSolver m) where
-    sendSExprWithPlaceholders s = SimpleSolver $ do
+instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (RepGraphSolverInteractSimple m) where
+    sendSExprWithPlaceholders s = RepGraphSolverInteractSimple $ do
         modelConfig <- gview #modelConfig
         sendExpectingSuccess $ configureSExpr modelConfig s
 
-instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteractSimple (SimpleSolver m) where
-    checkHyp hyp = SimpleSolver $ do
+instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteractSimple (RepGraphSolverInteractSimple m) where
+    checkHyp hyp = RepGraphSolverInteractSimple $ do
         timeout <- gview #timeout
         modelConfig <- gview #modelConfig
         let sendAssert = sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr modelConfig
@@ -62,8 +62,8 @@ instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteractSimple (Sim
         sendSimpleCommandExpectingSuccess $ Push 1
         traverse_ sendAssert hyps
         sat <- checkSatWithTimeout timeout >>= \case
-            Nothing -> throwError SimpleSolverTimedOut
-            Just (Unknown reason) -> throwError (SimpleSolverAnsweredUnknown reason)
+            Nothing -> throwError RepGraphSolverInteractSimpleTimedOut
+            Just (Unknown reason) -> throwError (RepGraphSolverInteractSimpleAnsweredUnknown reason)
             Just Sat -> return True
             Just Unsat -> return False
         sendSimpleCommandExpectingSuccess $ Pop 1
@@ -71,21 +71,21 @@ instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteractSimple (Sim
             sendAssert $ notS (andNS hyps)
         return $ not sat
 
-data SimpleSolverFailureInfo
-  = SimpleSolverFailureInfo
-      { reason :: SimpleSolverFailureReason
+data RepGraphSolverInteractSimpleFailureInfo
+  = RepGraphSolverInteractSimpleFailureInfo
+      { reason :: RepGraphSolverInteractSimpleFailureReason
       }
   deriving (Eq, Generic, Ord, Show)
 
-data SimpleSolverFailureReason
-  = SimpleSolverTimedOut
-  | SimpleSolverAnsweredUnknown SExpr
+data RepGraphSolverInteractSimpleFailureReason
+  = RepGraphSolverInteractSimpleTimedOut
+  | RepGraphSolverInteractSimpleAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 
-runSimpleSolver
+runRepGraphSolverInteractSimple
     :: (MonadSolver m, MonadThrow m)
-    => Maybe SolverTimeout -> ModelConfig -> SimpleSolver m a -> m (Either SimpleSolverFailureReason a)
-runSimpleSolver timeout modelConfig m = do
+    => Maybe SolverTimeout -> ModelConfig -> RepGraphSolverInteractSimple m a -> m (Either RepGraphSolverInteractSimpleFailureReason a)
+runRepGraphSolverInteractSimple timeout modelConfig m = do
     commonSolverSetup modelConfig
     runReaderT (runExceptT m.run) env
   where
