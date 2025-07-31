@@ -6,6 +6,7 @@ module BV.Search.Inlining
     ) where
 
 import BV.Core.RepGraph
+import BV.Core.Stages
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Search.Solver
@@ -29,7 +30,7 @@ discoverInlineScript
     :: MonadRepGraphSolverInteract m
     => DiscoverInlineScriptInput
     -> m InlineScript'
-discoverInlineScript input = buildProblemWith inliner lookupFun funs
+discoverInlineScript input = buildInlineScript inliner lookupFun funs
   where
     lookupFun = input.functions
     funs = withTags input.pairingId <&> \wt -> Named wt.value (lookupFun wt)
@@ -80,12 +81,3 @@ nextReachableUnmatchedCInlinePoint repGraphInput = preview (_Left % #nodeAddr) <
 
 nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => InlineM m (Maybe NodeAddr)
 nextReachableUnmatchedCInlinePointInner = undefined
-
---
-
--- TODO move
-
-type Inliner m = Problem' -> m (Maybe [NodeAddr])
-
-buildProblemWith :: Monad m => Inliner m -> (WithTag' Ident -> Function) -> ByTag' (Named Function) -> m InlineScript'
-buildProblemWith _inliners _lookupFun _funs = undefined

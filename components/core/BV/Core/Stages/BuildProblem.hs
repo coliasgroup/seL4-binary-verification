@@ -1,7 +1,9 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module BV.Core.Stages.BuildProblem
-    ( buildProblem
+    ( Inliner
+    , buildInlineScript
+    , buildProblem
     ) where
 
 import BV.Core.GenerateFreshName
@@ -12,7 +14,8 @@ import BV.Core.Types.Extras
 import BV.Core.Utils
 
 import Control.Monad (forM, unless)
-import Control.Monad.State (State, execState, get, gets, modify, put, runState)
+import Control.Monad.State (State, StateT, evalStateT, execState, get, gets,
+                            modify, put, runState)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Foldable (forM_, toList)
@@ -21,6 +24,7 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
+import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 
@@ -31,6 +35,31 @@ buildProblem lookupFun inlineScript funs = build builder
         forceSimpleLoopReturns
         forM_ inlineScript $ \entry -> do
             inline lookupFun entry.nodeBySource
+
+type Inliner t m = Problem t -> m (Maybe [NodeAddr])
+
+buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (WithTag t Ident -> Function) -> ByTag t (Named Function) -> m (InlineScript t)
+buildInlineScript inliner lookupFun funs = do
+    flip evalStateT (beginProblemBuilder funs) $ do
+        forceSimpleLoopReturns
+        let go :: [InlineScriptEntry t] -> StateT (ProblemBuilder t) m [InlineScriptEntry t]
+            go acc = do
+                p <- gets build
+                lift (inliner p) >>= \case
+                    Nothing -> return acc
+                    Just addrs -> do
+                        entries <- for addrs $ \addr -> do
+                            nodeBySource <- use $
+                                #nodeMapBuilder % #nodes % at addr % unwrapped % unwrapped % #meta % #bySource % unwrapped
+                            inlinedFunctionName <- use $
+                                #nodeMapBuilder % #nodes % at addr % unwrapped % unwrapped % #node % expecting #_NodeCall % #functionName
+                            inline lookupFun nodeBySource
+                            return $ InlineScriptEntry
+                                    { nodeBySource
+                                    , inlinedFunctionName
+                                    }
+                        go (acc ++ entries)
+        go []
 
 data ProblemBuilder t
   = ProblemBuilder
@@ -79,7 +108,7 @@ beginProblemBuilder funs = ProblemBuilder
         _ <- reserveNodeAddr -- HACK graph_refine.problem starts at 1
         traverse renameSide $ withTags funs
 
-forceSimpleLoopReturns :: Tag t => State (ProblemBuilder t) ()
+forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 forceSimpleLoopReturns = do
     entryPoints <- use $ #sides % to (fmap (view #entryPoint))
     zoom #nodeMapBuilder $ do
@@ -101,7 +130,7 @@ forceSimpleLoopReturns = do
                         then Addr simpleRetNodeAddr
                         else cont
 
-inline :: Tag t => (WithTag t Ident -> Function) -> NodeBySource t -> State (ProblemBuilder t) ()
+inline :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeBySource t -> StateT (ProblemBuilder t) m ()
 inline lookupFun nodeBySource = do
     zoom #nodeMapBuilder $ nodeMapBuilderInline lookupFun nodeBySource
     forceSimpleLoopReturns
@@ -135,19 +164,19 @@ nodeWithMetaAt :: NodeAddr -> Lens' (NodeMapBuilder t) (NodeWithMeta t)
 nodeWithMetaAt nodeAddr =
     #nodes % at nodeAddr % unwrapped % unwrapped
 
-reserveNodeAddr :: State (NodeMapBuilder t) NodeAddr
+reserveNodeAddr :: Monad m => StateT (NodeMapBuilder t) m NodeAddr
 reserveNodeAddr = do
     addr <- gets $ maybe 0 ((+ 1) . fst) . M.lookupMax . (.nodes)
     modify $ #nodes % at addr ?~ Nothing
     return addr
 
-insertNodeWithMeta :: NodeAddr -> (NodeWithMeta t) -> State (NodeMapBuilder t) ()
+insertNodeWithMeta :: Monad m => NodeAddr -> (NodeWithMeta t) -> StateT (NodeMapBuilder t) m ()
 insertNodeWithMeta addr nodeWithMeta = do
     zoom (#nodes % at addr) $ do
         gets isJust >>= ensureM
         put $ Just (Just nodeWithMeta)
 
-insertNode :: Tag t => NodeAddr -> Node -> Maybe (NodeSource t) -> State (NodeMapBuilder t) ()
+insertNode :: (Tag t, Monad m) => NodeAddr -> Node -> Maybe (NodeSource t) -> StateT (NodeMapBuilder t) m ()
 insertNode addr node maybeNodeSource = do
     bySource <- runMaybeT $ do
         nodeSource <- hoistMaybe maybeNodeSource
@@ -160,7 +189,7 @@ insertNode addr node maybeNodeSource = do
         return (NodeBySource nodeSource indexInProblem)
     insertNodeWithMeta addr (NodeWithMeta node (NodeMeta bySource))
 
-appendNode :: Tag t => Node -> Maybe (NodeSource t) -> State (NodeMapBuilder t) NodeAddr
+appendNode :: (Tag t, Monad m) => Node -> Maybe (NodeSource t) -> StateT (NodeMapBuilder t) m NodeAddr
 appendNode node maybeNodeSource = do
     addr <- reserveNodeAddr
     insertNode addr node maybeNodeSource
@@ -174,7 +203,7 @@ data AddFunctionRenames
   deriving (Eq, Generic, Ord, Show)
 
 addFunction
-    :: Tag t => WithTag t (Named Function) -> NodeId -> State (NodeMapBuilder t) AddFunctionRenames
+    :: (Tag t, Monad m) => WithTag t (Named Function) -> NodeId -> StateT (NodeMapBuilder t) m AddFunctionRenames
 addFunction (WithTag tag (Named funName fun)) retTarget = do
     varRenames <- M.fromList <$>
         forM (S.toAscList origVars) (\name -> (name,) <$> getFreshName name)
@@ -202,7 +231,7 @@ addFunction (WithTag tag (Named funName fun)) retTarget = do
     origVars = S.fromList $ fun ^.. varDeclsOf % #name
 
 nodeMapBuilderInlineAtPoint
-    :: Tag t => NodeAddr -> Function -> State (NodeMapBuilder t) ()
+    :: (Tag t, Monad m) => NodeAddr -> Function -> StateT (NodeMapBuilder t) m ()
 nodeMapBuilderInlineAtPoint nodeAddr fun = do
     nodeWithMeta <- use $ nodeWithMetaAt nodeAddr
     let tag = nodeWithMeta ^. #meta % #bySource % unwrapped % #nodeSource % #tag
@@ -240,7 +269,7 @@ nodeMapBuilderInlineAtPoint nodeAddr fun = do
     insertNode exitNodeAddr exitNode Nothing
 
 nodeMapBuilderInline
-    :: Tag t => (WithTag t Ident -> Function) -> (NodeBySource t) -> State (NodeMapBuilder t) ()
+    :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeBySource t -> StateT (NodeMapBuilder t) m ()
 nodeMapBuilderInline lookupFun nodeBySource = do
     let tag = nodeBySource.nodeSource.tag
     nodeAddr <- use $
@@ -278,7 +307,7 @@ computePreds builder = M.fromListWith (<>) $ concat
         | (nodeAddr, Just (NodeWithMeta { node })) <- M.toAscList builder.nodes
         ]
 
-getFreshName :: Ident -> State (NodeMapBuilder t) Ident
+getFreshName :: Monad m => Ident -> StateT (NodeMapBuilder t) m Ident
 getFreshName hint = do
     zoom #vars $ do
         taken <- get
