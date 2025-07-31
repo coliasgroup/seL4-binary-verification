@@ -34,6 +34,7 @@ solverTimeoutToSeconds = (.seconds)
 class Monad m => MonadSolver m where
     sendSExpr :: SExpr -> m ()
     recvSExprWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
+    closeSolver :: m ()
 
 recvSExpr :: MonadSolver m => m SExpr
 recvSExpr = fromJust <$> recvSExprWithTimeout Nothing
@@ -41,15 +42,19 @@ recvSExpr = fromJust <$> recvSExprWithTimeout Nothing
 instance MonadSolver m => MonadSolver (ReaderT r m) where
     sendSExpr = lift . sendSExpr
     recvSExprWithTimeout = lift . recvSExprWithTimeout
+    closeSolver = lift closeSolver
 
 instance (Monoid w, MonadSolver m) => MonadSolver (WriterT w m) where
     sendSExpr = lift . sendSExpr
     recvSExprWithTimeout = lift . recvSExprWithTimeout
+    closeSolver = lift closeSolver
 
 instance MonadSolver m => MonadSolver (StateT s m) where
     sendSExpr = lift . sendSExpr
     recvSExprWithTimeout = lift . recvSExprWithTimeout
+    closeSolver = lift closeSolver
 
 instance MonadSolver m => MonadSolver (ExceptT e m) where
     sendSExpr = lift . sendSExpr
     recvSExprWithTimeout = lift . recvSExprWithTimeout
+    closeSolver = lift closeSolver

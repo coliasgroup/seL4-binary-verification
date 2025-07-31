@@ -65,6 +65,7 @@ data SolverContext m
   = SolverContext
       { sendSExpr :: SExpr -> m ()
       , recvSExprWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
+      , closeSolver :: m ()
       }
 
 instance Monad m => MonadSolver (SolverT m) where
@@ -74,11 +75,15 @@ instance Monad m => MonadSolver (SolverT m) where
     recvSExprWithTimeout timeout = SolverT $ do
         f <- asks (.recvSExprWithTimeout)
         lift $ f timeout
+    closeSolver = SolverT $ do
+        f <- asks (.closeSolver)
+        lift f
 
 liftIOContext :: MonadIO m => SolverContext IO -> SolverContext m
 liftIOContext ctx = SolverContext
     { sendSExpr = liftIO . ctx.sendSExpr
     , recvSExprWithTimeout = liftIO . ctx.recvSExprWithTimeout
+    , closeSolver = liftIO ctx.closeSolver
     }
 
 runSolver
@@ -91,9 +96,13 @@ runSolverWith
     => (SolverContext m -> SolverContext m) -> (T.Text -> m ()) -> CreateProcess -> SolverT m a -> m a
 runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
     (streamingProcess cmd)
-    (\(_, _, _, sph) -> closeStreamingProcessHandle sph `finally` terminateProcess (streamingProcessHandleRaw sph))
-    $ \(FlushInput procStdin, procStdout, procStderr, processHandle) -> run $ do
+    cleanup
+    (run . go)
+  where
+    cleanup (_, _, _, sph) =
+        closeStreamingProcessHandle sph `finally` terminateProcess (streamingProcessHandleRaw sph)
 
+    go args@(FlushInput procStdin, procStdout, procStderr, processHandle) = do
         sourceChan <- liftIO newTChanIO
 
         let sexprToChunks sexpr = map T.encodeUtf8 (TL.toChunks (TB.toLazyText (buildSExpr sexpr <> "\n")))
@@ -122,6 +131,7 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
                 { sendSExpr = sink
                 , recvSExprWithTimeout = \maybeTimeout ->
                     readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
+                , closeSolver = cleanup args
                 }
 
         let env = runConcurrently $
@@ -131,7 +141,7 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
 
         let interaction = runSolverT m (modifyCtx (liftIOContext ctx))
 
-        liftIO $ withAsync env $ \envA -> do
+        withRunInIO $ \run -> liftIO $ withAsync env $ \envA -> do
             link envA
             run interaction
 

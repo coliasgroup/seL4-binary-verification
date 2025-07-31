@@ -55,12 +55,16 @@ augmentSolverContextWithLogging ctx =
         { sendSExpr = \req -> withPushLogContext "send" $ do
             logTraceGeneric . toLazyText $ buildSExpr req
             ctx.sendSExpr req
-        , recvSExprWithTimeout = \timeout -> withPushLogContext "recv" $ do
+        , recvSExprWithTimeout = \timeout -> do
             resp <- ctx.recvSExprWithTimeout timeout
             case resp of
                 Nothing -> logTrace "timeout"
-                Just sexpr -> logTraceGeneric . toLazyText $ buildSExpr sexpr
+                Just sexpr -> withPushLogContext "recv" $ do
+                    logTraceGeneric . toLazyText $ buildSExpr sexpr
             return resp
+        , closeSolver = do
+            logTrace "closing"
+            ctx.closeSolver
         }
 
 runSolverWithLogging :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => CreateProcess -> SolverT m a -> m a
