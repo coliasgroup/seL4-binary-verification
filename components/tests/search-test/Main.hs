@@ -71,7 +71,7 @@ solverConfig = OnlineSolverConfig
         , args = ["--incremental"]
         }
     , modelConfig = ModelConfig
-        { memoryMode = MemoryModeWord8
+        { memoryMode = MemoryModeWord32
         }
     , timeout = solverTimeoutFromSeconds 30
     }

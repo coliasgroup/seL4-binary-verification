@@ -12,6 +12,7 @@ import BV.System.Core.Solvers
 import BV.System.Core.Utils.Logging
 
 import Control.Monad.Catch (MonadMask)
+import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import System.Process (CreateProcess, proc)
 
@@ -24,9 +25,13 @@ runSimpleSolver' config m =
         (runSimpleSolver (Just config.timeout) config.modelConfig m)
 
 discoverInlineScript'
-    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
+    :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
     => OnlineSolverConfig -> DiscoverInlineScriptInput -> m (Either SimpleSolverFailureReason InlineScript')
-discoverInlineScript' config input = runSimpleSolver' config $ discoverInlineScript input
+discoverInlineScript' config input =
+    runExceptT $ discoverInlineScript run input
+  where
+    run :: SimpleSolver (SolverT m) a -> ExceptT SimpleSolverFailureReason m a
+    run m = ExceptT $ runSimpleSolver' config m
 
 -- TODO unify with other def
 solverProc :: SolverCommand -> CreateProcess
