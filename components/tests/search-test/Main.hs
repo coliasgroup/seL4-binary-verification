@@ -77,8 +77,8 @@ solverConfig = OnlineSolverConfig
     }
 
 testInlining :: IO ()
-testInlining = do
-    stagesInput <- seL4DefaultReadStagesInput referenceTargetDir
+testInlining = withLoggingOpts (loggingOpts "inlining.log") $ do
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput referenceTargetDir
     let allInput = prepareAllDiscoverInlineScriptInput $ DiscoverAllInlineScriptsInput
             { programs = stagesInput.programs
             , objDumpInfo = stagesInput.objDumpInfo
@@ -91,12 +91,11 @@ testInlining = do
     let f input = do
             r <- discoverInlineScript' solverConfig input
             case r of
-                Left failure -> liftIO $ assertFailure $ show failure
                 Right script -> return script
-    scripts <- withLoggingOpts (loggingOpts "inlining.log") $ do
-        InlineScripts <$> traverse f allInput
+                Left failure -> liftIO $ assertFailure $ show failure
+    scripts <- InlineScripts <$> traverse f allInput
     let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
-    unless (scripts == reference) $ do
+    unless (scripts == reference) $ liftIO $ do
         withFile (tmpOutDir </> "out-inline-scripts.json") WriteMode $ \h -> do
             CL.hPutStr h $ writeBVContents scripts
         withFile (tmpOutDir </> "in-inline-scripts.json") WriteMode $ \h -> do
