@@ -37,7 +37,7 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphB
     checkHyp = lift . checkHyp
 
 newtype SimpleSolver m a
-  = SimpleSolver { run :: ReaderT Env (ExceptT SimpleSolverFailureReason m) a }
+  = SimpleSolver { run :: ExceptT SimpleSolverFailureReason (ReaderT Env m) a }
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
@@ -51,26 +51,25 @@ data Env
 instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (SimpleSolver m) where
     sendSExprWithPlaceholders s = SimpleSolver $ do
         modelConfig <- gview #modelConfig
-        lift $ sendExpectingSuccess $ configureSExpr modelConfig s
+        sendExpectingSuccess $ configureSExpr modelConfig s
 
 instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteract (SimpleSolver m) where
     checkHyp hyp = SimpleSolver $ do
         timeout <- gview #timeout
         modelConfig <- gview #modelConfig
         let sendAssert = sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr modelConfig
-        lift $ do
-            let hyps = splitHyp (notS hyp)
-            sendSimpleCommandExpectingSuccess $ Push 1
-            traverse_ sendAssert hyps
-            sat <- checkSatWithTimeout timeout >>= \case
-                Nothing -> throwError SimpleSolverTimedOut
-                Just (Unknown reason) -> throwError (SimpleSolverAnsweredUnknown reason)
-                Just Sat -> return True
-                Just Unsat -> return False
-            sendSimpleCommandExpectingSuccess $ Pop 1
-            unless sat $ do
-                sendAssert $ notS (andNS hyps)
-            return $ not sat
+        let hyps = splitHyp (notS hyp)
+        sendSimpleCommandExpectingSuccess $ Push 1
+        traverse_ sendAssert hyps
+        sat <- checkSatWithTimeout timeout >>= \case
+            Nothing -> throwError SimpleSolverTimedOut
+            Just (Unknown reason) -> throwError (SimpleSolverAnsweredUnknown reason)
+            Just Sat -> return True
+            Just Unsat -> return False
+        sendSimpleCommandExpectingSuccess $ Pop 1
+        unless sat $ do
+            sendAssert $ notS (andNS hyps)
+        return $ not sat
 
 data SimpleSolverFailureInfo
   = SimpleSolverFailureInfo
@@ -88,7 +87,7 @@ runSimpleSolver
     => Maybe SolverTimeout -> ModelConfig -> SimpleSolver m a -> m (Either SimpleSolverFailureReason a)
 runSimpleSolver timeout modelConfig m = do
     commonSolverSetup modelConfig
-    runExceptT $ runReaderT m.run env
+    runReaderT (runExceptT m.run) env
   where
     env = Env
         { timeout

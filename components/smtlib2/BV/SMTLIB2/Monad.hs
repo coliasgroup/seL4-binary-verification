@@ -9,6 +9,7 @@ module BV.SMTLIB2.Monad
 import BV.SMTLIB2.SExpr
 
 import Control.Monad.Except (ExceptT)
+import Control.Monad.Reader (ReaderT)
 import Control.Monad.State (StateT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT)
@@ -37,7 +38,11 @@ class Monad m => MonadSolver m where
 recvSExpr :: MonadSolver m => m SExpr
 recvSExpr = fromJust <$> recvSExprWithTimeout Nothing
 
-instance MonadSolver m => MonadSolver (ExceptT e m) where
+instance MonadSolver m => MonadSolver (ReaderT r m) where
+    sendSExpr = lift . sendSExpr
+    recvSExprWithTimeout = lift . recvSExprWithTimeout
+
+instance (Monoid w, MonadSolver m) => MonadSolver (WriterT w m) where
     sendSExpr = lift . sendSExpr
     recvSExprWithTimeout = lift . recvSExprWithTimeout
 
@@ -45,6 +50,6 @@ instance MonadSolver m => MonadSolver (StateT s m) where
     sendSExpr = lift . sendSExpr
     recvSExprWithTimeout = lift . recvSExprWithTimeout
 
-instance (Monoid w, MonadSolver m) => MonadSolver (WriterT w m) where
+instance MonadSolver m => MonadSolver (ExceptT e m) where
     sendSExpr = lift . sendSExpr
     recvSExprWithTimeout = lift . recvSExprWithTimeout
