@@ -38,7 +38,7 @@ module BV.Core.Types.Extras.ProofCheck
 
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
-import BV.Core.Utils
+import BV.Utils (ensure)
 
 import Control.DeepSeq (NFData)
 import Control.Monad.Identity (Identity (Identity, runIdentity))

@@ -10,7 +10,7 @@ module BV.Core.DecorateProofScript
     ) where
 
 import BV.Core.Types
-import BV.Core.Utils
+import BV.Utils (ensure)
 
 import Control.DeepSeq (NFData)
 import Data.Foldable (fold)

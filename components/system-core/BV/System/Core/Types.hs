@@ -33,7 +33,7 @@ module BV.System.Core.Types
 
 import BV.Core.Prelude
 import BV.System.Core.Fingerprinting
-import BV.System.Core.Utils
+import BV.Utils (unwrapped)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)

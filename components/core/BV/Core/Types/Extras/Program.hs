@@ -20,7 +20,7 @@ module BV.Core.Types.Extras.Program
     ) where
 
 import BV.Core.Types
-import BV.Core.Utils
+import BV.Utils (expecting)
 
 import Control.DeepSeq (NFData)
 import Control.Monad.Identity (Identity (Identity, runIdentity))

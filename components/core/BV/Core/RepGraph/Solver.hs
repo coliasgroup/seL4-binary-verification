@@ -44,8 +44,9 @@ import BV.Core.Logic
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils
+import BV.Core.Utils (whenNothing)
 import BV.SMTLIB2.SExpr
+import BV.Utils (ensureM, expecting, unwrapped)
 
 import Control.DeepSeq (NFData)
 import Control.Monad (unless, when, (>=>))

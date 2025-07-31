@@ -20,7 +20,7 @@ module BV.Core.Graph
 
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils
+import BV.Utils (expecting, expectingAt, unwrapped)
 
 import Data.Foldable (toList)
 import Data.Graph (Graph, Vertex)

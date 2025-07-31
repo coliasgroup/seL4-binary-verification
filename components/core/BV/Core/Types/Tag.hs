@@ -23,7 +23,7 @@ module BV.Core.Types.Tag
     , withTags
     ) where
 
-import BV.Core.Utils (expectingIx)
+import BV.Utils (expectingIx)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)

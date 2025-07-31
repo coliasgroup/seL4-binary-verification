@@ -12,7 +12,7 @@ import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
 import BV.Search.Solver
-import BV.Search.Utils
+import BV.Utils (expecting, unwrapped)
 
 import Control.Monad (unless, when)
 import Control.Monad.Except (ExceptT, runExceptT, throwError, tryError)

@@ -5,8 +5,8 @@ module BV.Core.Types.Extras.SExprWithPlaceholders where
 
 import BV.Core.Arch
 import BV.Core.Types.SExprWithPlaceholders
-import BV.Core.Utils
 import BV.SMTLIB2
+import BV.Utils (ensure)
 
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)

@@ -129,6 +129,7 @@ internal-libraries:
       - BV.Core.Utils.IncludeExcludeFilter
     dependencies:
       - sel4-bv:smtlib2
+      - sel4-bv:utils
       # external
       - binary
       - vector-binary-instances
@@ -163,6 +164,13 @@ internal-libraries:
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:core
+      - sel4-bv:utils
+
+  utils:
+    visibility: public
+    source-dirs: components/utils
+    exposed-modules:
+      - BV.Utils
 
   target-dir:
     visibility: public
@@ -197,6 +205,7 @@ internal-libraries:
       - sel4-bv:core
       - sel4-bv:concrete-syntax
       - sel4-bv:search
+      - sel4-bv:utils
       - sel4-bv:system-utils
       # external
       - binary

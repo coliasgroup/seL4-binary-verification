@@ -1,15 +1,32 @@
-module BV.Search.Utils
-    ( expecting
+module BV.Utils
+    ( ensure
+    , ensureM
+    , expecting
     , expectingAt
     , expectingIx
     , expecting_
+    , findWithCallstack
+    , is
     , unwrapped
+    , (!@)
     ) where
 
 import Data.Either (fromRight)
-import Data.Maybe (fromJust)
+import Data.Function (applyWhen)
+import qualified Data.Map as M
+import Data.Maybe (fromJust, isJust)
 import GHC.Stack (HasCallStack)
 import Optics
+
+--
+
+ensure :: HasCallStack => Bool -> a -> a
+ensure p = applyWhen (not p) (error "ensure failed")
+
+ensureM :: HasCallStack => Applicative f => Bool -> f ()
+ensureM p = ensure p $ pure ()
+
+--
 
 unwrapped :: HasCallStack => Lens (Maybe a) (Maybe b) a b
 unwrapped = expecting _Just
@@ -28,3 +45,14 @@ expecting optic = withAffineTraversal optic $ \match update ->
 
 expecting_ :: HasCallStack => Is k An_AffineFold => Optic' k is s a -> Getter s a
 expecting_ optic = to (fromJust . preview optic)
+
+is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
+is k s = isJust (preview k s)
+
+--
+
+findWithCallstack :: HasCallStack => (Show k, Ord k) => M.Map k a -> k -> a
+findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present: " ++ show k)
+
+(!@) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
+(!@) = findWithCallstack

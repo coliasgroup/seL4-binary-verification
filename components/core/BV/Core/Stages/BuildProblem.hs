@@ -11,7 +11,7 @@ import BV.Core.Graph
 import BV.Core.Logic
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils
+import BV.Utils (ensureM, expecting, expectingIx, unwrapped)
 
 import Control.Monad (forM, unless)
 import Control.Monad.State (State, StateT, evalStateT, execState, get, gets,

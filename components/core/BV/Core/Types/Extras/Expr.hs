@@ -4,7 +4,7 @@ module BV.Core.Types.Extras.Expr where
 
 import BV.Core.Arch (archWordSizeBits)
 import BV.Core.Types
-import BV.Core.Utils
+import BV.Utils (ensure, expecting, is)
 
 import Control.DeepSeq (NFData)
 import Data.Bits (shiftL)

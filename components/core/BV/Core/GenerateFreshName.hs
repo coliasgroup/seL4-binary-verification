@@ -2,7 +2,7 @@ module BV.Core.GenerateFreshName
     ( generateFreshName
     ) where
 
-import BV.Core.Utils
+import BV.Utils (ensure)
 
 -- Implementation matches graph_refine.syntax.fresh_name
 generateFreshName :: (String -> Bool) -> String -> String

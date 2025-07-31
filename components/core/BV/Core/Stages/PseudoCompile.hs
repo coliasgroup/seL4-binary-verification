@@ -7,7 +7,7 @@ import BV.Core.Logic
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils
+import BV.Utils (ensure)
 
 import qualified Data.Map as M
 import Data.Maybe (fromJust)

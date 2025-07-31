@@ -140,6 +140,7 @@ library core
     , pretty-show
     , safe-exceptions
     , sel4-bv:smtlib2
+    , sel4-bv:utils
     , split
     , stm
     , text
@@ -243,7 +244,6 @@ library search
       BV.Search.Inlining.All
       BV.Search.StackBounds
       BV.Search.StackBounds.All
-      BV.Search.Utils
   hs-source-dirs:
       components/search
   default-extensions:
@@ -267,6 +267,7 @@ library search
     , safe-exceptions
     , sel4-bv:core
     , sel4-bv:smtlib2
+    , sel4-bv:utils
     , stm
     , text
     , transformers
@@ -425,7 +426,6 @@ library system-core
       BV.System.Core.Solvers.Backend
       BV.System.Core.Solvers.Parallel
       BV.System.Core.Types
-      BV.System.Core.Utils
       BV.System.Core.Utils.Logging
   hs-source-dirs:
       components/system-core
@@ -460,6 +460,7 @@ library system-core
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system-utils
+    , sel4-bv:utils
     , stm
     , text
     , transformers
@@ -578,6 +579,38 @@ library test-utils
     , transformers
     , transformers-base
     , unliftio-core
+    , vector
+  default-language: GHC2024
+
+library utils
+  visibility: public
+  exposed-modules:
+      BV.Utils
+  hs-source-dirs:
+      components/utils
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      array
+    , async
+    , base
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , mtl
+    , optics
+    , parallel
+    , safe-exceptions
+    , stm
+    , text
+    , transformers
+    , transformers-base
     , vector
   default-language: GHC2024
 

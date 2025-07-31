@@ -32,7 +32,7 @@ module BV.Core.Types.Program
     ) where
 
 import BV.Core.Types.SExprWithPlaceholders (SExprWithPlaceholders)
-import BV.Core.Utils (expecting)
+import BV.Utils (expecting)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
