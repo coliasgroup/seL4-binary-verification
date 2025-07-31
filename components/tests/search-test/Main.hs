@@ -84,8 +84,8 @@ testInlining = do
             , objDumpInfo = stagesInput.objDumpInfo
             , rodata = stagesInput.rodata
             , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
-            -- , asmFunctions = S.fromList [Ident "handleVMFault"]
             , asmFunctions = S.fromList $ map getAsm $ S.toList $ M.keysSet stagesInput.inlineScripts.unwrap
+            -- , asmFunctions = S.fromList [Ident "handleVMFault"]
             , cFunctionPrefix = stagesInput.cFunctionPrefix
             }
     let f pairingId input = do
@@ -106,8 +106,8 @@ testInlining = do
     return ()
   where
     referenceTargetDir =
-        testSeL4TargetDirBig
-        -- testSeL4TargetDirSmall
+        -- testSeL4TargetDirBig
+        testSeL4TargetDirSmall
         -- testSeL4TargetDirFocused
 
 testStackBounds :: IO ()
