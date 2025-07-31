@@ -140,6 +140,17 @@ internal-libraries:
       - pretty-show
       # - pretty-simple
 
+  search-core:
+    visibility: public
+    source-dirs: components/search-core
+    exposed-modules:
+      - BV.Search.Core
+      - BV.Search.Core.Solver
+    dependencies:
+      - sel4-bv:smtlib2
+      - sel4-bv:core
+      - sel4-bv:utils
+
   concrete-syntax:
     visibility: public
     source-dirs: components/concrete-syntax
@@ -154,17 +165,6 @@ internal-libraries:
       - attoparsec
       - aeson
       - aeson-pretty
-
-  search-core:
-    visibility: public
-    source-dirs: components/search-core
-    exposed-modules:
-      - BV.Search.Core
-      - BV.Search.Core.Solver
-    dependencies:
-      - sel4-bv:smtlib2
-      - sel4-bv:core
-      - sel4-bv:utils
 
   utils:
     visibility: public
@@ -203,8 +203,8 @@ internal-libraries:
       - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
-      - sel4-bv:concrete-syntax
       - sel4-bv:search-core
+      - sel4-bv:concrete-syntax
       - sel4-bv:utils
       - sel4-bv:system-utils
       # external
@@ -224,8 +224,8 @@ internal-libraries:
       - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
-      - sel4-bv:concrete-syntax
       - sel4-bv:search-core
+      - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       - sel4-bv:system-core
       - sel4-bv:system-utils
@@ -266,8 +266,8 @@ executables:
       - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
-      - sel4-bv:concrete-syntax
       - sel4-bv:search-core
+      - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       - sel4-bv:system-utils
       - sel4-bv:system
@@ -376,8 +376,8 @@ tests:
     main: Main
     dependencies:
       - sel4-bv:core
-      - sel4-bv:concrete-syntax
       - sel4-bv:search-core
+      - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       - sel4-bv:system
       - sel4-bv:system-core
