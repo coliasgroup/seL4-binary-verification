@@ -20,6 +20,7 @@ module BV.Core.RepGraph.Solver
     , SolverState
     , addDef
     , addDefNotSplit
+    , addPValidDomAssertions
     , addSplitMemVar
     , addVar
     , addVarRestr
@@ -27,7 +28,6 @@ module BV.Core.RepGraph.Solver
     , convertExpr
     , convertExprNoSplit
     , convertInnerExpr
-    , finalizeSolver
     , getDef
     , initSolver
     , initSolverEnv
@@ -179,10 +179,6 @@ send = sendSExprWithPlaceholders
 initSolver :: MonadRepGraphSolver m => m ()
 initSolver = do
     addRODataDef
-
-finalizeSolver :: MonadRepGraphSolver m => m ()
-finalizeSolver = do
-    addPValidDomAssertions
 
 --
 

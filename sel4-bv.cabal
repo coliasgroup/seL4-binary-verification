@@ -90,6 +90,7 @@ library core
       BV.Core.RepGraph.AsmStackRep
       BV.Core.RepGraph.Base
       BV.Core.RepGraph.Core
+      BV.Core.RepGraph.Interpret
       BV.Core.RepGraph.Solver
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
