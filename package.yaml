@@ -146,6 +146,7 @@ internal-libraries:
     exposed-modules:
       - BV.Search.Core
       - BV.Search.Core.Solver.Simple
+      - BV.Search.Core.Solver.Parallel
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:core

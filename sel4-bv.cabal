@@ -239,6 +239,7 @@ library search-core
   exposed-modules:
       BV.Search.Core
       BV.Search.Core.Solver.Simple
+      BV.Search.Core.Solver.Parallel
   other-modules:
       BV.Search.Core.Inlining
       BV.Search.Core.Inlining.All
