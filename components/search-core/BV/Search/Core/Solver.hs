@@ -34,6 +34,15 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 
+-- type Model = M.Map String ()
+
+-- data TestResultWithOptionalModel =
+--         TestResultWithOptionalModelTrue
+--         | TestResultWithOptionalModelFalse
+--             { model :: Maybe Model
+--             }
+--   deriving (Generic)
+
 class MonadRepGraphSolverSend m => MonadRepGraphSolverInteractSimple m where
     checkHyp :: SExprWithPlaceholders -> m Bool
 
