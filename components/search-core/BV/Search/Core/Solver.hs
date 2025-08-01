@@ -5,6 +5,9 @@ module BV.Search.Core.Solver
     , RepGraphSolverInteractSimpleFailureInfo (..)
     , runRepGraphSolverInteractSimple
     , testHyp
+    , testHypGetModel
+    , Model
+    , ModelRequest
     ) where
 
 import BV.Core.ExecuteSMTProofChecks (commonSolverSetup, splitHyp)
@@ -32,17 +35,19 @@ import Optics
 
 type Model = M.Map String ()
 
-data TestResultWithOptionalModel
-  = TestResultWithOptionalModelTrue
-  | TestResultWithOptionalModelFalse
-      { model :: Maybe Model
-      }
-  deriving (Generic)
+type ModelRequest = [String]
 
 data TestResultWitModel
   = TestResultWithOptionalTrue
   | TestResultWithOptionalFalse
       { model :: Model
+      }
+  deriving (Generic)
+
+data TestResultWithOptionalModel
+  = TestResultWithOptionalModelTrue
+  | TestResultWithOptionalModelFalse
+      { model :: Maybe Model
       }
   deriving (Generic)
 
@@ -52,33 +57,42 @@ ensureModel = \case
     TestResultWithOptionalModelFalse (Just model) -> TestResultWithOptionalFalse model
     _ -> undefined
 
+ensureNoModel :: TestResultWithOptionalModel -> Bool
+ensureNoModel = \case
+    TestResultWithOptionalModelTrue -> True
+    TestResultWithOptionalModelFalse Nothing -> False
+    _ -> undefined
+
 class MonadRepGraphSolverSend m => MonadRepGraphSolverInteract m where
-    checkHyp :: SExprWithPlaceholders -> m Bool
+    checkHyp :: Maybe ModelRequest -> SExprWithPlaceholders -> m TestResultWithOptionalModel
 
 instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ReaderT r m) where
-    checkHyp = lift . checkHyp
+    checkHyp = compose2 lift checkHyp
 
 instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ExceptT e m) where
-    checkHyp = lift . checkHyp
+    checkHyp = compose2 lift checkHyp
 
 instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphBase t m) where
-    checkHyp = lift . checkHyp
+    checkHyp = compose2 lift checkHyp
+
+testHypCommon :: Maybe ModelRequest -> SExprWithPlaceholders -> m TestResultWithOptionalModel
+testHypCommon = checkHyp
 
 testHyp :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m Bool
-testHyp = checkHyp
+testHyp hyp = ensureNoModel <$> checkHyp Nothing hyp
 
-testHypGetModel :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m TestResultWitModel
-testHypGetModel = todo
+testHypGetModel :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => ModelRequest -> SExprWithPlaceholders -> m TestResultWitModel
+testHypGetModel modelRequest hyp = ensureModel <$> checkHyp (Just modelRequest) hyp
 
 -- TODO fast param from graph-refine
 testHypWhypsCommon
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m, MonadCache c)
-    => Bool -> Expr -> [Hyp t] -> c m Bool
-testHypWhypsCommon model hyp hyps = do
+    => Maybe ModelRequest -> Expr -> [Hyp t] -> c m TestResultWithOptionalModel
+testHypWhypsCommon modelRequestOpt hyp hyps = do
     sexpr <- lift $ interpretHypImps hyps hyp >>= withoutEnv . convertExprNoSplit
     withCache sexpr $ do
         addPValidDomAssertions
-        testHyp sexpr
+        testHypCommon modelRequestOpt sexpr
 
 testHypWhyps
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
@@ -126,12 +140,12 @@ instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (RepGraphSolve
         sendExpectingSuccess $ configureSExpr modelConfig s
 
 instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteract (RepGraphSolverInteractSimple m) where
-    checkHyp hyp = RepGraphSolverInteractSimple $ do
+    checkHyp modelRequestOpt hyp = RepGraphSolverInteractSimple $ do
         timeout <- gview #timeout
         modelConfig <- gview #modelConfig
         withExceptT RepGraphSolverInteractFailureInfo $
             ExceptT $
-                checkHypInner timeout modelConfig hyp
+                todo $ checkHypInner timeout modelConfig hyp
 
 checkHypInner :: (MonadSolver m, MonadThrow m) => Maybe SolverTimeout -> ModelConfig -> SExprWithPlaceholders -> m (Either RepGraphSolverFailureReason Bool)
 checkHypInner timeout modelConfig hyp = runExceptT $ do
