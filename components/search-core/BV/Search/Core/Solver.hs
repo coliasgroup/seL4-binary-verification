@@ -95,8 +95,8 @@ checkHypInner timeout modelConfig hyp = runExceptT $ do
     sendSimpleCommandExpectingSuccess $ Push 1
     traverse_ sendAssert hyps
     sat <- checkSatWithTimeout timeout >>= \case
-        Nothing -> throwError RepGraphOnlineSolverTimedOut
-        Just (Unknown reason) -> throwError (RepGraphOnlineSolverAnsweredUnknown reason)
+        Nothing -> throwError RepGraphSolverTimedOut
+        Just (Unknown reason) -> throwError (RepGraphSolverAnsweredUnknown reason)
         Just Sat -> return True
         Just Unsat -> return False
     sendSimpleCommandExpectingSuccess $ Pop 1
@@ -111,8 +111,8 @@ data RepGraphSolverInteractSimpleFailureInfo
   deriving (Eq, Generic, Ord, Show)
 
 data RepGraphSolverFailureReason
-  = RepGraphOnlineSolverTimedOut
-  | RepGraphOnlineSolverAnsweredUnknown SExpr
+  = RepGraphSolverTimedOut
+  | RepGraphSolverAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 
 runRepGraphSolverInteractSimple
