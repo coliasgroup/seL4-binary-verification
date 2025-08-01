@@ -62,9 +62,6 @@ augmentSolverContextWithLogging ctx =
                 Just sexpr -> withPushLogContext "recv" $ do
                     logTraceGeneric . toLazyText $ buildSExpr sexpr
             return resp
-        , closeSolver = do
-            logTrace "closing"
-            ctx.closeSolver
         }
 
 runSolverWithLogging :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => CreateProcess -> SolverT m a -> m a

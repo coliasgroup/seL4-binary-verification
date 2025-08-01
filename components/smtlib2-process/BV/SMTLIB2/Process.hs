@@ -65,7 +65,6 @@ data SolverContext m
   = SolverContext
       { sendSExpr :: SExpr -> m ()
       , recvSExprWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
-      , closeSolver :: m ()
       }
 
 instance Monad m => MonadSolver (SolverT m) where
@@ -75,15 +74,11 @@ instance Monad m => MonadSolver (SolverT m) where
     recvSExprWithTimeout timeout = SolverT $ do
         f <- asks (.recvSExprWithTimeout)
         lift $ f timeout
-    closeSolver = SolverT $ do
-        f <- asks (.closeSolver)
-        lift f
 
 liftIOContext :: MonadIO m => SolverContext IO -> SolverContext m
 liftIOContext ctx = SolverContext
     { sendSExpr = liftIO . ctx.sendSExpr
     , recvSExprWithTimeout = liftIO . ctx.recvSExprWithTimeout
-    , closeSolver = liftIO ctx.closeSolver
     }
 
 runSolver
@@ -102,7 +97,7 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
     cleanup (_, _, _, sph) =
         closeStreamingProcessHandle sph `finally` terminateProcess (streamingProcessHandleRaw sph)
 
-    go args@(FlushInput procStdin, procStdout, procStderr, processHandle) = do
+    go (FlushInput procStdin, procStdout, procStderr, processHandle) = do
         sourceChan <- liftIO newTChanIO
 
         let sexprToChunks sexpr = map T.encodeUtf8 (TL.toChunks (TB.toLazyText (buildSExpr sexpr <> "\n")))
@@ -131,7 +126,6 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
                 { sendSExpr = sink
                 , recvSExprWithTimeout = \maybeTimeout ->
                     readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
-                , closeSolver = cleanup args
                 }
 
         let env = runConcurrently $
