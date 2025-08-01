@@ -30,14 +30,27 @@ import Optics.State.Operators ((%=))
 import qualified Data.Map as M
 import Control.Monad.Identity (IdentityT, Identity (runIdentity), runIdentityT)
 
--- type Model = M.Map String ()
+type Model = M.Map String ()
 
--- data TestResultWithOptionalModel =
---         TestResultWithOptionalModelTrue
---         | TestResultWithOptionalModelFalse
---             { model :: Maybe Model
---             }
---   deriving (Generic)
+data TestResultWithOptionalModel =
+        TestResultWithOptionalModelTrue
+        | TestResultWithOptionalModelFalse
+            { model :: Maybe Model
+            }
+  deriving (Generic)
+
+data TestResultWitModel =
+        TestResultWithOptionalTrue
+        | TestResultWithOptionalFalse
+            { model :: Model
+            }
+  deriving (Generic)
+
+ensureModel :: TestResultWithOptionalModel -> TestResultWitModel
+ensureModel = \case
+    TestResultWithOptionalModelTrue -> TestResultWithOptionalTrue
+    TestResultWithOptionalModelFalse (Just model) -> TestResultWithOptionalFalse model
+    _ -> undefined
 
 class MonadRepGraphSolverSend m => MonadRepGraphSolverInteract m where
     checkHyp :: SExprWithPlaceholders -> m Bool

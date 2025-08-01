@@ -13,6 +13,7 @@ module BV.Utils
     , is
     , unwrapped
     , (!@)
+    , todo
     ) where
 
 import Data.Either (fromRight)
@@ -43,6 +44,9 @@ ensure p = applyWhen (not p) (error "ensure failed")
 
 ensureM :: HasCallStack => Applicative f => Bool -> f ()
 ensureM p = ensure p $ pure ()
+
+todo :: HasCallStack => a
+todo = error "todo"
 
 --
 
