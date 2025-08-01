@@ -115,16 +115,16 @@ runRepGraphSolverInteractSimple timeout modelConfig m = do
 --
 
 class MonadRepGraphSolverSend m => MonadRepGraphSolverInteractParallel m where
-    parallelCheckHyps :: [SExprWithPlaceholders] -> m Bool
+    parallelCheckHyp :: SExprWithPlaceholders -> m Bool
 
 instance MonadRepGraphSolverInteractParallel m => MonadRepGraphSolverInteractParallel (ReaderT r m) where
-    parallelCheckHyps = lift . parallelCheckHyps
+    parallelCheckHyp = lift . parallelCheckHyp
 
 instance MonadRepGraphSolverInteractParallel m => MonadRepGraphSolverInteractParallel (ExceptT e m) where
-    parallelCheckHyps = lift . parallelCheckHyps
+    parallelCheckHyp = lift . parallelCheckHyp
 
 instance MonadRepGraphSolverInteractParallel m => MonadRepGraphSolverInteractParallel (RepGraphBase t m) where
-    parallelCheckHyps = lift . parallelCheckHyps
+    parallelCheckHyp = lift . parallelCheckHyp
 
 type RepGraphSolverInteractParallelInner m =
     ExceptT RepGraphSolverInteractParallelFailureInfo (StateT ParallelState (ReaderT (ParallelEnv m) m))
@@ -151,7 +151,7 @@ data ParallelState
       }
   deriving (Generic)
 
-type RunParallel m = SMTProofCheckGroup () -> m Bool
+type RunParallel m = SMTProofCheck () -> m Bool
 
 instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (RepGraphSolverInteractParallel m) where
     sendSExprWithPlaceholders s = RepGraphSolverInteractParallel $ do
@@ -168,32 +168,23 @@ instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteractSimple (Rep
                 checkHypInner timeout modelConfig hyp
 
 instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteractParallel (RepGraphSolverInteractParallel m) where
-    parallelCheckHyps hyps = do
+    parallelCheckHyp hyp = do
         timeout <- RepGraphSolverInteractParallel $ gview #timeout
         modelConfig <- RepGraphSolverInteractParallel $ gview #modelConfig
-        let go [] = return $ Left True
-            go todo@(hyp:rest) = do
-                r <- lift $ checkHypInner timeout modelConfig hyp
-                case r of
-                    Left _ -> return $ Right todo
-                    Right True -> go rest
-                    Right False -> return $ Left False
-        go hyps >>= \case
-            Left conclusion -> return conclusion
-            Right todo -> do
+        r <- lift $ checkHypInner timeout modelConfig hyp
+        case r of
+            Right sat -> return sat
+            Left _ -> do
                 setup <- RepGraphSolverInteractParallel $ use #setup
-                let group = SMTProofCheckGroup
+                let check = SMTProofCheck
                         { setup
-                        , imps =
-                            [ SMTProofCheckImp
-                                { meta = ()
-                                , term = hyp
-                                }
-                            | hyp <- todo
-                            ]
+                        , imp = SMTProofCheckImp
+                            { meta = ()
+                            , term = hyp
+                            }
                         }
                 runParallel <- RepGraphSolverInteractParallel $ gview #runParallel
-                runParallel group
+                runParallel check
 
 testHypWhyps :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteractParallel m) => Expr -> [Hyp t] -> m Bool
 testHypWhyps hyp hyps = do
@@ -202,7 +193,7 @@ testHypWhyps hyp hyps = do
     -- check cache
     -- fail if fast
     addPValidDomAssertions
-    parallelCheckHyps [sexpr]
+    parallelCheckHyp sexpr
 
 data RepGraphSolverInteractParallelFailureInfo
   = RepGraphSolverInteractParallelFailureInfo
