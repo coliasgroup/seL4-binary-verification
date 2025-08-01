@@ -173,7 +173,7 @@ instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverInteractParallel (R
         modelConfig <- RepGraphSolverInteractParallel $ gview #modelConfig
         r <- lift $ checkHypInner timeout modelConfig hyp
         case r of
-            Right sat -> return sat
+            Right res -> return res
             Left _ -> do
                 setup <- RepGraphSolverInteractParallel $ use #setup
                 let check = SMTProofCheck
