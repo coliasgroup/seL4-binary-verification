@@ -34,6 +34,7 @@ solverTimeoutToSeconds = (.seconds)
 class Monad m => MonadSolver m where
     sendSExpr :: SExpr -> m ()
     recvSExprWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
+    -- TODO should be 'restartSolver', or removed
     closeSolver :: m ()
 
 recvSExpr :: MonadSolver m => m SExpr
