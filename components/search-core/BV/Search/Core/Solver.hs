@@ -1,13 +1,13 @@
 module BV.Search.Core.Solver
-    ( MonadRepGraphSolverInteract
+    ( Model
+    , ModelRequest
+    , MonadRepGraphSolverInteract
     , RepGraphSolverFailureReason (..)
     , RepGraphSolverInteractSimple
     , RepGraphSolverInteractSimpleFailureInfo (..)
     , runRepGraphSolverInteractSimple
     , testHyp
     , testHypGetModel
-    , Model
-    , ModelRequest
     ) where
 
 import BV.Core.ExecuteSMTProofChecks (commonSolverSetup, splitHyp)
