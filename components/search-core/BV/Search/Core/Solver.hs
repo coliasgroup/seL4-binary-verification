@@ -5,6 +5,7 @@ module BV.Search.Core.Solver
     , RepGraphSolverInteractSimpleFailureInfo (..)
     , runRepGraphSolverInteractSimple
     , testHyp
+    , testHypWhyps
     ) where
 
 import BV.Core.ExecuteSMTProofChecks (commonSolverSetup, splitHyp)
