@@ -28,6 +28,7 @@ import BV.System.Core.Report
 import BV.System.Core.Solvers.Backend
 import BV.System.Core.Solvers.Parallel
 import BV.System.Core.Types
+import BV.System.Core.Utils.Logging (withPushLogContextCheck)
 
 import Control.Monad (filterM, (>=>))
 import Control.Monad.Catch (MonadMask)
@@ -64,15 +65,21 @@ runSolvers gate backend config subgroup = runExceptT $ do
             >=> checkUsingOfflineSolvers gate backend config
 
 filterSubgroupUsingCache
-    :: MonadCache m
+    :: (MonadCache m, MonadLoggerWithContext m)
     => CheckSubgroup
     -> ExceptT CheckFailure m CheckSubgroup
-filterSubgroupUsingCache = traverseOf #checks . filterM $ \(_i, check) -> do
-        cached <- queryCache check.fingerprint
-        case cached of
-            Nothing -> return True
-            Just AcceptableSatResultUnsat -> return False
-            Just AcceptableSatResultSat -> throwError $ CheckFailure
+filterSubgroupUsingCache = traverseOf #checks . filterM $ \(_i, check) -> withPushLogContextCheck check $ do
+    cached <- queryCache check.fingerprint
+    case cached of
+        Nothing -> do
+            return True
+        Just AcceptableSatResultUnsat -> do
+            logDebug $ "cache hit: unsat"
+            return False
+        Just AcceptableSatResultSat -> do
+            logDebug $ "cache hit: sat"
+            return False
+            throwError $ CheckFailure
                 { cause = SomeSolverAnsweredSat Cache
                 , source = CheckFailureSourceCheck check
                 }

@@ -56,7 +56,7 @@ runCheck opts = do
     let checkFilter = getCheckFilter opts
     let evalStagesCtx = EvalStagesContext
             { forceAll = opts.forceEvalStages
-            , forceFingerprints = True
+            , forceFingerprints = False
             , dumpTargetDir = TargetDir <$> opts.dumpTargetDir
             , referenceTargetDir = TargetDir <$> opts.referenceTargetDir
             , mismatchDumpDir = opts.mismatchDir
@@ -176,13 +176,18 @@ decodeYamlFile ctx path = do
         Left ex -> do
             liftIO $ die (Y.prettyPrintParseException ex)
 
-getEarlyAsmFunctionFilter :: CheckOpts -> AsmFunctionFilter
-getEarlyAsmFunctionFilter opts = IncludeExcludeFilter
-    { include = case opts.includeFunctionsEarly of
+makeIncludExcludeFilter :: [Ident] -> [Ident] -> IncludeExcludeFilter Ident
+makeIncludExcludeFilter include exclude = IncludeExcludeFilter
+    { include = case include of
         [] -> Nothing
         xs -> Just $ S.fromList xs
-    , exclude = S.fromList opts.ignoreFunctionsEarly
+    , exclude = S.fromList exclude
     }
+
+getEarlyAsmFunctionFilter :: CheckOpts -> AsmFunctionFilter
+getEarlyAsmFunctionFilter opts = makeIncludExcludeFilter
+    opts.includeFunctionsEarly
+    opts.ignoreFunctionsEarly
 
 getRODataInputRanges :: CheckOpts -> RODataInputRanges
 getRODataInputRanges opts =
@@ -191,27 +196,25 @@ getRODataInputRanges opts =
 
 getCheckFilter :: CheckOpts -> CheckFilter
 getCheckFilter opts = CheckFilter
-    { pairings =
-        let f = IncludeExcludeFilter
-                { include = case opts.includeFunctions of
-                    [] -> Nothing
-                    xs -> Just $ S.fromList xs
-                , exclude = S.fromList opts.ignoreFunctions
-                }
-         in \pairingId -> applyIncludeExcludeFilter f (getAsm pairingId)
-    , groups = case opts.includeGroups of
-        [] -> const True
-        include -> \groupFingerprint -> or
+    { pairings = \pairingId -> applyIncludeExcludeFilter pairingsFilter (getAsm pairingId)
+    , groups = \pairingId -> M.lookup (getAsm pairingId) groupPatterns <&> \pats ->
+        \groupFingerprint -> or
             [ matchCheckGroupFingerprint pat groupFingerprint
-            | pat <- include
+            | pat <- pats
             ]
-    , checks = case opts.includeChecks of
-        [] -> const True
-        include -> \checkFingerprint -> or
+    , checks = \pairingId -> M.lookup (getAsm pairingId) checkPatterns <&> \pats ->
+        \checkFingerprint -> or
             [ matchCheckFingerprint pat checkFingerprint
-            | pat <- include
+            | pat <- pats
             ]
     }
+  where
+    pairingsFilter =
+        makeIncludExcludeFilter
+            (opts.includeFunctions ++ map fst opts.includeGroups ++ map fst opts.includeChecks)
+            opts.ignoreFunctions
+    groupPatterns = M.fromListWith (<>) (map (over _2 (:[])) opts.includeGroups)
+    checkPatterns = M.fromListWith (<>) (map (over _2 (:[])) opts.includeChecks)
 
 handleStderrs :: (MonadUnliftIO m, MonadLoggerWithContext m) => Map EndPointAddress Handle -> m ()
 handleStderrs stderrs = withRunInIO $ \run -> do

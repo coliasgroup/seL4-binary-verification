@@ -13,6 +13,7 @@ module BV.System.Core.Types
     , CheckSubgroupId (..)
     , CheckSubgroupPath (..)
     , Checks (..)
+    , ChecksForPairing (..)
     , deduplicateSubgroup
     , elaborateChecks
     , elaborateChecksFromInput
@@ -38,8 +39,9 @@ import BV.Utils (unwrapped)
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import Data.Function (on)
-import Data.List (genericSplitAt, intercalate, nubBy)
+import Data.List (genericLength, genericSplitAt, intercalate, nubBy)
 import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
 import GHC.Generics (Generic)
 import Optics
 
@@ -83,9 +85,17 @@ data CheckSubgroupId
 instance Binary CheckSubgroupId where
 
 newtype Checks
-  = Checks { unwrap :: M.Map PairingId' (M.Map CheckGroupFingerprint CheckSubgroup) }
+  = Checks { unwrap :: M.Map PairingId' ChecksForPairing }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
+
+data ChecksForPairing
+  = ChecksForPairing
+      { groups :: M.Map CheckGroupFingerprint CheckSubgroup
+      , count :: Integer
+        -- compute this before creating map, to enable laziness
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 elaborateChecksFromInput :: StagesInput -> Checks
 elaborateChecksFromInput input = elaborateChecks (stages input).checks
@@ -93,24 +103,30 @@ elaborateChecksFromInput input = elaborateChecks (stages input).checks
 elaborateChecks :: StagesOutputChecks -> Checks
 elaborateChecks stagesOutputChecks = Checks $ M.mapWithKey f stagesOutputChecks.unwrap
   where
-    f pairingId stagesOutputGroups = M.fromListWith (error "unexpected")
-        [ let group = CheckGroup
-                { fingerprint = fingerprintCheckGroup stagesOutputGroup
-                , pairingId
-                , setup = stagesOutputGroup.setup
-                , checks =
-                    [ Check
-                        { fingerprint = fingerprintCheck (SMTProofCheck stagesOutputGroup.setup imp)
-                        , group
-                        , meta = imp.meta
-                        , imp = imp.term
-                        }
-                    | imp <- stagesOutputGroup.imps
-                    ]
-                }
-           in (group.fingerprint, fullSubgroup group)
-        | stagesOutputGroup <- stagesOutputGroups
-        ]
+    f pairingId stagesOutputGroups = ChecksForPairing
+        { count
+        , groups = M.fromListWith (error "unexpected") groups
+        }
+      where
+        count = genericLength groups
+        groups =
+            [ let group = CheckGroup
+                    { fingerprint = fingerprintCheckGroup stagesOutputGroup
+                    , pairingId
+                    , setup = stagesOutputGroup.setup
+                    , checks =
+                        [ Check
+                            { fingerprint = fingerprintCheck (SMTProofCheck stagesOutputGroup.setup imp)
+                            , group
+                            , meta = imp.meta
+                            , imp = imp.term
+                            }
+                        | imp <- stagesOutputGroup.imps
+                        ]
+                    }
+               in (group.fingerprint, fullSubgroup group)
+            | stagesOutputGroup <- stagesOutputGroups
+            ]
 
 fullSubgroup :: CheckGroup -> CheckSubgroup
 fullSubgroup group = CheckSubgroup
@@ -121,18 +137,25 @@ fullSubgroup group = CheckSubgroup
 data CheckFilter
   = CheckFilter
       { pairings :: PairingId' -> Bool
-      , groups :: CheckGroupFingerprint -> Bool
-      , checks :: CheckFingerprint -> Bool
+      , groups :: PairingId' -> Maybe (CheckGroupFingerprint -> Bool)
+      , checks :: PairingId' -> Maybe (CheckFingerprint -> Bool)
       }
   deriving (Generic)
 
 filterChecks :: CheckFilter -> Checks -> Checks
-filterChecks checkFilter =
-    #unwrap %~
-        ((traversed %~ (
-            (traversed %~ takeSubgroupByFingerprint checkFilter.checks)
-                . M.filterWithKey (\k _v -> checkFilter.groups k)))
-            . M.filterWithKey (\k _v -> checkFilter.pairings k))
+filterChecks checkFilter = #unwrap %~ ((iover itraversed f) . M.filterWithKey (\k _v -> checkFilter.pairings k))
+  where
+    f :: PairingId' -> ChecksForPairing -> ChecksForPairing
+    f pairingId checksForPairing = case (checkFilter.groups pairingId, checkFilter.checks pairingId) of
+        (Nothing, Nothing) -> checksForPairing
+        (fgroup, fcheck) -> ChecksForPairing
+            { groups = groups
+            , count = toInteger $ M.size groups
+            }
+          where
+            groups = checksForPairing.groups &
+                (traversed %~ takeSubgroupByFingerprint (fromMaybe (const True) fcheck))
+                    . M.filterWithKey (\k _v -> fromMaybe (const True) fgroup k)
 
 takeEmptySubgroup :: CheckSubgroup -> CheckSubgroup
 takeEmptySubgroup = #checks .~ []
@@ -215,7 +238,7 @@ findChecks path checks =
     ]
   where
     subgroup = checks ^.
-        #unwrap % at path.pairingId % unwrapped % at path.groupFingerprint % unwrapped
+        #unwrap % at path.pairingId % unwrapped % #groups % at path.groupFingerprint % unwrapped
 
 findCheck :: CheckPath -> Checks -> Check
 findCheck path checks = head $ findChecks path checks
@@ -240,4 +263,4 @@ findCheckSubgroup path checks =
     takeSubgroupByIndexInGroup (`elem` path.subgroupId.checkIndices) subgroup
   where
     subgroup = checks ^.
-        #unwrap % at path.pairingId % unwrapped % at path.subgroupId.groupFingerprint % unwrapped
+        #unwrap % at path.pairingId % unwrapped % #groups % at path.subgroupId.groupFingerprint % unwrapped

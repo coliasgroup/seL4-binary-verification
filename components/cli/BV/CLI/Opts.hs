@@ -29,11 +29,15 @@ import BV.System.Core
 
 import Options.Applicative
 
+import Control.Monad.Except (liftEither, runExcept, throwError)
 import qualified Data.Attoparsec.ByteString as A (Parser)
 import qualified Data.ByteString.Base16 as B16
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Char8 as C
+import Data.Foldable (toList)
+import qualified Data.Sequence as Seq
 import GHC.Generics (Generic)
+import Optics
 import Text.Printf (printf)
 
 --
@@ -128,8 +132,8 @@ data CheckOpts
       , ignoreFunctions :: [Ident]
       , includeFunctionsEarly :: [Ident]
       , ignoreFunctionsEarly :: [Ident]
-      , includeGroups :: [CheckGroupFingerprintPattern]
-      , includeChecks :: [CheckFingerprintPattern]
+      , includeGroups :: [(Ident, CheckGroupFingerprintPattern)]
+      , includeChecks :: [(Ident, CheckFingerprintPattern)]
       , reportFile :: Maybe FilePath
       , justCompareChecks :: Bool
       }
@@ -391,11 +395,11 @@ checkOptsParser = do
         [ long "ignore-function-early"
         , metavar "SYMBOL"
         ]
-    includeGroups <- many $ CheckGroupFingerprintPattern <$> option' (eitherReader (B16.decode . C.pack))
+    includeGroups <- many $ over _2 CheckGroupFingerprintPattern <$> option' (eitherReader parseIncludeFingerprintPattern)
         [ long "include-group"
         , metavar "FINGERPRINT"
         ]
-    includeChecks <- many $ CheckFingerprintPattern <$> option' (eitherReader (B16.decode . C.pack))
+    includeChecks <- many $ over _2 CheckFingerprintPattern <$> option' (eitherReader parseIncludeFingerprintPattern)
         [ long "include-check"
         , metavar "FINGERPRINT"
         ]
@@ -525,3 +529,11 @@ option' r = option r . mconcat
 
 argument' :: ReadM a -> [Mod ArgumentFields a] -> Parser a
 argument' r = argument r . mconcat
+
+parseIncludeFingerprintPattern :: String -> Either String (Ident, C.ByteString)
+parseIncludeFingerprintPattern s = runExcept $ do
+    case Seq.breakr (== ':') (Seq.fromList s) of
+        (fingerprintStr, ident Seq.:|> ':') -> do
+            fingerprint <- liftEither $ B16.decode (C.pack (toList fingerprintStr))
+            return (Ident (toList ident), fingerprint)
+        _ -> throwError $ "malformed fingerprint: " ++ show s

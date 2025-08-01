@@ -29,14 +29,14 @@ frontend
     -> Checks
     -> m Report
 frontend gate backend config checks = do
-    let numGroups = lengthOf (#unwrap % folded % folded) checks
+    let numGroups = sumOf (#unwrap % folded % #count) checks
     logInfo $ printf "%d groups to check" numGroups
     completedGroups <- liftIO $ newTVarIO (0 :: Integer)
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
             withPushLogContextPairing pairingId $ do
                 runConcurrentlyUnliftIOE $ do
-                    for_ checksForPairing (\subgroup -> makeConcurrentlyUnliftIOE $ do
+                    for_ checksForPairing.groups (\subgroup -> makeConcurrentlyUnliftIOE $ do
                         withPushLogContextCheckGroup subgroup.group $ do
                             result <- runSolvers gate backend config subgroup
                             logInfo $ case result of

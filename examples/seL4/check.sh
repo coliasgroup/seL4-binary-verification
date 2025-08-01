@@ -35,4 +35,4 @@ $exe \
     # some other options:
     # --log-level debug \
     # --include-function invokeTCB_WriteRegisters \
-    # --include-group 42f7dc8a4b6f \
+    # --include-group armv_init_user_access:d6059539957f \

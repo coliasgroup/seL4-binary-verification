@@ -66,7 +66,7 @@ evalStages ctx input = do
 
     when ctx.forceFingerprints $ do
         logInfo $ printf "Enumerating check groups"
-        !_ <- return $ rnf $ (foldMap M.keys (M.elems checks.unwrap) :: [CheckGroupFingerprint])
+        !_ <- return $ rnf $ (foldMap (M.keys . (.groups)) (M.elems checks.unwrap) :: [CheckGroupFingerprint])
         logInfo "Done enumerating check groups"
 
     return checks
