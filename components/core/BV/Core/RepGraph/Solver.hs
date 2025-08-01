@@ -223,12 +223,6 @@ takeFreshName =
 
 --
 
-withSetSlot :: (MonadRepGraphSolver m, Ord k) => Lens' SolverState (S.Set k) -> k -> m () -> m ()
-withSetSlot l k m = do
-    seen <- liftSolver $ use $ l % to (S.member k)
-    unless seen m
-    liftSolver $ l %= S.insert k
-
 withMapSlot :: (MonadRepGraphSolver m, Ord k) => Lens' SolverState (M.Map k v) -> k -> m v -> m v
 withMapSlot l k m = do
     opt <- liftSolver (use (l % at k))
