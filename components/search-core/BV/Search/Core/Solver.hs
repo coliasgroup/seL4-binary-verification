@@ -59,8 +59,7 @@ testHypWhypsCommon
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m, MonadCache c)
     => Bool -> Expr -> [Hyp t] -> c m Bool
 testHypWhypsCommon model hyp hyps = do
-    expr <- lift $ interpretHypImps hyps hyp
-    sexpr <- lift $ withoutEnv $ convertExprNoSplit expr
+    sexpr <- lift $ interpretHypImps hyps hyp >>= withoutEnv . convertExprNoSplit
     withCache sexpr $ do
         addPValidDomAssertions
         testHyp sexpr
