@@ -52,6 +52,15 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphB
 testHyp :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m Bool
 testHyp = checkHyp
 
+testHypWhyps :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m) => Expr -> [Hyp t] -> m Bool
+testHypWhyps hyp hyps = do
+    expr <- interpretHypImps hyps hyp
+    sexpr <- withoutEnv $ convertExprNoSplit expr
+    -- check cache
+    -- fail if fast
+    addPValidDomAssertions
+    testHyp sexpr
+
 newtype RepGraphSolverInteractSimple m a
   = RepGraphSolverInteractSimple { run :: ExceptT RepGraphSolverInteractSimpleFailureInfo (ReaderT SimpleEnv m) a }
   deriving newtype (Applicative, Functor, Monad)
