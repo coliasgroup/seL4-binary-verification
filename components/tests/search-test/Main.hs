@@ -1,6 +1,3 @@
-{-# OPTIONS_GHC -Wno-unused-imports #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
-
 module Main
     ( main
     ) where
@@ -11,46 +8,94 @@ import BV.Core.Types
 import BV.Logging
 import BV.Search.Core
 import BV.SMTLIB2.Monad
-import BV.SMTLIB2.Process
 import BV.System.Core
 import BV.System.Search.Core
 import BV.System.Utils
 import BV.System.Utils.UnliftIO.Async
 import BV.Test.Utils
-import BV.Test.Utils.Logging
 
-import Control.Concurrent (newMVar)
-import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently))
-import Control.Concurrent.MVar (withMVar)
-import Control.Monad (unless, when)
+import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
-import Control.Monad.Trans.Resource
-import Data.ByteString.Builder (Builder, hPutBuilder)
 import qualified Data.ByteString.Lazy.Char8 as CL
 import qualified Data.Map as M
 import qualified Data.Set as S
-import GHC.Generics (Generic)
+import qualified Data.Text.Lazy.IO as TL
 import Optics
 import System.FilePath ((</>))
-import System.IO (BufferMode (..), Handle, IOMode (..), hClose, hSetBuffering,
-                  openFile, stderr, withFile)
-import System.Process (CreateProcess)
+import System.IO (IOMode (..), withFile)
 import Test.Tasty
 import Test.Tasty.HUnit
 
 main :: IO ()
-main = defaultMain tests
-
-tests :: TestTree
-tests = testGroup "Tests"
-    [ testCase "trivial" $ return ()
-    , testCase "inlining" testInlining
-    , testCase "stack-bounds" testStackBounds
+main = bvMain $ \opts -> testGroup "Tests"
+    [ testCase "inlining" $ testInlining opts
+    , testTreeWhen opts.includeWip $ testCase "stack-bounds" $ testStackBounds opts
     ]
 
-loggingOpts :: FilePath -> LoggingOpts
-loggingOpts fname = LoggingOpts
+testInlining :: CustomOpts -> IO ()
+testInlining opts = withLoggingOpts (loggingOpts opts "inlining.log") $ do
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput opts.defaultTargetDirForSlowTests
+    let allInput = prepareAllDiscoverInlineScriptInput $ DiscoverAllInlineScriptsInput
+            { programs = stagesInput.programs
+            , objDumpInfo = stagesInput.objDumpInfo
+            , rodata = stagesInput.rodata
+            , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
+            , asmFunctions = S.fromList $ map getAsm $ S.toList $ M.keysSet stagesInput.inlineScripts.unwrap
+            , cFunctionPrefix = stagesInput.cFunctionPrefix
+            }
+    gate <- liftIO $ newSemGate =<< numThreads
+    let f input = makeConcurrentlyUnliftIO $ applySemGate gate 1 $ do
+            r <- discoverInlineScript' solverConfig input
+            case r of
+                Right script -> return script
+                Left failure -> liftIO $ assertFailure $ show failure
+    scripts <- runConcurrentlyUnliftIO $ InlineScripts <$> traverse f allInput
+    let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
+    unless (scripts == reference) $ liftIO $ do
+        let mismatchDumpDir = mismatchOutDirOf opts </> "inline-scripts.json"
+        ensureDir mismatchDumpDir
+        withFile (mismatchDumpDir </> "actual.json") WriteMode $ \h -> do
+            CL.hPutStr h $ writeBVContents scripts
+        withFile (mismatchDumpDir </> "expected.json") WriteMode $ \h -> do
+            CL.hPutStr h $ writeBVContents reference
+        assertBool "eq" False
+    return ()
+
+testStackBounds :: CustomOpts -> IO ()
+testStackBounds opts = withLoggingOpts (loggingOpts opts "stack-bounds.log") $ do
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput opts.defaultTargetDirForSlowTests
+    let preparedInput = prepareDiscoverStackBoundsInput $ DiscoverAllStacFullDiscoverStackBoundsInputkBoundsInput
+            { program = getAsm stagesInput.programs
+            , rodata = stagesInput.rodata
+            , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
+            , include = M.keysSet stagesInput.stackBounds.unwrap
+            }
+    _gate <- liftIO $ newSemGate =<< numThreads
+    let f :: DiscoverStackBoundsInput -> LoggingWithContextT IO StackBounds
+        f _input = undefined
+    bounds <- f preparedInput
+    let reference = stagesInput.stackBounds & #unwrap %~ flip M.restrictKeys (M.keysSet bounds.unwrap)
+    unless (bounds == reference) $ liftIO $ do
+        let mismatchDumpDir = mismatchOutDirOf opts </> "inline-scripts.json"
+        ensureDir mismatchDumpDir
+        withFile (mismatchDumpDir </> "actual.json") WriteMode $ \h -> do
+            TL.hPutStr h $ writeBVContents bounds
+        withFile (mismatchDumpDir </> "expected.json") WriteMode $ \h -> do
+            TL.hPutStr h $ writeBVContents reference
+        assertBool "eq" False
+    return ()
+
+--
+
+numThreads :: IO Integer
+numThreads =
+    return
+        1
+        -- 6
+        -- 16
+
+loggingOpts :: CustomOpts -> FilePath -> LoggingOpts
+loggingOpts opts fname = LoggingOpts
     { stderrLogOpts = LogOpts
         { level =
             LevelInfo
@@ -58,9 +103,11 @@ loggingOpts fname = LoggingOpts
         , format = LogFormatHuman
         }
     , fileLogOpts = Just $ FileLogOpts
-        { dst = tmpDir </> "logs" </> fname
+        { dst = logOutDirOf opts </> fname
         , logOpts = LogOpts
-            { level = levelTrace
+            { level =
+                LevelDebug
+                -- levelTrace
             , format = LogFormatText
             }
         }
@@ -77,53 +124,3 @@ solverConfig = OnlineSolverConfig
         }
     , timeout = solverTimeoutFromSeconds 30
     }
-
-numThreads :: IO Integer
-numThreads =
-    return
-        1
-        -- 6
-        -- 16
-
-testInlining :: IO ()
-testInlining = withLoggingOpts (loggingOpts "inlining.log") $ do
-    stagesInput <- liftIO $ seL4DefaultReadStagesInput referenceTargetDir
-    let allInput = prepareAllDiscoverInlineScriptInput $ DiscoverAllInlineScriptsInput
-            { programs = stagesInput.programs
-            , objDumpInfo = stagesInput.objDumpInfo
-            , rodata = stagesInput.rodata
-            , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
-            , asmFunctions = S.fromList $ map getAsm $ S.toList $ M.keysSet stagesInput.inlineScripts.unwrap
-            -- , asmFunctions = S.fromList [Ident "handleVMFault"]
-            , cFunctionPrefix = stagesInput.cFunctionPrefix
-            }
-    gate <- liftIO $ newSemGate =<< numThreads
-    let f input = makeConcurrentlyUnliftIO $ applySemGate gate 1 $ do
-            r <- discoverInlineScript' solverConfig input
-            case r of
-                Right script -> return script
-                Left failure -> liftIO $ assertFailure $ show failure
-    scripts <- runConcurrentlyUnliftIO $ InlineScripts <$> traverse f allInput
-    let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
-    unless (scripts == reference) $ liftIO $ do
-        withFile (tmpOutDir </> "out-inline-scripts.json") WriteMode $ \h -> do
-            CL.hPutStr h $ writeBVContents scripts
-        withFile (tmpOutDir </> "in-inline-scripts.json") WriteMode $ \h -> do
-            CL.hPutStr h $ writeBVContents reference
-        assertBool "eq" False
-    return ()
-  where
-    referenceTargetDir =
-        -- testSeL4TargetDirBig
-        testSeL4TargetDirSmall
-        -- testSeL4TargetDirFocused
-
-testStackBounds :: IO ()
-testStackBounds = do
-    _input <- seL4DefaultReadStagesInput referenceTargetDir
-    return ()
-  where
-    referenceTargetDir =
-        -- testSeL4TargetDirBig
-        testSeL4TargetDirSmall
-        -- testSeL4TargetDirFocused

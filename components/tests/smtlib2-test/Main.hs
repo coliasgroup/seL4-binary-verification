@@ -10,6 +10,8 @@ import BV.SMTLIB2.Process
 import BV.SMTLIB2.SExpr.Build
 import qualified BV.SMTLIB2.SExpr.Parse.Attoparsec as SA
 import qualified BV.SMTLIB2.SExpr.Parse.Megaparsec as SM
+import BV.TargetDir
+import BV.Test.Utils
 
 import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT)
@@ -33,21 +35,17 @@ import qualified Text.Megaparsec as M
 configCreateProc :: CreateProcess
 configCreateProc = proc "yices-smt2" ["--incremental"]
 
-configTestPairs :: IO [(FilePath, FilePath)]
-configTestPairs = map f <$> globDir1 (compile ("tmp" </> "target-small-trace" </> "trace" </> "*")) "."
+configTestPairs :: CustomOpts -> IO [(FilePath, FilePath)]
+configTestPairs opts = map f <$> globDir1 (compile (opts.defaultTargetDirForTestsRequiringTrace.path </> "trace" </> "*")) "."
   where
     f d = (d </> "in.smt2", d </> "out.smt2")
 
 --
 
 main :: IO ()
-main = defaultMain tests
-
-tests :: TestTree
-tests = testGroup "Tests"
-    [ testCase "trivial" $ return ()
-    , testCase "chosen pairs" testChosenPairs
-    , testCase "trace pairs" testTracePairs
+main = bvMain $ \opts -> testGroup "Tests"
+    [ testCase "chosen pairs" testChosenPairs
+    , testCase "trace pairs" $ testTracePairs opts
     , testCase "demo" demo
     ]
 
@@ -106,9 +104,9 @@ testChosenPairs = forM_ chosenPairs $ \(s, ex) -> do
     ex' <- parsersAndBuildersAgree "" s
     assertEqual "" ex ex'
 
-testTracePairs :: IO ()
-testTracePairs = do
-    pairs <- configTestPairs
+testTracePairs :: CustomOpts -> IO ()
+testTracePairs opts = do
+    pairs <- configTestPairs opts
     forM_ pairs $ \(inPath, outPath) -> do
         -- putStrLn $ "checking " ++ inPath
         sexprsIn <- parsersAndBuildersAgreePath inPath

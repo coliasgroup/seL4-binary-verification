@@ -269,10 +269,15 @@ internal-libraries:
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       # external
+      - tagged
       - unliftio-core
       - monad-logger
       - resourcet
       - filepath
+      - directory
+      - tasty
+      - tasty-hunit
+      - optparse-applicative
       # TODO prune
       - pretty-show
       # - pretty-simple
@@ -324,6 +329,7 @@ tests:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
       - sel4-bv:target-dir
+      - sel4-bv:test-utils
       # external
       - attoparsec
       - megaparsec
@@ -339,6 +345,7 @@ tests:
     main: Main
     dependencies:
       - sel4-bv:logging
+      - sel4-bv:test-utils
       # external
       - attoparsec
       - attoparsec-aeson
@@ -390,6 +397,7 @@ tests:
     dependencies:
       - sel4-bv:system
       - sel4-bv:system-core
+      - sel4-bv:test-utils
     ghc-options: *test-ghc-options
 
   search-test:

@@ -21,6 +21,10 @@ clean: hpack
 	rm -rf haddocks
 	stack clean --full
 
+.PHONY: clean-sel4-example
+clean-sel4-example: hpack
+	rm -rf examples/seL4/tmp
+
 .PHONY: build
 build: hpack
 	cabal build --enable-tests
@@ -29,9 +33,17 @@ build: hpack
 check: hpack
 	cabal build --enable-tests
 
-.PHONY:
+test_target_dirs := tmp/test-target-dirs
+
+.PHONY: test
 test: hpack
 	cabal test
+
+.PHONY: test-big
+test-big: hpack
+	cabal test \
+		--jobs=1 \
+		--test-option=--for-slow=$(test_target_dirs)/big
 
 # TODO still seems to document some deps
 haddock_cmd := cabal haddock-project
@@ -67,10 +79,30 @@ i: hpack
 
 # # #
 
-.PHONY: test-stages-with-reference
-test-stages-with-reference: hpack
-	cabal test core-test --test-option=--pattern=stages-with-reference
+.PHONY: test-stages
+test-stages: hpack
+	cabal test core-test \
+		--test-option=--pattern=stages-with-reference
 
-.PHONY: test-just-focused
-test-just-focused: hpack
-	cabal test core-test --test-option=--pattern=just-focused
+.PHONY: test-stages-big
+test-stages-big: hpack
+	cabal test core-test \
+		--test-option=--for-slow=$(test_target_dirs)/big \
+		--test-option=--pattern=stages-with-reference
+
+.PHONY: test-stages-focused
+test-stages-focused: hpack
+	cabal test core-test \
+		--test-option=--for-slow=$(test_target_dirs)/focused \
+		--test-option=--pattern=stages-with-reference
+
+.PHONY: test-inlining
+test-inlining: hpack
+	cabal test search-test \
+		--test-option=--pattern=inlining
+
+.PHONY: test-inlining-big
+test-inlining-big: hpack
+	cabal test search-test \
+		--test-option=--for-slow=$(test_target_dirs)/big \
+		--test-option=--pattern=inlining

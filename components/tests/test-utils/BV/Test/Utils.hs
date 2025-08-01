@@ -1,63 +1,67 @@
-{-# LANGUAGE OverloadedLists #-}
+module BV.Test.Utils
+    ( module BV.Test.Utils.Logging
+    , module BV.Test.Utils.Tasty
+    , bvMain
+    , ensureDir
+    , ensureParent
+    , htmlOutDirOf
+    , logOutDirOf
+    , miscOutDirOf
+    , mismatchOutDirOf
+    , seL4DefaultCFunctionPrefix
+    , seL4DefaultEarlyAsmFunctionFilter
+    , seL4DefaultRODataInputRanges
+    , seL4DefaultReadStagesInput
+    , writeHtml
+    ) where
 
-module BV.Test.Utils where
+import BV.Test.Utils.Logging
+import BV.Test.Utils.Tasty
 
 import BV.Core.Prelude
 import BV.TargetDir
 
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
+import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((<.>), (</>))
+import Test.Tasty (TestTree, withResource)
 import qualified Text.Show.Pretty as H
 
-tmpDir :: FilePath
-tmpDir = "tmp"
+ensureDir :: FilePath -> IO ()
+ensureDir = createDirectoryIfMissing True
 
-testTargetDir :: FilePath -> FilePath
-testTargetDir name = tmpDir </> "test-target-dirs" </> name
+ensureParent :: FilePath -> IO ()
+ensureParent path = ensureDir $ path </> ".."
 
-graphRefineDir :: FilePath
-graphRefineDir = "../graph-refine"
+--
 
-testSeL4TargetDirDefault :: TargetDir
-testSeL4TargetDirDefault = testSeL4TargetDirBig
+logOutDirOf :: CustomOpts -> FilePath
+logOutDirOf opts = opts.outDir </> "logs"
 
-testSeL4TargetDirBig :: TargetDir
-testSeL4TargetDirBig = TargetDir $ testTargetDir "big"
+mismatchOutDirOf :: CustomOpts -> FilePath
+mismatchOutDirOf opts = opts.outDir </> "mismatch"
 
-testSeL4TargetDirSmall :: TargetDir
-testSeL4TargetDirSmall = TargetDir $ testTargetDir "small"
+htmlOutDirOf :: CustomOpts -> FilePath
+htmlOutDirOf opts = opts.outDir </> "html"
 
-testSeL4TargetDirSmallTrace :: TargetDir
-testSeL4TargetDirSmallTrace = TargetDir $ testTargetDir "small-trace"
+miscOutDirOf :: CustomOpts -> FilePath
+miscOutDirOf opts = opts.outDir </> "misc"
 
-testSeL4TargetDirSmallTraceOfflineOnly :: TargetDir
-testSeL4TargetDirSmallTraceOfflineOnly = TargetDir $ testTargetDir "small-trace-offline-only"
+--
 
-testSeL4TargetDirFocused :: TargetDir
-testSeL4TargetDirFocused = TargetDir $ testTargetDir "focused"
-
-testSeL4TargetDirFocusedTrace :: TargetDir
-testSeL4TargetDirFocusedTrace = TargetDir $ testTargetDir "focused-trace"
-
-testHtmlDir :: FilePath
-testHtmlDir = tmpDir </> "html"
-
-writeHtml :: Show a => FilePath -> a -> IO ()
-writeHtml fname val = do
-    let dst = testHtmlDir </> fname <.> "html"
+writeHtml :: Show a => CustomOpts -> FilePath -> a -> IO ()
+writeHtml opts fname val = do
+    let dst = htmlOutDirOf opts </> fname <.> "html"
+    ensureParent dst
     dataDir <- H.getDataDir
-    let opts = H.defaultHtmlOpts
+    let htmlOpts = H.defaultHtmlOpts
             { H.dataDir = dataDir
             }
-    let html = H.valToHtmlPage opts (fromJust (H.reify val))
+    let html = H.valToHtmlPage htmlOpts (fromJust (H.reify val))
     writeFile dst html
 
-tmpOutDir :: FilePath
-tmpOutDir = tmpDir </> "out"
-
-tmpOutPath :: FilePath -> FilePath
-tmpOutPath = (tmpOutDir </>)
+--
 
 seL4DefaultEarlyAsmFunctionFilter :: AsmFunctionFilter
 seL4DefaultEarlyAsmFunctionFilter = IncludeExcludeFilter
@@ -80,3 +84,12 @@ seL4DefaultRODataInputRanges =
 seL4DefaultReadStagesInput :: TargetDir -> IO StagesInput
 seL4DefaultReadStagesInput =
     readStagesInput seL4DefaultEarlyAsmFunctionFilter seL4DefaultCFunctionPrefix seL4DefaultRODataInputRanges
+
+--
+
+bvMain :: (CustomOpts -> TestTree) -> IO ()
+bvMain f = defaultMainWithOpts $ \opts -> do
+    let setup = do
+            ensureDir $ logOutDirOf opts
+            ensureDir $ mismatchOutDirOf opts
+    withResource setup (const (return ())) $ \_ -> f opts

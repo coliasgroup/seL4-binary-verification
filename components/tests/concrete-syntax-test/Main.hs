@@ -1,9 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-{-# OPTIONS_GHC -Wno-unused-local-binds #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
-
 module Main
     ( main
     ) where
@@ -21,14 +17,10 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 main :: IO ()
-main = defaultMain tests
-
-tests :: TestTree
-tests = testGroup "Tests"
-    [ testCase "trivial" $ return ()
-    , testGroup "parse/print"
-        [ parsePrintGraphRefine
-        , parsePrintSeL4
+main = bvMain $ \opts -> testGroup "Tests"
+    [ testGroup "parse/print"
+        [ parsePrintGraphRefine opts
+        , parsePrintSeL4 opts
         ]
     ]
 
@@ -38,9 +30,6 @@ testReader m = do
     case r of
         Left err -> assertFailure (show err)
         _ -> return ()
-
-testReaderSeL4 :: ReadBVFile c a => TargetDirFile a -> IO ()
-testReaderSeL4 = void . readTargetDirFile testSeL4TargetDirDefault
 
 testReaderPath :: forall a c. ReadBVFile c a => FilePath -> IO ()
 testReaderPath path = testReader @a (readBVFile path)
@@ -59,19 +48,16 @@ testRoundTripWith parse build m = do
 testRoundTrip :: (Eq a, ReadBVFile c a, WriteBVFile c a) => IO (Either String a) -> IO ()
 testRoundTrip = testRoundTripWith (readBVContents "second trip") writeBVContents
 
-testRoundTripSeL4 :: (Eq a, ReadBVFile c a, WriteBVFile c a) => TargetDirFile a -> IO ()
-testRoundTripSeL4 targetDirFile =
-    testRoundTrip (first displayException <$> readTargetDirFileEither testSeL4TargetDirDefault targetDirFile)
-
 testRoundTripPath :: forall a c. (Eq a, ReadBVFile c a, WriteBVFile c a) => FilePath -> IO ()
 testRoundTripPath path = testRoundTrip @a $ readBVFile path
 
-parsePrintSeL4 :: TestTree
-parsePrintSeL4 = testGroup "seL4"
-    [ f targetDirFiles.symtab
+parsePrintSeL4 :: CustomOpts -> TestTree
+parsePrintSeL4 opts = testGroup "seL4"
+    [ testCase targetDirFiles.symtab.relativePath $ void $ do
+        readTargetDirFile opts.defaultTargetDirForFastTests targetDirFiles.symtab
     , testCase targetDirFiles.rodata.relativePath $ do
-        objDumpInfo <- readTargetDirFile testSeL4TargetDirDefault targetDirFiles.symtab
-        readTargetDirROData objDumpInfo seL4DefaultRODataInputRanges testSeL4TargetDirDefault targetDirFiles.rodata
+        objDumpInfo <- readTargetDirFile opts.defaultTargetDirForFastTests targetDirFiles.symtab
+        readTargetDirROData objDumpInfo seL4DefaultRODataInputRanges opts.defaultTargetDirForFastTests targetDirFiles.rodata
         return ()
     , f targetDirFiles.cFunctions
     , f targetDirFiles.asmFunctions
@@ -81,33 +67,32 @@ parsePrintSeL4 = testGroup "seL4"
     , f targetDirFiles.inlineScripts
     , f targetDirFiles.pairings
     , f targetDirFiles.proofs
-    , g testSeL4TargetDirSmall targetDirFiles.proofChecks
-    -- , g testSeL4TargetDirBig targetDirFiles.proofChecks
-    , g testSeL4TargetDirSmall targetDirFiles.smtProofChecks
-    -- , g testSeL4TargetDirBig targetDirFiles.smtProofChecks
+    , g opts.defaultTargetDirForSlowTests targetDirFiles.proofChecks
+    , g opts.defaultTargetDirForSlowTests targetDirFiles.smtProofChecks
     ]
   where
-    f file = testCase file.relativePath $ testReaderSeL4 file
+    f :: forall a c. (Eq a, ReadBVFile c a, WriteBVFile c a) => TargetDirFile a -> TestTree
+    f = g opts.defaultTargetDirForFastTests
+    g :: forall a c. (Eq a, ReadBVFile c a, WriteBVFile c a) => TargetDir -> TargetDirFile a -> TestTree
     g dir file = testCase file.relativePath . testRoundTrip $
         first displayException <$> readTargetDirFileEither dir file
 
-parsePrintGraphRefine :: TestTree
-parsePrintGraphRefine = testGroup "graph-refine" $
+parsePrintGraphRefine :: CustomOpts -> TestTree
+parsePrintGraphRefine opts = testGroup "graph-refine" $
     [ f @Program $ "example" </> "Functions.txt"
     , f @Program $ "loop-example" </> "CFuns-annotated.txt"
     , f @Program $ "loop-example" </> "synth" </> "Functions.txt"
     , let rel = "loop-example" </> "O2" </> "proof"
-          abs = graphRefineDir </> rel
-       in testCase rel $ testRoundTripPath @(ProofScript AsmRefineTag ()) (graphRefineDir </> rel)
+       in testCase rel $ testRoundTripPath @(ProofScript AsmRefineTag ()) (opts.graphRefineDir </> rel)
     ] ++ concatMap g ["O1", "O2"]
   where
     f :: forall a c. (Eq a, ReadBVFile c a, WriteBVFile c a) => FilePath -> TestTree
-    f rel = testCase rel $ testRoundTripPath @a (graphRefineDir </> rel)
+    f rel = testCase rel $ testRoundTripPath @a (opts.graphRefineDir </> rel)
     g opt =
         [ f @Program $ "loop-example" </> opt </> "ASM-annotated.txt"
         , f @Program $ "loop-example" </> opt </> ("ASM" ++ opt ++ "Funs.txt")
         , f @Program $ "loop-example" </> opt </> "CFunDump.txt"
         , f @StackBounds $ "loop-example" </> opt </> "StackBounds.txt"
         , let rel = "loop-example" </> opt </> ("loop-" ++ opt ++ ".elf.symtab")
-           in testCase rel $ testReaderPath @ObjDumpInfo (graphRefineDir </> rel)
+           in testCase rel $ testReaderPath @ObjDumpInfo (opts.graphRefineDir </> rel)
         ]

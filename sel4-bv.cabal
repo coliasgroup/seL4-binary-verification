@@ -590,6 +590,8 @@ library test-utils
   exposed-modules:
       BV.Test.Utils
       BV.Test.Utils.Logging
+      BV.Test.Utils.Paths
+      BV.Test.Utils.Tasty
   hs-source-dirs:
       components/tests/test-utils
   default-extensions:
@@ -606,11 +608,13 @@ library test-utils
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
     , filepath
     , monad-logger
     , mtl
     , optics
+    , optparse-applicative
     , parallel
     , pretty-show
     , resourcet
@@ -620,6 +624,9 @@ library test-utils
     , sel4-bv:logging
     , sel4-bv:target-dir
     , stm
+    , tagged
+    , tasty
+    , tasty-hunit
     , text
     , transformers
     , transformers-base
@@ -839,6 +846,7 @@ test-suite logging-test
     , parallel
     , safe-exceptions
     , sel4-bv:logging
+    , sel4-bv:test-utils
     , stm
     , tasty
     , tasty-hunit
@@ -930,6 +938,7 @@ test-suite smtlib2-test
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:target-dir
+    , sel4-bv:test-utils
     , stm
     , tasty
     , tasty-hunit
@@ -965,6 +974,7 @@ test-suite system-test
     , safe-exceptions
     , sel4-bv:system
     , sel4-bv:system-core
+    , sel4-bv:test-utils
     , stm
     , text
     , transformers

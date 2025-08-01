@@ -6,6 +6,7 @@ module Main
     ) where
 
 import BV.Logging
+import BV.Test.Utils
 
 import qualified Control.Monad.Logger as L
 
@@ -18,12 +19,8 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 main :: IO ()
-main = defaultMain tests
-
-tests :: TestTree
-tests = testGroup "Tests"
-    [ testCase "trivial" $ return ()
-    , testCase "json" $ testLoggingWith formatLogEntryJSON parseLogEntryJSON dummyWithLoc
+main = bvMain $ \_opts -> testGroup "Tests"
+    [ testCase "json" $ testLoggingWith formatLogEntryJSON parseLogEntryJSON dummyWithLoc
     , testCase "text" $ testLoggingWith formatLogEntryText parseLogEntryText dummy
     , testCase "human" $ testLoggingWith formatLogEntryHuman parseLogEntryHumanBestEffort dummy
     ]
