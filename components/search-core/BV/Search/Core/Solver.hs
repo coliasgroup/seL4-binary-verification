@@ -28,7 +28,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import qualified Data.Map as M
-import Control.Monad.Identity (IdentityT)
+import Control.Monad.Identity (IdentityT, Identity (runIdentity), runIdentityT)
 
 -- type Model = M.Map String ()
 
@@ -63,6 +63,16 @@ testHypWhypsCommon model hyp hyps = do
     withCache sexpr $ do
         addPValidDomAssertions
         testHyp sexpr
+
+testHypWhyps
+    :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
+    => Expr -> [Hyp t] -> m Bool
+testHypWhyps hyp hyps = runIdentityT $ testHypWhypsCommon False hyp hyps
+
+testHypWhypsWithCache
+    :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
+    => Expr -> [Hyp t] -> StateT Cache m Bool
+testHypWhypsWithCache = testHypWhypsCommon False
 
 type Cache = M.Map SExprWithPlaceholders Bool
 
