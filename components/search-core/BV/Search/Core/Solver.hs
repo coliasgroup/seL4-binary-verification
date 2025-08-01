@@ -22,12 +22,14 @@ import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError,
                              withExceptT)
 import Control.Monad.Reader (ReaderT, runReaderT)
-import Control.Monad.State (StateT, evalStateT)
+import Control.Monad.State (StateT, evalStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Data.Foldable (traverse_)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
+import qualified Data.Map as M
+import Control.Monad.Identity (IdentityT)
 
 -- type Model = M.Map String ()
 
@@ -63,6 +65,25 @@ testHypWhyps hyp hyps = do
     r <- testHyp sexpr
     -- insert into cache
     return r
+
+type Cache = M.Map SExprWithPlaceholders Bool
+
+class Monad m => MonadCache m where
+    withCache :: SExprWithPlaceholders -> m Bool -> m Bool
+
+instance Monad m => MonadCache (IdentityT m) where
+    withCache _ m = m
+
+instance Monad m => MonadCache (StateT Cache m) where
+    withCache k m = do
+        opt <- use $ at k
+        case opt of
+            Just v -> do
+                return v
+            Nothing -> do
+                v <- m
+                modify $ M.insertWith (error "unexpected") k v
+                return v
 
 newtype RepGraphSolverInteractSimple m a
   = RepGraphSolverInteractSimple { run :: ExceptT RepGraphSolverInteractSimpleFailureInfo (ReaderT SimpleEnv m) a }
