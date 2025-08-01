@@ -15,6 +15,7 @@ import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS)
 import BV.SMTLIB2 (SExpr)
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Monad
+import BV.Utils
 
 import Control.Monad (unless)
 import Control.Monad.Catch (MonadThrow)
@@ -65,6 +66,9 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphB
 
 testHyp :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m Bool
 testHyp = checkHyp
+
+testHypGetModel :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m TestResultWitModel
+testHypGetModel = todo
 
 -- TODO fast param from graph-refine
 testHypWhypsCommon
