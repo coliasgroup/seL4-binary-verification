@@ -6,20 +6,20 @@ workers:
     command: [
       "ssh", "localhost", "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
       "--",
-      "foo/bar/seL4-binary-verification/examples/check/run-worker-in-nix-shell.sh",
+      "foo/bar/seL4-binary-verification/examples/seL4/run-worker-in-nix-shell.sh",
     ]
     num_jobs: 2
   w3:
     command: [
       "ssh", "localhost", "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
       "--",
-      "foo/bar/seL4-binary-verification/examples/check/run-worker-in-nix-shell.sh",
+      "foo/bar/seL4-binary-verification/examples/seL4/run-worker-in-nix-shell.sh",
     ]
     num_jobs: 2
   w4:
     command: [
       "ssh", "localhost", "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
       "--",
-      "foo/bar/seL4-binary-verification/examples/check/run-worker-in-nix-shell.sh",
+      "foo/bar/seL4-binary-verification/examples/seL4/run-worker-in-nix-shell.sh",
     ]
     num_jobs: 2
