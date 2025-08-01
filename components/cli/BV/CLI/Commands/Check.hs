@@ -178,7 +178,9 @@ decodeYamlFile ctx path = do
 
 getEarlyAsmFunctionFilter :: CheckOpts -> AsmFunctionFilter
 getEarlyAsmFunctionFilter opts = IncludeExcludeFilter
-    { include = Nothing
+    { include = case opts.includeFunctionsEarly of
+        [] -> Nothing
+        xs -> Just $ S.fromList xs
     , exclude = S.fromList opts.ignoreFunctionsEarly
     }
 

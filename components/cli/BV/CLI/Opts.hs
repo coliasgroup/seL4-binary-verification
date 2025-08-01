@@ -126,6 +126,7 @@ data CheckOpts
       , rodataSymbols :: [String]
       , includeFunctions :: [Ident]
       , ignoreFunctions :: [Ident]
+      , includeFunctionsEarly :: [Ident]
       , ignoreFunctionsEarly :: [Ident]
       , includeGroups :: [CheckGroupFingerprintPattern]
       , includeChecks :: [CheckFingerprintPattern]
@@ -382,6 +383,10 @@ checkOptsParser = do
         [ long "ignore-function"
         , metavar "SYMBOL"
         ]
+    includeFunctionsEarly <- many $ option' (Ident <$> str)
+        [ long "include-function-early"
+        , metavar "SYMBOL"
+        ]
     ignoreFunctionsEarly <- many $ option' (Ident <$> str)
         [ long "ignore-function-early"
         , metavar "SYMBOL"
@@ -435,6 +440,7 @@ checkOptsParser = do
         , rodataSymbols
         , includeFunctions
         , ignoreFunctions
+        , includeFunctionsEarly
         , ignoreFunctionsEarly
         , includeGroups
         , includeChecks
