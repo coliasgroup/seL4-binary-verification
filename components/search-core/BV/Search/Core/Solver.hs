@@ -20,30 +20,30 @@ import Control.Monad (unless)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError,
                              withExceptT)
+import Control.Monad.Identity (Identity (runIdentity), IdentityT, runIdentityT)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Data.Foldable (traverse_)
+import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
-import qualified Data.Map as M
-import Control.Monad.Identity (IdentityT, Identity (runIdentity), runIdentityT)
 
 type Model = M.Map String ()
 
-data TestResultWithOptionalModel =
-        TestResultWithOptionalModelTrue
-        | TestResultWithOptionalModelFalse
-            { model :: Maybe Model
-            }
+data TestResultWithOptionalModel
+  = TestResultWithOptionalModelTrue
+  | TestResultWithOptionalModelFalse
+      { model :: Maybe Model
+      }
   deriving (Generic)
 
-data TestResultWitModel =
-        TestResultWithOptionalTrue
-        | TestResultWithOptionalFalse
-            { model :: Model
-            }
+data TestResultWitModel
+  = TestResultWithOptionalTrue
+  | TestResultWithOptionalFalse
+      { model :: Model
+      }
   deriving (Generic)
 
 ensureModel :: TestResultWithOptionalModel -> TestResultWitModel

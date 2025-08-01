@@ -11,9 +11,9 @@ module BV.Utils
     , expecting_
     , findWithCallstack
     , is
+    , todo
     , unwrapped
     , (!@)
-    , todo
     ) where
 
 import Data.Either (fromRight)
