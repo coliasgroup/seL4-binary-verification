@@ -57,6 +57,7 @@ import Control.Monad.State (StateT, execStateT, get)
 import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Writer (WriterT)
 import Data.Foldable (for_)
+import Data.Functor (void)
 import Data.List (nub, sortOn)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -136,7 +137,7 @@ data SolverState
       , defs :: Map Name S
       , doms :: Set (S, S, S)
       , modelVars :: Set Name
-      , modelExprs :: Set SExprWithPlaceholders
+      , modelExprs :: Map SExprWithPlaceholders (Name, ExprType)
       , stackEqsStackEqImpliesCheck :: Map S (Maybe S)
       , stackEqsImpliesStackEq :: Map (Expr, Expr, Expr) Name
       , tokenTokens :: Map Ident Name
@@ -161,7 +162,7 @@ initSolverState = SolverState
     , defs = M.empty
     , doms = S.empty
     , modelVars = S.empty
-    , modelExprs = S.empty
+    , modelExprs = M.empty
     , stackEqsStackEqImpliesCheck = M.empty
     , stackEqsImpliesStackEq = M.empty
     , tokenTokens = M.empty
@@ -369,10 +370,10 @@ assertFact :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m ()
 assertFact = convertExprNoSplit >=> assertSMTFact
 
 noteModelExpr :: MonadRepGraphSolver m => S -> ExprType -> m ()
-noteModelExpr s ty = withSetSlot #modelExprs s $ do
+noteModelExpr s ty = void $ withMapSlot #modelExprs s $ do
     let sanitized = take 20 $ filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders s)
-    withoutEnv $ addDef ("query_" ++ sanitized) (smtExprE ty (NotSplit s))
-    return ()
+    v <- withoutEnv $ addDefNotSplit ("query_" ++ sanitized) (smtExprE ty (NotSplit s))
+    return (v, ty)
 
 maybeNoteModelExpr :: MonadRepGraphSolver m => S -> ExprType -> [Expr] -> m ()
 maybeNoteModelExpr s ty subexprs =
