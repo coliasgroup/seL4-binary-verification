@@ -5,7 +5,6 @@ module BV.Search.Core.Solver
     , RepGraphSolverInteractSimpleFailureInfo (..)
     , runRepGraphSolverInteractSimple
     , testHyp
-    , testHypWhyps
     ) where
 
 import BV.Core.ExecuteSMTProofChecks (commonSolverSetup, splitHyp)
@@ -55,33 +54,33 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphB
 testHyp :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m Bool
 testHyp = checkHyp
 
-testHypWhyps :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m) => Expr -> [Hyp t] -> m Bool
-testHypWhyps hyp hyps = do
-    expr <- interpretHypImps hyps hyp
-    sexpr <- withoutEnv $ convertExprNoSplit expr
-    -- check cache
-    -- fail if fast
-    addPValidDomAssertions
-    r <- testHyp sexpr
-    -- insert into cache
-    return r
+-- TODO fast param from graph-refine
+testHypWhypsCommon
+    :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m, MonadCache c)
+    => Bool -> Expr -> [Hyp t] -> c m Bool
+testHypWhypsCommon model hyp hyps = do
+    expr <- lift $ interpretHypImps hyps hyp
+    sexpr <- lift $ withoutEnv $ convertExprNoSplit expr
+    withCache sexpr $ do
+        addPValidDomAssertions
+        testHyp sexpr
 
 type Cache = M.Map SExprWithPlaceholders Bool
 
-class Monad m => MonadCache m where
-    withCache :: SExprWithPlaceholders -> m Bool -> m Bool
+class MonadTrans c => MonadCache c where
+    withCache :: Monad m => SExprWithPlaceholders -> m Bool -> c m Bool
 
-instance Monad m => MonadCache (IdentityT m) where
-    withCache _ m = m
+instance MonadCache IdentityT where
+    withCache _ m = lift m
 
-instance Monad m => MonadCache (StateT Cache m) where
+instance MonadCache (StateT Cache) where
     withCache k m = do
         opt <- use $ at k
         case opt of
             Just v -> do
                 return v
             Nothing -> do
-                v <- m
+                v <- lift m
                 modify $ M.insertWith (error "unexpected") k v
                 return v
 
