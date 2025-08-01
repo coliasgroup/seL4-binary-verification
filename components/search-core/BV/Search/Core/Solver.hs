@@ -81,7 +81,7 @@ instance MonadCache (StateT Cache) where
                 return v
             Nothing -> do
                 v <- lift m
-                modify $ M.insertWith (error "unexpected") k v
+                modify $ M.insertWith undefined k v
                 return v
 
 newtype RepGraphSolverInteractSimple m a
