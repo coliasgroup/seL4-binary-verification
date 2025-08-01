@@ -243,6 +243,7 @@ library search-core
   other-modules:
       BV.Search.Core.Inlining
       BV.Search.Core.Inlining.All
+      BV.Search.Core.SolverIdeas
       BV.Search.Core.StackBounds
       BV.Search.Core.StackBounds.All
   hs-source-dirs:
