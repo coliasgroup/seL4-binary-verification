@@ -60,7 +60,9 @@ testHypWhyps hyp hyps = do
     -- check cache
     -- fail if fast
     addPValidDomAssertions
-    testHyp sexpr
+    r <- testHyp sexpr
+    -- insert into cache
+    return r
 
 newtype RepGraphSolverInteractSimple m a
   = RepGraphSolverInteractSimple { run :: ExceptT RepGraphSolverInteractSimpleFailureInfo (ReaderT SimpleEnv m) a }
