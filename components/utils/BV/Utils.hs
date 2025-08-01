@@ -11,6 +11,7 @@ module BV.Utils
     , expecting_
     , findWithCallstack
     , is
+    , todo
     , unwrapped
     , (!@)
     ) where
@@ -43,6 +44,9 @@ ensure p = applyWhen (not p) (error "ensure failed")
 
 ensureM :: HasCallStack => Applicative f => Bool -> f ()
 ensureM p = ensure p $ pure ()
+
+todo :: HasCallStack => a
+todo = error "todo"
 
 --
 

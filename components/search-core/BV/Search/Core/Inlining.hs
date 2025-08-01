@@ -37,7 +37,7 @@ data DiscoverInlineScriptInput
   deriving (Generic)
 
 discoverInlineScript
-    :: (Monad m, MonadRepGraphSolverInteractSimple n)
+    :: (Monad m, MonadRepGraphSolverInteract n)
     => (forall a. n a -> m a)
     -> DiscoverInlineScriptInput
     -> m InlineScript'
@@ -82,7 +82,7 @@ nextCompletelyUnmatchedInlinePoints matched p = case M.keys (M.filter f p.nodes)
         NodeCall callNode -> S.notMember callNode.functionName matched
         _ -> False
 
-nextReachableUnmatchedCInlinePoint :: MonadRepGraphSolverInteractSimple m => S.Set Ident -> RepGraphBaseInput AsmRefineTag -> m (Maybe NodeAddr)
+nextReachableUnmatchedCInlinePoint :: MonadRepGraphSolverInteract m => S.Set Ident -> RepGraphBaseInput AsmRefineTag -> m (Maybe NodeAddr)
 nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
     preview (_Left % #nodeAddr)
         <$> runInlineM repGraphInput inlinerInput nextReachableUnmatchedCInlinePointInner
@@ -91,7 +91,7 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
         { matchedC
         }
 
-nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteractSimple m => InlineM m ()
+nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => InlineM m ()
 nextReachableUnmatchedCInlinePointInner = do
     p <- askProblem
     heads <- loopHeadsIncludingInner p.nodes <$> askLoopDataMap
@@ -110,12 +110,12 @@ newtype InlineM m a
     , Functor
     , Monad
     , MonadRepGraphSolver
-    , MonadRepGraphSolverInteractSimple
+    , MonadRepGraphSolverInteract
     , MonadRepGraphSolverSend
     , MonadStructs
     )
 
-runInlineM :: MonadRepGraphSolverInteractSimple m => RepGraphBaseInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
+runInlineM :: MonadRepGraphSolverInteract m => RepGraphBaseInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
 runInlineM repGraphInput inlinerInput m =
     runReaderT (runRepGraphBase repGraphInput (runExceptT m.run)) inlinerInput
 
@@ -131,10 +131,10 @@ data InlinerInput
       }
   deriving (Generic)
 
-instance MonadRepGraphSolverInteractSimple m => MonadRepGraphDefaultHelper AsmRefineTag (InlineMInner m) (InlineM m) where
+instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTag (InlineMInner m) (InlineM m) where
     liftMonadRepGraphDefaultHelper = InlineM
 
-instance MonadRepGraphSolverInteractSimple m => MonadRepGraph AsmRefineTag (InlineM m) where
+instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
     runPreEmitCallNodeHook visit pc env = do
         let nodeAddr = nodeAddrFromNodeId visit.nodeId
         p <- askProblem

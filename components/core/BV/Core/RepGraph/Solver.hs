@@ -24,6 +24,8 @@ module BV.Core.RepGraph.Solver
     , addSplitMemVar
     , addVar
     , addVarRestr
+    , askModelExprs
+    , askModelVars
     , assertFact
     , convertExpr
     , convertExprNoSplit
@@ -46,7 +48,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils (whenNothing)
 import BV.SMTLIB2.SExpr
-import BV.Utils (ensureM, expecting, unwrapped)
+import BV.Utils
 
 import Control.DeepSeq (NFData)
 import Control.Monad (unless, when, (>=>))
@@ -232,6 +234,12 @@ withMapSlot l k m = do
         return v
 
 --
+
+askModelVars :: MonadRepGraphSolver m => m (Set Name)
+askModelVars = liftSolver $ use #modelVars
+
+askModelExprs :: MonadRepGraphSolver m => m (Map SExprWithPlaceholders (Name, ExprType))
+askModelExprs = liftSolver $ use #modelExprs
 
 askRODataPtrs :: MonadRepGraphSolver m => m [(Expr, ExprType)]
 askRODataPtrs = do

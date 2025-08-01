@@ -6,9 +6,8 @@ module BV.Search.Core.StackBounds
     , discoverStackBounds
     ) where
 
-import BV.Core.ModelConfig (ModelConfig)
 import BV.Core.Types
-import BV.SMTLIB2.Monad
+import BV.Search.Core.Solver
 
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -22,8 +21,8 @@ data DiscoverStackBoundsInput
   deriving (Generic)
 
 discoverStackBounds
-    :: (Monad m, MonadSolver n)
-    => ((ModelConfig -> n a) -> m a)
+    :: (Monad m, MonadRepGraphSolverInteract n)
+    => (forall a. n a -> m a)
     -> DiscoverStackBoundsInput
     -> m StackBounds
 discoverStackBounds run input = undefined

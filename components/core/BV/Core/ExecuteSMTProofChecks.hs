@@ -3,7 +3,7 @@
 module BV.Core.ExecuteSMTProofChecks
     ( OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
-    , commonSolverSetup
+    , defaultLogic
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
@@ -26,8 +26,8 @@ import Data.Maybe (fromJust)
 import Data.Tuple (swap)
 import GHC.Generics (Generic)
 
-logic :: String
-logic = "QF_AUFBV"
+defaultLogic :: String
+defaultLogic = "QF_AUFBV"
 
 executeSMTProofCheckOffline
     :: (MonadSolver m, MonadThrow m)
@@ -102,10 +102,10 @@ commonSolverSetup
     :: (MonadSolver m, MonadThrow m)
     => ModelConfig
     -> m ()
-commonSolverSetup config = do
+commonSolverSetup modelConfig = do
     sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
-    sendSimpleCommandExpectingSuccess $ SetLogic logic
-    traverse_ sendExpectingSuccess (modelConfigPreamble config)
+    sendSimpleCommandExpectingSuccess $ SetLogic defaultLogic
+    traverse_ sendExpectingSuccess (modelConfigPreamble modelConfig)
 
 splitHyp :: SExprWithPlaceholders -> [SExprWithPlaceholders]
 splitHyp = fromJust . traverse checkSExprWithPlaceholders . go . viewSExprWithPlaceholders

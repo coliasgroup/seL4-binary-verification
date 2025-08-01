@@ -7,11 +7,14 @@ module BV.Core.RepGraph
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)
+    , Name (..)
     , PcEnv (..)
     , TooGeneral (..)
     , addPValidDomAssertions
     , askCont -- TODO
     , askLoopDataMap
+    , askModelExprs
+    , askModelVars
     , askNodeTag
     , askProblem
     , convertExprNoSplit
