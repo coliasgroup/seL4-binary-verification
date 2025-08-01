@@ -192,15 +192,13 @@ getRODataInputRanges opts =
 getCheckFilter :: CheckOpts -> CheckFilter
 getCheckFilter opts = CheckFilter
     { pairings =
-        let isIncluded = case opts.includeFunctions of
-                [] -> const True
-                include ->
-                    let includeSet = S.fromList include
-                    in \pairingId -> getAsm pairingId `S.member` includeSet
-            isIgnored =
-                let ignoreSet = S.fromList opts.ignoreFunctions
-                 in \pairingId -> getAsm pairingId `S.member` ignoreSet
-         in \pairingId -> isIncluded pairingId && not (isIgnored pairingId)
+        let f = IncludeExcludeFilter
+                { include = case opts.includeFunctions of
+                    [] -> Nothing
+                    xs -> Just $ S.fromList xs
+                , exclude = S.fromList opts.ignoreFunctions
+                }
+         in \pairingId -> applyIncludeExcludeFilter f (getAsm pairingId)
     , groups = case opts.includeGroups of
         [] -> const True
         include -> \groupFingerprint -> or
