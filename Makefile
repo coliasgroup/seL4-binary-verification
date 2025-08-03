@@ -106,3 +106,9 @@ test-inlining-big: hpack
 	cabal test search-test \
 		--test-option=--for-slow=$(test_target_dirs)/big \
 		--test-option=--pattern=inlining
+
+.PHONY: test-stack-bounds
+test-stack-bounds: hpack
+	cabal test search-test \
+		--test-option=--include-wip \
+		--test-option=--pattern=stack-bounds

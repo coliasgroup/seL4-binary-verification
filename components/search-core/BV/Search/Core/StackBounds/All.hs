@@ -19,7 +19,7 @@ data FullDiscoverStackBoundsInput
       { program :: Program
       , rodata :: ROData
       , earlyAsmFunctionFilter :: AsmFunctionFilter
-      , include :: S.Set Ident
+      , includeFrom :: S.Set Ident
       }
   deriving (Generic)
 
@@ -29,7 +29,7 @@ prepareDiscoverStackBoundsInput
 prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
     { rodata = input.rodata
     , functions = lookupFunction
-    , include = input.include
+    , include
     }
 
   where
@@ -40,3 +40,11 @@ prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
     finalProgram = alteredProgram
 
     lookupFunction funName = finalProgram.functions M.! funName
+
+    include = go S.empty input.includeFrom
+      where
+        go visited toVisit = case S.minView toVisit of
+            Nothing -> visited
+            Just (cur, rest) ->
+                let neighbors = lookupFunction cur ^.. #body % _Just % #nodes % folded % #_NodeCall % #functionName
+                 in go (S.insert cur visited) (rest <> S.fromList neighbors)

@@ -46,10 +46,7 @@ testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
             }
     gate <- liftIO $ newSemGate =<< numThreads
     let f input = makeConcurrentlyUnliftIO $ applySemGate gate 1 $ do
-            r <- discoverInlineScript' solverConfig input
-            case r of
-                Right script -> return script
-                Left failure -> liftIO $ assertFailure $ show failure
+            discoverInlineScript' solverConfig input >>= assertSuccess
     scripts <- runConcurrentlyUnliftIO $ InlineScripts <$> traverse f allInput
     let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
     checkMatch "inline-scripts" "json" scripts reference
@@ -62,16 +59,20 @@ testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
             { program = getAsm stagesInput.programs
             , rodata = stagesInput.rodata
             , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
-            , include = M.keysSet stagesInput.stackBounds.unwrap
+            -- , includeFrom = M.keysSet stagesInput.stackBounds.unwrap
+            , includeFrom = S.fromList [Ident "handleVMFault"]
             }
     let f :: DiscoverStackBoundsInput -> LoggingWithContextT IO StackBounds
-        f _input = undefined
+        f input = discoverStackBounds' solverConfig input >>= assertSuccess
     bounds <- f preparedInput
     let reference = stagesInput.stackBounds & #unwrap %~ flip M.restrictKeys (M.keysSet bounds.unwrap)
     checkMatch "StackBounds" "txt" bounds reference
     return ()
 
 --
+
+assertSuccess :: (MonadIO m, Show e) => Either e a -> m a
+assertSuccess = either (liftIO . assertFailure . show) return
 
 checkMatch :: (?opts :: CustomOpts, MonadIO m, Eq a, WriteBVFile c a) => String -> String -> a -> a -> m ()
 checkMatch fname ext actual expected = liftIO $ do

@@ -9,6 +9,7 @@ module BV.Search.Core.StackBounds
 import BV.Core.Types
 import BV.Logging
 import BV.Search.Core.Solver
+import BV.Utils
 
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -26,4 +27,6 @@ discoverStackBounds
     => (forall a. n a -> m a)
     -> DiscoverStackBoundsInput
     -> m StackBounds
-discoverStackBounds run input = undefined
+discoverStackBounds run input = do
+    logInfo $ show input.include
+    todo
