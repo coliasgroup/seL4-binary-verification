@@ -20,9 +20,9 @@ data DiscoverAllInlineScriptsInput
       { programs :: ByTag' Program
       , objDumpInfo :: ObjDumpInfo
       , rodata :: ROData
+      , cFunctionPrefix :: String
       , earlyAsmFunctionFilter :: AsmFunctionFilter
       , asmFunctions :: S.Set Ident
-      , cFunctionPrefix :: String
       }
   deriving (Generic)
 

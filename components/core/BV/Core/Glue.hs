@@ -40,11 +40,11 @@ data StagesInput
       { programs :: ByTag' Program
       , objDumpInfo :: ObjDumpInfo
       , rodata :: ROData
+      , cFunctionPrefix :: String
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts'
       , proofs :: Proofs' ()
       , earlyAsmFunctionFilter :: AsmFunctionFilter
-      , cFunctionPrefix :: String
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

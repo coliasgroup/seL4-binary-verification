@@ -40,9 +40,9 @@ testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
             { programs = stagesInput.programs
             , objDumpInfo = stagesInput.objDumpInfo
             , rodata = stagesInput.rodata
+            , cFunctionPrefix = stagesInput.cFunctionPrefix
             , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
             , asmFunctions = S.fromList $ map getAsm $ S.toList $ M.keysSet stagesInput.inlineScripts.unwrap
-            , cFunctionPrefix = stagesInput.cFunctionPrefix
             }
     gate <- liftIO $ newSemGate =<< numThreads
     let f input = makeConcurrentlyUnliftIO $ applySemGate gate 1 $ do
@@ -56,11 +56,13 @@ testStackBounds :: (?opts :: CustomOpts) => IO ()
 testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
     stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForSlowTests
     let preparedInput = prepareDiscoverStackBoundsInput $ DiscoverAllStacFullDiscoverStackBoundsInputkBoundsInput
-            { program = getAsm stagesInput.programs
+            { programs = stagesInput.programs
+            , objDumpInfo = stagesInput.objDumpInfo
             , rodata = stagesInput.rodata
+            , cFunctionPrefix = stagesInput.cFunctionPrefix
             , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
             -- , includeFrom = M.keysSet stagesInput.stackBounds.unwrap
-            , includeFrom = S.fromList [Ident "handleVMFault"]
+            , includeAsmFrom = S.fromList [Ident "handleVMFault"]
             }
     let f :: DiscoverStackBoundsInput -> LoggingWithContextT IO StackBounds
         f input = discoverStackBounds' solverConfig input >>= assertSuccess

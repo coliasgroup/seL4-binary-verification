@@ -17,8 +17,8 @@ import GHC.Generics (Generic)
 data DiscoverStackBoundsInput
   = DiscoverStackBoundsInput
       { rodata :: ROData
-      , functions :: Ident -> Function
-      , include :: S.Set Ident
+      , functions :: WithTag' Ident -> Function
+      , include :: S.Set PairingId'
       }
   deriving (Generic)
 

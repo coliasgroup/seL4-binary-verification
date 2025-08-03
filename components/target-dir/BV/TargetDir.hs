@@ -144,11 +144,11 @@ readStagesInputEither earlyAsmFunctionFilter cFunctionPrefix rodataInputRanges t
             })
         , objDumpInfo
         , rodata
+        , cFunctionPrefix
         , stackBounds
         , inlineScripts
         , proofs
         , earlyAsmFunctionFilter
-        , cFunctionPrefix
         }
   where
     f :: ReadBVFile c a => TargetDirFile a -> ExceptT ReadTargetDirFileException IO a
