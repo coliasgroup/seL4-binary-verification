@@ -1,7 +1,8 @@
 {-# LANGUAGE MultiWayIf #-}
 
 module BV.Search.Core.Solver
-    ( Model
+    ( Cache
+    , Model
     , MonadRepGraphSolverInteract
     , RepGraphSolverFailureReason (..)
     , RepGraphSolverInteractParallel
@@ -9,6 +10,7 @@ module BV.Search.Core.Solver
     , RepGraphSolverInteractSimple
     , RepGraphSolverInteractSimpleFailureInfo (..)
     , TestResultWith (..)
+    , emptyCache
     , evalModelExpr
     , runRepGraphSolverInteractParallel
     , runRepGraphSolverInteractSimple
@@ -58,15 +60,15 @@ data TestResultWith a
       }
   deriving (Foldable, Functor, Generic, Traversable)
 
+isTrueResult :: TestResultWith a -> Bool
+isTrueResult = \case
+    TestResultWithTrue -> True
+    TestResultWithFalse _ -> False
+
 fromResult :: a -> Bool -> TestResultWith a
 fromResult a = \case
     True -> TestResultWithTrue
     False -> TestResultWithFalse a
-
-resultOf :: TestResultWith a -> Bool
-resultOf = \case
-    TestResultWithTrue -> True
-    TestResultWithFalse _ -> False
 
 ensureNothing :: TestResultWith (Maybe a) -> TestResultWith (Maybe b)
 ensureNothing = over (traversed % _Just) (error "expected Nothing")
@@ -80,6 +82,9 @@ ensureNoModel = fmap $ \opt -> ensure (isNothing opt) ()
 newtype Cache
   = Cache { unwrap :: M.Map SExprWithPlaceholders Bool }
   deriving (Generic)
+
+emptyCache :: Cache
+emptyCache = Cache  M.empty
 
 withCache :: Monad m => StateT (Maybe Cache) m a -> StateT Cache m a
 withCache (StateT f) = StateT $ \cache -> over _2 fromJust <$> f (Just cache)
@@ -173,7 +178,7 @@ testHypCommon wantModel sexpr = case wantModel of
         return $ over (#_TestResultWithFalse % _Just) (reconstructModel exprs req) r
 
 testHyp :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m Bool
-testHyp hyp = (resultOf . ensureNoModel) <$> testHypCommon False hyp
+testHyp hyp = (isTrueResult . ensureNoModel) <$> testHypCommon False hyp
 
 testHypGetModel :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m (TestResultWith Model)
 testHypGetModel hyp = ensureModel <$> testHypCommon True hyp
@@ -193,14 +198,14 @@ testHypWhypsCommon fast wantModel hyp hyps = do
         (Nothing, False) -> do
             addPValidDomAssertions
             v <- lift $ testHypCommon wantModel sexpr
-            zoomMaybe (#_Just % #unwrap) $ modify $ M.insertWith undefined sexpr (resultOf v)
+            zoomMaybe (#_Just % #unwrap) $ modify $ M.insertWith undefined sexpr (isTrueResult v)
             return $ Just v
 
 testHypWhyps
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
     => Expr -> [Hyp t] -> m Bool
 testHypWhyps hyp hyps =
-    (resultOf . ensureNoModel . fromJust) <$>
+    (isTrueResult . ensureNoModel . fromJust) <$>
         withoutCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsGetModel
@@ -214,14 +219,14 @@ testHypWhypsWithCache
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
     => Expr -> [Hyp t] -> StateT Cache m Bool
 testHypWhypsWithCache hyp hyps =
-    (resultOf . ensureNoModel . fromJust) <$>
+    (isTrueResult . ensureNoModel . fromJust) <$>
         withCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsWithCacheFast
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
     => Expr -> [Hyp t] -> StateT Cache m (Maybe Bool)
 testHypWhypsWithCacheFast hyp hyps =
-    fmap (resultOf . ensureNoModel) <$>
+    fmap (isTrueResult . ensureNoModel) <$>
         withCache (testHypWhypsCommon True False hyp hyps)
 
 --
@@ -250,7 +255,7 @@ checkHypInner timeout modelConfig modelRequestOpt hyp = runExceptT $ do
         Just Sat -> fmap TestResultWithFalse $ for modelRequestOpt $ \modelRequest -> do
             getValue $ map (Atom . symbolAtom . (.unwrap)) modelRequest
     sendSimpleCommandExpectingSuccess $ Pop 1
-    when (resultOf r) $ do
+    when (isTrueResult r) $ do
         sendAssert $ notS (andNS hyps)
     return r
 
