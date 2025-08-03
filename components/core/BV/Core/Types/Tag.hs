@@ -35,6 +35,7 @@ import qualified Data.Vector as V
 import Data.Vector.Binary ()
 import GHC.Generics (Generic)
 import GHC.IsList (IsList, fromList)
+import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import Optics
 
 class
@@ -134,8 +135,13 @@ getRight = view (atTag rightTag)
 
 --
 
-data TrivialTag
-  = Target
+data TrivialTag (name :: Symbol)
+  = TrivialTag
   deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Read, Show)
 
-instance Tag TrivialTag where
+instance KnownSymbol name => Tag (TrivialTag name) where
+    prettyTag _ = symbolVal (Proxy :: Proxy name)
+    parsePrettyTag s =
+        if s == symbolVal (Proxy :: Proxy name)
+        then Just TrivialTag
+        else Nothing

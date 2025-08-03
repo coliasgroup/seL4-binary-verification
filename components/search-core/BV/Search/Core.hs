@@ -1,8 +1,12 @@
 module BV.Search.Core
-    ( module BV.Search.Core.Inlining
-    , module BV.Search.Core.Inlining.All
-    , module BV.Search.Core.StackBounds
-    , module BV.Search.Core.StackBounds.All
+    ( DiscoverAllInlineScriptsInput (..)
+    , DiscoverInlineScriptInput (..)
+    , DiscoverStackBoundsInput (..)
+    , FullDiscoverStackBoundsInput (..)
+    , discoverInlineScript
+    , discoverStackBounds
+    , prepareAllDiscoverInlineScriptInput
+    , prepareDiscoverStackBoundsInput
     ) where
 
 import BV.Search.Core.Inlining

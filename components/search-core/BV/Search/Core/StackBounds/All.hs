@@ -9,6 +9,7 @@ import BV.Core.Utils.IncludeExcludeFilter
 
 import BV.Search.Core.StackBounds
 
+import Control.Monad (guard)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -31,7 +32,8 @@ prepareDiscoverStackBoundsInput
 prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
     { rodata = input.rodata
     , functions = lookupFunction
-    , include
+    , pairings
+    , includeAsmFrom = input.includeAsmFrom
     }
 
   where
@@ -48,15 +50,8 @@ prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
 
     lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions M.! funName
 
-    includeAsm = go S.empty input.includeAsmFrom
-      where
-        go visited toVisit = case S.minView toVisit of
-            Nothing -> visited
-            Just (cur, rest) ->
-                let neighbors = lookupFunction (WithTag Asm cur)
-                        ^.. #body % _Just % #nodes % folded % #_NodeCall % #functionName
-                 in go (S.insert cur visited) (rest <> S.fromList neighbors)
-
-    include = flip S.map includeAsm $ \asm ->
+    pairings = S.fromList $ do
+        asm <- M.keys (getAsm finalPrograms).functions
         let c = asm & #unwrap %~ (input.cFunctionPrefix ++)
-         in byAsmRefineTag (ByAsmRefineTag { asm, c })
+        guard $ c `M.member` (getC finalPrograms).functions
+        return $ byAsmRefineTag (ByAsmRefineTag { asm, c })

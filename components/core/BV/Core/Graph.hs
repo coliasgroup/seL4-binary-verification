@@ -69,23 +69,29 @@ reachableFrom g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeId
 isReachableFrom :: NodeGraph -> NodeId -> NodeId -> Bool
 isReachableFrom g from to_ = G.path g.graph (fromJust (g.nodeIdMapRev from)) (fromJust (g.nodeIdMapRev to_))
 
-loopHeadsFrom :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
-loopHeadsFrom g entryPoints =
-    [ (toNodeAddr (findHead comp), S.map toNodeAddr comp)
+loopHeadsFromGeneric :: G.Graph -> [Vertex] -> [(Vertex, S.Set Vertex)]
+loopHeadsFromGeneric g entryPoints =
+    [ (findHead comp, comp)
     | comp <- sccs
     ]
   where
-    toNodeAddr v = nodeAddrFromNodeId $ g.nodeIdMap v
     sccs =
         [ comp
-        | comp <- map (S.fromList . toList) (G.scc g.graph)
+        | comp <- map (S.fromList . toList) (G.scc g)
         , S.size comp > 1
         ]
     findHead comp =
         fromJust $ find (`S.member` comp) inOrder
       where
-        entryPointsAsVertices = map (fromJust . g.nodeIdMapRev) entryPoints
-        inOrder = foldMap toList $ G.dfs g.graph entryPointsAsVertices
+        inOrder = foldMap toList $ G.dfs g entryPoints
+
+loopHeadsFrom :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
+loopHeadsFrom g entryPoints =
+    [ (toNodeAddr h, S.map toNodeAddr body)
+    | (h, body) <- loopHeadsFromGeneric g.graph (map (fromJust . g.nodeIdMapRev) entryPoints)
+    ]
+  where
+    toNodeAddr v = nodeAddrFromNodeId $ g.nodeIdMap v
 
 nodeTagMap :: Tag t => Problem t -> NodeGraph -> M.Map NodeAddr t
 nodeTagMap problem nodeGraph =
