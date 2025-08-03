@@ -28,6 +28,7 @@ import BV.Core.RepGraph
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS, symbolS)
+import BV.Logging
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Monad
 import BV.SMTLIB2.SExpr
@@ -273,7 +274,13 @@ commonSolverSetup modelConfig = do
 
 newtype RepGraphSolverInteractSimple m a
   = RepGraphSolverInteractSimple { run :: ExceptT RepGraphSolverInteractSimpleFailureInfo (ReaderT SimpleEnv m) a }
-  deriving newtype (Applicative, Functor, Monad)
+  deriving newtype
+    ( Applicative
+    , Functor
+    , Monad
+    , MonadLogger
+    , MonadLoggerWithContext
+    )
 
 data SimpleEnv
   = SimpleEnv
@@ -321,7 +328,13 @@ type RepGraphSolverInteractParallelInner m =
 
 newtype RepGraphSolverInteractParallel m a
   = RepGraphSolverInteractParallel { run :: RepGraphSolverInteractParallelInner m a }
-  deriving newtype (Applicative, Functor, Monad)
+  deriving newtype
+    ( Applicative
+    , Functor
+    , Monad
+    , MonadLogger
+    , MonadLoggerWithContext
+    )
 
 data ParallelState
   = ParallelState

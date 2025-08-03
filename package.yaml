@@ -148,6 +148,7 @@ internal-libraries:
       - BV.Search.Core.Solver
     dependencies:
       - sel4-bv:smtlib2
+      - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:utils
 

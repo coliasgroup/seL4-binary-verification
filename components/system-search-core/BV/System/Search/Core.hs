@@ -45,10 +45,9 @@ discoverInlineScript' config input = withPushLogContextPairing input.pairingId $
     return r
 
 discoverStackBounds'
-    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
+    :: (MonadLoggerWithContext m, MonadUnliftIO m, MonadLogger m, MonadMask m)
     => OnlineSolverConfig -> DiscoverStackBoundsInput -> m (Either RepGraphSolverInteractSimpleFailureInfo StackBounds)
 discoverStackBounds' config input = do
-    logDebug "searching"
     (r, elapsed) <- time $ runExceptT $ flip evalStateT 0 $ discoverStackBounds (runSolverSimple config) input
     let msg = case r of
             Right _ -> "discovered bounds"

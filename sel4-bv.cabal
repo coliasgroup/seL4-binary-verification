@@ -267,6 +267,7 @@ library search-core
     , parallel
     , safe-exceptions
     , sel4-bv:core
+    , sel4-bv:logging
     , sel4-bv:smtlib2
     , sel4-bv:utils
     , stm

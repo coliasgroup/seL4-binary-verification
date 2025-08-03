@@ -1,4 +1,7 @@
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE OverloadedStrings #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module BV.System.Core.Utils.Logging
     ( augmentSolverContextWithLogging
@@ -21,6 +24,7 @@ import BV.System.Core.Types
 
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Control.Monad.Reader (ReaderT (ReaderT))
 import Data.Text.Lazy.Builder (toLazyText)
 import System.Process (CreateProcess)
 
@@ -69,3 +73,7 @@ runSolverWithLogging =
     runSolverWith
         augmentSolverContextWithLogging
         (withPushLogContext "stderr" . logInfoGeneric)
+
+deriving via (SolverTInner m) instance MonadLogger m => MonadLogger (SolverT m)
+
+deriving via (SolverTInner m) instance MonadLoggerWithContext m => MonadLoggerWithContext (SolverT m)

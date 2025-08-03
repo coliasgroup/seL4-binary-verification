@@ -7,6 +7,7 @@ module BV.Search.Core.StackBounds
     ) where
 
 import BV.Core.Types
+import BV.Logging
 import BV.Search.Core.Solver
 
 import qualified Data.Set as S
@@ -21,7 +22,7 @@ data DiscoverStackBoundsInput
   deriving (Generic)
 
 discoverStackBounds
-    :: (Monad m, MonadRepGraphSolverInteract n)
+    :: (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
     => (forall a. n a -> m a)
     -> DiscoverStackBoundsInput
     -> m StackBounds
