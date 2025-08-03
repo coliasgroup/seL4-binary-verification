@@ -35,6 +35,9 @@ buildProblem lookupFun inlineScript funs = build builder
         forceSimpleLoopReturns
         forM_ inlineScript $ \entry -> do
             inline lookupFun entry.nodeBySource
+            forceSimpleLoopReturns
+        zoom #nodeMapBuilder padMergePoints
+        forceSimpleLoopReturns
 
 type Inliner t m = Problem t -> m (Maybe [NodeAddr])
 
@@ -54,6 +57,7 @@ buildInlineScript inliner lookupFun funs = do
                             inlinedFunctionName <- use $
                                 #nodeMapBuilder % #nodes % at addr % unwrapped % unwrapped % #node % expecting #_NodeCall % #functionName
                             inline lookupFun nodeBySource
+                            forceSimpleLoopReturns
                             return $ InlineScriptEntry
                                     { nodeBySource
                                     , inlinedFunctionName
@@ -131,24 +135,17 @@ forceSimpleLoopReturns = do
                         else cont
 
 inline :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeBySource t -> StateT (ProblemBuilder t) m ()
-inline lookupFun nodeBySource = do
-    zoom #nodeMapBuilder $ nodeMapBuilderInline lookupFun nodeBySource
-    forceSimpleLoopReturns
+inline lookupFun nodeBySource = zoom #nodeMapBuilder $ nodeMapBuilderInline lookupFun nodeBySource
 
 build :: Tag t => ProblemBuilder t -> Problem t
 build builder =
     Problem
-        { sides = finalBuilder.sides
+        { sides = builder.sides
         , nodes = M.mapMaybe (\case
                 Just (NodeWithMeta x _) -> Just x
                 _ -> Nothing
-            ) finalBuilder.nodeMapBuilder.nodes
+            ) builder.nodeMapBuilder.nodes
         }
-  where
-    finalBuilder = flip execState builder $ do
-        forceSimpleLoopReturns
-        zoom #nodeMapBuilder padMergePoints
-        forceSimpleLoopReturns
 
 emptyNodeMapBuilder :: NodeMapBuilder t
 emptyNodeMapBuilder = NodeMapBuilder
