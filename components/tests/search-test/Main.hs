@@ -1,3 +1,5 @@
+{-# LANGUAGE ImplicitParams #-}
+
 module Main
     ( main
     ) where
@@ -24,14 +26,16 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 main :: IO ()
-main = bvMain $ \opts -> testGroup "Tests"
-    [ testCase "inlining" $ testInlining opts
-    , testTreeWhen opts.includeWip $ testCase "stack-bounds" $ testStackBounds opts
-    ]
+main = bvMain $ \opts ->
+    let ?opts = opts
+     in testGroup "Tests"
+            [ testCase "inlining" testInlining
+            , testTreeWhen opts.includeWip $ testCase "stack-bounds" testStackBounds
+            ]
 
-testInlining :: CustomOpts -> IO ()
-testInlining opts = withLoggingOpts (loggingOpts opts "inlining.log") $ do
-    stagesInput <- liftIO $ seL4DefaultReadStagesInput opts.defaultTargetDirForSlowTests
+testInlining :: (?opts :: CustomOpts) => IO ()
+testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForSlowTests
     let allInput = prepareAllDiscoverInlineScriptInput $ DiscoverAllInlineScriptsInput
             { programs = stagesInput.programs
             , objDumpInfo = stagesInput.objDumpInfo
@@ -48,12 +52,12 @@ testInlining opts = withLoggingOpts (loggingOpts opts "inlining.log") $ do
                 Left failure -> liftIO $ assertFailure $ show failure
     scripts <- runConcurrentlyUnliftIO $ InlineScripts <$> traverse f allInput
     let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
-    checkMatch opts "inline-scripts" "json" scripts reference
+    checkMatch "inline-scripts" "json" scripts reference
     return ()
 
-testStackBounds :: CustomOpts -> IO ()
-testStackBounds opts = withLoggingOpts (loggingOpts opts "stack-bounds.log") $ do
-    stagesInput <- liftIO $ seL4DefaultReadStagesInput opts.defaultTargetDirForSlowTests
+testStackBounds :: (?opts :: CustomOpts) => IO ()
+testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForSlowTests
     let preparedInput = prepareDiscoverStackBoundsInput $ DiscoverAllStacFullDiscoverStackBoundsInputkBoundsInput
             { program = getAsm stagesInput.programs
             , rodata = stagesInput.rodata
@@ -64,15 +68,15 @@ testStackBounds opts = withLoggingOpts (loggingOpts opts "stack-bounds.log") $ d
         f _input = undefined
     bounds <- f preparedInput
     let reference = stagesInput.stackBounds & #unwrap %~ flip M.restrictKeys (M.keysSet bounds.unwrap)
-    checkMatch opts "StackBounds" "txt" bounds reference
+    checkMatch "StackBounds" "txt" bounds reference
     return ()
 
 --
 
-checkMatch :: (MonadIO m, Eq a, WriteBVFile c a) => CustomOpts -> String -> String -> a -> a -> m ()
-checkMatch opts fname ext actual expected = liftIO $ do
+checkMatch :: (?opts :: CustomOpts, MonadIO m, Eq a, WriteBVFile c a) => String -> String -> a -> a -> m ()
+checkMatch fname ext actual expected = liftIO $ do
     unless (actual == expected) $ do
-        let mismatchDumpDir = mismatchOutDirOf opts </> fname
+        let mismatchDumpDir = mismatchOutDirOf ?opts </> fname
         ensureDir mismatchDumpDir
         writeBVFile (mismatchDumpDir </> "actual" <.> ext) actual
         writeBVFile (mismatchDumpDir </> "expected" <.> ext) expected
