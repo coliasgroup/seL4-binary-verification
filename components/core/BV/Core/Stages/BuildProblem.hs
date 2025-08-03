@@ -4,6 +4,7 @@ module BV.Core.Stages.BuildProblem
     ( Inliner
     , buildInlineScript
     , buildProblem
+    , buildProblemSimple
     ) where
 
 import BV.Core.GenerateFreshName
@@ -27,6 +28,12 @@ import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
+
+buildProblemSimple :: Tag t => ByTag t (Named Function) -> Problem t
+buildProblemSimple funs = build builder
+  where
+    builder = flip execState (beginProblemBuilder funs) $ do
+        forceSimpleLoopReturns
 
 buildProblem :: Tag t => (WithTag t Ident -> Function) -> InlineScript t -> ByTag t (Named Function) -> Problem t
 buildProblem lookupFun inlineScript funs = build builder
