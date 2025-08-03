@@ -15,14 +15,11 @@ import BV.System.Utils.UnliftIO.Async
 import BV.Test.Utils
 
 import Control.Monad (unless)
-import Control.Monad.IO.Class (liftIO)
-import qualified Data.ByteString.Lazy.Char8 as CL
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Map as M
 import qualified Data.Set as S
-import qualified Data.Text.Lazy.IO as TL
 import Optics
-import System.FilePath ((</>))
-import System.IO (IOMode (..), withFile)
+import System.FilePath ((<.>), (</>))
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -51,14 +48,7 @@ testInlining opts = withLoggingOpts (loggingOpts opts "inlining.log") $ do
                 Left failure -> liftIO $ assertFailure $ show failure
     scripts <- runConcurrentlyUnliftIO $ InlineScripts <$> traverse f allInput
     let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
-    unless (scripts == reference) $ liftIO $ do
-        let mismatchDumpDir = mismatchOutDirOf opts </> "inline-scripts.json"
-        ensureDir mismatchDumpDir
-        withFile (mismatchDumpDir </> "actual.json") WriteMode $ \h -> do
-            CL.hPutStr h $ writeBVContents scripts
-        withFile (mismatchDumpDir </> "expected.json") WriteMode $ \h -> do
-            CL.hPutStr h $ writeBVContents reference
-        assertBool "eq" False
+    checkMatch opts "inline-scripts" "json" scripts reference
     return ()
 
 testStackBounds :: CustomOpts -> IO ()
@@ -70,20 +60,23 @@ testStackBounds opts = withLoggingOpts (loggingOpts opts "stack-bounds.log") $ d
             , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
             , include = M.keysSet stagesInput.stackBounds.unwrap
             }
-    _gate <- liftIO $ newSemGate =<< numThreads
     let f :: DiscoverStackBoundsInput -> LoggingWithContextT IO StackBounds
         f _input = undefined
     bounds <- f preparedInput
     let reference = stagesInput.stackBounds & #unwrap %~ flip M.restrictKeys (M.keysSet bounds.unwrap)
-    unless (bounds == reference) $ liftIO $ do
-        let mismatchDumpDir = mismatchOutDirOf opts </> "inline-scripts.json"
-        ensureDir mismatchDumpDir
-        withFile (mismatchDumpDir </> "actual.json") WriteMode $ \h -> do
-            TL.hPutStr h $ writeBVContents bounds
-        withFile (mismatchDumpDir </> "expected.json") WriteMode $ \h -> do
-            TL.hPutStr h $ writeBVContents reference
-        assertBool "eq" False
+    checkMatch opts "StackBounds" "txt" bounds reference
     return ()
+
+--
+
+checkMatch :: (MonadIO m, Eq a, WriteBVFile c a) => CustomOpts -> String -> String -> a -> a -> m ()
+checkMatch opts fname ext actual expected = liftIO $ do
+    unless (actual == expected) $ do
+        let mismatchDumpDir = mismatchOutDirOf opts </> fname
+        ensureDir mismatchDumpDir
+        writeBVFile (mismatchDumpDir </> "actual" <.> ext) actual
+        writeBVFile (mismatchDumpDir </> "expected" <.> ext) expected
+        assertBool "eq" False
 
 --
 
