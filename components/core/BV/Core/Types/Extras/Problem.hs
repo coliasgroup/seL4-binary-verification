@@ -41,11 +41,10 @@ varNamesOfProblem =
 
 predsOf :: Problem t -> NodeGraph -> ByTag t (M.Map NodeId (S.Set NodeAddr))
 predsOf problem g = problem.sides <&> \side ->
-    let reachable = reachableFrom g side.entryPoint
-        defaults = map (, S.empty) reachable
-     in  M.fromListWith (<>) $ concat $ [defaults] ++
+    let nodes = S.fromList $ Ret : Err : side.entryPoint : reachableFrom g side.entryPoint
+     in M.unionWith (<>) (M.fromSet (const S.empty) nodes) $ M.fromListWith (<>) $ concat
             [ [ (cont, S.singleton nodeAddr)
               | cont <- problem ^.. #nodes % at nodeAddr % unwrapped % nodeConts
               ]
-            | Addr nodeAddr <- reachable
+            | Addr nodeAddr <- S.toList nodes
             ]
