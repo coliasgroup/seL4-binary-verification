@@ -18,9 +18,8 @@ import Control.Monad.State (MonadState, StateT (StateT), evalStateT)
 import Control.Monad.Writer (WriterT, execWriterT, mapWriterT, tell)
 import Data.Foldable (for_, traverse_)
 import Data.Function (applyWhen, on)
-import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust)
+import Data.Maybe (catMaybes, fromJust, mapMaybe)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
@@ -45,7 +44,7 @@ data Context t
       , problem :: Problem t
       , argRenames :: ArgRenames t
       , nodeTag :: NodeAddr -> t
-      , loopData :: Map NodeAddr LoopData
+      , loopData :: ByTag t LoopDataMap
       , nodeGraph :: NodeGraph
       }
   deriving (Generic)
@@ -62,11 +61,15 @@ initContext argRenames pairing problem = Context
   where
     nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
 
-askLoopHead :: MonadReader (Context t) m => NodeAddr -> m (Maybe NodeAddr)
-askLoopHead addr = loopHeadOf addr <$> gview #loopData
+askLoopHead :: (Tag t, MonadReader (Context t) m) => WithTag t NodeAddr -> m (Maybe (WithTag t NodeAddr))
+askLoopHead n = fmap (WithTag n.tag) . loopHeadOf n.value <$> gview (#loopData % atTag n.tag)
 
-askLoopHeads :: MonadReader (Context t) m => m [NodeAddr]
-askLoopHeads = loopHeadsOf <$> gview #loopData
+askLoopHeads :: (Tag t, MonadReader (Context t) m) => m [WithTag t NodeAddr]
+askLoopHeads = do
+    loopData <- gview #loopData
+    return $ concatMap (tagAll . fmap loopHeadsOf) $ (withTags loopData)
+  where
+    tagAll (WithTag tag xs) = map (WithTag tag) xs
 
 askNodeGraph :: MonadReader (Context t) m => m NodeGraph
 askNodeGraph = gview #nodeGraph
@@ -80,12 +83,9 @@ askEntryPoints = gview $ #problem % #sides % to (fmap (.entryPoint))
 askPairing :: MonadReader (Context t) m => m (Pairing t)
 askPairing = gview #pairing
 
-askLookupNodeTag :: MonadReader (Context t) m => m (NodeAddr -> t)
-askLookupNodeTag = gview #nodeTag
-
 data State t
   = State
-      { restrs :: [Restr]
+      { restrs :: [WithTag t Restr]
       , assumptions :: [Hyp t]
       }
   deriving (Generic)
@@ -141,20 +141,27 @@ assume1R = assumeR . (:[])
 getAssumptions :: MonadChecks t m => m [Hyp t]
 getAssumptions = use #assumptions
 
-restrictL :: MonadChecks t m => [Restr] -> m ()
-restrictL restrs = #restrs %= (restrs ++)
+restrictL :: MonadChecks t m => t -> [Restr] -> m ()
+restrictL tag restrs = #restrs %= ((map (WithTag tag) restrs) ++)
 
-restrictR :: MonadChecks t m => [Restr] -> m ()
-restrictR restrs = #restrs %= (++ restrs)
+restrictR :: MonadChecks t m => t -> [Restr] -> m ()
+restrictR tag restrs = #restrs %= (++ (map (WithTag tag) restrs))
 
-restrict1L :: MonadChecks t m => Restr -> m ()
-restrict1L = restrictL . (:[])
+restrict1L :: MonadChecks t m => t -> Restr -> m ()
+restrict1L tag = restrictL tag . (:[])
 
-restrict1R :: MonadChecks t m => Restr -> m ()
-restrict1R = restrictR . (:[])
+restrict1R :: MonadChecks t m => t -> Restr -> m ()
+restrict1R tag = restrictR tag . (:[])
 
-getRestrs :: MonadChecks t m => m [Restr]
+getRestrs :: MonadChecks t m => m [WithTag t Restr]
 getRestrs = use #restrs
+
+getRestrsForTag :: MonadChecks t m => t -> m [Restr]
+getRestrsForTag _t = mapMaybe f <$> use #restrs
+  where
+    -- TODO HACK to match grap-refine
+    -- f x = if x.tag == t then Just x.value else Nothing
+    f x = Just x.value
 
 collect :: MonadChecks t m => CheckWriter t m () -> m (NodeProofChecks t)
 collect = execWriterT
@@ -174,11 +181,8 @@ concludeWith meta hyps hyp = branch $ do
     assumeR hyps
     conclude meta hyp
 
-getVisit :: MonadChecks t m => NodeId -> m Visit
-getVisit n = Visit n <$> getRestrs
-
 getVisitWithTag :: MonadChecks t m => t -> NodeId -> m (WithTag t Visit)
-getVisitWithTag tag n = tagV tag <$> getVisit n
+getVisitWithTag tag n = WithTag tag . Visit n <$> getRestrsForTag tag
 
 --
 
@@ -208,7 +212,7 @@ instantiatePairingEqs direction = branch $ do
                 entryPoint <- viewAtTag quadrant.tag <$> askEntryPoints
                 return $ Visit entryPoint []
             PairingEqDirectionOut -> do
-                getVisit Ret
+                Visit Ret <$> getRestrsForTag quadrant.tag
     renames <- askArgRenames
     let eqSideFor side =
             eqSideH (renameVars (renames side.quadrant) side.expr)
@@ -275,7 +279,7 @@ emitRestrNodeChecks restrNode = branch $ do
         applyRestrOthers
         assume1L =<< pcFalseH <$> getVisitWithTag rightTag Err
     let visit vc = branchRestrs $ do
-            restrict1L $ Restr restrNode.point vc
+            restrict1L restrNode.tag $ Restr restrNode.point vc
             getVisitWithTag restrNode.tag $ Addr restrNode.point
     let minPred = restrNode.range.x - 1
     let minPredVCOpt = case restrNode.range.kind of
@@ -304,7 +308,7 @@ assumeRestrTriv restrNode = branchRestrs $ do
     assume1R =<< pcTrivH <$> getVisitWithTag restrNode.tag (Addr restrNode.point)
 
 applyRestrNodeMax :: MonadChecks t m => RestrProofNode t a -> m ()
-applyRestrNodeMax restrNode = restrict1L $
+applyRestrNodeMax restrNode = restrict1L restrNode.tag $
     Restr
         restrNode.point
         (maxVCForRestrNode restrNode.range)
@@ -313,28 +317,29 @@ maxVCForRestrNode :: RestrProofNodeRange -> VisitCount
 maxVCForRestrNode range = fromRestrKindVC range.kind (range.y - 1)
 
 applyRestrNodeRange :: MonadChecks t m => RestrProofNode t a -> m ()
-applyRestrNodeRange restrNode = restrict1L $
+applyRestrNodeRange restrNode = restrict1L restrNode.tag $
     Restr
         restrNode.point
         (foldMap
             (fromRestrKindVC restrNode.range.kind)
             [restrNode.range.x .. restrNode.range.y - 1])
 
-applyRestrOthers :: MonadChecks t m => m ()
+applyRestrOthers :: forall t m. MonadChecks t m => m ()
 applyRestrOthers = do
     restrs <- getRestrs
     loopsToSplit <- askLoopsToSplit restrs
-    restrictR [ Restr addr (numbersVC [0, 1]) | addr <- loopsToSplit ]
+    for_ loopsToSplit $ \(WithTag tag addr) -> restrict1R tag (Restr addr (numbersVC [0, 1]))
   where
+    askLoopsToSplit :: [WithTag t Restr] -> m [WithTag t NodeAddr]
     askLoopsToSplit restrs = do
-        loopHeadsWithSplit <- fmap catMaybes $ for restrs $ \restr -> askLoopHead restr.nodeAddr
+        loopHeadsWithSplit <- fmap catMaybes $ for restrs $ \restr -> askLoopHead (fmap (.nodeAddr) restr)
         loopHeads <- askLoopHeads
         let loopHeadsWithoutSplit = (S.difference `on` S.fromList) loopHeads loopHeadsWithSplit
         g <- askNodeGraph
-        lookupNodeTag <- askLookupNodeTag
-        let f restr = applyWhen (not (hasZeroVC restr.visitCount)) $ S.filter $ \loopHeadWithoutSplit ->
-                isReachableFrom g (Addr restr.nodeAddr) (Addr loopHeadWithoutSplit)
-                    || lookupNodeTag restr.nodeAddr /= lookupNodeTag loopHeadWithoutSplit
+        let f :: WithTag t Restr -> S.Set (WithTag t NodeAddr) -> S.Set (WithTag t NodeAddr)
+            f restr = applyWhen (not (hasZeroVC restr.value.visitCount)) $ S.filter $ \loopHeadWithoutSplit ->
+                isReachableFrom g (Addr restr.value.nodeAddr) (Addr loopHeadWithoutSplit.value)
+                    || restr.tag /= loopHeadWithoutSplit.tag
         return $ S.toList $ foldr f loopHeadsWithoutSplit (reverse restrs)
 
 --
@@ -368,7 +373,7 @@ emitSplitNodeInductStepChecks splitNode = branch $ do
 
 getSplitNodeCErrHyp :: MonadChecks t m => SplitProofNode t () -> m (Hyp t)
 getSplitNodeCErrHyp splitNode = branch $ do
-    restrict1L $
+    restrict1L rightTag $
         Restr (getRight splitNode.details).split $
             doubleRangeVC
                 ((getRight splitNode.details).seqStart + (splitNode.n * (getRight splitNode.details).step))
@@ -387,7 +392,7 @@ getSplitVisitsAt splitNode visit = for (withTags splitNode.details) $ \detailsWi
 
 getSplitVisitAt :: MonadChecks t m => WithTag t SplitProofNodeDetails -> VisitCount -> m (WithTag t Visit)
 getSplitVisitAt (WithTag tag details) visit = branch $ do
-    restrict1L $
+    restrict1L tag $
         Restr details.split $
             case fromJust (simpleVC visit) of
                 SimpleVisitCountViewOffset n ->
@@ -532,7 +537,7 @@ getSingleLoopRevCErrHyp details = getSplitNodeCErrHyp (SplitProofNode
 
 assumeSingleRevInduct :: MonadChecks t m => SingleRevInductProofNode t () -> m ()
 assumeSingleRevInduct node = branchRestrs $ do
-    restrict1R $ Restr node.point (numberVC 0)
+    restrict1R node.tag $ Restr node.point (numberVC 0)
     visit <- getVisitWithTag node.tag (Addr node.point)
     assume1R $ trueIfAt' node.pred_ visit
 

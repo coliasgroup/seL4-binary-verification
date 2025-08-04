@@ -27,7 +27,7 @@ import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
 import Data.List (find)
 import qualified Data.Map as M
-import Data.Maybe (fromJust, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, mapMaybe)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
@@ -70,8 +70,8 @@ isReachableFrom :: NodeGraph -> NodeId -> NodeId -> Bool
 isReachableFrom g from to_ = G.path g.graph (fromJust (g.nodeIdMapRev from)) (fromJust (g.nodeIdMapRev to_))
 
 loopHeadsFromGeneric :: G.Graph -> [Vertex] -> [(Vertex, S.Set Vertex)]
-loopHeadsFromGeneric g entryPoints =
-    [ (findHead comp, comp)
+loopHeadsFromGeneric g entryPoints = catMaybes
+    [ findHead comp <&> (, comp)
     | comp <- sccs
     ]
   where
@@ -80,8 +80,7 @@ loopHeadsFromGeneric g entryPoints =
         | comp <- map (S.fromList . toList) (G.scc g)
         , S.size comp > 1
         ]
-    findHead comp =
-        fromJust $ find (`S.member` comp) inOrder
+    findHead comp = find (`S.member` comp) inOrder
       where
         inOrder = foldMap toList $ G.dfs g entryPoints
 
@@ -109,13 +108,13 @@ data LoopData
   | LoopMember NodeAddr
   deriving (Eq, Generic, Ord, Show)
 
-createLoopDataMap :: Tag t => Problem t -> NodeGraph -> LoopDataMap
+createLoopDataMap :: Tag t => Problem t -> NodeGraph -> ByTag t LoopDataMap
 createLoopDataMap problem nodeGraph =
-    M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
-        [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
-            if member == loopHead then Nothing else Just (member, LoopMember loopHead))
-  where
-    heads = loopHeadsFrom nodeGraph $ problem.sides ^.. folded % #entryPoint
+    problem.sides <&> \side ->
+        let heads = loopHeadsFrom nodeGraph [side.entryPoint]
+         in M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
+                [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
+                    if member == loopHead then Nothing else Just (member, LoopMember loopHead))
 
 loopHeadsOf :: LoopDataMap -> [NodeAddr]
 loopHeadsOf loopDataMap = flip mapMaybe (M.toList loopDataMap) $ \(k, v) -> case v of
@@ -123,9 +122,9 @@ loopHeadsOf loopDataMap = flip mapMaybe (M.toList loopDataMap) $ \(k, v) -> case
     LoopMember _ -> Nothing
 
 loopHeadOf :: NodeAddr -> LoopDataMap -> Maybe NodeAddr
-loopHeadOf addr loopDataMap = M.lookup addr loopDataMap <&> \case
-    LoopHead _ -> addr
-    LoopMember addr' -> addr'
+loopHeadOf n loopDataMap = M.lookup n loopDataMap <&> \case
+    LoopHead _ -> n
+    LoopMember n' -> n'
 
 loopBodyOf :: NodeAddr -> LoopDataMap -> S.Set NodeAddr
 loopBodyOf n loopDataMap =

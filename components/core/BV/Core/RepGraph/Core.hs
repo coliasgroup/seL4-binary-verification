@@ -132,7 +132,7 @@ data RepGraphEnv t
       , problemNames :: S.Set Ident
       , nodeGraph :: NodeGraph
       , nodeTag :: NodeAddr -> t
-      , loopData :: Map NodeAddr LoopData
+      , loopData :: ByTag t LoopDataMap
       , preds :: Map NodeId (Set NodeAddr)
       }
   deriving (Generic)
@@ -146,7 +146,7 @@ data RepGraphState t
       , inductVarEnv :: Map EqHypInduct Name
       , contractions :: Map SExprWithPlaceholders MaybeSplit
       , extraProblemNames :: S.Set Ident
-      , hasInnerLoop :: M.Map NodeAddr Bool
+      , hasInnerLoop :: M.Map (WithTag t NodeAddr) Bool
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -209,14 +209,14 @@ askIsNonTriviallyReachableFrom from to_ = do
     fromNode <- liftRepGraph $ gview $ #problem % #nodes % at from % unwrapped
     return $ or [ isReachableFrom g fromCont to_ | fromCont <- fromNode ^.. nodeConts ]
 
-askLoopDataMap :: MonadRepGraph t m => m LoopDataMap
-askLoopDataMap = liftRepGraph $ gview #loopData
+askLoopDataMap :: MonadRepGraph t m => t -> m LoopDataMap
+askLoopDataMap tag = liftRepGraph $ gview $ #loopData % atTag tag
 
-askLoopHead :: MonadRepGraph t m => NodeAddr -> m (Maybe NodeAddr)
-askLoopHead addr = loopHeadOf addr <$> askLoopDataMap
+askLoopHead :: MonadRepGraph t m => WithTag t NodeAddr -> m (Maybe NodeAddr)
+askLoopHead n = loopHeadOf n.value <$> askLoopDataMap n.tag
 
-askLoopBody :: MonadRepGraph t m => NodeAddr -> m (S.Set NodeAddr)
-askLoopBody n = loopBodyOf n <$> askLoopDataMap
+askLoopBody :: MonadRepGraph t m => WithTag t NodeAddr -> m (S.Set NodeAddr)
+askLoopBody n = loopBodyOf n.value <$> askLoopDataMap n.tag
 
 askPreds :: MonadRepGraph t m => NodeId -> m (Set NodeAddr)
 askPreds n = liftRepGraph $ gview $ #preds % at n % unwrapped
@@ -251,11 +251,11 @@ incrVCs vcount n incr =
     m = toMapVC vcount
     vc = incrVC incr (m ! n)
 
-getHasInnerLoop :: MonadRepGraph t m => NodeAddr -> m Bool
+getHasInnerLoop :: MonadRepGraph t m => WithTag t NodeAddr -> m Bool
 getHasInnerLoop loopHead = withMapSlot #hasInnerLoop loopHead $ do
     p <- liftRepGraph $ gview #problem
     loopBody <- askLoopBody loopHead
-    return $ not $ null $ loopBodyInnerLoops p.nodes loopHead loopBody
+    return $ not $ null $ loopBodyInnerLoops p.nodes loopHead.value loopBody
 
 getFreshIdent :: MonadRepGraph t m => NameHint -> m Ident
 getFreshIdent nameHint = do
@@ -367,7 +367,7 @@ scanMemCalls tyVals = do
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
 
-addLoopMemCalls :: MonadRepGraph t m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
+addLoopMemCalls :: MonadRepGraph t m => WithTag t NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCalls split = traverse $ \memCalls -> do
     loopBody <- askLoopBody split
     fnames <- fmap (S.fromList . catMaybes) $ for (S.toAscList loopBody) $ \n -> do
@@ -527,7 +527,7 @@ getNodePcEnvRaw visitWithTag = do
         Nothing -> do
             let f restr = Addr restr.nodeAddr == visitWithTag.value.nodeId && restr.visitCount == offsetVC 0
             case filter f visitWithTag.value.restrs of
-                restr:_ -> getLoopPcEnv restr.nodeAddr visitWithTag.value.restrs
+                restr:_ -> getLoopPcEnv (WithTag visitWithTag.tag restr.nodeAddr) visitWithTag.value.restrs
                 [] -> do
                     pcEnvs <- concatMap catMaybes <$> do
                         preds <- askPreds visitWithTag.value.nodeId
@@ -556,12 +556,12 @@ getNodePcEnvRaw visitWithTag = do
                                     _ -> return v
                             return $ Just $ PcEnv pc' env'
 
-getLoopPcEnv :: (MonadRepGraph t m, MonadError TooGeneral m) => NodeAddr -> [Restr] -> m (Maybe PcEnv)
-getLoopPcEnv split restrs = do
+getLoopPcEnv :: (MonadRepGraph t m, MonadError TooGeneral m) => WithTag t NodeAddr -> [Restr] -> m (Maybe PcEnv)
+getLoopPcEnv splitWithTag@(WithTag _ split) restrs = do
     let restrs2 = withMapVC (M.insert split (numberVC 0)) restrs
     prevPcEnvOpt <- tryGetNodePcEnv (Visit (Addr split) restrs2) Nothing
     whenJustThen prevPcEnvOpt $ \prevPcEnv -> do
-        memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls split
+        memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls splitWithTag
         let add name ty = do
                 let name2 = printf "%s_loop_at_%s" name (prettyNodeId (Addr split))
                 addVarRestrWithMemCalls name2 ty memCalls
@@ -570,7 +570,7 @@ getLoopPcEnv split restrs = do
                     ExprTypeHtd -> True
                     ExprTypeDom -> True
                     _ -> False
-            isSyntConst <- if checkConst then isSyntacticConstant var split else return False
+            isSyntConst <- if checkConst then isSyntacticConstant var splitWithTag else return False
             if isSyntConst
                 then do
                     modify $ S.insert var
@@ -641,9 +641,9 @@ getTagVCount visit tagOpt = do
             let vcount = sort [ restr | (restr, reachable) <- vcountWithReachable, reachable ]
             runMaybeT $ do
                 nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
-                loopId <- MaybeT $ askLoopHead nodeAddr
+                loopId <- MaybeT $ askLoopHead $ WithTag tag nodeAddr
                 for_ vcount $ \restr -> do
-                    loopIdOpt' <- askLoopHead restr.nodeAddr
+                    loopIdOpt' <- askLoopHead $ WithTag tag restr.nodeAddr
                     when (loopIdOpt' == Just loopId && isOptionsVC restr.visitCount) $ do
                         throwError $ TooGeneral { split = restr.nodeAddr }
             return (tag, Just vcount)
@@ -729,7 +729,7 @@ emitNode visit = do
                 runPostEmitCallNodeHook visit (map snd ins) outs success
                 return [(callNode.next, PcEnv pc env')]
 
-isSyntacticConstant :: MonadRepGraph t m => NameTy -> NodeAddr -> m Bool
+isSyntacticConstant :: MonadRepGraph t m => NameTy -> WithTag t NodeAddr -> m Bool
 isSyntacticConstant var split = do
     hasInnerLoop <- getHasInnerLoop split
     if hasInnerLoop
@@ -771,11 +771,11 @@ isSyntacticConstant var split = do
                             Just (v', hd) -> do
                                 if hd `S.member` safe'
                                     then f v'
-                                    else if snd hd == split
+                                    else if snd hd == split.value
                                         then throwError False
                                         else go v' safe' hd
                     f visit'
-            runExceptT (go mempty (S.singleton (var.name, split)) (var.name, split)) >>= \case
+            runExceptT (go mempty (S.singleton (var.name, split.value)) (var.name, split.value)) >>= \case
                 Left r -> return r
 
 --

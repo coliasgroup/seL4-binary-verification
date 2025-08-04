@@ -94,7 +94,7 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
 nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => InlineM m ()
 nextReachableUnmatchedCInlinePointInner = do
     p <- askProblem
-    heads <- loopHeadsIncludingInner p.nodes <$> askLoopDataMap
+    heads <- loopHeadsIncludingInner p.nodes <$> askLoopDataMap C
     let limits = [ Restr n (doubleRangeVC 3 3) | n <- heads ]
     for_ (M.keys p.nodes) $ \n -> runExceptT $ tryGetNodePcEnv (Visit (Addr n) limits) Nothing
     getNodePcEnv (Visit Ret limits) (Just C)
