@@ -90,11 +90,9 @@ instance (RefineTag t, MonadRepGraph t m) => MonadRepGraph t (WithAddFunc t m) w
 
 --
 
-addFunc :: RefineTag t => MonadRepGraph t m => Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> WithAddFunc t m ()
-addFunc visit rawInputs rawOutputs success = do
+addFunc :: RefineTag t => MonadRepGraph t m => WithTag t Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> WithAddFunc t m ()
+addFunc (WithTag tag visit) rawInputs rawOutputs success = do
     name <- askFnName visit
-    let nodeAddr = nodeAddrFromNodeId visit.nodeId
-    tag <- askNodeTag nodeAddr
     functionSigs <- WithAddFunc $ gview #functionSigs
     let sig = functionSigs $ WithTag tag name
     let inputs = M.fromList $ zip sig.input rawInputs
@@ -136,10 +134,11 @@ getFuncPairing visit visit2 = do
 getFuncAssert :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m Expr
 getFuncAssert visit visit2 = do
     (pairing, visits) <- fromJust <$> getFuncPairing visit visit2
+    let visitsWithTags = withTags visits
     (lin, lout, lsucc) <- WithAddFunc $ use $ #funcs % at (getLeft visits) % unwrapped
     (rin, rout, rsucc) <- WithAddFunc $ use $ #funcs % at (getRight visits) % unwrapped
-    _lpc <- getPc (getLeft visits) Nothing
-    rpc <- getPc (getRight visits) Nothing
+    _lpc <- getPc (getLeft visitsWithTags)
+    rpc <- getPc (getRight visitsWithTags)
     let envs = \case
             PairingEqSideQuadrant t PairingEqDirectionIn | t == leftTag -> lin
             PairingEqSideQuadrant t PairingEqDirectionIn | t == rightTag -> rin

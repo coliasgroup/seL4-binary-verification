@@ -19,7 +19,7 @@ module BV.Core.Graph
     ) where
 
 import BV.Core.Types
-import BV.Core.Types.Extras
+import BV.Core.Types.Extras.Program
 import BV.Utils (expecting, expectingAt, unwrapped)
 
 import Data.Foldable (toList)

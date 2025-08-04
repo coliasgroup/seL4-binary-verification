@@ -6,8 +6,10 @@ module BV.Core.Types.Extras.Problem
     , varNamesOfProblem
     ) where
 
+import BV.Core.Graph
 import BV.Core.Types
 import BV.Core.Types.Extras.Program
+import BV.Utils
 
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
@@ -37,13 +39,13 @@ varNamesOfProblem =
     (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
         `adjoin` (#nodes % traversed % varNamesOf)
 
-predsOf :: Problem t -> M.Map NodeId (S.Set NodeAddr)
-predsOf problem =
-    M.fromListWith (<>) $ concat $ [defaults] ++
-        [ [ (cont, S.singleton nodeAddr)
-        | cont <- node ^.. nodeConts
-        ]
-        | (nodeAddr, node) <- M.toAscList problem.nodes
-        ]
-  where
-    defaults = map (, S.empty) $ [Ret, Err] ++ map Addr (M.keys problem.nodes)
+predsOf :: Problem t -> NodeGraph -> ByTag t (M.Map NodeId (S.Set NodeAddr))
+predsOf problem g = problem.sides <&> \side ->
+    let reachable = reachableFrom g side.entryPoint
+        defaults = map (, S.empty) reachable
+     in  M.fromListWith (<>) $ concat $ [defaults] ++
+            [ [ (cont, S.singleton nodeAddr)
+              | cont <- problem ^.. #nodes % at nodeAddr % unwrapped % nodeConts
+              ]
+            | Addr nodeAddr <- reachable
+            ]

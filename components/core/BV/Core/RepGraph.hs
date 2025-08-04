@@ -15,7 +15,7 @@ module BV.Core.RepGraph
     , askLoopDataMap
     , askModelExprs
     , askModelVars
-    , askNodeTag
+    , askNodeGraph
     , askProblem
     , convertExprNoSplit
     , convertInnerExprWithPcEnv -- TODO

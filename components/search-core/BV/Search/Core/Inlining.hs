@@ -94,12 +94,11 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
 nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => InlineM m ()
 nextReachableUnmatchedCInlinePointInner = do
     p <- askProblem
+    g <- askNodeGraph
     heads <- loopHeadsIncludingInner p.nodes <$> askLoopDataMap C
     let limits = [ Restr n (doubleRangeVC 3 3) | n <- heads ]
-    for_ (M.keys p.nodes) $ \n -> runExceptT $ tryGetNodePcEnv (Visit (Addr n) limits) Nothing
-    getNodePcEnv (Visit Ret limits) (Just C)
-    getNodePcEnv (Visit Err limits) (Just C)
-    return ()
+    let reachable = reachableFrom g ((getC p.sides).entryPoint)
+    for_ reachable $ \n -> runExceptT $ tryGetNodePcEnv $ WithTag C $ Visit n limits
 
 type InlineMInner m = ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT InlinerInput m))
 
@@ -135,13 +134,12 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTa
     liftMonadRepGraphDefaultHelper = InlineM
 
 instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
-    runPreEmitCallNodeHook visit pc env = do
-        let nodeAddr = nodeAddrFromNodeId visit.nodeId
+    runPreEmitCallNodeHook visitWithTag pc env = do
+        let nodeAddr = nodeAddrFromNodeId visitWithTag.value.nodeId
         p <- askProblem
-        tag <- askNodeTag nodeAddr
         let fname = p ^. #nodes % at nodeAddr % unwrapped % expecting #_NodeCall % #functionName
         matchedC <- InlineM $ gview #matchedC
-        when (tag == C && S.notMember fname matchedC) $ do
+        when (visitWithTag.tag == C && S.notMember fname matchedC) $ do
             hyp <- withEnv env $ convertExprNoSplit $ notE pc
             res <- testHyp hyp
             unless res $ InlineM $ throwError $ InliningEvent
