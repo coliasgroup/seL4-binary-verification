@@ -48,7 +48,7 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, replicateM, when)
+import Control.Monad (filterM, replicateM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT, asks)
@@ -131,7 +131,6 @@ data RepGraphEnv t
       { problem :: Problem t
       , problemNames :: S.Set Ident
       , nodeGraph :: NodeGraph
-      , nodeTag :: NodeAddr -> t
       , loopData :: ByTag t LoopDataMap
       , preds :: ByTag t (Map NodeId (Set NodeAddr))
       }
@@ -162,7 +161,6 @@ initRepGraphEnv problem =
         { problem
         , problemNames = S.fromList $ toListOf varNamesOfProblem problem
         , nodeGraph
-        , nodeTag = (M.!) (nodeTagMap problem nodeGraph)
         , loopData = createLoopDataMap problem nodeGraph
         , preds = predsOf problem nodeGraph
         }
@@ -618,16 +616,10 @@ getArcPcEnv tag visit' otherVisit = do
                         liftRepGraph $ #arcPcEnvs %= M.insert visit arcs
                         return $ arcs !? otherVisit.nodeId
 
--- TODO
-askNodeTag :: MonadRepGraph t m => NodeAddr -> m t
-askNodeTag n = liftRepGraph $ gview $ #nodeTag % to ($ n)
-
 getTagVCount :: (MonadRepGraph t m, MonadError TooGeneral m) => WithTag t Visit -> m (Maybe [Restr])
 getTagVCount (WithTag tag visit) = do
     vcountWithReachable <- fmap catMaybes $ for visit.restrs $ \restr -> runMaybeT $ do
         reachable <- askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
-        tag' <- askNodeTag restr.nodeAddr
-        guard $ tag' == tag
         return (restr, reachable)
     let done = flip any vcountWithReachable $ \(restr, reachable) ->
             not reachable && not (hasZeroVC restr.visitCount)

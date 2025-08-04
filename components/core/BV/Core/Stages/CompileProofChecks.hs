@@ -7,6 +7,7 @@ module BV.Core.Stages.CompileProofChecks
     ) where
 
 import BV.Core.RepGraph
+import BV.Core.Stages.EnumerateProofChecks (pruneProofCheck)
 import BV.Core.Stages.GroupProofChecks
 import BV.Core.Types
 import BV.Core.Types.Extras
@@ -23,8 +24,12 @@ compileProofChecks
     -> [SMTProofCheckGroup a]
 compileProofChecks repGraphInput functionSigs pairings argRenames checks =
     map
-        (compileProofCheckGroup repGraphInput functionSigs pairings argRenames)
+        (compileProofCheckGroup repGraphInput functionSigs pairings argRenames
+            . pruneProofCheckGroup repGraphInput.problem)
         (proofCheckGroups checks)
+
+pruneProofCheckGroup :: RefineTag t => Problem t -> ProofCheckGroup t a -> ProofCheckGroup t a
+pruneProofCheckGroup problem = map (pruneProofCheck problem)
 
 compileProofCheckGroup
     :: RepGraphBaseInput AsmRefineTag

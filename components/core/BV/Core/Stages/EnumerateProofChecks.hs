@@ -5,6 +5,7 @@
 
 module BV.Core.Stages.EnumerateProofChecks
     ( enumerateProofChecks
+    , pruneProofCheck
     ) where
 
 import BV.Core.Graph
@@ -37,6 +38,14 @@ enumerateProofChecks argRenames pairing problem proofScript =
     m = enumerateProofChecksInner
         (assumeR =<< instantiatePairingEqs PairingEqDirectionIn)
         proofScript.root
+
+pruneProofCheck :: RefineTag t => Problem t -> ProofCheck t a -> ProofCheck t a
+pruneProofCheck problem = over checkVisits pruneVisitWithTag
+  where
+    nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
+    nodeTag = (M.!) (nodeTagMap problem nodeGraph)
+    pruneVisitWithTag (WithTag tag (Visit nodeId restrs)) = WithTag tag (Visit nodeId (filter (testRestr tag) restrs))
+    testRestr tag (Restr nodeAddr _) = nodeTag nodeAddr == tag
 
 data Context t
   = Context
