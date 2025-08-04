@@ -42,6 +42,8 @@ instance Tag AsmRefineTag where
         "C" -> Just C
         _ -> Nothing
 
+instance StaticTag AsmRefineTag
+
 instance RefineTag AsmRefineTag
 
 getAsm :: ByTag AsmRefineTag a -> a

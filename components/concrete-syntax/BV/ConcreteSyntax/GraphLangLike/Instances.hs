@@ -391,7 +391,7 @@ instance BuildInLine Op where
 instance ParseFile Problems' where
     parseFile = Problems . M.fromList <$> some (parseInBlock <&> \problem -> ((.name) <$> problem.sides, problem))
 
-instance Tag t => ParseInBlock (Problem t) where
+instance StaticTag t => ParseInBlock (Problem t) where
     parseInBlock = do
         _ <- line $ inLineSymbol "Problem"
         byTagAssocs <- replicateM (numTagValues (Proxy :: Proxy t)) problemSideLine

@@ -4,6 +4,7 @@
 module BV.Core.Types.Tag
     ( ByTag
     , RefineTag
+    , StaticTag
     , Tag (..)
     , TrivialTag (..)
     , WithTag (..)
@@ -41,7 +42,6 @@ class
     , Ord t
     , Show t
     , Enum t
-    , Bounded t
     , NFData t
     , Generic t
     ) => Tag t where
@@ -55,10 +55,12 @@ class
     default parsePrettyTag :: Read t => String -> Maybe t
     parsePrettyTag = Just . read
 
-tagValues :: Tag t => [t]
+class (Tag t, Bounded t) => StaticTag t where
+
+tagValues :: StaticTag t => [t]
 tagValues = [minBound .. maxBound]
 
-numTagValues :: forall t. Tag t => Proxy t -> Int
+numTagValues :: forall t. StaticTag t => Proxy t -> Int
 numTagValues _ = fromEnum (maxBound :: t) - fromEnum (minBound :: t) + 1
 
 data WithTag t a
@@ -83,14 +85,14 @@ instance (Tag t, Show a) => Show (ByTag t a) where
 
 instance Binary a => Binary (ByTag t a) where
 
-instance Tag t => Applicative (ByTag t) where
+instance StaticTag t => Applicative (ByTag t) where
     pure = ByTag . V.replicate (numTagValues (Proxy :: Proxy t))
     (ByTag f) <*> (ByTag a) = ByTag $ V.zipWith id f a
 
-instance (Tag t, Semigroup m) => Semigroup (ByTag t m) where
+instance (StaticTag t, Semigroup m) => Semigroup (ByTag t m) where
     x <> y = getAp $ Ap x <> Ap y
 
-instance (Tag t, Monoid m) => Monoid (ByTag t m) where
+instance (StaticTag t, Monoid m) => Monoid (ByTag t m) where
     mempty = getAp mempty
 
 atTag :: Tag t => t -> Lens' (ByTag t a) a
@@ -105,7 +107,7 @@ viewAtTag = view . atTag
 viewWithTag :: Tag t => t -> ByTag t a -> WithTag t a
 viewWithTag tag = viewAtTag tag . withTags
 
-byTagFrom :: Tag t => (t -> a) -> ByTag t a
+byTagFrom :: StaticTag t => (t -> a) -> ByTag t a
 byTagFrom f = withTag (&) <$> withTags (pure f)
 
 byTagFromList :: Tag t => [a] -> ByTag t a
@@ -113,7 +115,7 @@ byTagFromList = fromList
 
 --
 
-class Tag t => RefineTag t where
+class StaticTag t => RefineTag t where
 
 byRefineTag :: RefineTag t => a -> a -> ByTag t a
 byRefineTag left right = byTagFromList [left, right]
