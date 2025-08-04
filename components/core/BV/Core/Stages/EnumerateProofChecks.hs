@@ -80,9 +80,6 @@ askEntryPoints = gview $ #problem % #sides % to (fmap (.entryPoint))
 askPairing :: MonadReader (Context t) m => m (Pairing t)
 askPairing = gview #pairing
 
-askNodeTag :: MonadReader (Context t) m => NodeAddr -> m t
-askNodeTag addr = ($ addr) <$> gview #nodeTag
-
 askLookupNodeTag :: MonadReader (Context t) m => m (NodeAddr -> t)
 askLookupNodeTag = gview #nodeTag
 
@@ -273,14 +270,13 @@ emitLeafNodeChecks = branch $ do
 
 emitRestrNodeChecks :: MonadChecks t m => RestrProofNode t () -> CheckWriter t m ()
 emitRestrNodeChecks restrNode = branch $ do
-    tag <- askNodeTag restrNode.point
     branchRestrs $ do
         applyRestrNodeRange restrNode
         applyRestrOthers
         assume1L =<< pcFalseH <$> getVisitWithTag rightTag Err
     let visit vc = branchRestrs $ do
             restrict1L $ Restr restrNode.point vc
-            getVisitWithTag tag $ Addr restrNode.point
+            getVisitWithTag restrNode.tag $ Addr restrNode.point
     let minPred = restrNode.range.x - 1
     let minPredVCOpt = case restrNode.range.kind of
             RestrProofNodeRangeKindOffset -> Just $ offsetVC (max 0 minPred)
@@ -461,56 +457,55 @@ getSplitHypsAt splitNode visit = branch $ do
 
 emitSingleRevInductNodeChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleRevInductNodeChecks node = branch $ do
-    tag <- askNodeTag node.point
     sequence_
-        [ branch $ emitSingleLoopInductStepChecks node tag
-        , branch $ emitSingleLoopInductBaseChecks node tag
-        , branch $ emitSingleLoopRevInductChecks node tag
-        , branch $ emitSingleLoopRevInductBaseChecks node tag
+        [ branch $ emitSingleLoopInductStepChecks node
+        , branch $ emitSingleLoopInductBaseChecks node
+        , branch $ emitSingleLoopRevInductChecks node
+        , branch $ emitSingleLoopRevInductBaseChecks node
         ]
 
-emitSingleLoopInductStepChecks :: MonadChecks t m => SingleRevInductProofNode t () -> t -> CheckWriter t m ()
-emitSingleLoopInductStepChecks node tag = branch $ do
+emitSingleLoopInductStepChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
+emitSingleLoopInductStepChecks node = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
-    assume1L =<< pcTrueH <$> getSplitVisitAt (WithTag tag details) (offsetVC node.n)
+    assume1L =<< pcTrueH <$> getSplitVisitAt (WithTag node.tag details) (offsetVC node.n)
     for_ [0.. node.n - 1] $ \i ->
-        assumeHyps =<< getLoopEqHypsAt tag node.point node.eqs (offsetVC i) False
-    getLoopEqHypsAt tag node.point node.eqs (offsetVC node.n) False
+        assumeHyps =<< getLoopEqHypsAt node.tag node.point node.eqs (offsetVC i) False
+    getLoopEqHypsAt node.tag node.point node.eqs (offsetVC node.n) False
         >>= concludeManyWith (\desc ->
             printf "Induct check (%s) at inductive step for %d"
                 desc
                 node.point)
 
-emitSingleLoopInductBaseChecks :: MonadChecks t m => SingleRevInductProofNode t () -> t -> CheckWriter t m ()
-emitSingleLoopInductBaseChecks node tag = branch $ do
+emitSingleLoopInductBaseChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
+emitSingleLoopInductBaseChecks node = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
     for_ [0 .. node.n] $ \i -> branch $ do
-        assume1R =<< pcTrueH <$> getSplitVisitAt (WithTag tag details) (numberVC i)
-        getLoopEqHypsAt tag node.point node.eqs (numberVC i) False
+        assume1R =<< pcTrueH <$> getSplitVisitAt (WithTag node.tag details) (numberVC i)
+        getLoopEqHypsAt node.tag node.point node.eqs (numberVC i) False
             >>= concludeManyWith
                 (\desc -> printf "Base check (%s, %d) at induct step for %d" desc i node.point)
 
-emitSingleLoopRevInductChecks :: MonadChecks t m => SingleRevInductProofNode t () -> t -> CheckWriter t m ()
-emitSingleLoopRevInductChecks node tag = branch $ do
+emitSingleLoopRevInductChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
+emitSingleLoopRevInductChecks node = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
-    curr <- getSplitVisitAt (WithTag tag details) (offsetVC 1)
-    cont <- getSplitVisitAt (WithTag tag details) (offsetVC 2)
+    curr <- getSplitVisitAt (WithTag node.tag details) (offsetVC 1)
+    cont <- getSplitVisitAt (WithTag node.tag details) (offsetVC 2)
     assume1R $ pcTrueH curr
     assume1R $ trueIfAt' node.pred_ cont
     assume1R =<< getSingleLoopRevCErrHyp details
-    assumeHyps =<< getLoopEqHypsAt tag node.point node.eqs (offsetVC 1) True
+    assumeHyps =<< getLoopEqHypsAt node.tag node.point node.eqs (offsetVC 1) True
     conclude
         "Pred reverse step."
         (trueIfAt' node.pred_ curr)
 
-emitSingleLoopRevInductBaseChecks :: MonadChecks t m => SingleRevInductProofNode t () -> t -> CheckWriter t m ()
-emitSingleLoopRevInductBaseChecks node tag = branch $ do
+emitSingleLoopRevInductBaseChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
+emitSingleLoopRevInductBaseChecks node = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
-    cont <- getSplitVisitAt (WithTag tag details) (offsetVC 1)
+    cont <- getSplitVisitAt (WithTag node.tag details) (offsetVC 1)
     assume1R =<< getLoopCounterEqHyp node
     assume1R $ pcTrueH cont
     assume1R =<< getSingleLoopRevCErrHyp details
-    assumeHyps =<< getLoopEqHypsAt tag node.point node.eqs (offsetVC 0) False
+    assumeHyps =<< getLoopEqHypsAt node.tag node.point node.eqs (offsetVC 0) False
     conclude
         (printf "Pred true at %d check." node.nBound)
         (trueIfAt' node.pred_ cont)
@@ -518,8 +513,7 @@ emitSingleLoopRevInductBaseChecks node tag = branch $ do
 getLoopCounterEqHyp :: MonadChecks t m => SingleRevInductProofNode t () -> m (Hyp t)
 getLoopCounterEqHyp node = do
     let details = SplitProofNodeDetails node.point 0 1 []
-    tag <- askNodeTag node.point
-    visit <- getSplitVisitAt (WithTag tag details) (offsetVC 0)
+    visit <- getSplitVisitAt (WithTag node.tag details) (offsetVC 0)
     return $
         eqH
             (eqSideH (machineWordVarE (Ident "%n")) visit)
@@ -539,8 +533,7 @@ getSingleLoopRevCErrHyp details = getSplitNodeCErrHyp (SplitProofNode
 assumeSingleRevInduct :: MonadChecks t m => SingleRevInductProofNode t () -> m ()
 assumeSingleRevInduct node = branchRestrs $ do
     restrict1R $ Restr node.point (numberVC 0)
-    tag <- askNodeTag node.point
-    visit <- getVisitWithTag tag (Addr node.point)
+    visit <- getVisitWithTag node.tag (Addr node.point)
     assume1R $ trueIfAt' node.pred_ visit
 
 getLoopEqHypsAt :: MonadChecks t m => t -> NodeAddr -> [Lambda] -> VisitCount -> Bool -> m [HypWithDesc t]
