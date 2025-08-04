@@ -168,6 +168,9 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ExceptT e
 instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphBase t m) where
     checkHyp = compose2 lift checkHyp
 
+instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ForTag t m) where
+    checkHyp = compose2 lift checkHyp
+
 testHypCommon :: (MonadRepGraphSolver m, MonadRepGraphSolverInteract m) => Bool -> SExprWithPlaceholders -> m (TestResultWith (Maybe Model))
 testHypCommon wantModel sexpr = case wantModel of
     False -> ensureNothing <$> checkHyp Nothing sexpr

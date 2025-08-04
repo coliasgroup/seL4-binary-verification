@@ -31,8 +31,10 @@ import Optics.State.Operators ((%=))
 
 type FunctionSignatures t = WithTag t Ident -> FunctionSignature
 
+type WithAddFuncInner t m = StateT (State t) (ReaderT (Env t) m)
+
 newtype WithAddFunc t m a
-  = WithAddFunc { run :: StateT (State t) (ReaderT (Env t) m) a }
+  = WithAddFunc { run :: WithAddFuncInner t m a }
   deriving (Functor)
   deriving newtype (Applicative, Monad)
 
@@ -90,22 +92,22 @@ instance (RefineTag t, MonadRepGraph t m) => MonadRepGraph t (WithAddFunc t m) w
 
 --
 
-addFunc :: RefineTag t => MonadRepGraph t m => WithTag t Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> WithAddFunc t m ()
-addFunc (WithTag tag visit) rawInputs rawOutputs success = do
+addFunc :: RefineTag t => MonadRepGraph t m => Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> ForTag t (WithAddFunc t m) ()
+addFunc visit rawInputs rawOutputs success = do
+    tag <- askTag
     name <- askFnName visit
-    functionSigs <- WithAddFunc $ gview #functionSigs
+    functionSigs <- liftWithAddFunc $ gview #functionSigs
     let sig = functionSigs $ WithTag tag name
     let inputs = M.fromList $ zip sig.input rawInputs
     let outputs = M.fromList $ zip sig.output rawOutputs
-    WithAddFunc $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
-    pairingIdOpt <- WithAddFunc $ gview $ #pairingsAccess % at name
+    liftWithAddFunc $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
+    pairingIdOpt <- liftWithAddFunc $ gview $ #pairingsAccess % at name
     whenJust_ pairingIdOpt $ \pairingId -> do
-        group <- WithAddFunc $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
+        group <- liftWithAddFunc $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
         for_ group $ \visit2 -> do
-            ok <- isJust <$> getFuncPairing visit visit2
-            when ok $ do
-                addFuncAssert visit visit2
-        WithAddFunc $ #funcsByName %= M.insert pairingId (group ++ [visit])
+            ok <- isJust <$> lift (getFuncPairing visit visit2)
+            when ok $ lift $ addFuncAssert visit visit2
+        liftWithAddFunc $ #funcsByName %= M.insert pairingId (group ++ [visit])
 
 getFuncPairingNoCheck :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m (Maybe (Pairing t, ByTag t Visit))
 getFuncPairingNoCheck visit visit2 = do
@@ -137,8 +139,8 @@ getFuncAssert visit visit2 = do
     let visitsWithTags = withTags visits
     (lin, lout, lsucc) <- WithAddFunc $ use $ #funcs % at (getLeft visits) % unwrapped
     (rin, rout, rsucc) <- WithAddFunc $ use $ #funcs % at (getRight visits) % unwrapped
-    _lpc <- getPc (getLeft visitsWithTags)
-    rpc <- getPc (getRight visitsWithTags)
+    _lpc <- getPcWithTag (getLeft visitsWithTags)
+    rpc <- getPcWithTag (getRight visitsWithTags)
     let envs = \case
             PairingEqSideQuadrant t PairingEqDirectionIn | t == leftTag -> lin
             PairingEqSideQuadrant t PairingEqDirectionIn | t == rightTag -> rin
@@ -193,3 +195,6 @@ askFnName :: MonadRepGraph t m => Visit -> m Ident
 askFnName v = do
     p <- askProblem
     return $ p ^. #nodes % at (nodeAddrFromNodeId v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
+
+liftWithAddFunc :: MonadRepGraph t m => WithAddFuncInner t m a -> ForTag t (WithAddFunc t m) a
+liftWithAddFunc = lift . WithAddFunc

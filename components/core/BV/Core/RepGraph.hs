@@ -3,8 +3,10 @@ module BV.Core.RepGraph
     , module BV.Core.RepGraph.AsmStackRep
     , module BV.Core.RepGraph.Base
     , module BV.Core.RepGraph.Interpret
+    , ForTag
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
+    , MonadRepGraphForTag (..)
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)
     , Name (..)
@@ -21,8 +23,11 @@ module BV.Core.RepGraph
     , convertInnerExprWithPcEnv -- TODO
     , getInductVar
     , getNodePcEnv
+    , getNodePcEnvWithTag
     , getPc
+    , getPcWithTag
     , instEqWithEnvs
+    , runForTag
     , substInduct
     , tryGetNodePcEnv
     , withEnv
