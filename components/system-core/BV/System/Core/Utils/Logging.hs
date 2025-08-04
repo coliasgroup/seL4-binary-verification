@@ -74,6 +74,6 @@ runSolverWithLogging =
         augmentSolverContextWithLogging
         (withPushLogContext "stderr" . logInfoGeneric)
 
-deriving via (SolverTInner m) instance MonadLogger m => MonadLogger (SolverT m)
+deriving newtype instance MonadLogger m => MonadLogger (SolverT m)
 
-deriving via (SolverTInner m) instance MonadLoggerWithContext m => MonadLoggerWithContext (SolverT m)
+deriving newtype instance MonadLoggerWithContext m => MonadLoggerWithContext (SolverT m)

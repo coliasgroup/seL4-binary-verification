@@ -6,7 +6,6 @@ module BV.SMTLIB2.Process
     ( SolverContext (..)
     , SolverProcessException (..)
     , SolverT (..)
-    , SolverTInner
     , runSolver
     , runSolverWith
     ) where
