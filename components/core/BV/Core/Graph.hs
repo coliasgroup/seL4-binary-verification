@@ -58,8 +58,8 @@ makeNodeGraphFromEdges edges =
   where
     (graph, nodeIdMap', nodeIdMapRev) = G.graphFromEdges edges
 
-makeNodeGraph :: [(NodeAddr, Node)] -> NodeGraph
-makeNodeGraph = makeNodeGraphFromEdges . makeNodeGraphEdges
+makeNodeGraph :: NodeMap -> NodeGraph
+makeNodeGraph = makeNodeGraphFromEdges . makeNodeGraphEdges . M.toList
 
 -- Algorithms
 
@@ -136,7 +136,7 @@ loopBodyInnerLoops :: NodeMap -> NodeAddr -> S.Set NodeAddr -> [(NodeAddr, S.Set
 loopBodyInnerLoops nodes loopHead loopBody =
     loopHeadsFrom g $ nodes ^.. at loopHead % unwrapped % nodeConts
   where
-    g = makeNodeGraph $ M.toList $ M.restrictKeys nodes $ S.delete loopHead loopBody
+    g = makeNodeGraph $ M.restrictKeys nodes $ S.delete loopHead loopBody
 
 loopHeadsIncludingInner :: NodeMap -> LoopDataMap -> [NodeAddr]
 loopHeadsIncludingInner nodes m =

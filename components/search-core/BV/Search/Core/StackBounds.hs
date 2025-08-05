@@ -15,7 +15,8 @@ import BV.Search.Core.Solver
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad.State (StateT, execStateT, gets, get, modify)
+import Control.Monad.State (StateT, execStateT, get, gets, modify)
+import Control.Monad.Trans (lift)
 import qualified Data.Array as A
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
@@ -25,9 +26,6 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
-import Control.Monad.Trans (lift)
-import Control.Monad (when)
-import BV.Core.Graph
 
 data DiscoverStackBoundsInput
   = DiscoverStackBoundsInput

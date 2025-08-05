@@ -176,10 +176,10 @@ initRepGraphEnv problem =
         , problemNames = S.fromList $ toListOf varNamesOfProblem problem
         , nodeGraph
         , loopData = createLoopDataMap problem nodeGraph
-        , preds = predsOf problem nodeGraph
+        , preds = computePreds problem nodeGraph
         }
   where
-    nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
+    nodeGraph = makeNodeGraph problem.nodes
 
 initRepGraphState :: RepGraphState t
 initRepGraphState = RepGraphState

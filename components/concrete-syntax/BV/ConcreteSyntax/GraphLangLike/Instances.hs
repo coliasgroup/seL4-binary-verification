@@ -414,9 +414,6 @@ instance StaticTag t => ParseInBlock (Problem t) where
             let side = ProblemSide { name, input, output, entryPoint }
             return (tag, side)
 
-instance Tag t => ParseInLine (NodeSource t) where
-    parseInLine = NodeSource <$> parseTagInLine <*> parseInLine <*> parseInLine
-
 --
 
 instance BuildToFile Problems' where
@@ -438,9 +435,6 @@ instance Tag t => BuildInBlock (Problem t) where
                 <> put output
         nodeLine (addr, node) = lineInBlock $ put addr <> put node
 
-instance Tag t => BuildInLine (NodeSource t) where
-    buildInLine (NodeSource { tag, functionName, nodeAddr }) = putTag tag <> put functionName <> put nodeAddr
-
 --
 
 instance ParseFile StackBounds where
@@ -460,16 +454,21 @@ instance BuildToFile StackBounds where
 --
 
 instance Tag t => ParseInLine (InlineScriptEntry t) where
-    parseInLine = InlineScriptEntry <$> parseInLine <*> parseInLine
+    parseInLine = InlineScriptEntry
+        <$> parseTagInLine
+        <*> parseInLine
+        <*> parseInLine
+        <*> parseInLine
 
-instance Tag t => ParseInLine (NodeBySource t) where
-    parseInLine = NodeBySource <$> parseInLine <*> parseInLine
+instance ParseInLine NodeSource where
+    parseInLine = NodeSource <$> parseInLine <*> parseInLine
 
 instance Tag t => BuildInLine (InlineScriptEntry t) where
-    buildInLine (InlineScriptEntry { nodeBySource, inlinedFunctionName }) = put nodeBySource <> put inlinedFunctionName
+    buildInLine (InlineScriptEntry { tag, nodeSource, indexInProblem, inlinedFunctionName }) =
+        putTag tag <> put nodeSource <> putDec indexInProblem <> put inlinedFunctionName
 
-instance Tag t => BuildInLine (NodeBySource t) where
-    buildInLine (NodeBySource { nodeSource, indexInProblem }) = put nodeSource <> putDec indexInProblem
+instance BuildInLine NodeSource where
+    buildInLine (NodeSource { functionName, nodeAddr }) = put functionName <> putDec nodeAddr
 
 --
 

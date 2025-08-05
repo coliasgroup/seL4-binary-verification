@@ -1,8 +1,14 @@
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 module BV.Core.Types.Extras.Problem
     ( ArgRenames
+    , ProblemAnalysis (..)
+    , ProblemWithAnalysis (..)
+    , analyzeProblem
     , argRenamesOf
+    , augmentProblem
+    , computePreds
     , pairingIdOfProblem
-    , predsOf
     , varNamesOfProblem
     ) where
 
@@ -11,9 +17,12 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Program
 import BV.Utils
 
+import Data.Function (applyWhen)
+import Data.Functor (void)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
+import GHC.Generics (Generic)
 import Optics
 
 type ArgRenames t = PairingEqSideQuadrant t -> Ident -> Ident
@@ -39,8 +48,8 @@ varNamesOfProblem =
     (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
         `adjoin` (#nodes % traversed % varNamesOf)
 
-predsOf :: Problem t -> NodeGraph -> ByTag t (M.Map NodeId (S.Set NodeAddr))
-predsOf problem g = problem.sides <&> \side ->
+computePreds :: Problem t -> NodeGraph -> ByTag t (M.Map NodeId (S.Set NodeAddr))
+computePreds problem g = problem.sides <&> \side ->
     let nodes = S.fromList $ Ret : Err : side.entryPoint : reachableFrom g side.entryPoint
      in M.unionWith (<>) (M.fromSet (const S.empty) nodes) $ M.fromListWith (<>) $ concat
             [ [ (cont, S.singleton nodeAddr)
@@ -48,3 +57,52 @@ predsOf problem g = problem.sides <&> \side ->
               ]
             | Addr nodeAddr <- S.toList nodes
             ]
+
+-- TODO more efficient but more opaque
+computePreds' :: Tag t => Problem t -> (NodeAddr -> t) -> ByTag t (NodeId -> S.Set NodeAddr)
+computePreds' problem nodeTag = withTags (void problem.sides) <&> \(WithTag tag ()) nodeId ->
+    let f = applyWhen (not (is #_Addr nodeId)) (S.filter (\pred_ -> nodeTag pred_ == tag))
+     in f $ clobbered M.! nodeId
+  where
+    clobbered = M.fromListWith (<>) $ concat
+        [ [ (cont, S.singleton nodeAddr)
+          | cont <- node ^.. nodeConts
+          ]
+        | (nodeAddr, node) <- M.toList problem.nodes
+        ]
+
+data ProblemWithAnalysis t
+  = ProblemWithAnalysis
+      { problem :: Problem t
+      , analysis :: ProblemAnalysis t
+      }
+  deriving (Generic)
+
+data ProblemAnalysis t
+  = ProblemAnalysis
+      { nodeGraph :: NodeGraph
+      , nodeTag :: NodeAddr -> t
+      , loopData :: ByTag t LoopDataMap
+      , preds :: ByTag t (NodeId -> S.Set NodeAddr)
+      , vars :: S.Set Ident
+      }
+  deriving (Generic)
+
+analyzeProblem :: Tag t => Problem t -> ProblemAnalysis t
+analyzeProblem problem = ProblemAnalysis
+    { nodeGraph
+    , nodeTag
+    , loopData = createLoopDataMap problem nodeGraph
+    , preds = (M.!) <$> computePreds problem nodeGraph
+    -- , preds = computePreds' problem nodeTag
+    , vars = S.fromList $ toListOf varNamesOfProblem problem
+    }
+  where
+    nodeGraph = makeNodeGraph problem.nodes
+    nodeTag = (M.!) $ nodeTagMap problem nodeGraph
+
+augmentProblem :: Tag t => Problem t -> ProblemWithAnalysis t
+augmentProblem problem = ProblemWithAnalysis
+    { problem
+    , analysis = analyzeProblem problem
+    }

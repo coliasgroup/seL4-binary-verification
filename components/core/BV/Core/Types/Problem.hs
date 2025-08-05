@@ -3,7 +3,6 @@
 module BV.Core.Types.Problem
     ( InlineScript
     , InlineScriptEntry (..)
-    , NodeBySource (..)
     , NodeSource (..)
     , Problem (..)
     , ProblemSide (..)
@@ -32,32 +31,24 @@ data ProblemSide
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data NodeBySource t
-  = NodeBySource
-      { nodeSource :: NodeSource t
-      , indexInProblem :: Int
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary t => Binary (NodeBySource t) where
-
-data NodeSource t
-  = NodeSource
-      { tag :: t
-      , functionName :: Ident
-      , nodeAddr :: NodeAddr
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary t => Binary (NodeSource t) where
-
 type InlineScript t = [InlineScriptEntry t]
 
 data InlineScriptEntry t
   = InlineScriptEntry
-      { nodeBySource :: (NodeBySource t)
+      { tag :: t
+      , nodeSource :: NodeSource
+      , indexInProblem :: Int
       , inlinedFunctionName :: Ident
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary t => Binary (InlineScriptEntry t) where
+
+data NodeSource
+  = NodeSource
+      { functionName :: Ident
+      , nodeAddr :: NodeAddr
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary NodeSource where

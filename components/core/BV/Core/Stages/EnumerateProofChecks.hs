@@ -42,7 +42,7 @@ enumerateProofChecks argRenames pairing problem proofScript =
 pruneProofCheck :: RefineTag t => Problem t -> ProofCheck t a -> ProofCheck t a
 pruneProofCheck problem = over checkVisits pruneVisitWithTag
   where
-    nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
+    nodeGraph = makeNodeGraph problem.nodes
     nodeTag = (M.!) (nodeTagMap problem nodeGraph)
     pruneVisitWithTag (WithTag tag (Visit nodeId restrs)) = WithTag tag (Visit nodeId (filter (testRestr tag) restrs))
     testRestr tag (Restr nodeAddr _) = nodeTag nodeAddr == tag
@@ -66,7 +66,7 @@ initContext argRenames pairing problem = Context
     , loopData = createLoopDataMap problem nodeGraph
     }
   where
-    nodeGraph = makeNodeGraph (M.toAscList problem.nodes)
+    nodeGraph = makeNodeGraph problem.nodes
 
 askLoopHead :: (Tag t, MonadReader (Context t) m) => WithTag t NodeAddr -> m (Maybe (WithTag t NodeAddr))
 askLoopHead n = fmap (WithTag n.tag) . loopHeadOf n.value <$> gview (#loopData % atTag n.tag)
