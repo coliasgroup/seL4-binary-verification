@@ -19,6 +19,7 @@ import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, get, put)
 import Control.Monad.Trans (lift)
+import Control.Monad.Writer (execWriterT, tell)
 import Data.Foldable (for_, toList)
 import Data.List (sortOn)
 import Data.Map (Map)
@@ -72,15 +73,14 @@ buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (WithTag t I
 buildInlineScript inliner lookupFun funs = runProblemBuilder $ do
     addEntrypoints funs
     doAnalysis
-    let go :: [InlineScriptEntry t] -> StateT (ProblemBuilder t) m [InlineScriptEntry t]
-        go acc = do
-            p <- extractProblem
-            lift (inliner p) >>= \case
-                Nothing -> return acc
-                Just addrs -> do
-                    entries <- for addrs $ \addr -> inlineAtPoint lookupFun addr <* doAnalysis
-                    go (acc ++ entries)
-    go []
+    let go = do
+            p <- lift $ extractProblem
+            addrsOpt <- lift $ lift $ inliner p
+            for_ addrsOpt $ \addrs -> do
+                entries <- lift $ for addrs $ \addr -> inlineAtPoint lookupFun addr <* doAnalysis
+                tell entries
+                go
+    execWriterT go
 
 composeInliners :: Monad m => Inliner t (StateT [Inliner t m] m)
 composeInliners problem = go
@@ -161,8 +161,8 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTa
 instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
     runPreEmitCallNodeHook visit pc env = do
         tag <- askTag
-        let nodeAddr = nodeAddrFromNodeId visit.nodeId
         p <- askProblem
+        let nodeAddr = nodeAddrFromNodeId visit.nodeId
         let fname = p ^. #nodes % at nodeAddr % unwrapped % expecting #_NodeCall % #functionName
         matchedC <- lift $ InlineM $ gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do
