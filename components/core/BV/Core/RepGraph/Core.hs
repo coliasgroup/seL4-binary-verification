@@ -696,7 +696,7 @@ getArcPcEnv visit' otherVisit = do
 
 getTagVCount :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe [Restr])
 getTagVCount visit = do
-    vcountWithReachable <- fmap catMaybes $ for visit.restrs $ \restr -> runMaybeT $ do
+    vcountWithReachable <- for visit.restrs $ \restr -> do
         reachable <- askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
         return (restr, reachable)
     let done = flip any vcountWithReachable $ \(restr, reachable) ->
