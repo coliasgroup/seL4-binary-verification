@@ -14,6 +14,7 @@ module BV.Core.Types.Tag
     , byTagFrom
     , byTagFromList
     , byTagFromListUnchecked
+    , byTagFromN
     , getLeft
     , getRight
     , leftTag
@@ -122,6 +123,9 @@ byTagFromList :: forall t a. StaticTag t => [a] -> ByTag t a
 byTagFromList xs = ensure (V.length v == numTagValues (Proxy :: Proxy t)) $ ByTag v
   where
     v = V.fromList xs
+
+byTagFromN :: Tag t => Int -> (t -> a) -> ByTag t a
+byTagFromN n f = withTag (&) <$> withTags (ByTag (V.replicate n f))
 
 byTagFromListUnchecked :: Tag t => [a] -> ByTag t a
 byTagFromListUnchecked = ByTag . V.fromList

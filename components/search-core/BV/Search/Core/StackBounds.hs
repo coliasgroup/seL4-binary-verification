@@ -53,8 +53,9 @@ discoverStackBounds run input = do
         let repGraphInput = RepGraphBaseInput
                 { structs = fnames <&> const M.empty
                 , rodata = input.rodata
-                , problem = buildProblemSimple $ fnames <&> \fname ->
-                    Named fname.value (input.functions fname)
+                , problem = undefined
+                -- , problem = buildProblemSimple $ fnames <&> \fname ->
+                --     Named fname.value (input.functions fname)
                 }
             in run (runRepGraphBase repGraphInput m)
 
