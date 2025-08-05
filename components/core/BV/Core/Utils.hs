@@ -3,11 +3,9 @@ module BV.Core.Utils
     , optionals
     , whenJustThen
     , whenNothing
-    , whileM
     , zipWithTraversable
     ) where
 
-import Control.Monad (when)
 import Control.Monad.State (evalState, state)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT), hoistMaybe)
 import Data.Maybe (fromJust)
@@ -27,15 +25,6 @@ adjacently = liftIso simple
 
 optionals :: Monoid m => Bool -> m -> m
 optionals p m = if p then m else mempty
-
-whileM :: Monad m => m Bool -> m () -> m ()
-whileM cond body = go
-  where
-    go = do
-        p <- cond
-        when p $ do
-            body
-            go
 
 whenNothing :: Monad m => Maybe a -> m a -> m a
 whenNothing opt m = maybe m return opt

@@ -29,7 +29,8 @@ prepareDiscoverStackBoundsInput
     :: FullDiscoverStackBoundsInput
     -> DiscoverStackBoundsInput
 prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
-    { rodata = input.rodata
+    { structs = (.structs) <$> input.programs
+    , rodata = input.rodata
     , functions = lookupFunction
     , pairings
     , includeAsmFrom = input.includeAsmFrom

@@ -14,9 +14,11 @@ module BV.Utils
     , todo
     , unimplemented
     , unwrapped
+    , whileM
     , (!@)
     ) where
 
+import Control.Monad (when)
 import Data.Either (fromRight)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
@@ -82,3 +84,14 @@ findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present:
 
 (!@) :: (HasCallStack, Show k, Ord k) => M.Map k a -> k -> a
 (!@) = findWithCallstack
+
+--
+
+whileM :: Monad m => m Bool -> m () -> m ()
+whileM cond body = go
+  where
+    go = do
+        p <- cond
+        when p $ do
+            body
+            go
