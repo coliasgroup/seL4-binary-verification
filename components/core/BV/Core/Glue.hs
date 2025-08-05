@@ -117,7 +117,9 @@ stages input = StagesOutput
 
     finalPrograms = alteredProgramsWithInlineAsm
 
-    lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions ! funName
+    functions = M.unionsWith (error "unexpected") $ (.functions) <$> finalPrograms
+
+    lookupFunction = (M.!) functions
 
     functionSigs = signatureOfFunction . lookupFunction
 
@@ -133,7 +135,7 @@ stages input = StagesOutput
     normalPairings =
         let f pairingId = formulatePairing
                 (input.stackBounds.unwrap ! getAsm pairingId)
-                (functionSigs (viewWithTag C pairingId))
+                (functionSigs (viewAtTag C pairingId))
          in M.fromSet f (S.fromList normalFunctionPairingIds)
 
     pairings = Pairings $ normalPairings `M.union` inlineAsmPairings.unwrap

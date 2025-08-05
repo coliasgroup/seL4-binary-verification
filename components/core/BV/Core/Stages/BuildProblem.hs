@@ -34,7 +34,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 
-buildProblem :: Tag t => (WithTag t Ident -> Function) -> InlineScript t -> ByTag t (Named Function) -> Problem t
+buildProblem :: Tag t => (Ident -> Function) -> InlineScript t -> ByTag t (Named Function) -> Problem t
 buildProblem lookupFun inlineScript funs = runIdentity . flip evalStateT initProblemBuilder $ do
     addEntrypoints funs
     doAnalysis
@@ -182,7 +182,7 @@ addEntrypoints funs = for_ (withTags funs) $ \fun -> addEntrypoint fun
 
 --
 
-inline :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeBySource t -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
+inline :: (Tag t, Monad m) => (Ident -> Function) -> NodeBySource t -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
 inline lookupFun nodeBySource = do
     nodeAddr <- use $
         #nodesBySource % at nodeBySource.nodeSource % unwrapped
@@ -190,18 +190,18 @@ inline lookupFun nodeBySource = do
     inlineInner lookupFun nodeAddr nodeBySource
 
 inlineAtPoint
-    :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
+    :: (Tag t, Monad m) => (Ident -> Function) -> NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
 inlineAtPoint lookupFun nodeAddr = do
     nodeBySource <- use $
         #nodes % at nodeAddr % unwrapped % unwrapped % #meta % #bySource % unwrapped
     inlineInner lookupFun nodeAddr nodeBySource
 
 inlineInner
-    :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeAddr -> NodeBySource t -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
+    :: (Tag t, Monad m) => (Ident -> Function) -> NodeAddr -> NodeBySource t -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
 inlineInner lookupFun nodeAddr nodeBySource = do
     callNode <- use $ nodeAt nodeAddr % expecting #_NodeCall
     let tag = nodeBySource.nodeSource.tag
-    let fun = lookupFun (WithTag tag callNode.functionName)
+    let fun = lookupFun callNode.functionName
     exitNodeAddr <- reserveNodeAddr
     renames <- addFunction (WithTag tag (Named callNode.functionName fun)) (Addr exitNodeAddr)
     let entryNodeAddr = renames.nodeAddr ! (fun ^. #body % unwrapped % #entryPoint % expecting #_Addr)

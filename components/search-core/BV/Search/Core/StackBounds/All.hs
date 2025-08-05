@@ -31,7 +31,7 @@ prepareDiscoverStackBoundsInput
 prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
     { structs = (.structs) <$> input.programs
     , rodata = input.rodata
-    , functions = lookupFunction
+    , functions = (M.!) functions
     , pairings
     , includeAsmFrom = input.includeAsmFrom
     }
@@ -48,7 +48,7 @@ prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
 
     finalPrograms = alteredPrograms
 
-    lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions M.! funName
+    functions = M.unionsWith (error "unexpected") $ (.functions) <$> finalPrograms
 
     pairings = S.fromList $ do
         asm <- M.keys (getAsm finalPrograms).functions

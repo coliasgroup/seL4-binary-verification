@@ -29,7 +29,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 
-type FunctionSignatures t = WithTag t Ident -> FunctionSignature
+type FunctionSignatures t = Ident -> FunctionSignature
 
 type WithAddFuncInner t m = StateT (State t) (ReaderT (Env t) m)
 
@@ -94,10 +94,9 @@ instance (RefineTag t, MonadRepGraph t m) => MonadRepGraph t (WithAddFunc t m) w
 
 addFunc :: RefineTag t => MonadRepGraph t m => Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> ForTag t (WithAddFunc t m) ()
 addFunc visit rawInputs rawOutputs success = do
-    tag <- askTag
     name <- askFnName visit
     functionSigs <- liftWithAddFunc $ gview #functionSigs
-    let sig = functionSigs $ WithTag tag name
+    let sig = functionSigs name
     let inputs = M.fromList $ zip sig.input rawInputs
     let outputs = M.fromList $ zip sig.output rawOutputs
     liftWithAddFunc $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
@@ -170,7 +169,7 @@ memCallsCompatible byTag = case toList byTag of
             pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
             let rfname = getRight pairingId
             functionSigs <- WithAddFunc $ gview #functionSigs
-            let rsig = functionSigs $ WithTag rightTag rfname
+            let rsig = functionSigs rfname
             return $
                 if any (\arg -> arg.ty == memT) rsig.output
                 then Just (rfname, calls)

@@ -45,7 +45,7 @@ prepareAllDiscoverInlineScriptInput input = scripts
 
     finalPrograms = alteredProgramsWithInlineAsm
 
-    lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions M.! funName
+    functions = M.unionsWith (error "unexpected") $ (.functions) <$> finalPrograms
 
     requestedPairingIds = flip S.map input.asmFunctions $ \asm ->
         let c = asm & #unwrap %~ (input.cFunctionPrefix ++)
@@ -62,7 +62,7 @@ prepareAllDiscoverInlineScriptInput input = scripts
     script pairingId = DiscoverInlineScriptInput
         { structs = input.programs <&> (.structs)
         , rodata = input.rodata
-        , functions = lookupFunction
+        , functions = (M.!) functions
         , matches
         , pairingId
         }

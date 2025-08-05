@@ -33,7 +33,7 @@ data DiscoverInlineScriptInput
   = DiscoverInlineScriptInput
       { structs :: ByTag' (Map Ident Struct)
       , rodata :: ROData
-      , functions :: WithTag' Ident -> Function
+      , functions :: Ident -> Function
       , matches :: S.Set PairingId'
       , pairingId :: PairingId'
       }
@@ -50,7 +50,7 @@ discoverInlineScript run input =
         [inlineCompletelyUnmatched, inlineReachableUnmatchedC]
   where
     lookupFun = input.functions
-    funs = withTags input.pairingId <&> \nameWithTag -> Named nameWithTag.value (lookupFun nameWithTag)
+    funs = withTags input.pairingId <&> \nameWithTag -> Named nameWithTag.value (lookupFun nameWithTag.value)
     allMatched = S.fromList $ input.matches ^.. folded % folded
     asmToCMatch = M.fromList $ [ (getAsm match, getC match) | match <- S.toList input.matches ]
     presentInProblem problem = S.fromList $ problem ^.. #nodes % folded % #_NodeCall % #functionName
@@ -69,7 +69,7 @@ discoverInlineScript run input =
 
 type Inliner t m = Problem t -> m (Maybe [NodeAddr])
 
-buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (WithTag t Ident -> Function) -> ByTag t (Named Function) -> m (InlineScript t)
+buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (Ident -> Function) -> ByTag t (Named Function) -> m (InlineScript t)
 buildInlineScript inliner lookupFun funs = flip evalStateT initProblemBuilder $ do
     addEntrypoints funs
     doAnalysis
