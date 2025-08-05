@@ -24,6 +24,7 @@ module BV.Core.RepGraph.Core
     , askLoopDataMap
     , askNodeGraph
     , askProblem
+    , askWithTag
     , convertInnerExprWithPcEnv
     , getInductVar
     , getNodePcEnv

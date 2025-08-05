@@ -19,9 +19,11 @@ module BV.Core.Types.Tag
     , getRight
     , leftTag
     , numTagValues
+    , otherTag
     , rightTag
     , tagValues
     , viewAtTag
+    , viewByRefineTag
     , viewWithTag
     , withTag
     , withTags
@@ -137,11 +139,17 @@ class StaticTag t => RefineTag t where
 byRefineTag :: RefineTag t => a -> a -> ByTag t a
 byRefineTag left right = IsList.fromList [left, right]
 
+viewByRefineTag :: RefineTag t => ByTag t a -> (a, a)
+viewByRefineTag byTag = (getLeft byTag, getRight byTag)
+
 leftTag :: RefineTag t => t
 leftTag = minBound
 
 rightTag :: RefineTag t => t
 rightTag = maxBound
+
+otherTag :: RefineTag t => t -> t
+otherTag tag = if tag == leftTag then rightTag else leftTag
 
 getLeft :: RefineTag t => ByTag t a -> a
 getLeft = view (atTag leftTag)

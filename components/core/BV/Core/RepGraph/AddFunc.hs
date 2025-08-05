@@ -12,22 +12,21 @@ import BV.Core.RepGraph.Solver
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils
 import BV.Utils (expecting, unwrapped)
 
-import Control.Monad (when)
 import Control.Monad.Reader (ReaderT (runReaderT))
 import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.Trans (MonadTrans, lift)
-import Data.Foldable (for_, toList)
+import Data.Foldable (for_)
 import Data.Map ((!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust)
+import Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
+import Control.Monad (when)
 
 type FunctionSignatures t = WithTag t Ident -> FunctionSignature
 
@@ -45,14 +44,14 @@ data Env t
   = Env
       { functionSigs :: FunctionSignatures t
       , pairings :: Pairings t
-      , pairingsAccess :: M.Map Ident (PairingId t)
+      , pairingsAccess :: ByTag t (M.Map Ident (PairingId t))
       }
   deriving (Generic)
 
 data State t
   = State
-      { funcs :: M.Map Visit (ExprEnv, ExprEnv, Expr)
-      , funcsByName :: M.Map (ByTag t Ident) [Visit]
+      { funcs :: M.Map (WithTag t Visit) (ExprEnv, ExprEnv, Expr)
+      , funcsByName :: M.Map (WithTag t Ident) [Visit]
       }
   deriving (Generic)
 
@@ -66,8 +65,8 @@ initEnv :: RefineTag t => FunctionSignatures t -> Pairings t -> Env t
 initEnv functionSigs pairings = Env
     { functionSigs
     , pairings
-    , pairingsAccess = M.fromListWith (error "unexpected") $
-        concat [ [(getRight p, p), (getLeft p, p)] | p <- M.keys pairings.unwrap]
+    , pairingsAccess = byTagFrom $ \tag ->
+        M.fromList [ (viewAtTag tag p, p) | p <- M.keys pairings.unwrap]
     }
 
 initState :: State t
@@ -95,79 +94,62 @@ instance (RefineTag t, MonadRepGraph t m) => MonadRepGraph t (WithAddFunc t m) w
 addFunc :: RefineTag t => MonadRepGraph t m => Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> ForTag t (WithAddFunc t m) ()
 addFunc visit rawInputs rawOutputs success = do
     tag <- askTag
+    visitWithTag <- askWithTag visit
     name <- askFnName visit
     functionSigs <- liftWithAddFunc $ gview #functionSigs
-    let sig = functionSigs $ WithTag tag name
+    sig <- functionSigs <$> askWithTag name
     let inputs = M.fromList $ zip sig.input rawInputs
     let outputs = M.fromList $ zip sig.output rawOutputs
-    liftWithAddFunc $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
-    pairingIdOpt <- liftWithAddFunc $ gview $ #pairingsAccess % at name
+    liftWithAddFunc $ #funcs %= M.insertWith (error "unexpected") visitWithTag (inputs, outputs, success)
+    pairingIdOpt <- liftWithAddFunc $ gview $ #pairingsAccess % atTag tag % at name
     for_ pairingIdOpt $ \pairingId -> do
-        group <- liftWithAddFunc $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
-        for_ group $ \visit2 -> do
-            ok <- isJust <$> lift (getFuncPairing visit visit2)
-            when ok $ lift $ addFuncAssert visit visit2
-        liftWithAddFunc $ #funcsByName %= M.insert pairingId (group ++ [visit])
+        group <- liftWithAddFunc $ use $ #funcsByName %
+            to (M.findWithDefault [] (viewAtTag (otherTag tag) (withTags pairingId)))
+        for_ group $ \otherVisit -> do
+            byTag <- mkFoo visit otherVisit
+            lift $ do
+                compat <- areCompatible byTag
+                when compat $ do
+                    pairing <- WithAddFunc $ gview $ #pairings % #unwrap % at pairingId % unwrapped
+                    imp <- weakenAssert <$> getFuncAssert byTag pairing
+                    withoutEnv $ assertFact imp
+        liftWithAddFunc $ #funcsByName %= M.insertWith (flip (<>)) (viewAtTag tag (withTags pairingId)) [visit]
 
-getFuncPairingNoCheck :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m (Maybe (Pairing t, ByTag t Visit))
-getFuncPairingNoCheck visit visit2 = do
-    fname <- askFnName visit
-    fname2 <- askFnName visit2
-    pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
-    p <- WithAddFunc $ gview $ #pairings % #unwrap % at pairingId % unwrapped
-    return $ (p ,) <$> if
-        | pairingId == byRefineTag fname fname2 -> Just $ byRefineTag visit visit2
-        | pairingId == byRefineTag fname2 fname -> Just $ byRefineTag visit2 visit
-        | otherwise -> Nothing
+areCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithAddFunc t m Bool
+areCompatible visits = do
+    calls <- for (withTags visits) $ \visit -> do
+        (in_, _, _) <- WithAddFunc $ use $ #funcs % at visit % unwrapped
+        scanMemCallsEnv in_
+    (compatible, _s) <- memCallsCompatible calls
+    -- unless compatible $ do
+    --     warn _s
+    return compatible
 
-getFuncPairing :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m (Maybe (Pairing t, ByTag t Visit))
-getFuncPairing visit visit2 = do
-    opt <- getFuncPairingNoCheck visit visit2
-    whenJustThen opt $ \(p, visits) -> do
-        (lin, _, _) <- WithAddFunc $ use $ #funcs % at (getLeft visits) % unwrapped
-        (rin, _, _) <- WithAddFunc $ use $ #funcs % at (getRight visits) % unwrapped
-        lcalls <- scanMemCallsEnv lin
-        rcalls <- scanMemCallsEnv rin
-        (compatible, _s) <- memCallsCompatible $ byRefineTag lcalls rcalls
-        -- unless compatible $ do
-        --     warn _s
-        return $ if compatible then Just (p, visits) else Nothing
-
-getFuncAssert :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m Expr
-getFuncAssert visit visit2 = do
-    (pairing, visits) <- fromJust <$> getFuncPairing visit visit2
-    let visitsWithTags = withTags visits
-    (lin, lout, lsucc) <- WithAddFunc $ use $ #funcs % at (getLeft visits) % unwrapped
-    (rin, rout, rsucc) <- WithAddFunc $ use $ #funcs % at (getRight visits) % unwrapped
-    _lpc <- getPcWithTag (getLeft visitsWithTags)
-    rpc <- getPcWithTag (getRight visitsWithTags)
+getFuncAssert :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> Pairing t -> WithAddFunc t m Expr
+getFuncAssert visits pairing = do
+    ((lin, lout, lsucc), (rin, rout, rsucc)) <- fmap viewByRefineTag $ for (withTags visits) $ \visit ->
+        WithAddFunc $ use $ #funcs % at visit % unwrapped
+    (_lpc, rpc) <- fmap viewByRefineTag $ for (withTags visits) getPcWithTag
     let envs = \case
             PairingEqSideQuadrant t PairingEqDirectionIn | t == leftTag -> lin
             PairingEqSideQuadrant t PairingEqDirectionIn | t == rightTag -> rin
             PairingEqSideQuadrant t PairingEqDirectionOut | t == leftTag -> lout
             PairingEqSideQuadrant t PairingEqDirectionOut | t == rightTag -> rout
-            _ -> error "unreachable"
+            _ -> undefined
     inEqs <- instEqs pairing.inEqs envs
     outEqs <- instEqs pairing.outEqs envs
-    let succImp = impliesE rsucc lsucc
     return $ impliesE
         (foldr1 andE (inEqs ++ [rpc]))
-        (foldr1 andE (outEqs ++ [succImp]))
+        (foldr1 andE (outEqs ++ [impliesE rsucc lsucc]))
   where
-    instEqs :: MonadRepGraphSolver m => [PairingEq t] -> (PairingEqSideQuadrant t -> ExprEnv) -> m [Expr]
     instEqs eqs envs = for eqs $ \eq ->
         instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
 
-addFuncAssert :: (RefineTag t, MonadRepGraph t m) => Visit -> Visit -> WithAddFunc t m ()
-addFuncAssert visit visit2 = do
-    imp <- weakenAssert <$> getFuncAssert visit visit2
-    withoutEnv $ assertFact imp
-
 memCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t (Maybe MemCalls) -> WithAddFunc t m (Bool, Maybe String)
-memCallsCompatible byTag = case toList byTag of
-    [Just lcalls, Just rcalls] -> do
+memCallsCompatible byTag = case viewByRefineTag byTag of
+    (Just lcalls, Just rcalls) -> do
         rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
-            pairingId <- WithAddFunc $ gview $ #pairingsAccess % at fname % unwrapped
+            pairingId <- WithAddFunc $ gview $ #pairingsAccess % atTag leftTag % at fname % unwrapped
             let rfname = getRight pairingId
             functionSigs <- WithAddFunc $ gview #functionSigs
             let rsig = functionSigs $ WithTag rightTag rfname
@@ -190,6 +172,11 @@ memCallsCompatible byTag = case toList byTag of
     _ -> return (True, Nothing)
 
 --
+
+mkFoo :: (RefineTag t, MonadRepGraphForTag t m) => a -> a -> m (ByTag t a)
+mkFoo x y = do
+    tag <- askTag
+    return $ byTagFrom $ \tag' -> if tag' == tag then x else y
 
 askFnName :: MonadRepGraph t m => Visit -> m Ident
 askFnName v = do
