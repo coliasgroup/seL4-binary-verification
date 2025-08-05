@@ -6,6 +6,7 @@ module BV.Core.Stages.BuildProblem
     , addEntrypoints
     , buildProblem
     , doAnalysis
+    , extractNodeTag
     , extractProblem
     , initProblemBuilder
     , inline
@@ -50,7 +51,6 @@ data ProblemBuilder t
   = ProblemBuilder
       { sides :: M.Map t ProblemSide
       , nodes :: M.Map NodeAddr (Maybe (NodeWithMeta t))
-      , nodeSources :: M.Map NodeAddr (NodeBySource t)
       , nodesBySource :: M.Map (NodeSource t) [NodeAddr]
       , vars :: S.Set Ident
       }
@@ -73,7 +73,6 @@ initProblemBuilder :: ProblemBuilder t
 initProblemBuilder = ProblemBuilder
     { sides = M.empty
     , nodes = M.singleton 0 Nothing -- HACK graph_refine.problem starts at 1
-    , nodeSources = M.empty
     , nodesBySource = M.empty
     , vars = S.empty
     }
@@ -83,6 +82,10 @@ extractProblem builder = Problem
     { sides = byTagFromN (M.size builder.sides) (builder.sides M.!)
     , nodes = M.mapMaybe (preview (_Just % #node)) builder.nodes
     }
+
+extractNodeTag :: Tag t => ProblemBuilder t -> NodeAddr -> Maybe t
+extractNodeTag builder nodeAddr = builder ^?
+    #nodes % at nodeAddr % unwrapped % unwrapped % #meta % #bySource % _Just % #nodeSource % #tag
 
 nodeAt :: NodeAddr -> Lens' (ProblemBuilder t) Node
 nodeAt nodeAddr = nodeWithMetaAt nodeAddr % #node
