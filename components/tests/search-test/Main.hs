@@ -61,8 +61,8 @@ testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
             , rodata = stagesInput.rodata
             , cFunctionPrefix = stagesInput.cFunctionPrefix
             , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
-            -- , includeFrom = M.keysSet stagesInput.stackBounds.unwrap
-            , includeAsmFrom = S.fromList [Ident "handleVMFault"]
+            , includeAsmFrom = M.keysSet stagesInput.stackBounds.unwrap
+            -- , includeAsmFrom = S.fromList [Ident "handleVMFault"]
             }
     let f :: DiscoverStackBoundsInput -> LoggingWithContextT IO StackBounds
         f input = discoverStackBounds' solverConfig input >>= assertSuccess

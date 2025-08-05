@@ -17,7 +17,7 @@ import BV.Utils (expecting, unwrapped)
 import Control.Monad (unless, when)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Reader (ReaderT, runReaderT)
-import Control.Monad.State (StateT, evalStateT, get, put)
+import Control.Monad.State (StateT, evalStateT, get, gets, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (execWriterT, tell)
 import Data.Foldable (for_, toList)
@@ -70,11 +70,11 @@ discoverInlineScript run input =
 type Inliner t m = Problem t -> m (Maybe [NodeAddr])
 
 buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (WithTag t Ident -> Function) -> ByTag t (Named Function) -> m (InlineScript t)
-buildInlineScript inliner lookupFun funs = runProblemBuilder $ do
+buildInlineScript inliner lookupFun funs = flip evalStateT initProblemBuilder $ do
     addEntrypoints funs
     doAnalysis
     let go = do
-            p <- lift $ extractProblem
+            p <- lift $ gets extractProblem
             addrsOpt <- lift $ lift $ inliner p
             for_ addrsOpt $ \addrs -> do
                 entries <- lift $ for addrs $ \addr -> inlineAtPoint lookupFun addr <* doAnalysis

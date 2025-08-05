@@ -7,9 +7,9 @@ module BV.Core.Stages.BuildProblem
     , buildProblem
     , doAnalysis
     , extractProblem
+    , initProblemBuilder
     , inline
     , inlineAtPoint
-    , runProblemBuilder
     ) where
 
 import BV.Core.GenerateFreshName
@@ -35,7 +35,7 @@ import Optics
 import Optics.State.Operators ((%=))
 
 buildProblem :: Tag t => (WithTag t Ident -> Function) -> InlineScript t -> ByTag t (Named Function) -> Problem t
-buildProblem lookupFun inlineScript funs = runIdentity . runProblemBuilder $ do
+buildProblem lookupFun inlineScript funs = runIdentity . flip evalStateT initProblemBuilder $ do
     addEntrypoints funs
     doAnalysis
     for_ inlineScript $ \entry -> do
@@ -44,7 +44,7 @@ buildProblem lookupFun inlineScript funs = runIdentity . runProblemBuilder $ do
         doAnalysis
     padMergePoints
     doAnalysis
-    extractProblem
+    gets extractProblem
 
 data ProblemBuilder t
   = ProblemBuilder
@@ -72,24 +72,17 @@ data NodeMeta t
 initProblemBuilder :: ProblemBuilder t
 initProblemBuilder = ProblemBuilder
     { sides = M.empty
-    , nodes = M.empty
+    , nodes = M.singleton 0 Nothing -- HACK graph_refine.problem starts at 1
     , nodeSources = M.empty
     , nodesBySource = M.empty
     , vars = S.empty
     }
 
-extractProblem :: (Tag t, Monad m) => StateT (ProblemBuilder t) m (Problem t)
-extractProblem = do
-    builder <- get
-    return $ Problem
-        { sides = byTagFromN (M.size builder.sides) (builder.sides M.!)
-        , nodes = M.mapMaybe (preview (_Just % #node)) builder.nodes
-        }
-
-runProblemBuilder :: (Tag t, Monad m) => StateT (ProblemBuilder t) m a -> m a
-runProblemBuilder m = flip evalStateT initProblemBuilder $ do
-    _ <- reserveNodeAddr -- HACK graph_refine.problem starts at 1
-    m
+extractProblem :: Tag t => ProblemBuilder t -> Problem t
+extractProblem builder = Problem
+    { sides = byTagFromN (M.size builder.sides) (builder.sides M.!)
+    , nodes = M.mapMaybe (preview (_Just % #node)) builder.nodes
+    }
 
 nodeAt :: NodeAddr -> Lens' (ProblemBuilder t) Node
 nodeAt nodeAddr = nodeWithMetaAt nodeAddr % #node
@@ -100,7 +93,7 @@ nodeWithMetaAt nodeAddr =
 
 reserveNodeAddr :: (Tag t, Monad m) => StateT (ProblemBuilder t) m NodeAddr
 reserveNodeAddr = do
-    addr <- gets $ maybe 0 ((+ 1) . fst) . M.lookupMax . (.nodes)
+    addr <- gets $ ((+ 1) . fst) . M.findMax . (.nodes)
     modify $ #nodes % at addr ?~ Nothing
     return addr
 
