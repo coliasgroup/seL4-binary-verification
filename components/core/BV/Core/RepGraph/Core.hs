@@ -71,7 +71,7 @@ import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe, isNothing)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -705,7 +705,8 @@ warmPcEnvCache visit = do
             prevs <- askPrevs curVisit
             let f prev = fmap isJust $ runMaybeT $ do
                     key <- askWithTag prev
-                    _ <- MaybeT $ liftRepGraph $ use $ #nodePcEnvs % at key
+                    present <- liftRepGraph $ use $ #nodePcEnvs % at key
+                    guard $ isNothing present
                     restrs <- MaybeT $ pruneRestrs prev
                     guard $ restrs == curVisit.restrs
             runExceptT (filterM f prevs) >>= \case
