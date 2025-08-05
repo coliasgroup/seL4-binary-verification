@@ -15,7 +15,7 @@ import BV.Search.Core.Solver
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad.State (StateT, execStateT, gets)
+import Control.Monad.State (StateT, execStateT, gets, get, modify)
 import qualified Data.Array as A
 import Data.Foldable (for_, toList)
 import qualified Data.Graph as G
@@ -25,6 +25,9 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
+import Control.Monad.Trans (lift)
+import Control.Monad (when)
+import BV.Core.Graph
 
 data DiscoverStackBoundsInput
   = DiscoverStackBoundsInput
@@ -42,6 +45,7 @@ discoverStackBounds
     -> DiscoverStackBoundsInput
     -> m StackBounds
 discoverStackBounds run input = do
+    logInfo ""
     let asmClosure = callClosure (input.functions . WithTag Asm) input.includeAsmFrom
     -- logInfo $ show ("asm closure", asmClosure ^.. folded % #unwrap)
     let cClosure = S.fromList $ input.pairings ^.. folded % filtered ((`S.member` asmClosure) . getAsm) % atTag C
@@ -99,9 +103,10 @@ getRecursionIdents runRepGraph functions =
         comp = S.map toVertex comp'
     computeRecursionIdents :: S.Set Ident -> m (M.Map Ident [Expr])
     computeRecursionIdents group = flip execStateT M.empty $ do
-        logInfo $ printf "Doing recursion analysis for function group: %s" $ show $ map (.unwrap) $ S.toList group
+        logInfo $ printf "Doing recursion analysis for function group:"
+        logInfo $ printf "  %s" $ show $ map (.unwrap) $ S.toList group
         for_ (S.toList (S.difference (prevs group) group)) $ \f -> do
-            logInfo $ printf "Checking idents for %s" f.unwrap
+            logInfo $ printf "  checking for for %s" f.unwrap
             whileM (addRecursionIdent runRepGraph functions f group) (return ())
 
 addRecursionIdent
@@ -114,29 +119,52 @@ addRecursionIdent
 addRecursionIdent runRepGraph functions f group = do
     let initState = (initProblemBuilder, [], [])
     flip execStateT initState $ do
+        let mostRecentTag = FunTag . length . (.sides) <$> zoom _1 (gets extractProblem)
         zoom _1 $ do
             addEntrypoint (WithTag (FunTag 0) (Named f (functions M.! f)))
             doAnalysis
         let go = do
                 p <- zoom _1 $ gets extractProblem
+                nodeTag <- zoom _1 $ gets extractNodeTag
+                idents <- lift get
+                assns <- zoom _3 get
+                tag <- mostRecentTag
+                resOpt <- lift $ lift $ findUnknownRecursion runRepGraph functions p group idents tag assns
+                for_ resOpt $ \res -> do
+                    fname <- zoom _1 $ use $ to extractProblem % #nodes % at res % unwrapped % expecting #_NodeCall % #functionName
+                    zoom _2 $ modify $ (++ [fname])
+                    len <- zoom _2 $ gets length
+                    let nextTag = FunTag len
+                    zoom _1 $ addEntrypoint $ WithTag nextTag $ Named fname $ functions M.! fname
+                    zoom _1 $ doAnalysis
+                    todo
                 todo
         go
     todo
+
+-- defaultVisit :: Tag t => Problem t -> NodeAddr -> Visit
+-- defaultVisit p n =
+--     todo
+--   where
+--     m = createLoopDataMap p
+--     h = loopHeadOf n m
 
 findUnknownRecursion
     :: forall m n. (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
     => (forall t a. Tag t => Problem t -> RepGraphBase t n a -> m a)
     -> M.Map Ident Function
+    -> Problem FunTag
     -> S.Set Ident
+    -> M.Map Ident [Expr]
     -> FunTag
     -> [Hyp FunTag]
-    -> m Bool
+    -> m (Maybe NodeAddr)
 findUnknownRecursion runRepGraph group idents tag assns = undefined
 
 --
 
 newtype FunTag
-  = FunTag Integer
+  = FunTag Int
   deriving (Enum, Eq, Generic, NFData, Ord, Show)
 
 instance Tag FunTag where
