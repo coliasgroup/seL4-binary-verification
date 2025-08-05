@@ -529,7 +529,7 @@ addInputEnvs = do
                         VarRepRequestKindInit
                         (Visit { nodeId = side.entryPoint, restrs = []})
                         env
-                    whenJust_ opt $ \splitMem -> modify $ M.insert arg (Split splitMem)
+                    for_ opt $ \splitMem -> modify $ M.insert arg (Split splitMem)
         env <- execStateT m M.empty
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
 

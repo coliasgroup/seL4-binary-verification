@@ -102,7 +102,7 @@ addFunc visit rawInputs rawOutputs success = do
     let outputs = M.fromList $ zip sig.output rawOutputs
     liftWithAddFunc $ #funcs %= M.insertWith (error "unexpected") visit (inputs, outputs, success)
     pairingIdOpt <- liftWithAddFunc $ gview $ #pairingsAccess % at name
-    whenJust_ pairingIdOpt $ \pairingId -> do
+    for_ pairingIdOpt $ \pairingId -> do
         group <- liftWithAddFunc $ use $ #funcsByName % to (fromMaybe [] . M.lookup pairingId)
         for_ group $ \visit2 -> do
             ok <- isJust <$> lift (getFuncPairing visit visit2)

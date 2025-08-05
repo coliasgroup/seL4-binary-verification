@@ -17,6 +17,7 @@ import BV.TargetDir
 import Control.DeepSeq (NFData, deepseq, force, rnf)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Foldable (for_)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
 import Data.Maybe (isJust)
@@ -79,15 +80,15 @@ evalStages ctx input = do
 
     register :: forall a c. (Eq a, NFData a, ReadBVFile c a, WriteBVFile c a) => (a -> a -> a) -> TargetDirFile a -> a -> m ()
     register f file actual = applyWhen ctx.forceAll (deepseq actual) $ do
-        whenJust_ ctx.dumpTargetDir $ \dumpTargetDir -> do
+        for_ ctx.dumpTargetDir $ \dumpTargetDir -> do
             logInfo $ "Dumping " ++ file.relativePath
             liftIO $ writeTargetDirFile dumpTargetDir file actual
-        whenJust_ ctx.referenceTargetDir $ \referenceTargetDir -> do
+        for_ ctx.referenceTargetDir $ \referenceTargetDir -> do
             expected <- liftIO $ readTargetDirFile referenceTargetDir file
             let actual' = f expected actual
             when (maybeForce actual' /= maybeForce expected) $ do
                 logError $ "Intermediate artifact mismatch for " ++ file.relativePath
-                whenJust_ ctx.mismatchDumpDir $ \mismatchDumpDir -> do
+                for_ ctx.mismatchDumpDir $ \mismatchDumpDir -> do
                     let d = mismatchDumpDir </> file.relativePath
                     logInfo $ "Writing mismatch to " ++ d
                     liftIO $ do
@@ -103,5 +104,3 @@ evalStages ctx input = do
     filterProblems expected actual = actual & #unwrap %~ M.filterWithKey (\k _v -> k `M.member` expected.unwrap)
 
     noop _expected actual = actual
-
-    whenJust_ m f = maybe (return ()) f m

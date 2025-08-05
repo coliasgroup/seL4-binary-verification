@@ -2,7 +2,6 @@ module BV.Core.Utils
     ( adjacently
     , optionals
     , whenJustThen
-    , whenJust_
     , whenNothing
     , whileM
     , zipWithTraversable
@@ -11,7 +10,6 @@ module BV.Core.Utils
 import Control.Monad (when)
 import Control.Monad.State (evalState, state)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT), hoistMaybe)
-import Data.Foldable (for_)
 import Data.Maybe (fromJust)
 import Optics
 
@@ -41,9 +39,6 @@ whileM cond body = go
 
 whenNothing :: Monad m => Maybe a -> m a -> m a
 whenNothing opt m = maybe m return opt
-
-whenJust_ :: Monad m => Maybe a -> (a -> m ()) -> m ()
-whenJust_ = for_
 
 whenJustThen :: Monad m => Maybe a -> (a -> m (Maybe b)) -> m (Maybe b)
 whenJustThen opt f = runMaybeT $ hoistMaybe opt >>= MaybeT . f
