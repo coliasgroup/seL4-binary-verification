@@ -6,7 +6,6 @@ module BV.Search.Core.StackBounds.All
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Utils.IncludeExcludeFilter
-
 import BV.Search.Core.StackBounds
 
 import Control.Monad (guard)

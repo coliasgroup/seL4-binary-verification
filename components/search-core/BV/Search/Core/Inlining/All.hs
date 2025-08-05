@@ -6,7 +6,6 @@ module BV.Search.Core.Inlining.All
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Utils.IncludeExcludeFilter
-
 import BV.Search.Core.Inlining
 
 import Control.Monad (guard)
