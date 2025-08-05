@@ -85,7 +85,7 @@ instance (Tag t, MonadRepGraphSolverSend m) => MonadRepGraph t (RepGraphBase t m
     runProblemVarRepHook _ _ _ = return Nothing
     runPostEmitNodeHook _ = return ()
     runPreEmitCallNodeHook _ _ _ = return ()
-    runPostEmitCallNodeHook _ _ _ _ = return ()
+    runPostEmitCallNodeHook _ = return ()
 
 runRepGraphBase :: (Tag t, MonadRepGraphSolverSend m) => RepGraphBaseInput t -> RepGraphBase t m a -> m a
 runRepGraphBase input m = runReaderT (evalStateT m'.run initState) env

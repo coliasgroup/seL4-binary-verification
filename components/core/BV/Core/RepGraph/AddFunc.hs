@@ -14,6 +14,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Utils (expecting, unwrapped)
 
+import Control.Monad (when)
 import Control.Monad.Reader (ReaderT (runReaderT))
 import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.Trans (MonadTrans, lift)
@@ -26,7 +27,6 @@ import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
-import Control.Monad (when)
 
 type FunctionSignatures t = WithTag t Ident -> FunctionSignature
 
@@ -50,8 +50,7 @@ data Env t
 
 data State t
   = State
-      { funcs :: M.Map (WithTag t Visit) (ExprEnv, ExprEnv, Expr)
-      , funcsByName :: M.Map (WithTag t Ident) [Visit]
+      { funcsByName :: M.Map (WithTag t Ident) [Visit]
       }
   deriving (Generic)
 
@@ -71,8 +70,7 @@ initEnv functionSigs pairings = Env
 
 initState :: State t
 initState = State
-    { funcs = M.empty
-    , funcsByName = M.empty
+    { funcsByName = M.empty
     }
 
 instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (WithAddFunc t m) where
@@ -91,44 +89,43 @@ instance (RefineTag t, MonadRepGraph t m) => MonadRepGraph t (WithAddFunc t m) w
 
 --
 
-addFunc :: RefineTag t => MonadRepGraph t m => Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> ForTag t (WithAddFunc t m) ()
-addFunc visit rawInputs rawOutputs success = do
+addFunc :: RefineTag t => MonadRepGraph t m => Visit -> ForTag t (WithAddFunc t m) ()
+addFunc visit = do
     tag <- askTag
-    visitWithTag <- askWithTag visit
-    name <- askFnName visit
-    functionSigs <- liftWithAddFunc $ gview #functionSigs
-    sig <- functionSigs <$> askWithTag name
-    let inputs = M.fromList $ zip sig.input rawInputs
-    let outputs = M.fromList $ zip sig.output rawOutputs
-    liftWithAddFunc $ #funcs %= M.insertWith (error "unexpected") visitWithTag (inputs, outputs, success)
+    name <- askFunName visit
     pairingIdOpt <- liftWithAddFunc $ gview $ #pairingsAccess % atTag tag % at name
     for_ pairingIdOpt $ \pairingId -> do
         group <- liftWithAddFunc $ use $ #funcsByName %
             to (M.findWithDefault [] (viewAtTag (otherTag tag) (withTags pairingId)))
         for_ group $ \otherVisit -> do
-            byTag <- mkFoo visit otherVisit
+            byTag <- orient visit otherVisit
             lift $ do
                 compat <- areCompatible byTag
                 when compat $ do
                     pairing <- WithAddFunc $ gview $ #pairings % #unwrap % at pairingId % unwrapped
-                    imp <- weakenAssert <$> getFuncAssert byTag pairing
+                    imp <- weakenAssert <$> getFuncAssert byTag pairingId pairing
                     withoutEnv $ assertFact imp
         liftWithAddFunc $ #funcsByName %= M.insertWith (flip (<>)) (viewAtTag tag (withTags pairingId)) [visit]
 
 areCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithAddFunc t m Bool
 areCompatible visits = do
-    calls <- for (withTags visits) $ \visit -> do
-        (in_, _, _) <- WithAddFunc $ use $ #funcs % at visit % unwrapped
-        scanMemCallsEnv in_
+    calls <- for (withTags visits) $ \(WithTag tag visit) -> do
+        (in_, _, _) <- runForTag tag $ getFuncRaw visit
+        scanMemCalls in_
     (compatible, _s) <- memCallsCompatible calls
     -- unless compatible $ do
     --     warn _s
     return compatible
 
-getFuncAssert :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> Pairing t -> WithAddFunc t m Expr
-getFuncAssert visits pairing = do
-    ((lin, lout, lsucc), (rin, rout, rsucc)) <- fmap viewByRefineTag $ for (withTags visits) $ \visit ->
-        WithAddFunc $ use $ #funcs % at visit % unwrapped
+getFuncAssert :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> PairingId t -> Pairing t -> WithAddFunc t m Expr
+getFuncAssert visits pairingId pairing = do
+    ((lin, lout, lsucc), (rin, rout, rsucc)) <- fmap viewByRefineTag $ for (withTags visits) $ \(WithTag tag visit) -> do
+        (rawIn, rawOut, succ_) <- runForTag tag $ getFuncRaw visit
+        sigs <- WithAddFunc $ gview #functionSigs
+        let sig = sigs $ viewWithTag tag pairingId
+        let in_ = M.fromList $ zip sig.input $ map snd rawIn
+        let out = M.fromList $ zip sig.output $ map snd rawOut
+        return (in_, out, succ_)
     (_lpc, rpc) <- fmap viewByRefineTag $ for (withTags visits) getPcWithTag
     let envs = \case
             PairingEqSideQuadrant t PairingEqDirectionIn | t == leftTag -> lin
@@ -173,13 +170,13 @@ memCallsCompatible byTag = case viewByRefineTag byTag of
 
 --
 
-mkFoo :: (RefineTag t, MonadRepGraphForTag t m) => a -> a -> m (ByTag t a)
-mkFoo x y = do
+orient :: (RefineTag t, MonadRepGraphForTag t m) => a -> a -> m (ByTag t a)
+orient x y = do
     tag <- askTag
     return $ byTagFrom $ \tag' -> if tag' == tag then x else y
 
-askFnName :: MonadRepGraph t m => Visit -> m Ident
-askFnName v = do
+askFunName :: MonadRepGraph t m => Visit -> m Ident
+askFunName v = do
     p <- askProblem
     return $ p ^. #nodes % at (nodeAddrFromNodeId v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
 

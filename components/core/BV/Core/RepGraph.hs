@@ -21,6 +21,7 @@ module BV.Core.RepGraph
     , askProblem
     , convertExprNoSplit
     , convertInnerExprWithPcEnv -- TODO
+    , getFunc
     , getInductVar
     , getNodePcEnv
     , getNodePcEnvWithTag

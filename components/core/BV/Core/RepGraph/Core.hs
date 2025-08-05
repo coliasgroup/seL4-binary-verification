@@ -26,6 +26,8 @@ module BV.Core.RepGraph.Core
     , askProblem
     , askWithTag
     , convertInnerExprWithPcEnv
+    , getFunc
+    , getFuncRaw
     , getInductVar
     , getNodePcEnv
     , getNodePcEnvWithTag
@@ -59,8 +61,7 @@ import Control.DeepSeq (NFData)
 import Control.Monad (filterM, guard, replicateM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
-import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, asks,
-                             mapReaderT)
+import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
 import Control.Monad.RWS (MonadState (get, put), MonadWriter (..), RWST,
                           evalRWST)
 import Control.Monad.State (StateT (runStateT), execStateT, modify)
@@ -68,6 +69,7 @@ import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, traverse_)
+import Data.Function (applyWhen)
 import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
@@ -94,7 +96,7 @@ class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
     runProblemVarRepHook :: NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe Expr)
     runPostEmitNodeHook :: Visit -> m ()
     runPreEmitCallNodeHook :: Visit -> Expr -> ExprEnv -> ForTag t m ()
-    runPostEmitCallNodeHook :: Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> ForTag t m ()
+    runPostEmitCallNodeHook :: Visit -> ForTag t m ()
 
     default liftRepGraph :: MonadRepGraphDefaultHelper t n m => StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
     liftRepGraph = liftMonadRepGraphDefaultHelper . liftRepGraph
@@ -108,8 +110,8 @@ class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
     default runPreEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> Expr -> ExprEnv -> ForTag t m ()
     runPreEmitCallNodeHook = compose3 (mapForTag liftMonadRepGraphDefaultHelper) runPreEmitCallNodeHook
 
-    default runPostEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> [MaybeSplit] -> [MaybeSplit] -> Expr -> ForTag t m ()
-    runPostEmitCallNodeHook = compose4 (mapForTag liftMonadRepGraphDefaultHelper) runPostEmitCallNodeHook
+    default runPostEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> ForTag t m ()
+    runPostEmitCallNodeHook = mapForTag liftMonadRepGraphDefaultHelper . runPostEmitCallNodeHook
 
 -- TODO
 -- instance (MonadTrans t, MonadRepGraph t m) => MonadRepGraphDefaultHelper m (t m) where
@@ -157,6 +159,7 @@ data RepGraphState t
       , contractions :: Map SExprWithPlaceholders MaybeSplit
       , extraProblemNames :: S.Set Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
+      , funcs :: M.Map (WithTag t Visit) ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
       }
   deriving (Eq, Generic, NFData)
 
@@ -188,6 +191,7 @@ initRepGraphState = RepGraphState
     , contractions = M.empty
     , extraProblemNames = S.empty
     , hasInnerLoop = M.empty
+    , funcs = M.empty
     }
 
 initRepGraph :: MonadRepGraph t m => m ()
@@ -267,13 +271,16 @@ withMapSlotForTag l k m = do
 askProblem :: MonadRepGraph t m => m (Problem t)
 askProblem = liftRepGraph $ gview $ #problem
 
+askNode :: MonadRepGraph t m => NodeAddr -> m Node
+askNode addr = liftRepGraph $ gview $ #problem % #nodes % at addr % unwrapped
+
 askNodeGraph :: MonadRepGraph t m => m NodeGraph
 askNodeGraph = liftRepGraph $ gview #nodeGraph
 
 askIsNonTriviallyReachableFrom :: MonadRepGraph t m => NodeAddr -> NodeId -> m Bool
 askIsNonTriviallyReachableFrom from to_ = do
     g <- liftRepGraph $ gview #nodeGraph
-    fromNode <- liftRepGraph $ gview $ #problem % #nodes % at from % unwrapped
+    fromNode <- askNode from
     return $ or [ isReachableFrom g fromCont to_ | fromCont <- fromNode ^.. nodeConts ]
 
 askLoopDataMap :: MonadRepGraphForTag t m => m LoopDataMap
@@ -305,7 +312,7 @@ askPrevs visit = do
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
     let nodeAddr = nodeAddrFromNodeId visit.nodeId
-    conts <- liftRepGraph $ asks $ toListOf $ #problem % #nodes % at nodeAddr % unwrapped % nodeConts
+    conts <- toListOf nodeConts <$> askNode nodeAddr
     let [cont] = conts
     let p = any (\restr -> restr.nodeAddr == nodeAddr) visit.restrs
     return $ Visit
@@ -444,7 +451,7 @@ addLoopMemCalls :: MonadRepGraphForTag t m => NodeAddr -> Maybe MemCalls -> m (M
 addLoopMemCalls split = traverse $ \memCalls -> do
     loopBody <- askLoopBody split
     fnames <- fmap (S.fromList . catMaybes) $ for (S.toAscList loopBody) $ \n -> do
-        node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+        node <- askNode n
         return $ case node of
             NodeCall callNode -> Just callNode.functionName
             _ -> Nothing
@@ -522,7 +529,7 @@ varRepRequest var kind visit env = runMaybeT $ do
 
 addInputEnvs :: MonadRepGraph t m => m ()
 addInputEnvs = do
-    p <- liftRepGraph $ gview #problem
+    p <- askProblem
     traverse_ f (withTags p.sides)
   where
     f (WithTag tag side) = runForTag tag $ do
@@ -592,8 +599,7 @@ getNodePcEnv visit = view (expecting _Right) <$> runExceptT (tryGetNodePcEnv vis
 
 tryGetNodePcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe PcEnv)
 tryGetNodePcEnv visit' = runMaybeT $ do
-    restrs <- MaybeT $ pruneRestrs visit'
-    let visit = visit' & #restrs .~ restrs
+    visit <- MaybeT $ pruneVisit visit'
     MaybeT $ withMapSlotForTag #nodePcEnvs visit $ do
         warmPcEnvCache visit
         getNodePcEnvRaw visit
@@ -667,8 +673,7 @@ getArcPcEnvs n visit2 = do
 
 getArcPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> Visit -> m (Maybe PcEnv)
 getArcPcEnv visit' otherVisit = runMaybeT $ do
-    restrs <- MaybeT $ pruneRestrs visit'
-    let visit = visit' & #restrs .~ restrs
+    visit <- MaybeT $ pruneVisit visit'
     key <- askWithTag visit
     opt <- liftRepGraph $ use $ #arcPcEnvs % at key
     case opt of
@@ -679,6 +684,11 @@ getArcPcEnv visit' otherVisit = runMaybeT $ do
             runPostEmitNodeHook visit
             liftRepGraph $ #arcPcEnvs %= M.insert key arcs
             hoistMaybe $ arcs !? otherVisit.nodeId
+
+pruneVisit :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe Visit)
+pruneVisit visit = do
+    restrsOpt <- pruneRestrs visit
+    return $ restrsOpt <&> \restrs -> visit & #restrs .~ restrs
 
 pruneRestrs :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe [Restr])
 pruneRestrs visit = do
@@ -708,8 +718,8 @@ warmPcEnvCache visit = do
                     key <- askWithTag prev
                     present <- liftRepGraph $ use $ #nodePcEnvs % at key
                     guard $ isNothing present
-                    restrs <- MaybeT $ pruneRestrs prev
-                    guard $ restrs == curVisit.restrs
+                    prunedRestrs <- MaybeT $ pruneRestrs prev
+                    guard $ prunedRestrs == curVisit.restrs
             runExceptT (filterM f prevs) >>= \case
                 Right (v:_) -> do
                     tell [v]
@@ -726,7 +736,7 @@ emitNode :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [(N
 emitNode visit = do
     pcEnv@(PcEnv pc env) <- fromJust <$> tryGetNodePcEnv visit
     let nodeAddr = nodeAddrFromNodeId visit.nodeId
-    node <- liftRepGraph $ gview $ #problem % #nodes % at nodeAddr % unwrapped
+    node <- askNode nodeAddr
     if pc == falseE
         then return [ (cont, PcEnv falseE M.empty) | cont <- node ^.. nodeConts ]
         else case node of
@@ -769,8 +779,10 @@ emitNode visit = do
                         for opt $ \v -> do
                             modify $ M.insert out (Split v)
                             return $ Split v
-                    return $ zipWith fromMaybe notSplit split
-                joinForTag $ runPostEmitCallNodeHook visit (map snd ins) outs success
+                    return $ zipWith (,) (map (.ty) callNode.output) $ zipWith fromMaybe notSplit split
+                key <- askWithTag visit
+                liftRepGraph $ #funcs %= M.insertWith (error "unexpected") key (ins, outs, success)
+                joinForTag $ runPostEmitCallNodeHook visit
                 return [(callNode.next, PcEnv pc env')]
 
 isSyntacticConstant :: MonadRepGraphForTag t m => NameTy -> NodeAddr -> m Bool
@@ -781,7 +793,7 @@ isSyntacticConstant var split = do
         else do
             loopSet <- askLoopBody split
             let go visit safe (name, n) = do
-                    node <- liftRepGraph $ gview $ #problem % #nodes % at n % unwrapped
+                    node <- askNode n
                     let newName = name
                     newName' <- case node of
                         NodeCall callNode ->
@@ -817,6 +829,40 @@ isSyntacticConstant var split = do
                                     else go v' safe' hd
                     f visit'
             view (expecting _Left) <$> runExceptT (go mempty (S.singleton (var.name, split)) (var.name, split))
+
+--
+
+getFuncRaw :: MonadRepGraphForTag t m => Visit -> m ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
+getFuncRaw visit = do
+    key <- askWithTag visit
+    liftRepGraph $ use $ #funcs % at key % unwrapped
+
+getFunc :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
+getFunc visit' = do
+    visit <- fromJust <$> pruneVisit visit'
+    node <- askNode (nodeAddrFromNodeId visit.nodeId)
+    ensureM $ is #_NodeCall node
+    key <- askWithTag visit
+    opt <- liftRepGraph $ use $ #funcs % at key
+    when (isNothing opt) $ do
+        cont <- getCont visit
+        getNodePcEnv cont
+        return ()
+    getFuncRaw visit
+
+getCont :: MonadRepGraph t m => Visit -> m Visit
+getCont visit = do
+    let addr = nodeAddrFromNodeId visit.nodeId
+    conts <- toListOf nodeConts <$> askNode addr
+    let [cont] = conts
+    let p = any (\restr -> restr.nodeAddr == addr) visit.restrs
+    let f = applyWhen p $ \restrs -> fromJust (incrVCs restrs (visit.nodeId ^. expecting #_Addr) 1)
+    return $ Visit
+        { nodeId = cont
+        , restrs = f visit.restrs
+        }
+
+-- TODO GraphSlice.is_cont
 
 --
 
