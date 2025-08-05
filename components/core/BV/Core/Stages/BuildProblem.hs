@@ -1,9 +1,15 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module BV.Core.Stages.BuildProblem
-    ( Inliner
-    , buildInlineScript
+    ( ProblemBuilder
+    , addEntrypoint
+    , addEntrypoints
     , buildProblem
+    , doAnalysis
+    , extractProblem
+    , inline
+    , inlineAtPoint
+    , runProblemBuilder
     ) where
 
 import BV.Core.GenerateFreshName
@@ -15,7 +21,7 @@ import BV.Utils (ensureM, expecting, expectingIx, unwrapped)
 
 import Control.Monad (forM, unless)
 import Control.Monad.Identity (runIdentity)
-import Control.Monad.State (State, StateT (runStateT), get, gets, modify, put)
+import Control.Monad.State (StateT, evalStateT, get, gets, modify, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Foldable (forM_, for_, toList)
@@ -24,46 +30,21 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe, isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
-import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 
 buildProblem :: Tag t => (WithTag t Ident -> Function) -> InlineScript t -> ByTag t (Named Function) -> Problem t
-buildProblem lookupFun inlineScript funs = runIdentity . runProblemBuilder_ $ do
+buildProblem lookupFun inlineScript funs = runIdentity . runProblemBuilder $ do
     addEntrypoints funs
-    forceSimpleLoopReturns
+    doAnalysis
     for_ inlineScript $ \entry -> do
-        inline lookupFun entry.nodeBySource
-        forceSimpleLoopReturns
+        entry' <- inline lookupFun entry.nodeBySource
+        ensureM $ entry' == entry
+        doAnalysis
     padMergePoints
-    forceSimpleLoopReturns
-
-type Inliner t m = Problem t -> m (Maybe [NodeAddr])
-
-buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (WithTag t Ident -> Function) -> ByTag t (Named Function) -> m (InlineScript t)
-buildInlineScript inliner lookupFun funs = fmap fst . runProblemBuilder $ do
-    addEntrypoints funs
-    forceSimpleLoopReturns
-    let go :: [InlineScriptEntry t] -> StateT (ProblemBuilder t) m [InlineScriptEntry t]
-        go acc = do
-            p <- gets extractProblem
-            lift (inliner p) >>= \case
-                Nothing -> return acc
-                Just addrs -> do
-                    entries <- for addrs $ \addr -> do
-                        nodeBySource <- use $
-                            #nodes % at addr % unwrapped % unwrapped % #meta % #bySource % unwrapped
-                        inlinedFunctionName <- use $
-                            #nodes % at addr % unwrapped % unwrapped % #node % expecting #_NodeCall % #functionName
-                        inline lookupFun nodeBySource
-                        forceSimpleLoopReturns
-                        return $ InlineScriptEntry
-                                { nodeBySource
-                                , inlinedFunctionName
-                                }
-                    go (acc ++ entries)
-    go []
+    doAnalysis
+    extractProblem
 
 data ProblemBuilder t
   = ProblemBuilder
@@ -97,21 +78,18 @@ initProblemBuilder = ProblemBuilder
     , vars = S.empty
     }
 
-extractProblem :: Tag t => ProblemBuilder t -> Problem t
-extractProblem builder = Problem
-    { sides = byTagFromN (M.size builder.sides) (builder.sides M.!)
-    , nodes = M.mapMaybe (preview (_Just % #node)) builder.nodes
-    }
+extractProblem :: (Tag t, Monad m) => StateT (ProblemBuilder t) m (Problem t)
+extractProblem = do
+    builder <- get
+    return $ Problem
+        { sides = byTagFromN (M.size builder.sides) (builder.sides M.!)
+        , nodes = M.mapMaybe (preview (_Just % #node)) builder.nodes
+        }
 
-runProblemBuilder :: (Tag t, Monad m) => StateT (ProblemBuilder t) m a -> m (a, Problem t)
-runProblemBuilder m = do
-    (a, builder) <- flip runStateT initProblemBuilder $ do
-        _ <- reserveNodeAddr -- HACK graph_refine.problem starts at 1
-        m
-    return (a, extractProblem builder)
-
-runProblemBuilder_  :: (Tag t, Monad m) => StateT (ProblemBuilder t) m () -> m (Problem t)
-runProblemBuilder_ m = snd <$> runProblemBuilder m
+runProblemBuilder :: (Tag t, Monad m) => StateT (ProblemBuilder t) m a -> m a
+runProblemBuilder m = flip evalStateT initProblemBuilder $ do
+    _ <- reserveNodeAddr -- HACK graph_refine.problem starts at 1
+    m
 
 nodeAt :: NodeAddr -> Lens' (ProblemBuilder t) Node
 nodeAt nodeAddr = nodeWithMetaAt nodeAddr % #node
@@ -211,21 +189,26 @@ addEntrypoints funs = for_ (withTags funs) $ \fun -> addEntrypoint fun
 
 --
 
-inline :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeBySource t -> StateT (ProblemBuilder t) m ()
+inline :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeBySource t -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
 inline lookupFun nodeBySource = do
-    let tag = nodeBySource.nodeSource.tag
     nodeAddr <- use $
         #nodesBySource % at nodeBySource.nodeSource % unwrapped
             % expectingIx nodeBySource.indexInProblem
-    funName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
-    inlineAtPoint nodeAddr (lookupFun (WithTag tag funName))
+    inlineInner lookupFun nodeAddr nodeBySource
 
 inlineAtPoint
-    :: (Tag t, Monad m) => NodeAddr -> Function -> StateT (ProblemBuilder t) m ()
-inlineAtPoint nodeAddr fun = do
-    nodeWithMeta <- use $ nodeWithMetaAt nodeAddr
-    let tag = nodeWithMeta ^. #meta % #bySource % unwrapped % #nodeSource % #tag
-    let NodeCall callNode = nodeWithMeta.node
+    :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
+inlineAtPoint lookupFun nodeAddr = do
+    nodeBySource <- use $
+        #nodes % at nodeAddr % unwrapped % unwrapped % #meta % #bySource % unwrapped
+    inlineInner lookupFun nodeAddr nodeBySource
+
+inlineInner
+    :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeAddr -> NodeBySource t -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
+inlineInner lookupFun nodeAddr nodeBySource = do
+    callNode <- use $ nodeAt nodeAddr % expecting #_NodeCall
+    let tag = nodeBySource.nodeSource.tag
+    let fun = lookupFun (WithTag tag callNode.functionName)
     exitNodeAddr <- reserveNodeAddr
     renames <- addFunction (WithTag tag (Named callNode.functionName fun)) (Addr exitNodeAddr)
     let entryNodeAddr = renames.nodeAddr ! (fun ^. #body % unwrapped % #entryPoint % expecting #_Addr)
@@ -257,8 +240,15 @@ inlineAtPoint nodeAddr fun = do
                 ]
             }
     insertNode exitNodeAddr exitNode Nothing
+    return $ InlineScriptEntry
+        { nodeBySource
+        , inlinedFunctionName = callNode.functionName
+        }
 
 --
+
+doAnalysis :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
+doAnalysis = forceSimpleLoopReturns
 
 forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 forceSimpleLoopReturns = do
@@ -281,7 +271,7 @@ forceSimpleLoopReturns = do
                     then Addr simpleRetNodeAddr
                     else cont
 
-padMergePoints :: Tag t => State (ProblemBuilder t) ()
+padMergePoints :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 padMergePoints = do
     preds <- gets computePreds
     let mergePreds = M.filter (\nodePreds -> S.size nodePreds > 1) preds

@@ -24,6 +24,7 @@ import Data.List (sortOn)
 import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Set as S
+import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 
@@ -64,6 +65,22 @@ discoverInlineScript run input =
                 , rodata = input.rodata
                 , problem
                 }))
+
+type Inliner t m = Problem t -> m (Maybe [NodeAddr])
+
+buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (WithTag t Ident -> Function) -> ByTag t (Named Function) -> m (InlineScript t)
+buildInlineScript inliner lookupFun funs = runProblemBuilder $ do
+    addEntrypoints funs
+    doAnalysis
+    let go :: [InlineScriptEntry t] -> StateT (ProblemBuilder t) m [InlineScriptEntry t]
+        go acc = do
+            p <- extractProblem
+            lift (inliner p) >>= \case
+                Nothing -> return acc
+                Just addrs -> do
+                    entries <- for addrs $ \addr -> inlineAtPoint lookupFun addr <* doAnalysis
+                    go (acc ++ entries)
+    go []
 
 composeInliners :: Monad m => Inliner t (StateT [Inliner t m] m)
 composeInliners problem = go
