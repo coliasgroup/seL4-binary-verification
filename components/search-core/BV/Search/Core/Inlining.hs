@@ -20,6 +20,7 @@ import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, get, put)
 import Control.Monad.Trans (lift)
 import Data.Foldable (for_, toList)
+import Data.List (sortOn)
 import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -98,7 +99,14 @@ nextReachableUnmatchedCInlinePointInner = runForTag C $ do
     heads <- loopHeadsIncludingInner p.nodes <$> askLoopDataMap
     let limits = [ Restr n (doubleRangeVC 3 3) | n <- heads ]
     let reachable = reachableFrom g ((getC p.sides).entryPoint)
-    for_ reachable $ \n -> runExceptT $ tryGetNodePcEnv $ Visit n limits
+    for_ (sortOn compatKey reachable) $ \n -> runExceptT $ tryGetNodePcEnv $ Visit n limits
+  where
+    -- HACK match graph-refine
+    compatKey :: NodeId -> (Int, Maybe NodeAddr)
+    compatKey = \case
+        Addr n -> (0, Just n)
+        Ret -> (1, Nothing)
+        Err -> (2, Nothing)
 
 type InlineMInner m = ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT InlinerInput m))
 
