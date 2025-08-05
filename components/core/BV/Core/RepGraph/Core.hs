@@ -55,7 +55,7 @@ import BV.Utils
 
 import BV.Core.Structs (MonadStructs)
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, replicateM, when, guard)
+import Control.Monad (filterM, guard, replicateM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, asks,
@@ -71,7 +71,7 @@ import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe, isJust)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S

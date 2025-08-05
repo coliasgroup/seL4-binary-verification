@@ -490,7 +490,6 @@ data PcEnv
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
--- TODO move to RepGraph
 mergeEnvsPcs :: MonadRepGraphSolver m => [PcEnv] -> m (PcEnv, Bool)
 mergeEnvsPcs unfilteredPcEnvs = do
     let pcEnvs = filter (\pcEnv -> pcEnv.pc /= falseE) unfilteredPcEnvs
@@ -512,7 +511,6 @@ foldAssocBalanced f = go
                 else
                     foldr1 f xs
 
--- TODO move to RepGraph
 mergeEnvs :: MonadRepGraphSolver m => [PcEnv] -> m ExprEnv
 mergeEnvs envs = do
     varEnvs <-
@@ -533,13 +531,11 @@ mergeEnvs envs = do
         [x] -> x
         xs -> orNS xs
 
--- TODO move to RepGraph
 data CompatSMTComparisonKey
   = SMTComparisonKeySMT String
   | SMTComparisonKeySplitMem String String String
   deriving (Eq, Generic, Ord, Show)
 
--- TODO move to RepGraph
 compatSMTComparisonKey :: MaybeSplit -> CompatSMTComparisonKey
 compatSMTComparisonKey = \case
     NotSplit s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
