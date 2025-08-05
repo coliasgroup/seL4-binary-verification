@@ -47,13 +47,13 @@ import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Graph
 import BV.Core.Logic
 import BV.Core.RepGraph.Solver
+import BV.Core.Structs (MonadStructs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
-import BV.Core.Structs (MonadStructs)
 import Control.DeepSeq (NFData)
 import Control.Monad (filterM, guard, replicateM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
@@ -71,7 +71,7 @@ import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe, isNothing)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
