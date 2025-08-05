@@ -725,7 +725,7 @@ emitNode visit = do
     pcEnv@(PcEnv pc env) <- fromJust <$> tryGetNodePcEnv visit
     let nodeAddr = nodeAddrFromNodeId visit.nodeId
     node <- liftRepGraph $ gview $ #problem % #nodes % at nodeAddr % unwrapped
-    if pcEnv.pc == falseE
+    if pc == falseE
         then return [ (cont, PcEnv falseE M.empty) | cont <- node ^.. nodeConts ]
         else case node of
             NodeCond condNode | condNode.left == condNode.right -> do
@@ -741,37 +741,33 @@ emitNode visit = do
                             let name = localName update.var.name visit
                             withEnv env $ addLocalDef () () name update.val
                     return (update.var, val)
-                let env' = M.union (M.fromList updates) env
-                return [(basicNode.next, PcEnv pc env')]
+                return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
-                let name = condName visit
-                freshName <- getFreshIdent name
+                let nameHint = condName visit
+                freshName <- getFreshIdent nameHint
                 let cond = varE boolT freshName
-                def <- withEnv env $ addLocalDef () () name condNode.expr
-                let env' = M.insert (NameTy freshName boolT) def env
+                def <- withEnv env $ addLocalDef () () nameHint condNode.expr
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
+                let env' = M.insert (NameTy freshName boolT) def env
                 return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
                 joinForTag $ runPreEmitCallNodeHook visit pc env
-                let name = successName callNode.functionName visit
-                success <- smtExprE boolT . NotSplit . nameS <$> addVar name boolT
-                ins <- for callNode.input $ \arg -> do
-                    v <- withEnv env $ convertExpr arg
-                    return (arg.ty, v)
+                let nameHint = successName callNode.functionName visit
+                success <- smtExprE boolT . NotSplit . nameS <$> addVar nameHint boolT
+                ins <- for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr arg)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
-                let m = do
-                        notSplit <- for callNode.output $ \out -> do
-                            var <- addVarRestrWithMemCalls (localName out.name visit) out.ty memCalls
-                            modify $ M.insert out (NotSplit (nameS var))
-                            return $ NotSplit (nameS var)
-                        split <- for callNode.output $ \out -> do
-                            opt <- get >>= varRepRequest out VarRepRequestKindCall visit
-                            for opt $ \v -> do
-                                modify $ M.insert out (Split v)
-                                return $ Split v
-                        return $ zipWith fromMaybe notSplit split
-                (outs, env') <- runStateT m env
+                (outs, env') <- flip runStateT env $ do
+                    notSplit <- for callNode.output $ \out -> do
+                        var <- addVarRestrWithMemCalls (localName out.name visit) out.ty memCalls
+                        modify $ M.insert out (NotSplit (nameS var))
+                        return $ NotSplit (nameS var)
+                    split <- for callNode.output $ \out -> do
+                        opt <- get >>= varRepRequest out VarRepRequestKindCall visit
+                        for opt $ \v -> do
+                            modify $ M.insert out (Split v)
+                            return $ Split v
+                    return $ zipWith fromMaybe notSplit split
                 joinForTag $ runPostEmitCallNodeHook visit (map snd ins) outs success
                 return [(callNode.next, PcEnv pc env')]
 
@@ -796,12 +792,9 @@ isSyntacticConstant var split = do
                                     | u <- basicNode.varUpdates
                                     , u.var == NameTy name var.ty
                                     ]
-                            let updateExprsOpt = for updateExprs $ \v -> case v.value of
-                                    ExprValueVar i -> Just i
-                                    _ -> Nothing
-                            case updateExprsOpt of
+                            case traverse (preview (#value % #_ExprValueVar)) updateExprs of
                                 Nothing -> throwError False
-                                Just updateExprs' -> case updateExprs' of
+                                Just updateExprIdents -> case updateExprIdents of
                                     name':_ -> return name'
                                     _ -> return newName
                         _ -> return newName
@@ -816,13 +809,12 @@ isSyntacticConstant var split = do
                             Nothing -> throwError True
                             Just (v', hd) -> do
                                 if hd `S.member` safe'
-                                    then f v'
-                                    else if snd hd == split
-                                        then throwError False
-                                        else go v' safe' hd
+                                then f v'
+                                else if snd hd == split
+                                    then throwError False
+                                    else go v' safe' hd
                     f visit'
-            runExceptT (go mempty (S.singleton (var.name, split)) (var.name, split)) >>= \case
-                Left r -> return r
+            view (expecting _Left) <$> runExceptT (go mempty (S.singleton (var.name, split)) (var.name, split))
 
 --
 
