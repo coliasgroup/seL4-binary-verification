@@ -52,7 +52,6 @@ data Context t
       { pairing :: Pairing t
       , problem :: Problem t
       , argRenames :: ArgRenames t
-      , nodeTag :: NodeAddr -> t
       , loopData :: ByTag t LoopDataMap
       , nodeGraph :: NodeGraph
       }
@@ -64,7 +63,6 @@ initContext argRenames pairing problem = Context
     , problem
     , argRenames
     , nodeGraph
-    , nodeTag = (M.!) (nodeTagMap problem nodeGraph)
     , loopData = createLoopDataMap problem nodeGraph
     }
   where
