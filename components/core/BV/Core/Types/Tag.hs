@@ -1,5 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module BV.Core.Types.Tag
     ( ByTag
@@ -12,6 +13,7 @@ module BV.Core.Types.Tag
     , byRefineTag
     , byTagFrom
     , byTagFromList
+    , byTagFromListUnchecked
     , getLeft
     , getRight
     , leftTag
@@ -24,7 +26,7 @@ module BV.Core.Types.Tag
     , withTags
     ) where
 
-import BV.Utils (expectingIx)
+import BV.Utils (ensure, expectingIx)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
@@ -34,7 +36,7 @@ import Data.Proxy (Proxy (Proxy))
 import qualified Data.Vector as V
 import Data.Vector.Binary ()
 import GHC.Generics (Generic)
-import GHC.IsList (IsList, fromList)
+import qualified GHC.IsList as IsList
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import Optics
 
@@ -79,12 +81,17 @@ withTag f (WithTag tag value) = f tag value
 newtype ByTag t a
   = ByTag { unwrap :: V.Vector a }
   deriving (Eq, Foldable, Functor, Generic, Ord, Traversable)
-  deriving newtype (IsList, NFData)
+  deriving newtype (NFData)
 
 instance (Tag t, Show a) => Show (ByTag t a) where
     show byTag = show $ toList $ withTag (,) <$> withTags byTag
 
 instance Binary a => Binary (ByTag t a) where
+
+instance StaticTag t => IsList.IsList (ByTag t a) where
+    type Item (ByTag t a) = a
+    fromList = byTagFromList
+    toList (ByTag v) = V.toList v
 
 instance StaticTag t => Applicative (ByTag t) where
     pure = ByTag . V.replicate (numTagValues (Proxy :: Proxy t))
@@ -111,15 +118,20 @@ viewWithTag tag = viewAtTag tag . withTags
 byTagFrom :: StaticTag t => (t -> a) -> ByTag t a
 byTagFrom f = withTag (&) <$> withTags (pure f)
 
-byTagFromList :: Tag t => [a] -> ByTag t a
-byTagFromList = fromList
+byTagFromList :: forall t a. StaticTag t => [a] -> ByTag t a
+byTagFromList xs = ensure (V.length v == numTagValues (Proxy :: Proxy t)) $ ByTag v
+  where
+    v = V.fromList xs
+
+byTagFromListUnchecked :: Tag t => [a] -> ByTag t a
+byTagFromListUnchecked = ByTag . V.fromList
 
 --
 
 class StaticTag t => RefineTag t where
 
 byRefineTag :: RefineTag t => a -> a -> ByTag t a
-byRefineTag left right = byTagFromList [left, right]
+byRefineTag left right = IsList.fromList [left, right]
 
 leftTag :: RefineTag t => t
 leftTag = minBound
