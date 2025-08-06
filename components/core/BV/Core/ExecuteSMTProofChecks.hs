@@ -16,11 +16,10 @@ import BV.Core.Types.Extras
 import BV.SMTLIB2
 import BV.SMTLIB2.Command
 
-import Control.Monad (forM_)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Except (runExceptT, throwError)
 import Data.Binary (Binary)
-import Data.Foldable (traverse_)
+import Data.Foldable (for_, traverse_)
 import Data.Function (applyWhen)
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
@@ -82,7 +81,7 @@ executeSMTProofCheckGroupOnline timeout config group = do
     commonSolverSetup config
     traverse_ (sendExpectingSuccess . configureSExpr config) group.setup
     runExceptT $ do
-        forM_ (zip [0..] group.imps) $ \(i, imp) -> do
+        for_ (zip [0..] group.imps) $ \(i, imp) -> do
             let hyps = splitHyp (notS imp.term)
             sendSimpleCommandExpectingSuccess $ Push 1
             traverse_ sendAssert hyps

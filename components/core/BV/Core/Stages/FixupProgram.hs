@@ -5,9 +5,8 @@ module BV.Core.Stages.FixupProgram
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Control.Monad (forM_)
 import Control.Monad.State (State, execState, gets, modify)
-import Data.Foldable (find)
+import Data.Foldable (find, for_)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
@@ -33,7 +32,7 @@ ensureClosed = do
     allContAddrs <- gets $ S.fromList . toListOf (#nodes % traversed % nodeConts % #_Addr)
     liveAddrs <- use $ #nodes % to M.keysSet
     let deadAddrs = allContAddrs `S.difference` liveAddrs
-    forM_ deadAddrs $ \deadAddr -> do
+    for_ deadAddrs $ \deadAddr -> do
         modify $ #nodes % at deadAddr ?~ trivialNode Err
 
 -- implementation matches graph_refine.syntax.fresh_node

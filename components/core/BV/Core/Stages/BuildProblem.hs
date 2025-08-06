@@ -19,16 +19,17 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Utils (ensureM, expecting, expectingIx, unwrapped)
 
-import Control.Monad (forM, unless)
+import Control.Monad (unless)
 import Control.Monad.Identity (runIdentity)
 import Control.Monad.State (StateT, evalStateT, get, gets, modify, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
-import Data.Foldable (forM_, for_)
+import Data.Foldable (for_)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe, isJust)
 import qualified Data.Set as S
+import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
@@ -145,9 +146,9 @@ addFunction
     :: (Tag t, Monad m) => WithTag t (Named Function) -> NodeId -> StateT (ProblemBuilder t) m AddFunctionRenames
 addFunction (WithTag tag (Named funName fun)) retTarget = do
     varRenames <- M.fromList <$>
-        forM (S.toAscList origVars) (\name -> (name,) <$> getFreshName name)
+        for (S.toAscList origVars) (\name -> (name,) <$> getFreshName name)
     nodeAddrRenames <- M.fromList <$>
-        forM (S.toAscList origNodeAddrs) (\addr -> (addr,) <$> reserveNodeAddr)
+        for (S.toAscList origNodeAddrs) (\addr -> (addr,) <$> reserveNodeAddr)
     let renames = AddFunctionRenames
             { var = varRenames
             , nodeAddr = nodeAddrRenames
@@ -157,7 +158,7 @@ addFunction (WithTag tag (Named funName fun)) retTarget = do
             Err -> Err
             Addr addr -> Addr (renames.nodeAddr ! addr)
         adaptNode = (varNamesOf %~ (renames.var !)) . (nodeConts %~ adaptNodeId)
-    forM_ origNodeAddrs $ \origAddr ->
+    for_ origNodeAddrs $ \origAddr ->
         let newNodeAddr = renames.nodeAddr ! origAddr
             newNode = adaptNode (funBody.nodes ! origAddr)
             nodeSource = NodeSource funName origAddr
@@ -261,7 +262,7 @@ forceSimpleLoopReturns = do
         let alreadySimple = [ isNodeNoop (problem.nodes ! ret) | ret <- rets ] == [True]
         unless alreadySimple $ do
             simpleRetNodeAddr <- appendNode (trivialNode (Addr loop.head)) tag Nothing
-            forM_ rets $ \ret -> modifying (nodeAt ret % nodeConts) $ \cont ->
+            for_ rets $ \ret -> modifying (nodeAt ret % nodeConts) $ \cont ->
                 if cont == Addr loop.head
                 then Addr simpleRetNodeAddr
                 else cont
@@ -275,13 +276,13 @@ padMergePoints = do
                 (M.fromSet
                     (\n -> viewAtTag (analysis.nodeTag n) analysis.preds (Addr n))
                     (M.keysSet problem.nodes))
-    nonTrivialEdgesToMergePoints <- fmap concat . forM (M.toAscList mergePreds) $ \(nodeAddr, nodePreds) -> do
-        fmap concat . forM (S.toAscList nodePreds) $ \predNodeAddr -> do
+    nonTrivialEdgesToMergePoints <- fmap concat . for (M.toAscList mergePreds) $ \(nodeAddr, nodePreds) -> do
+        fmap concat . for (S.toAscList nodePreds) $ \predNodeAddr -> do
             predNode <- use $ nodeAt predNodeAddr
             return $ case predNode of
                 NodeBasic (BasicNode { varUpdates = [] }) -> []
                 _ -> [(predNodeAddr, nodeAddr)]
-    forM_ nonTrivialEdgesToMergePoints $ \(predNodeAddr, nodeAddr) -> do
+    for_ nonTrivialEdgesToMergePoints $ \(predNodeAddr, nodeAddr) -> do
         let paddingNode = NodeBasic $ BasicNode
                 { next = Addr nodeAddr
                 , varUpdates = []

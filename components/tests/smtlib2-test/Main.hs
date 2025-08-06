@@ -13,10 +13,10 @@ import qualified BV.SMTLIB2.SExpr.Parse.Megaparsec as SM
 import BV.TargetDir
 import BV.Test.Utils
 
-import Control.Monad (forM_)
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Attoparsec.Text.Lazy as A
+import Data.Foldable (for_)
 import Data.Maybe (fromJust)
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
@@ -83,9 +83,9 @@ parsersAgree src s = do
 solverAgrees :: FilePath -> [SExpr] -> [SExpr] -> IO ()
 solverAgrees inPath sexprsIn sexprsOut = do
     r <- runSolverSimple $ do
-            forM_ sexprsIn $ \sexprIn -> do
+            for_ sexprsIn $ \sexprIn -> do
                 sendSExpr sexprIn
-            forM_ sexprsOut $ \sexprOut -> do
+            for_ sexprsOut $ \sexprOut -> do
                 sexprOut' <- recvSExpr
                 liftIO $ assertEqual inPath sexprOut sexprOut'
     case r of
@@ -100,14 +100,14 @@ chosenPairs = map (_2 % traversed %~ (fromJust . checkSExpr))
     ]
 
 testChosenPairs :: IO ()
-testChosenPairs = forM_ chosenPairs $ \(s, ex) -> do
+testChosenPairs = for_ chosenPairs $ \(s, ex) -> do
     ex' <- parsersAndBuildersAgree "" s
     assertEqual "" ex ex'
 
 testTracePairs :: CustomOpts -> IO ()
 testTracePairs opts = do
     pairs <- configTestPairs opts
-    forM_ pairs $ \(inPath, outPath) -> do
+    for_ pairs $ \(inPath, outPath) -> do
         -- putStrLn $ "checking " ++ inPath
         sexprsIn <- parsersAndBuildersAgreePath inPath
         sexprsOut <- parsersAndBuildersAgreePath outPath
