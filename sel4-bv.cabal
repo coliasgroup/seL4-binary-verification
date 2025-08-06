@@ -280,8 +280,6 @@ library search-system-core
   visibility: public
   exposed-modules:
       BV.Search.System.Core
-  other-modules:
-      BV.System.Search.Core
   hs-source-dirs:
       components/search/search-system-core
   default-extensions:
