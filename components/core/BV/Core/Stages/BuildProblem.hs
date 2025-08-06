@@ -282,10 +282,9 @@ doAnalysis = do
 forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 forceSimpleLoopReturns = do
     cacheAnalysis
-    ProblemWithAnalysis _ analysis <- getProblemWithAnalysis
-    for_ (loopHeadsOf analysis.loopData) $ \loopHead -> do
+    ProblemWithAnalysis problem analysis <- getProblemWithAnalysis
+    for_ (loopHeadsFrom analysis.nodeGraph (toListOf (#sides % folded % #entryPoint) problem)) $ \(loopHead, loopBody) -> do
         let tag = analysis.nodeTag loopHead
-        let loopBody = loopBodyOf loopHead analysis.loopData
         let rets = S.toList $ S.filter (`S.member` loopBody) (viewAtTag tag analysis.preds (Addr loopHead))
         retsIsSimple <- do
             case rets of
