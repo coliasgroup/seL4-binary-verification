@@ -245,7 +245,7 @@ library search-core
       BV.Search.Core.StackBounds
       BV.Search.Core.StackBounds.All
   hs-source-dirs:
-      components/search-core
+      components/search/search-core
   default-extensions:
       FunctionalDependencies
       DuplicateRecordFields
@@ -283,7 +283,7 @@ library search-system-core
   other-modules:
       BV.System.Search.Core
   hs-source-dirs:
-      components/search-system-core
+      components/search/search-system-core
   default-extensions:
       FunctionalDependencies
       DuplicateRecordFields

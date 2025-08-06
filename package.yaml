@@ -206,7 +206,7 @@ internal-libraries:
 
   search-core:
     visibility: public
-    source-dirs: components/search-core
+    source-dirs: components/search/search-core
     exposed-modules:
       - BV.Search.Core
       - BV.Search.Core.Solver
@@ -218,7 +218,7 @@ internal-libraries:
 
   search-system-core:
     visibility: public
-    source-dirs: components/search-system-core
+    source-dirs: components/search/search-system-core
     exposed-modules:
       - BV.Search.System.Core
     dependencies:
