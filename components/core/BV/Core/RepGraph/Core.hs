@@ -274,14 +274,16 @@ askIsNonTriviallyReachableFrom from to_ = do
     return $ or [ isReachableFrom g fromCont to_ | fromCont <- fromNode ^.. nodeConts ]
 
 askLoopData :: MonadRepGraphForTag t m => m LoopData
-askLoopData = do
-    liftRepGraph $ gview $ #analysis % #loopData
+askLoopData = liftRepGraph $ gview $ #analysis % #loopData
 
 askLoopHead :: MonadRepGraphForTag t  m => NodeAddr -> m (Maybe NodeAddr)
 askLoopHead n = loopHeadOf n <$> askLoopData
 
 askLoopBody :: MonadRepGraphForTag t m => NodeAddr -> m (S.Set NodeAddr)
 askLoopBody n = loopBodyOf n <$> askLoopData
+
+askLoopContaining :: MonadRepGraphForTag t m => NodeAddr -> m Loop
+askLoopContaining n = fromJust . flip loopContainingOf n <$> askLoopData
 
 askPreds :: MonadRepGraphForTag t m => NodeId -> m (Set NodeAddr)
 askPreds n = do
@@ -321,8 +323,8 @@ incrVCs vcount n incr =
 getHasInnerLoop :: MonadRepGraphForTag t m => NodeAddr -> m Bool
 getHasInnerLoop loopHead = withMapSlotForTag #hasInnerLoop loopHead $ do
     p <- liftRepGraph $ gview #problem
-    loopBody <- askLoopBody loopHead
-    return $ not $ null $ innerLoopsOf p.nodes $ Loop loopHead loopBody
+    loop <- askLoopContaining loopHead
+    return $ not $ null $ innerLoopsOf p.nodes loop
 
 getFreshIdent :: MonadRepGraph t m => NameHint -> m Ident
 getFreshIdent nameHint = do

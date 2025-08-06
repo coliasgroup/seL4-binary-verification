@@ -14,6 +14,7 @@ module BV.Core.Types.Extras.Problem
     , innerLoopsOf
     , isReachableFrom
     , loopBodyOf
+    , loopContainingOf
     , loopHeadOf
     , loopHeadsOf
     , loopsFrom
