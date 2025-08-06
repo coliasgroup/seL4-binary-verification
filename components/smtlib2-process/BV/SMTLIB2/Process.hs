@@ -103,7 +103,7 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
         let sexprToChunks sexpr = map T.encodeUtf8 (TL.toChunks (TB.toLazyText (buildSExpr sexpr <> "\n")))
 
         let sink sexpr = runConduit $
-                (mapM_ (yield . Chunk) (sexprToChunks sexpr) >> yield Flush)
+                (traverse (yield . Chunk) (sexprToChunks sexpr) >> yield Flush)
                 .| procStdin
 
         let source = runConduit $
