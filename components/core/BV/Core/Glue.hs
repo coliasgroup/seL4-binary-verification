@@ -156,7 +156,8 @@ stages input = StagesOutput
 
     provenProblems = problems & #unwrap %~ (`M.restrictKeys` M.keysSet input.proofs.unwrap)
 
-    lookupOrigVarNameFor = argRenamesOf lookupFunction
+    lookupOrigVarNameFor problem = argRenamesOf problem $
+        signatureOfFunction . lookupFunction <$> withTags (pairingIdOfProblem problem)
 
     -- TODO (see above)
     -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
