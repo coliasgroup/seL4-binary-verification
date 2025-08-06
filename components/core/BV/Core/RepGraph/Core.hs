@@ -142,10 +142,7 @@ instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (ForTag t m) where
 data RepGraphEnv t
   = RepGraphEnv
       { problem :: Problem t
-      , problemNames :: S.Set Ident
-      , nodeGraph :: NodeGraph
-      , loopData :: LoopDataMap
-      , preds :: ByTag t (Map NodeId (Set NodeAddr))
+      , analysis :: ProblemAnalysis t
       }
   deriving (Generic)
 
@@ -170,16 +167,10 @@ data TooGeneral
   deriving (Eq, Generic, Ord, Show)
 
 initRepGraphEnv :: Tag t => Problem t -> RepGraphEnv t
-initRepGraphEnv problem =
-    RepGraphEnv
-        { problem
-        , problemNames = S.fromList $ toListOf varNamesOfProblem problem
-        , nodeGraph
-        , loopData = createLoopDataMap problem nodeGraph
-        , preds = computePreds problem nodeGraph
-        }
-  where
-    nodeGraph = makeNodeGraph problem.nodes
+initRepGraphEnv problem = RepGraphEnv
+    { problem
+    , analysis = analyzeProblem problem
+    }
 
 initRepGraphState :: RepGraphState t
 initRepGraphState = RepGraphState
@@ -275,17 +266,17 @@ askNode :: MonadRepGraph t m => NodeAddr -> m Node
 askNode addr = liftRepGraph $ gview $ #problem % #nodes % at addr % unwrapped
 
 askNodeGraph :: MonadRepGraph t m => m NodeGraph
-askNodeGraph = liftRepGraph $ gview #nodeGraph
+askNodeGraph = liftRepGraph $ gview $ #analysis % #nodeGraph
 
 askIsNonTriviallyReachableFrom :: MonadRepGraph t m => NodeAddr -> NodeId -> m Bool
 askIsNonTriviallyReachableFrom from to_ = do
-    g <- liftRepGraph $ gview #nodeGraph
+    g <- liftRepGraph $ gview $ #analysis % #nodeGraph
     fromNode <- askNode from
     return $ or [ isReachableFrom g fromCont to_ | fromCont <- fromNode ^.. nodeConts ]
 
 askLoopDataMap :: MonadRepGraphForTag t m => m LoopDataMap
 askLoopDataMap = do
-    liftRepGraph $ gview $ #loopData
+    liftRepGraph $ gview $ #analysis % #loopData
 
 askLoopHead :: MonadRepGraphForTag t  m => NodeAddr -> m (Maybe NodeAddr)
 askLoopHead n = loopHeadOf n <$> askLoopDataMap
@@ -296,7 +287,7 @@ askLoopBody n = loopBodyOf n <$> askLoopDataMap
 askPreds :: MonadRepGraphForTag t m => NodeId -> m (Set NodeAddr)
 askPreds n = do
     tag <- askTag
-    liftRepGraph $ gview $ #preds % atTag tag % at n % unwrapped
+    liftRepGraph $ gview $ #analysis % #preds % atTag tag % to ($ n)
 
 askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
 askPrevs visit = do
@@ -336,7 +327,7 @@ getHasInnerLoop loopHead = withMapSlotForTag #hasInnerLoop loopHead $ do
 
 getFreshIdent :: MonadRepGraph t m => NameHint -> m Ident
 getFreshIdent nameHint = do
-    problemNames <- liftRepGraph $ gview #problemNames
+    problemNames <- liftRepGraph $ gview $ #analysis % #vars
     extraProblemNames <- liftRepGraph $ use #extraProblemNames
     let taken n = S.member n problemNames || S.member n extraProblemNames
     let n = Ident $ generateFreshName (taken . Ident) nameHint
