@@ -144,7 +144,7 @@ data RepGraphEnv t
       { problem :: Problem t
       , problemNames :: S.Set Ident
       , nodeGraph :: NodeGraph
-      , loopData :: ByTag t LoopDataMap
+      , loopData :: LoopDataMap
       , preds :: ByTag t (Map NodeId (Set NodeAddr))
       }
   deriving (Generic)
@@ -285,8 +285,7 @@ askIsNonTriviallyReachableFrom from to_ = do
 
 askLoopDataMap :: MonadRepGraphForTag t m => m LoopDataMap
 askLoopDataMap = do
-    tag <- askTag
-    liftRepGraph $ gview $ #loopData % atTag tag
+    liftRepGraph $ gview $ #loopData
 
 askLoopHead :: MonadRepGraphForTag t  m => NodeAddr -> m (Maybe NodeAddr)
 askLoopHead n = loopHeadOf n <$> askLoopDataMap

@@ -283,44 +283,42 @@ forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 forceSimpleLoopReturns = do
     cacheAnalysis
     ProblemWithAnalysis _ analysis <- getProblemWithAnalysis
-    for_ (withTags analysis.loopData) $ \(WithTag tag loopDataMap) -> do
-        let preds = viewAtTag tag analysis.preds
-        for_ (loopHeadsOf loopDataMap) $ \loopHead -> do
-            let loopBody = loopBodyOf loopHead loopDataMap
-            let rets = S.toList $ S.filter (`S.member` loopBody) (preds (Addr loopHead))
-            retsIsSimple <- do
-                case rets of
-                    [ret] -> isNodeNoop <$> use (nodeAt ret)
-                    _ -> return False
-            unless retsIsSimple $ do
-                simpleRetNodeAddr <- appendNode (trivialNode (Addr loopHead)) tag Nothing
-                forM_ rets $ \ret -> do
-                    modifying (nodeAt ret % nodeConts) $ \cont ->
-                        if cont == Addr loopHead
-                        then Addr simpleRetNodeAddr
-                        else cont
+    for_ (loopHeadsOf analysis.loopData) $ \loopHead -> do
+        let tag = analysis.nodeTag loopHead
+        let loopBody = loopBodyOf loopHead analysis.loopData
+        let rets = S.toList $ S.filter (`S.member` loopBody) (viewAtTag tag analysis.preds (Addr loopHead))
+        retsIsSimple <- do
+            case rets of
+                [ret] -> isNodeNoop <$> use (nodeAt ret)
+                _ -> return False
+        unless retsIsSimple $ do
+            simpleRetNodeAddr <- appendNode (trivialNode (Addr loopHead)) tag Nothing
+            forM_ rets $ \ret -> do
+                modifying (nodeAt ret % nodeConts) $ \cont ->
+                    if cont == Addr loopHead
+                    then Addr simpleRetNodeAddr
+                    else cont
 
 padMergePoints :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 padMergePoints = do
     cacheAnalysis
     ProblemWithAnalysis problem analysis <- getProblemWithAnalysis
-    for_ (withTags analysis.preds) $ \(WithTag tag preds) -> do
-        let mergePreds = M.filterWithKey
-                (\n preds' -> analysis.nodeTag n  == tag && S.size preds' > 1)
-                (M.fromSet (preds . Addr) (M.keysSet problem.nodes))
-        nonTrivialEdgesToMergePoints <- fmap concat . forM (M.toAscList mergePreds) $ \(nodeAddr, nodePreds) -> do
-            fmap concat . forM (S.toAscList nodePreds) $ \predNodeAddr -> do
-                predNode <- use $ nodeAt predNodeAddr
-                return $ case predNode of
-                    NodeBasic (BasicNode { varUpdates = [] }) -> []
-                    _ -> [(predNodeAddr, nodeAddr)]
-        forM_ nonTrivialEdgesToMergePoints $ \(predNodeAddr, nodeAddr) -> do
-            let paddingNode = NodeBasic $ BasicNode
-                    { next = Addr nodeAddr
-                    , varUpdates = []
-                    }
-            paddingNodeAddr <- appendNode paddingNode tag Nothing
-            modifying (nodeAt predNodeAddr % nodeConts % #_Addr) $ \contNodeAddr ->
-                if contNodeAddr == nodeAddr
-                then paddingNodeAddr
-                else contNodeAddr
+    let mergePreds = M.filter
+            (\preds -> S.size preds > 1)
+            (M.fromSet (\n -> viewAtTag (analysis.nodeTag n) analysis.preds (Addr n)) (M.keysSet problem.nodes))
+    nonTrivialEdgesToMergePoints <- fmap concat . forM (M.toAscList mergePreds) $ \(nodeAddr, nodePreds) -> do
+        fmap concat . forM (S.toAscList nodePreds) $ \predNodeAddr -> do
+            predNode <- use $ nodeAt predNodeAddr
+            return $ case predNode of
+                NodeBasic (BasicNode { varUpdates = [] }) -> []
+                _ -> [(predNodeAddr, nodeAddr)]
+    forM_ nonTrivialEdgesToMergePoints $ \(predNodeAddr, nodeAddr) -> do
+        let paddingNode = NodeBasic $ BasicNode
+                { next = Addr nodeAddr
+                , varUpdates = []
+                }
+        paddingNodeAddr <- appendNode paddingNode (analysis.nodeTag nodeAddr) Nothing
+        modifying (nodeAt predNodeAddr % nodeConts % #_Addr) $ \contNodeAddr ->
+            if contNodeAddr == nodeAddr
+            then paddingNodeAddr
+            else contNodeAddr

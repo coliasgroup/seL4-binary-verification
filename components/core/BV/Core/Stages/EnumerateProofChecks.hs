@@ -51,9 +51,8 @@ data Context t
   = Context
       { pairing :: Pairing t
       , problem :: Problem t
+      , analysis :: ProblemAnalysis t
       , argRenames :: ArgRenames t
-      , loopData :: ByTag t LoopDataMap
-      , nodeGraph :: NodeGraph
       }
   deriving (Generic)
 
@@ -61,25 +60,22 @@ initContext :: RefineTag t => ArgRenames t -> Pairing t -> Problem t -> Context 
 initContext argRenames pairing problem = Context
     { pairing
     , problem
+    , analysis = analyzeProblem problem
     , argRenames
-    , nodeGraph
-    , loopData = createLoopDataMap problem nodeGraph
     }
-  where
-    nodeGraph = makeNodeGraph problem.nodes
 
 askLoopHead :: (Tag t, MonadReader (Context t) m) => WithTag t NodeAddr -> m (Maybe (WithTag t NodeAddr))
-askLoopHead n = fmap (WithTag n.tag) . loopHeadOf n.value <$> gview (#loopData % atTag n.tag)
+askLoopHead n = fmap (WithTag n.tag) . loopHeadOf n.value <$> gview (#analysis % #loopData)
 
 askLoopHeads :: (Tag t, MonadReader (Context t) m) => m [WithTag t NodeAddr]
 askLoopHeads = do
-    loopData <- gview #loopData
-    return $ concatMap (tagAll . fmap loopHeadsOf) $ (withTags loopData)
-  where
-    tagAll (WithTag tag xs) = map (WithTag tag) xs
+    loopData <- gview $ #analysis % #loopData
+    nodeTag <- gview $ #analysis % #nodeTag
+    let withNodeTag n = WithTag (nodeTag n) n
+    return $ map withNodeTag $ loopHeadsOf loopData
 
 askNodeGraph :: MonadReader (Context t) m => m NodeGraph
-askNodeGraph = gview #nodeGraph
+askNodeGraph = gview $ #analysis % #nodeGraph
 
 askArgRenames :: MonadReader (Context t) m => m (ArgRenames t)
 askArgRenames = gview #argRenames

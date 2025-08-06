@@ -82,7 +82,7 @@ data ProblemAnalysis t
   = ProblemAnalysis
       { nodeGraph :: NodeGraph
       , nodeTag :: NodeAddr -> t
-      , loopData :: ByTag t LoopDataMap
+      , loopData :: LoopDataMap
       , preds :: ByTag t (NodeId -> S.Set NodeAddr)
       , vars :: S.Set Ident
       }

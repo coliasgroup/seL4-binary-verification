@@ -108,13 +108,14 @@ data LoopData
   | LoopMember NodeAddr
   deriving (Eq, Generic, Ord, Show)
 
-createLoopDataMap :: Tag t => Problem t -> NodeGraph -> ByTag t LoopDataMap
+createLoopDataMap :: Tag t => Problem t -> NodeGraph -> LoopDataMap
 createLoopDataMap problem nodeGraph =
-    problem.sides <&> \side ->
-        let heads = loopHeadsFrom nodeGraph [side.entryPoint]
-         in M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
-                [(loopHead, LoopHead scc)] <> flip mapMaybe (S.toList scc) (\member ->
-                    if member == loopHead then Nothing else Just (member, LoopMember loopHead))
+    M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
+        [(loopHead, LoopHead scc)]
+            <> flip mapMaybe (S.toList scc)
+                (\member -> if member == loopHead then Nothing else Just (member, LoopMember loopHead))
+  where
+    heads = loopHeadsFrom nodeGraph $ toListOf (folded % #entryPoint) problem.sides
 
 loopHeadsOf :: LoopDataMap -> [NodeAddr]
 loopHeadsOf loopDataMap = flip mapMaybe (M.toList loopDataMap) $ \(k, v) -> case v of
