@@ -7,7 +7,7 @@ module BV.Core.Types.Extras.Problem
     , ProblemAnalysis (..)
     , ProblemWithAnalysis (..)
     , analyzeProblem
-    , argRenamesOf
+    , problemArgRenames
     , augmentProblem
     , computePreds
     , createLoopDataMap
@@ -40,8 +40,8 @@ import Optics
 
 type ArgRenames t = PairingEqSideQuadrant t -> Ident -> Ident
 
-argRenamesOf :: Tag t => Problem t -> ByTag t FunctionSignature -> ArgRenames t
-argRenamesOf problem sigs quadrant mangledName =
+problemArgRenames :: Tag t => Problem t -> ByTag t FunctionSignature -> ArgRenames t
+problemArgRenames problem sigs quadrant mangledName =
     fromJust $ lookup mangledName (zip (map (.name) mangledArgs) (map (.name) origArgs))
   where
     sig = viewAtTag quadrant.tag sigs

@@ -156,7 +156,7 @@ stages input = StagesOutput
 
     provenProblems = problems & #unwrap %~ (`M.restrictKeys` M.keysSet input.proofs.unwrap)
 
-    lookupOrigVarNameFor problem = argRenamesOf problem $
+    lookupOrigVarNameFor problem = problemArgRenames problem $
         signatureOfFunction . lookupFunction <$> withTags (pairingIdOfProblem problem)
 
     -- TODO (see above)
