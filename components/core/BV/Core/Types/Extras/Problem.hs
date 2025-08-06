@@ -79,7 +79,7 @@ data ProblemAnalysis t
       , nodeTag :: NodeAddr -> t
       , loopData :: LoopDataMap
       , preds :: ByTag t (NodeId -> S.Set NodeAddr)
-      , vars :: S.Set Ident
+      , varNames :: S.Set Ident
       }
   deriving (Generic)
 
@@ -90,7 +90,7 @@ analyzeProblem problem = ProblemAnalysis
     , loopData = createLoopDataMap problem nodeGraph
     , preds = (M.!) <$> computePreds problem nodeGraph
     -- , preds = computePreds' problem nodeTag
-    , vars = S.fromList $ toListOf varNamesOfProblem problem
+    , varNames = S.fromList $ toListOf varNamesOfProblem problem
     }
   where
     nodeGraph = makeNodeGraph problem.nodes

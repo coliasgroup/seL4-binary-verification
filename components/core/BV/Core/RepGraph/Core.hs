@@ -326,7 +326,7 @@ getHasInnerLoop loopHead = withMapSlotForTag #hasInnerLoop loopHead $ do
 
 getFreshIdent :: MonadRepGraph t m => NameHint -> m Ident
 getFreshIdent nameHint = do
-    problemNames <- liftRepGraph $ gview $ #analysis % #vars
+    problemNames <- liftRepGraph $ gview $ #analysis % #varNames
     extraProblemNames <- liftRepGraph $ use #extraProblemNames
     let taken n = S.member n problemNames || S.member n extraProblemNames
     let n = Ident $ generateFreshName (taken . Ident) nameHint

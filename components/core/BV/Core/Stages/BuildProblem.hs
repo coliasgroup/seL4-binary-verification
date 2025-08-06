@@ -102,7 +102,7 @@ cacheAnalysis = do
         , nodeTag = (M.!) $ M.mapMaybe (fmap (view (#meta % #tag))) builder.nodes
         , loopData = createLoopDataMap problem nodeGraph
         , preds = (M.!) <$> computePreds problem nodeGraph
-        , vars = builder.vars
+        , varNames = builder.vars
         }
       where
         problem = extractProblem builder
