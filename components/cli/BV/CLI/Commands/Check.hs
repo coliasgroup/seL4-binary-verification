@@ -18,7 +18,6 @@ import BV.System.Utils.Async
 import BV.TargetDir
 
 import Conduit (awaitForever)
-import Control.Concurrent (getNumCapabilities)
 import Control.Concurrent.Async (forConcurrently_)
 import Control.Distributed.Process (NodeId (NodeId))
 import Control.Monad (unless, when)
@@ -72,16 +71,19 @@ runCheck opts = do
         evalChecks
         liftIO $ putStrLn "Success"
     else do
+        solverList <- readSolverList opts.solvers
+        let solversConfig = getSolversConfig opts solverList
+        withCacheCtx <- getWithCacheCtx opts
         runChecks <- case opts.workers of
             Nothing -> do
-                maxNumConcurrentSolvers <- fromIntegral <$> getMaxNumConcurrentSolvers opts
+                maxNumConcurrentSolvers <- getMaxNumConcurrentSolvers solversConfig opts
                 let backendConfig = LocalConfig
                         { numJobs = maxNumConcurrentSolvers
                         }
-                return $ runLocal backendConfig
+                return $ runLocal backendConfig solversConfig
             Just workersConfigPath -> do
                 workersConfig <- readWorkersConfig workersConfigPath
-                return $ \solversConfig checks -> do
+                return $ \checks -> do
                     withRunInIO $ \run -> do
                         withDriverPeers (workerCommandsFromWorkersConfig workersConfig) $ \peers stderrs -> do
                             -- TODO ensure all worker stderr is logged in case of driver crash with some kind of flush on exception
@@ -93,12 +95,8 @@ runCheck opts = do
                                             , stagesInput = input
                                             }
                                     runDistrib backendConfig solversConfig checks
-        solverList <- readSolverList opts.solvers
-        let solversConfig = getSolversConfig opts solverList
-        withCacheCtx <- getWithCacheCtx opts
         checks <- evalChecks
-        report <- withCacheCtx $ runCacheT $ do
-            runChecks solversConfig checks
+        report <- withCacheCtx $ runCacheT $ runChecks checks
         let (success, displayedReport) = displayReport report
         liftIO $ putStr displayedReport
         case opts.reportFile of
@@ -107,18 +105,17 @@ runCheck opts = do
         unless success $ do
             liftIO exitFailure
 
-getMaxNumConcurrentSolvers :: (MonadIO m, MonadLogger m) => CheckOpts -> m Int
-getMaxNumConcurrentSolvers opts = do
-    numCaps <- liftIO getNumCapabilities
+getMaxNumConcurrentSolvers :: (MonadIO m, MonadLogger m) => SolversConfig -> CheckOpts -> m Integer
+getMaxNumConcurrentSolvers solversConfig opts = do
+    let min_ = minNumJobs solversConfig
     case opts.maxNumConcurrentSolvers of
+        Nothing -> return min_
         Just n -> do
-            when (n > numCaps) $ do
-                logWarn $ printf
-                    "--jobs option value (%d) exceeds the value returned by getNumCapabilities (%d)"
-                    n numCaps
+            when (n < min_) $ do
+                liftIO $ die $ printf
+                    "--jobs option value (%d) is less than the minimum required by the provided solver config (%d)"
+                    n min_
             return n
-        Nothing -> do
-            return numCaps
 
 getWithCacheCtx :: (MonadUnliftIO m, MonadLoggerWithContext m) => CheckOpts -> m ((CacheContext m -> m a) -> m a)
 getWithCacheCtx opts = do
@@ -228,7 +225,7 @@ workerCommandsFromWorkersConfig :: WorkersConfig -> Map EndPointAddress CreatePr
 workerCommandsFromWorkersConfig workersConfig = M.fromList
     [ let addr = EndPointAddress (BC.pack workerName)
           cmd = case workerConfig.command of
-                path :| args -> (proc path (args ++ ["worker", workerName]))
+                path :| args -> (proc path (args ++ ["worker", workerName, "--cores", show workerConfig.numCores]))
                     { std_err = CreatePipe
                     }
       in (addr, cmd)

@@ -17,6 +17,7 @@ module BV.System.Core.Solvers
     , SolverScope (..)
     , SolversConfig (..)
     , localSolverBackend
+    , minNumJobs
     , prettySolverScope
     , runSolvers
     ) where
@@ -35,8 +36,8 @@ import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Trans (lift)
-import Data.Foldable (for_)
-import Data.List (genericIndex)
+import Data.Foldable (for_, toList)
+import Data.List (genericIndex, genericLength)
 import GHC.Generics (Generic)
 import Optics
 
@@ -48,6 +49,9 @@ data SolversConfig
       , offline :: OfflineSolversConfig
       }
   deriving (Eq, Generic, Ord, Show)
+
+minNumJobs :: SolversConfig -> Integer
+minNumJobs config = max (genericLength (toList config.online)) (numParallelSolvers config.offline)
 
 runSolvers
     :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)

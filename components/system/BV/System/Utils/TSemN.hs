@@ -11,22 +11,26 @@ import Control.Exception.Safe (throwString)
 import Control.Monad (when)
 import Data.Typeable (Typeable)
 
-newtype TSemN
-  = TSemN (TVar Integer)
+data TSemN
+  = TSemN
+      { total :: Integer
+      , avail :: TVar Integer
+      }
   deriving (Eq, Typeable)
 
 newTSemN :: Integer -> STM TSemN
-newTSemN n = TSemN <$> (newTVar $! n)
+newTSemN n = TSemN n <$> (newTVar $! n)
 
 waitTSemN :: TSemN -> Integer -> STM ()
-waitTSemN (TSemN t) n = do
-    m <- readTVar t
+waitTSemN sem n = do
+    when (n > sem.total) $ throwString "n > total"
+    m <- readTVar sem.avail
     when (n > m) retry
-    writeTVar t $! (m - n)
+    writeTVar sem.avail $! (m - n)
 
 signalTSemN :: TSemN -> Integer -> STM ()
-signalTSemN (TSemN t) n = do
+signalTSemN sem n = do
     case compare n 0 of
         LT -> throwString "n < 0"
         EQ -> return ()
-        GT -> modifyTVar' t (+ n)
+        GT -> modifyTVar' sem.avail (+ n)

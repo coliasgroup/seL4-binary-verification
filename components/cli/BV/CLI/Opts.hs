@@ -52,12 +52,13 @@ data Opts
 
 data GlobalOpts
   = GlobalOpts
+      { numCores :: Maybe Int
+      }
   deriving (Generic, Show)
 
 data NotWorkerGlobalOpts
   = NotWorkerGlobalOpts
       { loggingOpts :: LoggingOpts
-      , numCores :: Maybe Int
       }
   deriving (Generic, Show)
 
@@ -113,7 +114,7 @@ data NotWorkerCommandOpts
 
 data CheckOpts
   = CheckOpts
-      { maxNumConcurrentSolvers :: Maybe Int
+      { maxNumConcurrentSolvers :: Maybe Integer
       , solvers :: FilePath
       , workers :: Maybe FilePath
       , onlineSolverTimeout :: SolverTimeout
@@ -205,20 +206,21 @@ optsParser = do
 
 globalOptsParser :: Parser GlobalOpts
 globalOptsParser = do
-    pure GlobalOpts
-
-notWorkerGlobalOptsParser :: Parser NotWorkerGlobalOpts
-notWorkerGlobalOptsParser = do
-    loggingOpts <- loggingOptsParser
     numCores <- optional $ option' auto
         [ long "cores"
         , short 'N'
         , metavar "NUM_CORES"
         , help "Number of cores to use"
         ]
+    pure $ GlobalOpts
+        { numCores
+        }
+
+notWorkerGlobalOptsParser :: Parser NotWorkerGlobalOpts
+notWorkerGlobalOptsParser = do
+    loggingOpts <- loggingOptsParser
     pure $ NotWorkerGlobalOpts
         { loggingOpts
-        , numCores
         }
 
 loggingOptsParser :: Parser LoggingOpts

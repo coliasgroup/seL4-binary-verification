@@ -11,14 +11,14 @@ import BV.Logging
 
 import Control.Concurrent (newMVar, withMVar)
 import Control.Monad (when)
-import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (allocate, runResourceT)
 import Data.ByteString.Builder (hPutBuilder)
-import GHC.Conc (getNumProcessors, setNumCapabilities)
+import Data.Foldable (traverse_)
+import GHC.Conc (setNumCapabilities)
 import System.IO (BufferMode (LineBuffering), Handle, IOMode (WriteMode),
                   hClose, hSetBuffering, openFile, stderr)
 import Text.Pretty.Simple (pPrint)
-import Text.Printf (printf)
 
 main :: IO ()
 main = do
@@ -29,6 +29,7 @@ main = do
 
 run :: Opts -> IO ()
 run opts = do
+    setNumCapabilitiesAccordingToOpt opts.globalOpts.numCores
     case opts.commandOpts of
         CommandOptsWorker opts' -> runWorker opts'
         CommandOptsNotWorker notWorkerGlobalOpts notWorkerCommandOpts -> runNotWorker notWorkerGlobalOpts notWorkerCommandOpts
@@ -36,24 +37,13 @@ run opts = do
 runNotWorker :: NotWorkerGlobalOpts -> NotWorkerCommandOpts -> IO ()
 runNotWorker notWorkerGlobalOpts notWorkerCommandOpts = do
     withLoggingOpts notWorkerGlobalOpts.loggingOpts $ do
-        setNumCapabilitiesAccordingToOpt notWorkerGlobalOpts.numCores
         case notWorkerCommandOpts of
             CommandOptsCheck opts -> runCheck opts
             CommandOptsExtractSMT opts -> runExtractSMT opts
             CommandOptsFormatSMT opts -> runFormatSMT opts
 
-setNumCapabilitiesAccordingToOpt :: (MonadIO m, MonadLoggerWithContext m) => Maybe Int -> m ()
-setNumCapabilitiesAccordingToOpt opt = do
-    numProcs <- liftIO getNumProcessors
-    liftIO . setNumCapabilities =<< case opt of
-        Just n -> do
-            when (n > numProcs) $ do
-                logWarn $ printf
-                    "--cores option value (%d) exceeds the value returned by getNumProcessors (%d)"
-                    n numProcs
-            return n
-        Nothing -> do
-            return $ numProcs - 1
+setNumCapabilitiesAccordingToOpt :: Maybe Int -> IO ()
+setNumCapabilitiesAccordingToOpt = traverse_ setNumCapabilities
 
 withLoggingOpts :: LoggingOpts -> LoggingWithContextT IO a -> IO a
 withLoggingOpts opts m = runResourceT $ do

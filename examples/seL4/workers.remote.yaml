@@ -1,6 +1,7 @@
 workers:
   local:
     local: true
+    num_cores: 3
     num_jobs: 4
     priority: -1
   r1:
@@ -11,7 +12,8 @@ workers:
       "-C",
       "--",
     ]
-    num_jobs: 15
+    num_cores: 3
+    num_jobs: 4
   r2:
     command: [
       "run-worker-over-ssh",
@@ -20,7 +22,8 @@ workers:
       "-C",
       "--",
     ]
-    num_jobs: 15
+    num_cores: 3
+    num_jobs: 12
   r3:
     command: [
       "run-worker-over-ssh",
@@ -29,4 +32,5 @@ workers:
       "-C",
       "--",
     ]
-    num_jobs: 15
+    num_cores: 3
+    num_jobs: 12

@@ -25,7 +25,6 @@ ghc-options:
 _exe-ghc-options: &exe-ghc-options
   - -threaded
   - -rtsopts
-  - -with-rtsopts=-N
 
 _test-ghc-options: &test-ghc-options
   - -threaded

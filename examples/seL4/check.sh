@@ -3,10 +3,11 @@
 set -eu -o pipefail
 
 here=$(dirname $0)
+toplevel=$here/../..
 tmp=$here/tmp
 
 exe="cabal run sel4-bv-cli --"
-# exe=$(nix-build -A distrib)/bin/driver
+# exe=$(nix-build $toplevel -A distrib)/bin/driver
 
 workers_arg="-j8"
 # workers_arg="--workers $here/workers.local.yaml"
@@ -16,6 +17,7 @@ mkdir -p $tmp
 
 $exe \
     check \
+    --cores 8 \
     --target-dir $here/target-dir \
     --c-function-prefix Kernel_C. \
     --rodata-section .rodata \
