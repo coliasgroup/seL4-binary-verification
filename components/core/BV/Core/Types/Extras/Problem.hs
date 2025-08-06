@@ -36,10 +36,11 @@ import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
 import Data.List (find)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, mapMaybe)
+import Data.Maybe (fromJust, mapMaybe)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
+import Control.Monad (guard)
 
 type ArgRenames t = PairingEqSideQuadrant t -> Ident -> Ident
 
@@ -107,8 +108,8 @@ augmentProblem problem = ProblemWithAnalysis
 data NodeGraph
   = NodeGraph
       { graph :: Graph
-      , nodeIdMap :: Vertex -> NodeId
-      , nodeIdMapRev :: NodeId -> Maybe Vertex
+      , vertexToNodeId :: Vertex -> NodeId
+      , nodeIdToVertex :: NodeId -> Vertex
       }
   deriving (Generic)
 
@@ -124,54 +125,52 @@ makeNodeGraphFromEdges :: NodeGraphEdges -> NodeGraph
 makeNodeGraphFromEdges edges =
     NodeGraph
         { graph
-        , nodeIdMap = view _2 . nodeIdMap'
-        , nodeIdMapRev
+        , vertexToNodeId = view _2 . vertexToNodeId'
+        , nodeIdToVertex = fromJust . nodeIdToVertex'
         }
   where
-    (graph, nodeIdMap', nodeIdMapRev) = G.graphFromEdges edges
+    (graph, vertexToNodeId', nodeIdToVertex') = G.graphFromEdges edges
 
 makeNodeGraph :: NodeMap -> NodeGraph
 makeNodeGraph = makeNodeGraphFromEdges . makeNodeGraphEdges . M.toList
 
--- Algorithms
+--
 
 reachableFrom :: NodeGraph -> NodeId -> [NodeId]
-reachableFrom g from = map g.nodeIdMap $ G.reachable g.graph (fromJust (g.nodeIdMapRev from))
+reachableFrom g from = map g.vertexToNodeId $ G.reachable g.graph (g.nodeIdToVertex from)
 
 isReachableFrom :: NodeGraph -> NodeId -> NodeId -> Bool
-isReachableFrom g from to_ = G.path g.graph (fromJust (g.nodeIdMapRev from)) (fromJust (g.nodeIdMapRev to_))
+isReachableFrom g from to_ = G.path g.graph (g.nodeIdToVertex from) (g.nodeIdToVertex to_)
 
-loopHeadsFromGeneric :: G.Graph -> [Vertex] -> [(Vertex, S.Set Vertex)]
-loopHeadsFromGeneric g entryPoints = catMaybes
-    [ findHead comp <&> (, comp)
-    | comp <- sccs
-    ]
-  where
-    sccs =
-        [ comp
-        | comp <- map (S.fromList . toList) (G.scc g)
-        , S.size comp > 1
-        ]
-    findHead comp = find (`S.member` comp) inOrder
-      where
-        inOrder = foldMap toList $ G.dfs g entryPoints
-
-loopHeadsFrom :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
-loopHeadsFrom g entryPoints =
-    [ (toNodeAddr h, S.map toNodeAddr body)
-    | (h, body) <- loopHeadsFromGeneric g.graph (map (fromJust . g.nodeIdMapRev) entryPoints)
-    ]
-  where
-    toNodeAddr v = nodeAddrFromNodeId $ g.nodeIdMap v
+--
 
 nodeTagMap :: Tag t => Problem t -> NodeGraph -> M.Map NodeAddr t
 nodeTagMap problem nodeGraph =
-    M.fromListWith (error "unexpected") $ byTag ^.. folded % folded
+    M.fromListWith undefined $ byTag ^.. folded % folded
   where
     byTag = withTags problem.sides <&> \(WithTag tag side) ->
         [ (addr, tag)
         | addr <- reachableFrom nodeGraph side.entryPoint ^.. folded % #_Addr
         ]
+
+--
+
+loopHeadsFromGeneric :: G.Graph -> [Vertex] -> [(Vertex, S.Set Vertex)]
+loopHeadsFromGeneric g entryPoints = do
+    body <- S.fromList . toList <$> G.scc g
+    guard $ S.size body > 1
+    Just h <- return $ find (`S.member` body) inOrder
+    return (h, body)
+  where
+    inOrder = foldMap toList $ G.dfs g entryPoints
+
+loopHeadsFrom :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
+loopHeadsFrom g entryPoints =
+    [ (toNodeAddr h, S.map toNodeAddr body)
+    | (h, body) <- loopHeadsFromGeneric g.graph (map g.nodeIdToVertex entryPoints)
+    ]
+  where
+    toNodeAddr = nodeAddrFromNodeId . g.vertexToNodeId
 
 type LoopDataMap = M.Map NodeAddr LoopData
 
