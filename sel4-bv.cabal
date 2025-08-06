@@ -276,6 +276,52 @@ library search-core
     , vector
   default-language: GHC2024
 
+library search-system-core
+  visibility: public
+  exposed-modules:
+      BV.Search.System.Core
+  other-modules:
+      BV.System.Search.Core
+  hs-source-dirs:
+      components/search-system-core
+  default-extensions:
+      FunctionalDependencies
+      DuplicateRecordFields
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+  ghc-options: -Wall -Wno-unused-do-bind
+  build-depends:
+      array
+    , async
+    , base
+    , binary
+    , bytestring
+    , containers
+    , deepseq
+    , exceptions
+    , monad-logger
+    , mtl
+    , optics
+    , parallel
+    , process
+    , safe-exceptions
+    , sel4-bv:core
+    , sel4-bv:logging
+    , sel4-bv:search-core
+    , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-process
+    , sel4-bv:system-core
+    , sel4-bv:system-utils
+    , sel4-bv:utils
+    , stm
+    , text
+    , transformers
+    , transformers-base
+    , unliftio-core
+    , vector
+  default-language: GHC2024
+
 library smtlib2
   visibility: public
   exposed-modules:
@@ -460,50 +506,6 @@ library system-core
     , sel4-bv:search-core
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
-    , sel4-bv:system-utils
-    , sel4-bv:utils
-    , stm
-    , text
-    , transformers
-    , transformers-base
-    , unliftio-core
-    , vector
-  default-language: GHC2024
-
-library system-search-core
-  visibility: public
-  exposed-modules:
-      BV.System.Search.Core
-  hs-source-dirs:
-      components/system-search-core
-  default-extensions:
-      FunctionalDependencies
-      DuplicateRecordFields
-      NoFieldSelectors
-      OverloadedLabels
-      OverloadedRecordDot
-  ghc-options: -Wall -Wno-unused-do-bind
-  build-depends:
-      array
-    , async
-    , base
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , exceptions
-    , monad-logger
-    , mtl
-    , optics
-    , parallel
-    , process
-    , safe-exceptions
-    , sel4-bv:core
-    , sel4-bv:logging
-    , sel4-bv:search-core
-    , sel4-bv:smtlib2
-    , sel4-bv:smtlib2-process
-    , sel4-bv:system-core
     , sel4-bv:system-utils
     , sel4-bv:utils
     , stm
@@ -888,11 +890,11 @@ test-suite search-test
     , sel4-bv:core
     , sel4-bv:logging
     , sel4-bv:search-core
+    , sel4-bv:search-system-core
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system
     , sel4-bv:system-core
-    , sel4-bv:system-search-core
     , sel4-bv:system-utils
     , sel4-bv:target-dir
     , sel4-bv:test-utils

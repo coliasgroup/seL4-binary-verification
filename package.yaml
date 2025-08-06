@@ -216,11 +216,11 @@ internal-libraries:
       - base16-bytestring
       - cryptohash-sha256
 
-  system-search-core:
+  search-system-core:
     visibility: public
-    source-dirs: components/system-search-core
+    source-dirs: components/search-system-core
     exposed-modules:
-      - BV.System.Search.Core
+      - BV.Search.System.Core
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
@@ -411,7 +411,7 @@ tests:
       - sel4-bv:target-dir
       - sel4-bv:system
       - sel4-bv:system-core
-      - sel4-bv:system-search-core
+      - sel4-bv:search-system-core
       - sel4-bv:system-utils
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process

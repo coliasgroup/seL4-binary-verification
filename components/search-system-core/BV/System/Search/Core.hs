@@ -1,4 +1,4 @@
-module BV.System.Search.Core
+module BV.Search.System.Core
     ( discoverInlineScript'
     , discoverStackBounds'
     , runRepGraphSolverInteractSimple'
