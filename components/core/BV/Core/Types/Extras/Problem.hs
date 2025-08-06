@@ -66,29 +66,6 @@ varNamesOfProblem =
 
 --
 
-computePreds :: Problem t -> NodeGraph -> ByTag t (M.Map NodeId (S.Set NodeAddr))
-computePreds problem g = problem.sides <&> \side ->
-    let nodes = S.fromList $ Ret : Err : side.entryPoint : reachableFrom g side.entryPoint
-     in M.unionWith (<>) (M.fromSet (const S.empty) nodes) $ M.fromListWith (<>) $ concat
-            [ [ (cont, S.singleton nodeAddr)
-              | cont <- problem ^.. #nodes % at nodeAddr % unwrapped % nodeConts
-              ]
-            | Addr nodeAddr <- S.toList nodes
-            ]
-
--- TODO more efficient but more opaque
-computePreds' :: Tag t => Problem t -> (NodeAddr -> t) -> ByTag t (NodeId -> S.Set NodeAddr)
-computePreds' problem nodeTag = withTags (void problem.sides) <&> \(WithTag tag ()) nodeId ->
-    let f = applyWhen (not (is #_Addr nodeId)) (S.filter (\pred_ -> nodeTag pred_ == tag))
-     in f $ clobbered M.! nodeId
-  where
-    clobbered = M.fromListWith (<>) $ concat
-        [ [ (cont, S.singleton nodeAddr)
-          | cont <- node ^.. nodeConts
-          ]
-        | (nodeAddr, node) <- M.toList problem.nodes
-        ]
-
 data ProblemWithAnalysis t
   = ProblemWithAnalysis
       { problem :: Problem t
@@ -245,3 +222,28 @@ loopHeadsIncludingInner nodes m =
          in go
                 (heads ++ map fst comps)
                 (check ++ comps)
+
+--
+
+computePreds :: Problem t -> NodeGraph -> ByTag t (M.Map NodeId (S.Set NodeAddr))
+computePreds problem g = problem.sides <&> \side ->
+    let nodes = S.fromList $ Ret : Err : side.entryPoint : reachableFrom g side.entryPoint
+     in M.unionWith (<>) (M.fromSet (const S.empty) nodes) $ M.fromListWith (<>) $ concat
+            [ [ (cont, S.singleton nodeAddr)
+              | cont <- problem ^.. #nodes % at nodeAddr % unwrapped % nodeConts
+              ]
+            | Addr nodeAddr <- S.toList nodes
+            ]
+
+-- TODO more efficient but more opaque
+computePreds' :: Tag t => Problem t -> (NodeAddr -> t) -> ByTag t (NodeId -> S.Set NodeAddr)
+computePreds' problem nodeTag = withTags (void problem.sides) <&> \(WithTag tag ()) nodeId ->
+    let f = applyWhen (not (is #_Addr nodeId)) (S.filter (\pred_ -> nodeTag pred_ == tag))
+     in f $ clobbered M.! nodeId
+  where
+    clobbered = M.fromListWith (<>) $ concat
+        [ [ (cont, S.singleton nodeAddr)
+          | cont <- node ^.. nodeConts
+          ]
+        | (nodeAddr, node) <- M.toList problem.nodes
+        ]
