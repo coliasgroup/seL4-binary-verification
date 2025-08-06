@@ -270,25 +270,26 @@ forceSimpleLoopReturns = do
 padMergePoints :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 padMergePoints = do
     ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
-    let mergePreds =
+    let allMergePointPreds =
             M.filter
                 (\preds -> S.size preds > 1)
                 (M.fromSet
                     (\n -> viewAtTag (analysis.nodeTag n) analysis.preds (Addr n))
                     (M.keysSet problem.nodes))
-    nonTrivialEdgesToMergePoints <- fmap concat . for (M.toAscList mergePreds) $ \(nodeAddr, nodePreds) -> do
-        fmap concat . for (S.toAscList nodePreds) $ \predNodeAddr -> do
-            predNode <- use $ nodeAt predNodeAddr
-            return $ case predNode of
-                NodeBasic (BasicNode { varUpdates = [] }) -> []
-                _ -> [(predNodeAddr, nodeAddr)]
-    for_ nonTrivialEdgesToMergePoints $ \(predNodeAddr, nodeAddr) -> do
+    nonTrivialEdgesToMergePoints <-
+        fmap concat . for (M.toAscList allMergePointPreds) $ \(mergePointAddr, mergePointPreds) -> do
+            fmap concat . for (S.toAscList mergePointPreds) $ \predAddr -> do
+                predNode <- use $ nodeAt predAddr
+                return $ case predNode of
+                    NodeBasic (BasicNode { varUpdates = [] }) -> []
+                    _ -> [(predAddr, mergePointAddr)]
+    for_ nonTrivialEdgesToMergePoints $ \(predAddr, mergePointAddr) -> do
         let paddingNode = NodeBasic $ BasicNode
-                { next = Addr nodeAddr
+                { next = Addr mergePointAddr
                 , varUpdates = []
                 }
-        paddingNodeAddr <- appendNode paddingNode (analysis.nodeTag nodeAddr) Nothing
-        modifying (nodeAt predNodeAddr % nodeConts % #_Addr) $ \contNodeAddr ->
-            if contNodeAddr == nodeAddr
+        paddingNodeAddr <- appendNode paddingNode (analysis.nodeTag mergePointAddr) Nothing
+        modifying (nodeAt predAddr % nodeConts % #_Addr) $ \contNodeAddr ->
+            if contNodeAddr == mergePointAddr
             then paddingNodeAddr
             else contNodeAddr
