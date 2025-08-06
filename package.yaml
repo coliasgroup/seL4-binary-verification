@@ -140,18 +140,6 @@ internal-libraries:
       - pretty-show
       # - pretty-simple
 
-  search-core:
-    visibility: public
-    source-dirs: components/search-core
-    exposed-modules:
-      - BV.Search.Core
-      - BV.Search.Core.Solver
-    dependencies:
-      - sel4-bv:smtlib2
-      - sel4-bv:logging
-      - sel4-bv:core
-      - sel4-bv:utils
-
   concrete-syntax:
     visibility: public
     source-dirs: components/concrete-syntax
@@ -215,6 +203,18 @@ internal-libraries:
       - process
       - base16-bytestring
       - cryptohash-sha256
+
+  search-core:
+    visibility: public
+    source-dirs: components/search-core
+    exposed-modules:
+      - BV.Search.Core
+      - BV.Search.Core.Solver
+    dependencies:
+      - sel4-bv:smtlib2
+      - sel4-bv:logging
+      - sel4-bv:core
+      - sel4-bv:utils
 
   search-system-core:
     visibility: public
