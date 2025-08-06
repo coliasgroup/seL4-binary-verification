@@ -6,8 +6,9 @@ module BV.Core.Stages.BuildProblem
     , addEntrypoints
     , buildProblem
     , doAnalysis
-    , extractNodeTag
+    , extractAnalysis
     , extractProblem
+    , extractProblemWithAnalysis
     , initProblemBuilder
     , inlineAtPoint
     ) where
@@ -30,7 +31,7 @@ import Data.Maybe (fromJust, fromMaybe, isJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((%=), (.=))
+import Optics.State.Operators ((%=))
 
 buildProblem :: Tag t => (WithTag t Ident -> Function) -> InlineScript t -> ByTag t (Named Function) -> Problem t
 buildProblem lookupFun inlineScript funs = runIdentity . flip evalStateT initProblemBuilder $ do
@@ -49,7 +50,6 @@ data ProblemBuilder t
       , nodes :: M.Map NodeAddr (Maybe (NodeWithMeta t))
       , nodesBySource :: M.Map (t, NodeSource) [NodeAddr]
       , vars :: S.Set Ident
-      , analysis :: Maybe (ProblemAnalysis t)
       }
   deriving (Generic)
 
@@ -73,39 +73,21 @@ initProblemBuilder = ProblemBuilder
     , nodes = M.singleton 0 Nothing -- HACK graph_refine.problem starts at 1
     , nodesBySource = M.empty
     , vars = S.empty
-    , analysis = Nothing
     }
 
 extractProblem :: Tag t => ProblemBuilder t -> Problem t
 extractProblem builder = Problem
-    { sides = extractSidesByTag builder
+    { sides = byTagFromN (M.size builder.sides) (builder.sides M.!)
     , nodes = M.mapMaybe (preview (_Just % #node)) builder.nodes
     }
 
-extractSidesByTag :: Tag t => ProblemBuilder t -> ByTag t ProblemSide
-extractSidesByTag builder = byTagFromN (M.size builder.sides) (builder.sides M.!)
-
-extractNodeTag :: Tag t => ProblemBuilder t -> NodeAddr -> Maybe t
-extractNodeTag builder nodeAddr = builder ^?
-    #nodes % at nodeAddr % unwrapped % unwrapped % #meta % #tag
-
-invalidateAnalysis :: Monad m => StateT (ProblemBuilder t) m ()
-invalidateAnalysis = #analysis .= Nothing
-
-cacheAnalysis :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
-cacheAnalysis = do
-    analysis <- gets f
-    #analysis .= Just analysis
+extractAnalysis :: Tag t => ProblemBuilder t -> ProblemAnalysis t
+extractAnalysis builder = analyzeProblemFromPartial nodeTag builder.vars (extractProblem builder)
   where
-    f builder = analyzeProblemFromPartial nodeTag builder.vars (extractProblem builder)
-      where
-        nodeTag = (M.!) $ M.mapMaybe (fmap (view (#meta % #tag))) builder.nodes
+    nodeTag = (M.!) $ M.mapMaybe (fmap (view (#meta % #tag))) builder.nodes
 
-getProblemWithAnalysis :: (Tag t, Monad m) => StateT (ProblemBuilder t) m (ProblemWithAnalysis t)
-getProblemWithAnalysis = do
-    problem <- gets extractProblem
-    analysis <- use $ #analysis % unwrapped
-    return $ ProblemWithAnalysis problem analysis
+extractProblemWithAnalysis :: Tag t => ProblemBuilder t -> ProblemWithAnalysis t
+extractProblemWithAnalysis = ProblemWithAnalysis <$> extractProblem <*> extractAnalysis
 
 nodeAt :: NodeAddr -> Lens' (ProblemBuilder t) Node
 nodeAt nodeAddr = nodeWithMetaAt nodeAddr % #node
@@ -124,7 +106,6 @@ insertNodeWithMeta addr nodeWithMeta = do
     zoom (#nodes % at addr) $ do
         gets isJust >>= ensureM
         put $ Just (Just nodeWithMeta)
-    invalidateAnalysis
 
 insertNode :: (Tag t, Monad m) => NodeAddr -> Node -> t -> Maybe NodeSource -> StateT (ProblemBuilder t) m ()
 insertNode addr node tag nodeSourceOpt = do
@@ -265,7 +246,7 @@ inlineInner lookupFun nodeAddr entry = do
             }
     insertNode exitNodeAddr exitNode entry.tag Nothing
 
--- --
+--
 
 doAnalysis :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 doAnalysis = do
@@ -273,30 +254,27 @@ doAnalysis = do
 
 forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 forceSimpleLoopReturns = do
-    cacheAnalysis
-    ProblemWithAnalysis problem analysis <- getProblemWithAnalysis
-    for_ (loopsFrom analysis.nodeGraph (toListOf (#sides % folded % #entryPoint) problem)) $ \loop -> do
+    ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
+    for_ (loopsOf analysis.loopData) $ \loop -> do
         let tag = analysis.nodeTag loop.head
-        let rets = S.toList $ S.filter (`S.member` loop.body) (viewAtTag tag analysis.preds (Addr loop.head))
-        retsIsSimple <- do
-            case rets of
-                [ret] -> isNodeNoop <$> use (nodeAt ret)
-                _ -> return False
-        unless retsIsSimple $ do
+        let rets = S.toList $ S.filter (`S.member` loop.body) $ viewAtTag tag analysis.preds (Addr loop.head)
+        let alreadySimple = [ isNodeNoop (problem.nodes ! ret) | ret <- rets ] == [True]
+        unless alreadySimple $ do
             simpleRetNodeAddr <- appendNode (trivialNode (Addr loop.head)) tag Nothing
-            forM_ rets $ \ret -> do
-                modifying (nodeAt ret % nodeConts) $ \cont ->
-                    if cont == Addr loop.head
-                    then Addr simpleRetNodeAddr
-                    else cont
+            forM_ rets $ \ret -> modifying (nodeAt ret % nodeConts) $ \cont ->
+                if cont == Addr loop.head
+                then Addr simpleRetNodeAddr
+                else cont
 
 padMergePoints :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 padMergePoints = do
-    cacheAnalysis
-    ProblemWithAnalysis problem analysis <- getProblemWithAnalysis
-    let mergePreds = M.filter
-            (\preds -> S.size preds > 1)
-            (M.fromSet (\n -> viewAtTag (analysis.nodeTag n) analysis.preds (Addr n)) (M.keysSet problem.nodes))
+    ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
+    let mergePreds =
+            M.filter
+                (\preds -> S.size preds > 1)
+                (M.fromSet
+                    (\n -> viewAtTag (analysis.nodeTag n) analysis.preds (Addr n))
+                    (M.keysSet problem.nodes))
     nonTrivialEdgesToMergePoints <- fmap concat . forM (M.toAscList mergePreds) $ \(nodeAddr, nodePreds) -> do
         fmap concat . forM (S.toAscList nodePreds) $ \predNodeAddr -> do
             predNode <- use $ nodeAt predNodeAddr

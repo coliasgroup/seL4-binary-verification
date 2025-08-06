@@ -10,6 +10,7 @@ module BV.Search.Core.StackBounds
 import BV.Core.RepGraph
 import BV.Core.Stages
 import BV.Core.Types
+import BV.Core.Types.Extras.Problem
 import BV.Logging
 import BV.Search.Core.Solver
 import BV.Utils
@@ -122,12 +123,11 @@ addRecursionIdent runRepGraph functions f group = do
             addEntrypoint (WithTag (FunTag 0) (Named f (functions M.! f)))
             doAnalysis
         let go = do
-                p <- zoom _1 $ gets extractProblem
-                nodeTag <- zoom _1 $ gets extractNodeTag
+                pa <- zoom _1 $ gets extractProblemWithAnalysis
                 idents <- lift get
                 assns <- zoom _3 get
                 tag <- mostRecentTag
-                resOpt <- lift $ lift $ findUnknownRecursion runRepGraph functions p group idents tag assns
+                resOpt <- lift $ lift $ findUnknownRecursion runRepGraph functions pa.problem group idents tag assns
                 for_ resOpt $ \res -> do
                     fname <- zoom _1 $ use $ to extractProblem % #nodes % at res % unwrapped % expecting #_NodeCall % #functionName
                     zoom _2 $ modify $ (++ [fname])

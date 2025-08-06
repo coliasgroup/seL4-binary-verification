@@ -17,6 +17,7 @@ module BV.Core.Types.Extras.Problem
     , loopHeadOf
     , loopHeadsOf
     , loopsFrom
+    , loopsOf
     , makeNodeGraph
     , pairingIdOfProblem
     , problemArgRenames
@@ -175,7 +176,9 @@ loopsFromGeneric g entryPoints = do
 
 data LoopData
   = LoopData
-      { heads :: M.Map NodeAddr Loop
+      { inOrder :: [Loop]
+        -- HACK for compatibility
+      , heads :: M.Map NodeAddr Loop
       , members :: M.Map NodeAddr LoopDataForNode
       }
   deriving (Eq, Generic, Ord, Show)
@@ -212,7 +215,8 @@ loopsFrom g entryPoints =
 
 makeLoopData :: Tag t => Problem t -> NodeGraph -> LoopData
 makeLoopData problem nodeGraph = LoopData
-    { heads = M.fromList [ (loop.head, loop) | loop <- loops ]
+    { inOrder = loops
+    , heads = M.fromList [ (loop.head, loop) | loop <- loops ]
     , members = M.fromList $ flip concatMap loops $ \loop ->
         [ let role = if n == loop.head then LoopRoleHead else LoopRoleBody
            in (n, LoopDataForNode role loop)
@@ -223,7 +227,7 @@ makeLoopData problem nodeGraph = LoopData
     loops = loopsFrom nodeGraph $ toListOf (folded % #entryPoint) problem.sides
 
 loopsOf :: LoopData -> [Loop]
-loopsOf = toListOf $ #heads % folded
+loopsOf d = d.inOrder
 
 loopContainingOf :: LoopData -> NodeAddr -> Maybe Loop
 loopContainingOf d n = d ^? #members % at n % _Just % #loop
