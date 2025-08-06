@@ -68,7 +68,6 @@ library core
   exposed-modules:
       BV.Core.DecorateProofScript
       BV.Core.ExecuteSMTProofChecks
-      BV.Core.Graph
       BV.Core.Logic
       BV.Core.ModelConfig
       BV.Core.Prelude
