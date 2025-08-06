@@ -97,16 +97,9 @@ cacheAnalysis = do
     analysis <- gets f
     #analysis .= Just analysis
   where
-    f builder = ProblemAnalysis
-        { nodeGraph
-        , nodeTag = (M.!) $ M.mapMaybe (fmap (view (#meta % #tag))) builder.nodes
-        , loopData = createLoopDataMap problem nodeGraph
-        , preds = (M.!) <$> computePreds problem nodeGraph
-        , varNames = builder.vars
-        }
+    f builder = analyzeProblemFromPartial nodeTag builder.vars (extractProblem builder)
       where
-        problem = extractProblem builder
-        nodeGraph = makeNodeGraph problem.nodes
+        nodeTag = (M.!) $ M.mapMaybe (fmap (view (#meta % #tag))) builder.nodes
 
 getProblemWithAnalysis :: (Tag t, Monad m) => StateT (ProblemBuilder t) m (ProblemWithAnalysis t)
 getProblemWithAnalysis = do
@@ -282,18 +275,18 @@ forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 forceSimpleLoopReturns = do
     cacheAnalysis
     ProblemWithAnalysis problem analysis <- getProblemWithAnalysis
-    for_ (loopHeadsFrom analysis.nodeGraph (toListOf (#sides % folded % #entryPoint) problem)) $ \(loopHead, loopBody) -> do
-        let tag = analysis.nodeTag loopHead
-        let rets = S.toList $ S.filter (`S.member` loopBody) (viewAtTag tag analysis.preds (Addr loopHead))
+    for_ (loopsFrom analysis.nodeGraph (toListOf (#sides % folded % #entryPoint) problem)) $ \loop -> do
+        let tag = analysis.nodeTag loop.head
+        let rets = S.toList $ S.filter (`S.member` loop.body) (viewAtTag tag analysis.preds (Addr loop.head))
         retsIsSimple <- do
             case rets of
                 [ret] -> isNodeNoop <$> use (nodeAt ret)
                 _ -> return False
         unless retsIsSimple $ do
-            simpleRetNodeAddr <- appendNode (trivialNode (Addr loopHead)) tag Nothing
+            simpleRetNodeAddr <- appendNode (trivialNode (Addr loop.head)) tag Nothing
             forM_ rets $ \ret -> do
                 modifying (nodeAt ret % nodeConts) $ \cont ->
-                    if cont == Addr loopHead
+                    if cont == Addr loop.head
                     then Addr simpleRetNodeAddr
                     else cont
 

@@ -113,8 +113,8 @@ nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => Inli
 nextReachableUnmatchedCInlinePointInner = runForTag C $ do
     p <- askProblem
     g <- askNodeGraph
-    heads <- loopHeadsIncludingInner p.nodes <$> askLoopDataMap
-    let limits = [ Restr n (doubleRangeVC 3 3) | n <- heads ]
+    loops <- allInnerLoops p.nodes <$> askLoopData
+    let limits = [ Restr loop.head (doubleRangeVC 3 3) | loop <- loops ]
     let reachable = reachableFrom g ((getC p.sides).entryPoint)
     for_ (sortOn compatKey reachable) $ \n -> runExceptT $ tryGetNodePcEnv $ Visit n limits
   where

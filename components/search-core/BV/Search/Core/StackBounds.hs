@@ -144,7 +144,7 @@ addRecursionIdent runRepGraph functions f group = do
 -- defaultVisit p n =
 --     todo
 --   where
---     m = createLoopDataMap p
+--     m = makeLoopData p
 --     h = loopHeadOf n m
 
 findUnknownRecursion

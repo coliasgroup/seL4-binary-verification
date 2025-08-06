@@ -21,7 +21,7 @@ module BV.Core.RepGraph.Core
     , TooGeneral (..)
     , VarRepRequestKind (..)
     , askCont
-    , askLoopDataMap
+    , askLoopData
     , askNodeGraph
     , askProblem
     , askWithTag
@@ -273,15 +273,15 @@ askIsNonTriviallyReachableFrom from to_ = do
     fromNode <- askNode from
     return $ or [ isReachableFrom g fromCont to_ | fromCont <- fromNode ^.. nodeConts ]
 
-askLoopDataMap :: MonadRepGraphForTag t m => m LoopDataMap
-askLoopDataMap = do
+askLoopData :: MonadRepGraphForTag t m => m LoopData
+askLoopData = do
     liftRepGraph $ gview $ #analysis % #loopData
 
 askLoopHead :: MonadRepGraphForTag t  m => NodeAddr -> m (Maybe NodeAddr)
-askLoopHead n = loopHeadOf n <$> askLoopDataMap
+askLoopHead n = loopHeadOf n <$> askLoopData
 
 askLoopBody :: MonadRepGraphForTag t m => NodeAddr -> m (S.Set NodeAddr)
-askLoopBody n = loopBodyOf n <$> askLoopDataMap
+askLoopBody n = loopBodyOf n <$> askLoopData
 
 askPreds :: MonadRepGraphForTag t m => NodeId -> m (Set NodeAddr)
 askPreds n = do
@@ -322,7 +322,7 @@ getHasInnerLoop :: MonadRepGraphForTag t m => NodeAddr -> m Bool
 getHasInnerLoop loopHead = withMapSlotForTag #hasInnerLoop loopHead $ do
     p <- liftRepGraph $ gview #problem
     loopBody <- askLoopBody loopHead
-    return $ not $ null $ loopBodyInnerLoops p.nodes loopHead loopBody
+    return $ not $ null $ innerLoopsOf p.nodes $ Loop loopHead loopBody
 
 getFreshIdent :: MonadRepGraph t m => NameHint -> m Ident
 getFreshIdent nameHint = do

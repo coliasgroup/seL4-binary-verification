@@ -18,7 +18,6 @@ import Control.Monad.State (MonadState, StateT (StateT), evalStateT)
 import Control.Monad.Writer (WriterT, execWriterT, mapWriterT, tell)
 import Data.Foldable (for_, traverse_)
 import Data.Function (applyWhen, on)
-import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, mapMaybe)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -38,13 +37,11 @@ enumerateProofChecks argRenames pairing problem proofScript =
         (assumeR =<< instantiatePairingEqs PairingEqDirectionIn)
         proofScript.root
 
-pruneProofCheck :: RefineTag t => Problem t -> ProofCheck t a -> ProofCheck t a
-pruneProofCheck problem = over checkVisits pruneVisitWithTag
+pruneProofCheck :: RefineTag t => ProblemAnalysis t -> ProofCheck t a -> ProofCheck t a
+pruneProofCheck analysis = over checkVisits pruneVisitWithTag
   where
-    nodeGraph = makeNodeGraph problem.nodes
-    nodeTag = (M.!) (nodeTagMap problem nodeGraph)
     pruneVisitWithTag (WithTag tag (Visit nodeId restrs)) = WithTag tag (Visit nodeId (filter (testRestr tag) restrs))
-    testRestr tag (Restr nodeAddr _) = nodeTag nodeAddr == tag
+    testRestr tag (Restr nodeAddr _) = analysis.nodeTag nodeAddr == tag
 
 data Context t
   = Context

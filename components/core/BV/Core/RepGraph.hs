@@ -14,7 +14,7 @@ module BV.Core.RepGraph
     , TooGeneral (..)
     , addPValidDomAssertions
     , askCont -- TODO
-    , askLoopDataMap
+    , askLoopData
     , askModelExprs
     , askModelVars
     , askNodeGraph

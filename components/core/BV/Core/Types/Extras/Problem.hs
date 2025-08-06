@@ -2,23 +2,22 @@
 
 module BV.Core.Types.Extras.Problem
     ( ArgRenames
-    , LoopDataMap
+    , Loop (..)
+    , LoopData
     , NodeGraph
     , ProblemAnalysis (..)
     , ProblemWithAnalysis (..)
+    , allInnerLoops
     , analyzeProblem
+    , analyzeProblemFromPartial
     , augmentProblem
-    , computePreds
-    , createLoopDataMap
+    , innerLoopsOf
     , isReachableFrom
-    , loopBodyInnerLoops
     , loopBodyOf
     , loopHeadOf
-    , loopHeadsFrom
-    , loopHeadsIncludingInner
     , loopHeadsOf
+    , loopsFrom
     , makeNodeGraph
-    , nodeTagMap
     , pairingIdOfProblem
     , problemArgRenames
     , reachableFrom
@@ -29,18 +28,18 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Program
 import BV.Utils
 
+import Control.Monad (guard)
+import Control.Monad.Writer (execWriter, tell)
 import Data.Foldable (toList)
 import Data.Function (applyWhen)
-import Data.Functor (void)
 import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
 import Data.List (find)
 import qualified Data.Map as M
-import Data.Maybe (fromJust, mapMaybe)
+import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
-import Control.Monad (guard)
 
 type ArgRenames t = PairingEqSideQuadrant t -> Ident -> Ident
 
@@ -78,7 +77,7 @@ data ProblemAnalysis t
   = ProblemAnalysis
       { nodeGraph :: NodeGraph
       , nodeTag :: NodeAddr -> t
-      , loopData :: LoopDataMap
+      , loopData :: LoopData
       , preds :: ByTag t (NodeId -> S.Set NodeAddr)
       , varNames :: S.Set Ident
       }
@@ -88,14 +87,24 @@ analyzeProblem :: Tag t => Problem t -> ProblemAnalysis t
 analyzeProblem problem = ProblemAnalysis
     { nodeGraph
     , nodeTag
-    , loopData = createLoopDataMap problem nodeGraph
-    , preds = (M.!) <$> computePreds problem nodeGraph
-    -- , preds = computePreds' problem nodeTag
+    , loopData = makeLoopData problem nodeGraph
+    , preds = computePreds problem nodeTag
     , varNames = S.fromList $ toListOf varNamesOfProblem problem
     }
   where
     nodeGraph = makeNodeGraph problem.nodes
     nodeTag = (M.!) $ nodeTagMap problem nodeGraph
+
+analyzeProblemFromPartial :: Tag t => (NodeAddr -> t) -> S.Set Ident -> Problem t -> ProblemAnalysis t
+analyzeProblemFromPartial nodeTag varNames problem = ProblemAnalysis
+    { nodeGraph
+    , nodeTag
+    , loopData = makeLoopData problem nodeGraph
+    , preds = computePreds problem nodeTag
+    , varNames
+    }
+  where
+    nodeGraph = makeNodeGraph problem.nodes
 
 augmentProblem :: Tag t => Problem t -> ProblemWithAnalysis t
 augmentProblem problem = ProblemWithAnalysis
@@ -115,11 +124,11 @@ data NodeGraph
 
 type NodeGraphEdges = [((), NodeId, [NodeId])]
 
-makeNodeGraphEdges:: [(NodeAddr, Node)] -> NodeGraphEdges
+makeNodeGraphEdges :: NodeMap -> NodeGraphEdges
 makeNodeGraphEdges nodeMap =
       ((), Ret, [])
     : ((), Err, [])
-    : (nodeMap <&> \(addr, node) -> ((), Addr addr, toListOf nodeConts node))
+    : (M.toAscList nodeMap <&> \(addr, node) -> ((), Addr addr, toListOf nodeConts node))
 
 makeNodeGraphFromEdges :: NodeGraphEdges -> NodeGraph
 makeNodeGraphFromEdges edges =
@@ -132,7 +141,7 @@ makeNodeGraphFromEdges edges =
     (graph, vertexToNodeId', nodeIdToVertex') = G.graphFromEdges edges
 
 makeNodeGraph :: NodeMap -> NodeGraph
-makeNodeGraph = makeNodeGraphFromEdges . makeNodeGraphEdges . M.toList
+makeNodeGraph = makeNodeGraphFromEdges . makeNodeGraphEdges
 
 --
 
@@ -155,8 +164,8 @@ nodeTagMap problem nodeGraph =
 
 --
 
-loopHeadsFromGeneric :: G.Graph -> [Vertex] -> [(Vertex, S.Set Vertex)]
-loopHeadsFromGeneric g entryPoints = do
+loopsFromGeneric :: G.Graph -> [Vertex] -> [(Vertex, S.Set Vertex)]
+loopsFromGeneric g entryPoints = do
     body <- S.fromList . toList <$> G.scc g
     guard $ S.size body > 1
     Just h <- return $ find (`S.member` body) inOrder
@@ -164,81 +173,104 @@ loopHeadsFromGeneric g entryPoints = do
   where
     inOrder = foldMap toList $ G.dfs g entryPoints
 
-loopHeadsFrom :: NodeGraph -> [NodeId] -> [(NodeAddr, S.Set NodeAddr)]
-loopHeadsFrom g entryPoints =
-    [ (toNodeAddr h, S.map toNodeAddr body)
-    | (h, body) <- loopHeadsFromGeneric g.graph (map g.nodeIdToVertex entryPoints)
+data LoopData
+  = LoopData
+      { heads :: M.Map NodeAddr Loop
+      , members :: M.Map NodeAddr LoopDataForNode
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+data LoopDataForNode
+  = LoopDataForNode
+      { role :: LoopRole
+      , loop :: Loop
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+data LoopRole
+  = LoopRoleHead
+  | LoopRoleBody
+  deriving (Eq, Generic, Ord, Show)
+
+data Loop
+  = Loop
+      { head :: NodeAddr
+      , body :: S.Set NodeAddr
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+loopsFrom :: NodeGraph -> [NodeId] -> [Loop]
+loopsFrom g entryPoints =
+    [ Loop
+        { head = toNodeAddr h
+        , body = S.map toNodeAddr body
+        }
+    | (h, body) <- loopsFromGeneric g.graph (map g.nodeIdToVertex entryPoints)
     ]
   where
     toNodeAddr = nodeAddrFromNodeId . g.vertexToNodeId
 
-type LoopDataMap = M.Map NodeAddr LoopData
-
-data LoopData
-  = LoopHead (S.Set NodeAddr)
-  | LoopMember NodeAddr
-  deriving (Eq, Generic, Ord, Show)
-
-createLoopDataMap :: Tag t => Problem t -> NodeGraph -> LoopDataMap
-createLoopDataMap problem nodeGraph =
-    M.fromList $ flip foldMap heads $ \(loopHead, scc) ->
-        [(loopHead, LoopHead scc)]
-            <> flip mapMaybe (S.toList scc)
-                (\member -> if member == loopHead then Nothing else Just (member, LoopMember loopHead))
+makeLoopData :: Tag t => Problem t -> NodeGraph -> LoopData
+makeLoopData problem nodeGraph = LoopData
+    { heads = M.fromList [ (loop.head, loop) | loop <- loops ]
+    , members = M.fromList $ flip concatMap loops $ \loop ->
+        [ let role = if n == loop.head then LoopRoleHead else LoopRoleBody
+           in (n, LoopDataForNode role loop)
+        | n <- S.toList loop.body
+        ]
+    }
   where
-    heads = loopHeadsFrom nodeGraph $ toListOf (folded % #entryPoint) problem.sides
+    loops = loopsFrom nodeGraph $ toListOf (folded % #entryPoint) problem.sides
 
-loopHeadsOf :: LoopDataMap -> [NodeAddr]
-loopHeadsOf loopDataMap = flip mapMaybe (M.toList loopDataMap) $ \(k, v) -> case v of
-    LoopHead _ -> Just k
-    LoopMember _ -> Nothing
+loopsOf :: LoopData -> [Loop]
+loopsOf = toListOf $ #heads % folded
 
-loopHeadOf :: NodeAddr -> LoopDataMap -> Maybe NodeAddr
-loopHeadOf n loopDataMap = M.lookup n loopDataMap <&> \case
-    LoopHead _ -> n
-    LoopMember n' -> n'
+loopContainingOf :: LoopData -> NodeAddr -> Maybe Loop
+loopContainingOf d n = d ^? #members % at n % _Just % #loop
 
-loopBodyOf :: NodeAddr -> LoopDataMap -> S.Set NodeAddr
-loopBodyOf n loopDataMap =
-    loopDataMap ^. expectingAt (fromJust (loopHeadOf n loopDataMap)) % expecting #_LoopHead
+loopHeadsOf :: LoopData -> [NodeAddr]
+loopHeadsOf = map (.head) . loopsOf
 
---
+loopHeadOf :: NodeAddr -> LoopData -> Maybe NodeAddr
+loopHeadOf n d = (.head) <$> loopContainingOf d n
 
-loopBodyInnerLoops :: NodeMap -> NodeAddr -> S.Set NodeAddr -> [(NodeAddr, S.Set NodeAddr)]
-loopBodyInnerLoops nodes loopHead loopBody =
-    loopHeadsFrom g $ nodes ^.. at loopHead % unwrapped % nodeConts
+loopBodyOf :: NodeAddr -> LoopData -> S.Set NodeAddr
+loopBodyOf n d = (fromJust (loopContainingOf d n)).body
+
+innerLoopsOf :: NodeMap -> Loop -> [Loop]
+innerLoopsOf nodes loop =
+    loopsFrom g entryPoints
   where
-    g = makeNodeGraph $ M.restrictKeys nodes $ S.delete loopHead loopBody
-
-loopHeadsIncludingInner :: NodeMap -> LoopDataMap -> [NodeAddr]
-loopHeadsIncludingInner nodes m =
-    let heads = loopHeadsOf m
-     in go heads [ (h, loopBodyOf h m ) | h <- heads ]
-  where
-    go heads [] = heads
-    go heads ((h, body):check) =
-        let comps = loopBodyInnerLoops nodes h body
-         in go
-                (heads ++ map fst comps)
-                (check ++ comps)
-
---
-
-computePreds :: Problem t -> NodeGraph -> ByTag t (M.Map NodeId (S.Set NodeAddr))
-computePreds problem g = problem.sides <&> \side ->
-    let nodes = S.fromList $ Ret : Err : side.entryPoint : reachableFrom g side.entryPoint
-     in M.unionWith (<>) (M.fromSet (const S.empty) nodes) $ M.fromListWith (<>) $ concat
-            [ [ (cont, S.singleton nodeAddr)
-              | cont <- problem ^.. #nodes % at nodeAddr % unwrapped % nodeConts
-              ]
-            | Addr nodeAddr <- S.toList nodes
+    entryPoints = nodes ^.. at loop.head % unwrapped % nodeConts
+    bodyWithoutHead = S.delete loop.head loop.body
+    g = makeNodeGraphFromEdges
+            [ ((), src, dsts)
+            | (src, dsts) <- M.toAscList (M.fromListWith (<>) edges)
             ]
+    edges = do
+        ((), Addr src, dsts) <- makeNodeGraphEdges nodes
+        guard $ S.member src bodyWithoutHead
+        Addr dst <- dsts
+        guard $ S.member dst bodyWithoutHead
+        return (Addr src, [Addr dst])
 
--- TODO more efficient but more opaque
-computePreds' :: Tag t => Problem t -> (NodeAddr -> t) -> ByTag t (NodeId -> S.Set NodeAddr)
-computePreds' problem nodeTag = withTags (void problem.sides) <&> \(WithTag tag ()) nodeId ->
-    let f = applyWhen (not (is #_Addr nodeId)) (S.filter (\pred_ -> nodeTag pred_ == tag))
-     in f $ clobbered M.! nodeId
+allInnerLoops :: NodeMap -> LoopData -> [Loop]
+allInnerLoops nodes d = execWriter (go (loopsOf d))
+  where
+    go = \case
+        [] -> return ()
+        loop:loops -> do
+            tell [loop]
+            go (loops ++ innerLoopsOf nodes loop)
+
+--
+
+computePreds :: Tag t => Problem t -> (NodeAddr -> t) -> ByTag t (NodeId -> S.Set NodeAddr)
+computePreds problem nodeTag = withTags problem.sides <&> \(WithTag tag _) nodeId ->
+    applyWhen
+        (not (is #_Addr nodeId))
+        (S.filter ((==) tag . nodeTag))
+        (M.findWithDefault S.empty nodeId clobbered)
   where
     clobbered = M.fromListWith (<>) $ concat
         [ [ (cont, S.singleton nodeAddr)

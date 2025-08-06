@@ -27,7 +27,7 @@ compileProofChecks repGraphInput functionSigs pairings argRenames checks =
         (compileProofCheckGroup repGraphInput functionSigs pairings argRenames . pruneGroup)
         (proofCheckGroups checks)
   where
-    pruneCheck = pruneProofCheck repGraphInput.problem
+    pruneCheck = pruneProofCheck (analyzeProblem repGraphInput.problem)
     pruneGroup = map pruneCheck
 
 compileProofCheckGroup
