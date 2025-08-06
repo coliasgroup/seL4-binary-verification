@@ -23,6 +23,13 @@ in rec {
 
   inherit (stacklock.pkgSet) sel4-bv;
 
+  sel4-bv-test = testFlags: with pkgs.haskell.lib.compose; (overrideCabal (drv: {
+    testFlags = drv.testFlags or [] ++ testFlags;
+    testDepends = drv.testDepends or [] ++ (with pkgs; [
+      yices
+    ]);
+  }) (doCheck sel4-bv));
+
   distrib = pkgs.callPackage ./distrib.nix {
     inherit sel4-bv;
     driverSolvers = with pkgs; [
