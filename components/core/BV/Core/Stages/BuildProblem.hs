@@ -187,6 +187,53 @@ addEntrypoints funs = for_ (withTags funs) $ \fun -> addEntrypoint fun
 
 --
 
+doAnalysis :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
+doAnalysis = do
+    forceSimpleLoopReturns
+
+forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
+forceSimpleLoopReturns = do
+    ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
+    for_ (loopsOf analysis.loopData) $ \loop -> do
+        let tag = analysis.nodeTag loop.head
+        let rets = S.toList $ S.filter (`S.member` loop.body) $ viewAtTag tag analysis.preds (Addr loop.head)
+        let alreadySimple = [ isNodeNoop (problem.nodes ! ret) | ret <- rets ] == [True]
+        unless alreadySimple $ do
+            simpleRetNodeAddr <- appendNode (trivialNode (Addr loop.head)) tag Nothing
+            for_ rets $ \ret -> modifying (nodeAt ret % nodeConts) $ \cont ->
+                if cont == Addr loop.head
+                then Addr simpleRetNodeAddr
+                else cont
+
+padMergePoints :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
+padMergePoints = do
+    ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
+    let allMergePointPreds =
+            M.filter
+                (\preds -> S.size preds > 1)
+                (M.fromSet
+                    (\n -> viewAtTag (analysis.nodeTag n) analysis.preds (Addr n))
+                    (M.keysSet problem.nodes))
+    nonTrivialEdgesToMergePoints <-
+        fmap concat . for (M.toAscList allMergePointPreds) $ \(mergePointAddr, mergePointPreds) -> do
+            fmap concat . for (S.toAscList mergePointPreds) $ \predAddr -> do
+                predNode <- use $ nodeAt predAddr
+                return $ case predNode of
+                    NodeBasic (BasicNode { varUpdates = [] }) -> []
+                    _ -> [(predAddr, mergePointAddr)]
+    for_ nonTrivialEdgesToMergePoints $ \(predAddr, mergePointAddr) -> do
+        let paddingNode = NodeBasic $ BasicNode
+                { next = Addr mergePointAddr
+                , varUpdates = []
+                }
+        paddingNodeAddr <- appendNode paddingNode (analysis.nodeTag mergePointAddr) Nothing
+        modifying (nodeAt predAddr % nodeConts % #_Addr) $ \contNodeAddr ->
+            if contNodeAddr == mergePointAddr
+            then paddingNodeAddr
+            else contNodeAddr
+
+--
+
 inline :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> InlineScriptEntry t -> StateT (ProblemBuilder t) m ()
 inline lookupFun entry = do
     nodeAddr <- use $
@@ -246,50 +293,3 @@ inlineInner lookupFun nodeAddr entry = do
                 ]
             }
     insertNode exitNodeAddr exitNode entry.tag Nothing
-
---
-
-doAnalysis :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
-doAnalysis = do
-    forceSimpleLoopReturns
-
-forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
-forceSimpleLoopReturns = do
-    ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
-    for_ (loopsOf analysis.loopData) $ \loop -> do
-        let tag = analysis.nodeTag loop.head
-        let rets = S.toList $ S.filter (`S.member` loop.body) $ viewAtTag tag analysis.preds (Addr loop.head)
-        let alreadySimple = [ isNodeNoop (problem.nodes ! ret) | ret <- rets ] == [True]
-        unless alreadySimple $ do
-            simpleRetNodeAddr <- appendNode (trivialNode (Addr loop.head)) tag Nothing
-            for_ rets $ \ret -> modifying (nodeAt ret % nodeConts) $ \cont ->
-                if cont == Addr loop.head
-                then Addr simpleRetNodeAddr
-                else cont
-
-padMergePoints :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
-padMergePoints = do
-    ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
-    let allMergePointPreds =
-            M.filter
-                (\preds -> S.size preds > 1)
-                (M.fromSet
-                    (\n -> viewAtTag (analysis.nodeTag n) analysis.preds (Addr n))
-                    (M.keysSet problem.nodes))
-    nonTrivialEdgesToMergePoints <-
-        fmap concat . for (M.toAscList allMergePointPreds) $ \(mergePointAddr, mergePointPreds) -> do
-            fmap concat . for (S.toAscList mergePointPreds) $ \predAddr -> do
-                predNode <- use $ nodeAt predAddr
-                return $ case predNode of
-                    NodeBasic (BasicNode { varUpdates = [] }) -> []
-                    _ -> [(predAddr, mergePointAddr)]
-    for_ nonTrivialEdgesToMergePoints $ \(predAddr, mergePointAddr) -> do
-        let paddingNode = NodeBasic $ BasicNode
-                { next = Addr mergePointAddr
-                , varUpdates = []
-                }
-        paddingNodeAddr <- appendNode paddingNode (analysis.nodeTag mergePointAddr) Nothing
-        modifying (nodeAt predAddr % nodeConts % #_Addr) $ \contNodeAddr ->
-            if contNodeAddr == mergePointAddr
-            then paddingNodeAddr
-            else contNodeAddr
