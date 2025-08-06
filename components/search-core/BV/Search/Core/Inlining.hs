@@ -3,12 +3,12 @@ module BV.Search.Core.Inlining
     , discoverInlineScript
     ) where
 
-import BV.Core.Graph
 import BV.Core.RepGraph
 import BV.Core.Stages
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
+import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
 import BV.Search.Core.Solver

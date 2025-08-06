@@ -123,6 +123,7 @@ internal-libraries:
       - BV.Core.Structs
       - BV.Core.Types
       - BV.Core.Types.Extras.Expr # TODO
+      - BV.Core.Types.Extras.Problem # TODO
       - BV.Core.Types.Extras.Program # TODO
       - BV.Core.Types.Extras.ProofCheck # TODO
       - BV.Core.Types.Extras.SExprWithPlaceholders # TODO

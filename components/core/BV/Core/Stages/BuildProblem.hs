@@ -13,7 +13,6 @@ module BV.Core.Stages.BuildProblem
     ) where
 
 import BV.Core.GenerateFreshName
-import BV.Core.Graph
 import BV.Core.Logic
 import BV.Core.Types
 import BV.Core.Types.Extras

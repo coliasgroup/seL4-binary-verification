@@ -8,7 +8,6 @@ module BV.Core.Stages.EnumerateProofChecks
     , pruneProofCheck
     ) where
 
-import BV.Core.Graph
 import BV.Core.Logic (instEqAtVisit)
 import BV.Core.Types
 import BV.Core.Types.Extras

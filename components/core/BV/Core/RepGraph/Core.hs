@@ -47,7 +47,6 @@ module BV.Core.RepGraph.Core
     ) where
 
 import BV.Core.GenerateFreshName (generateFreshName)
-import BV.Core.Graph
 import BV.Core.Logic
 import BV.Core.RepGraph.Solver
 import BV.Core.Structs (MonadStructs)

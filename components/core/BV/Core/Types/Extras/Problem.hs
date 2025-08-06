@@ -2,13 +2,26 @@
 
 module BV.Core.Types.Extras.Problem
     ( ArgRenames
+    , LoopDataMap
+    , NodeGraph
     , ProblemAnalysis (..)
     , ProblemWithAnalysis (..)
     , analyzeProblem
     , argRenamesOf
     , augmentProblem
     , computePreds
+    , createLoopDataMap
+    , isReachableFrom
+    , loopBodyInnerLoops
+    , loopBodyOf
+    , loopHeadOf
+    , loopHeadsFrom
+    , loopHeadsIncludingInner
+    , loopHeadsOf
+    , makeNodeGraph
+    , nodeTagMap
     , pairingIdOfProblem
+    , reachableFrom
     , varNamesOfProblem
     ) where
 
