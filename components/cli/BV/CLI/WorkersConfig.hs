@@ -2,6 +2,7 @@
 
 module BV.CLI.WorkersConfig
     ( WorkerConfig (..)
+    , WorkerName
     , WorkersConfig (..)
     ) where
 
@@ -26,8 +27,9 @@ instance FromJSON WorkersConfig where
 data WorkerConfig
   = WorkerConfig
       { command :: NonEmpty String
-      , numCores :: Integer
-      , numJobs :: Integer
+      , footprintOpt :: Maybe Integer
+      , numCapabilitiesOpt :: Maybe Integer
+      , numJobsOpt :: Maybe Integer
       , priority :: Integer
       }
   deriving (Eq, Generic, Ord, Show)
@@ -35,8 +37,9 @@ data WorkerConfig
 instance FromJSON WorkerConfig where
     parseJSON = withObject "WorkerConfig" $ \v -> WorkerConfig
         <$> (v .: "command" <|> explicitParseField localTrue v "local")
-        <*> v .: "num_cores"
-        <*> v .: "num_jobs"
+        <*> v .:? "footprint"
+        <*> v .:? "num_capabilities"
+        <*> v .:? "num_jobs"
         <*> v .:? "priority" .!= 0
       where
         localTrue = \case

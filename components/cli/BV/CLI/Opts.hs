@@ -52,8 +52,6 @@ data Opts
 
 data GlobalOpts
   = GlobalOpts
-      { numCores :: Maybe Int
-      }
   deriving (Generic, Show)
 
 data NotWorkerGlobalOpts
@@ -114,7 +112,9 @@ data NotWorkerCommandOpts
 
 data CheckOpts
   = CheckOpts
-      { maxNumConcurrentSolvers :: Maybe Integer
+      { footprint :: Maybe Integer
+      , numCababilities :: Maybe Integer
+      , numJobs :: Maybe Integer
       , solvers :: FilePath
       , workers :: Maybe FilePath
       , onlineSolverTimeout :: SolverTimeout
@@ -206,15 +206,7 @@ optsParser = do
 
 globalOptsParser :: Parser GlobalOpts
 globalOptsParser = do
-    numCores <- optional $ option' auto
-        [ long "cores"
-        , short 'N'
-        , metavar "NUM_CORES"
-        , help "Number of cores to use"
-        ]
-    pure $ GlobalOpts
-        { numCores
-        }
+    pure GlobalOpts
 
 notWorkerGlobalOptsParser :: Parser NotWorkerGlobalOpts
 notWorkerGlobalOptsParser = do
@@ -346,11 +338,22 @@ checkOptsParser = do
         , value defaultOfflineSolverTimeout
         , help "Timeout for offline solvers"
         ]
-    maxNumConcurrentSolvers <- optional $ option' auto
-        [ long "jobs"
+    footprint <- optional $ option' auto
+        [ long "footprint"
+        , short 'f'
+        , metavar "FOOTPRINT"
+        , help "Total number of cores to use"
+        ]
+    numCababilities <- optional $ option' auto
+        [ long "num-capabilities"
+        , metavar "NUM_CAPABILITIES"
+        , help "Number of Haskell RTS capabilities"
+        ]
+    numJobs <- optional $ option' auto
+        [ long "num-jobs"
         , short 'j'
         , metavar "NUM_JOBS"
-        , help "Maximun number of concurrent solvers"
+        , help "Maximum number of concurrent solvers"
         ]
     sqliteCache <- optional $ option' str
         [ long "sqlite-cache"
@@ -429,7 +432,9 @@ checkOptsParser = do
         ]
     justCompareChecks <- switch (long "just-compare-checks" <> help "Just compare checks to reference")
     pure $ CheckOpts
-        { maxNumConcurrentSolvers
+        { footprint
+        , numCababilities
+        , numJobs
         , solvers
         , workers
         , onlineSolverTimeout

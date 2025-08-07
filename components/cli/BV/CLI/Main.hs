@@ -14,8 +14,6 @@ import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (allocate, runResourceT)
 import Data.ByteString.Builder (hPutBuilder)
-import Data.Foldable (traverse_)
-import GHC.Conc (setNumCapabilities)
 import System.IO (BufferMode (LineBuffering), Handle, IOMode (WriteMode),
                   hClose, hSetBuffering, openFile, stderr)
 import Text.Pretty.Simple (pPrint)
@@ -29,7 +27,6 @@ main = do
 
 run :: Opts -> IO ()
 run opts = do
-    setNumCapabilitiesAccordingToOpt opts.globalOpts.numCores
     case opts.commandOpts of
         CommandOptsWorker opts' -> runWorker opts'
         CommandOptsNotWorker notWorkerGlobalOpts notWorkerCommandOpts -> runNotWorker notWorkerGlobalOpts notWorkerCommandOpts
@@ -41,9 +38,6 @@ runNotWorker notWorkerGlobalOpts notWorkerCommandOpts = do
             CommandOptsCheck opts -> runCheck opts
             CommandOptsExtractSMT opts -> runExtractSMT opts
             CommandOptsFormatSMT opts -> runFormatSMT opts
-
-setNumCapabilitiesAccordingToOpt :: Maybe Int -> IO ()
-setNumCapabilitiesAccordingToOpt = traverse_ setNumCapabilities
 
 withLoggingOpts :: LoggingOpts -> LoggingWithContextT IO a -> IO a
 withLoggingOpts opts m = runResourceT $ do

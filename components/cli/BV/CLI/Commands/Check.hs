@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module BV.CLI.Commands.Check
     ( runCheck
     ) where
@@ -17,9 +19,16 @@ import BV.System.Local
 import BV.System.Utils.Async
 import BV.TargetDir
 
+import BV.System.Utils.Distrib (runProcess')
+import BV.Utils (ensureM)
 import Conduit (awaitForever)
-import Control.Concurrent.Async (forConcurrently_)
-import Control.Distributed.Process (NodeId (NodeId))
+import Control.Applicative (Alternative ((<|>)), asum)
+import Control.Concurrent.Async (Concurrently (Concurrently), forConcurrently_,
+                                 runConcurrently)
+import Control.Distributed.Process (NodeId (NodeId), call)
+import Control.Distributed.Process.Closure (functionTDict, mkClosure)
+import Control.Distributed.Process.Node (LocalNode, newLocalNode)
+import Control.Exception.Safe (throwString)
 import Control.Monad (unless, when)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -36,6 +45,7 @@ import qualified Data.Map as M
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import qualified Data.Yaml as Y
+import GHC.Conc (getNumProcessors, setNumCapabilities)
 import Network.Transport (EndPointAddress (EndPointAddress))
 import Network.Transport.Static (withStaticTransport)
 import Network.Transport.Static.Utils (withDriverPeers)
@@ -74,11 +84,15 @@ runCheck opts = do
         solverList <- readSolverList opts.solvers
         let solversConfig = getSolversConfig opts solverList
         withCacheCtx <- getWithCacheCtx opts
+        maxNumConcurrentSolversLocal <- configureLocalResources
+            opts.footprint
+            opts.numCababilities
+            opts.numJobs
         runChecks <- case opts.workers of
             Nothing -> do
-                maxNumConcurrentSolvers <- getMaxNumConcurrentSolvers solversConfig opts
+                checkMaxNumConcurrentSolvers solversConfig maxNumConcurrentSolversLocal
                 let backendConfig = LocalConfig
-                        { numJobs = maxNumConcurrentSolvers
+                        { numJobs = maxNumConcurrentSolversLocal
                         }
                 return $ runLocal backendConfig solversConfig
             Just workersConfigPath -> do
@@ -89,12 +103,26 @@ runCheck opts = do
                             -- TODO ensure all worker stderr is logged in case of driver crash with some kind of flush on exception
                             withLinkedAsync (run (handleStderrs stderrs)) $ \_ -> do
                                 withStaticTransport driverAddr peers $ \transport -> run $ do
-                                    let backendConfig = DistribConfig
-                                            { transport
-                                            , workers = distribWorkerConfigsFromWorkersConfig workersConfig
-                                            , stagesInput = input
-                                            }
-                                    runDistrib backendConfig solversConfig checks
+                                    localNode <- liftIO $ newLocalNode transport distribRemoteTable
+                                    let nids = map nodeIdFromWorkerName $ M.keys workersConfig.workers
+                                    withWatchdogs localNode nids $ do
+                                        numJobsByWorker <- ifor workersConfig.workers $ \workerName workerConfig ->
+                                            configureRemoteResources
+                                                localNode
+                                                (nodeIdFromWorkerName workerName)
+                                                workerConfig.footprintOpt
+                                                workerConfig.numCapabilitiesOpt
+                                                workerConfig.numJobsOpt
+                                        let backendConfig = DistribConfig
+                                                { transport
+                                                , workers = M.fromList $ flip map (M.toList workersConfig.workers) $ \(workerName, workerConfig) ->
+                                                    (,) (nodeIdFromWorkerName workerName) $ DistribWorkerConfig
+                                                        { numJobs = numJobsByWorker M.! workerName
+                                                        , priority = workerConfig.priority
+                                                        }
+                                                , stagesInput = input
+                                                }
+                                        runDistrib backendConfig solversConfig checks localNode
         checks <- evalChecks
         report <- withCacheCtx $ runCacheT $ runChecks checks
         let (success, displayedReport) = displayReport report
@@ -104,18 +132,6 @@ runCheck opts = do
             Nothing -> return ()
         unless success $ do
             liftIO exitFailure
-
-getMaxNumConcurrentSolvers :: (MonadIO m, MonadLogger m) => SolversConfig -> CheckOpts -> m Integer
-getMaxNumConcurrentSolvers solversConfig opts = do
-    let min_ = minNumJobs solversConfig
-    case opts.maxNumConcurrentSolvers of
-        Nothing -> return min_
-        Just n -> do
-            when (n < min_) $ do
-                liftIO $ die $ printf
-                    "--jobs option value (%d) is less than the minimum required by the provided solver config (%d)"
-                    n min_
-            return n
 
 getWithCacheCtx :: (MonadUnliftIO m, MonadLoggerWithContext m) => CheckOpts -> m ((CacheContext m -> m a) -> m a)
 getWithCacheCtx opts = do
@@ -225,20 +241,85 @@ workerCommandsFromWorkersConfig :: WorkersConfig -> Map EndPointAddress CreatePr
 workerCommandsFromWorkersConfig workersConfig = M.fromList
     [ let addr = EndPointAddress (BC.pack workerName)
           cmd = case workerConfig.command of
-                path :| args -> (proc path (args ++ ["worker", workerName, "--cores", show workerConfig.numCores]))
+                path :| args -> (proc path (args ++ ["worker", workerName]))
                     { std_err = CreatePipe
                     }
       in (addr, cmd)
     | (workerName, workerConfig) <- M.toList workersConfig.workers
     ]
 
-distribWorkerConfigsFromWorkersConfig :: WorkersConfig -> Map NodeId DistribWorkerConfig
-distribWorkerConfigsFromWorkersConfig workersConfig = M.fromList
-    [ let nid = NodeId (EndPointAddress (BC.pack workerName))
-          cfg = DistribWorkerConfig
-                { numJobs = workerConfig.numJobs
-                , priority = workerConfig.priority
-                }
-        in (nid, cfg)
-    | (workerName, workerConfig) <- M.toList workersConfig.workers
-    ]
+nodeIdFromWorkerName :: WorkerName -> NodeId
+nodeIdFromWorkerName workerName = NodeId $ EndPointAddress $ BC.pack workerName
+
+withWatchdogs :: MonadUnliftIO m => LocalNode -> [NodeId] -> m a -> m a
+withWatchdogs localNode nids m = withRunInIO $ \run -> do
+    let watchdogs = asum $ flip map nids $ \nid -> Concurrently $ do
+            cond <- runProcess' localNode $ watchdog nid
+            throwString $ show cond
+    liftIO $ runConcurrently $ watchdogs <|> Concurrently (run m)
+
+configureResourcesWith
+    :: (MonadLoggerWithContext m, MonadIO m)
+    => m Int
+    -> (Int -> m ())
+    -> Maybe Integer -> Maybe Integer -> Maybe Integer -> m Integer
+configureResourcesWith getNumProcessors' setNumCapabilities' footprintOpt numCapabilitiesOpt numJobsOpt = do
+    footprint <- maybe getDefaultFootprint return footprintOpt
+    ensureM $ footprint >= minCaps + minJobs
+    (numCaps, numJobs) <- case (numCapabilitiesOpt, numJobsOpt) of
+        (Just numCaps', Just numJobs') -> do
+            return (numCaps', numJobs')
+        (Just numCaps', Nothing) -> do
+            return (numCaps', footprint - numCaps')
+        (Nothing, Just numJobs') -> do
+            return (footprint - numJobs', numJobs')
+        (Nothing, Nothing) -> do
+            let rem_ = footprint - minJobs - minCaps
+            let remCaps = rem_ `div` 3
+            let remJobs = rem_ - remCaps
+            let numCaps' = minCaps + remCaps
+            let numJobs' = minJobs + remJobs
+            return (numCaps', numJobs')
+    ensureM $ numCaps >= minCaps
+    ensureM $ numJobs >= minJobs
+    ensureM $ numCaps + numJobs <= footprint
+    setNumCapabilities' (fromInteger numCaps)
+    return numJobs
+  where
+    minJobs = 1
+    minCaps = 1
+    getDefaultFootprint = do
+        numProcessors <- toInteger <$> getNumProcessors'
+        return $ numProcessors - 1
+
+configureLocalResources
+    :: (MonadLoggerWithContext m, MonadIO m)
+    => Maybe Integer -> Maybe Integer -> Maybe Integer -> m Integer
+configureLocalResources =
+    configureResourcesWith
+        (liftIO getNumProcessors)
+        (liftIO . setNumCapabilities)
+
+configureRemoteResources
+    :: (MonadLoggerWithContext m, MonadIO m)
+    => LocalNode -> NodeId -> Maybe Integer -> Maybe Integer -> Maybe Integer -> m Integer
+configureRemoteResources localNode nid = do
+    configureResourcesWith
+        (runProcess' localNode
+            (call
+                $(functionTDict 'getNumProcessorsClosureFn)
+                nid
+                ($(mkClosure 'getNumProcessorsClosureFn) ())))
+        (\n -> runProcess' localNode
+            (call
+                $(functionTDict 'setNumCapabilitiesClosureFn)
+                nid
+                ($(mkClosure 'setNumCapabilitiesClosureFn) n)))
+
+checkMaxNumConcurrentSolvers :: (MonadIO m, MonadLogger m) => SolversConfig -> Integer -> m ()
+checkMaxNumConcurrentSolvers solversConfig n = do
+    let min_ = minNumJobs solversConfig
+    when (n < min_) $ do
+        liftIO $ die $ printf
+            "--jobs option value (%d) is less than the minimum required by the provided solver config (%d)"
+            n min_

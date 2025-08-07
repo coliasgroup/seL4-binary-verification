@@ -518,6 +518,7 @@ library system-utils
   visibility: public
   exposed-modules:
       BV.System.Utils.Async
+      BV.System.Utils.Distrib
       BV.System.Utils.Stopwatch
       BV.System.Utils.UnliftIO.Async
   hs-source-dirs:
@@ -536,12 +537,14 @@ library system-utils
     , bytestring
     , containers
     , deepseq
+    , distributed-process
     , exceptions
     , monad-logger
     , mtl
     , optics
     , parallel
     , safe-exceptions
+    , sel4-bv:logging
     , stm
     , text
     , transformers
@@ -694,12 +697,14 @@ executable sel4-bv-cli
     , attoparsec
     , base
     , base16-bytestring
+    , binary
     , bytestring
     , conduit
     , conduit-extra
     , containers
     , deepseq
     , distributed-process
+    , distributed-process-async
     , exceptions
     , filepath
     , megaparsec
@@ -724,6 +729,7 @@ executable sel4-bv-cli
     , sel4-bv:system-core
     , sel4-bv:system-utils
     , sel4-bv:target-dir
+    , sel4-bv:utils
     , stm
     , text
     , transformers

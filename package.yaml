@@ -177,8 +177,11 @@ internal-libraries:
     source-dirs: components/system-utils
     # exposed-modules: # TODO
     dependencies:
+      - sel4-bv:logging
+      # external
       - unliftio-core
       - monad-logger
+      - distributed-process
 
   system-core:
     visibility: public
@@ -295,11 +298,13 @@ executables:
       - sel4-bv:search-core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
+      - sel4-bv:utils
       - sel4-bv:system-utils
       - sel4-bv:system
       - sel4-bv:system-core
       - sel4-bv:network-transport-static
       # external
+      - binary
       - megaparsec
       - attoparsec
       - aeson
@@ -316,6 +321,7 @@ executables:
       - base16-bytestring
       - network-transport
       - distributed-process
+      - distributed-process-async
       # TODO for debugging
       - pretty-simple
     ghc-options: *exe-ghc-options

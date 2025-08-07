@@ -1,5 +1,6 @@
 online:
   command: ["yices-smt2", "--incremental"]
+  # command: ["bitwuzla"]
   memory_mode: word8
 offline:
   yices:

@@ -7,8 +7,9 @@
 module BV.System.Distrib
     ( DistribConfig (..)
     , DistribWorkerConfig (..)
-    , distribRemoteTable
+    , __remoteTable
     , runDistrib
+    , serverClosureFn
     ) where
 
 import BV.Core.Prelude
@@ -17,25 +18,21 @@ import BV.SMTLIB2.Command
 import BV.System.Core
 import BV.System.Utils
 import BV.System.Utils.Async
+import BV.System.Utils.Distrib
 import BV.Utils (expecting)
 
-import Control.Concurrent (newChan, newEmptyMVar, putMVar, readChan, takeMVar,
-                           threadDelay, writeChan)
+import Control.Concurrent (newChan, readChan, writeChan)
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently))
 import Control.Concurrent.STM (modifyTVar', newEmptyTMVarIO, newTVarIO,
                                putTMVar, readTMVar, stateTVar)
-import Control.Distributed.Process (NodeId, Process, ProcessId, RemoteTable,
-                                    SendPort, expect, getSelfPid, kill, link,
+import Control.Distributed.Process (NodeId, Process, ProcessId, SendPort,
+                                    callLocal, expect, getSelfPid, link,
                                     receiveChan, send, sendChan, spawnLink,
                                     spawnLocal)
 import qualified Control.Distributed.Process as D
-import qualified Control.Distributed.Process.Async as A
 import Control.Distributed.Process.Closure (mkClosure, remotable)
-import Control.Distributed.Process.Node (LocalNode, forkProcess,
-                                         initRemoteTable, newLocalNode,
-                                         runProcess)
-import Control.Exception.Safe (MonadMask, SomeException, bracket, throwIO,
-                               throwString, try)
+import Control.Distributed.Process.Node (LocalNode, runProcess)
+import Control.Exception.Safe (MonadMask, bracket, throwString)
 import Control.Monad (forever, replicateM, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, askRunInIO, withRunInIO)
@@ -108,18 +105,15 @@ serverThread checks = do
     selfPid <- lift getSelfPid
     withPushLogContext (show selfPid) $ do
         run <- mapLoggingWithContextT liftIO askRunInIO
-        forever $ do
-            (req, src) <- lift expect
-            handle <- lift $ A.async $ A.task $ do
-                    resp <- liftIO $ run $ executeRequest checks req
-                    send src resp
-            linked <- lift $ A.async $ A.task $ do
-                    link src
-                    liftIO $ forever $ threadDelay maxBound
-            lift $ A.waitAnyCancel [handle, linked]
+        lift $ forever $ do
+            (req, src) <- expect
+            callLocal $ do
+                link src
+                resp <- liftIO $ run $ executeRequest checks req
+                send src resp
 
-server :: (ServerInput, ProcessId) -> Process ()
-server (input, replyProcessId) = do
+serverClosureFn :: (ServerInput, ProcessId) -> Process ()
+serverClosureFn (input, replyProcessId) = do
     localLogChan <- liftIO newChan
     let logAction entry = do
             when (levelAtLeastWithTrace LevelDebug entry.level) $ do
@@ -135,14 +129,10 @@ server (input, replyProcessId) = do
   where
     checks = elaborateChecksFromInput input.stagesInput
 
-remotable ['server]
+remotable ['serverClosureFn]
 
-distribRemoteTable :: RemoteTable
-distribRemoteTable = __remoteTable initRemoteTable
-
-withBackend :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => DistribConfig -> (SolverBackend m -> m a) -> m a
-withBackend config f = withRunInIO $ \run -> do
-    node <- newLocalNode config.transport distribRemoteTable
+withBackend :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => DistribConfig -> LocalNode -> (SolverBackend m -> m a) -> m a
+withBackend config node f = withRunInIO $ \run -> do
     serverThreadProcessIdSlots <- for config.workers $ const newEmptyTMVarIO
     let background = runConcurrently $ ifor_ serverThreadProcessIdSlots $ \workerNodeId slot -> Concurrently $ do
             runProcess node $ do
@@ -153,7 +143,7 @@ withBackend config f = withRunInIO $ \run -> do
                         , logChanSend
                         , numThreads = (config.workers ! workerNodeId).numJobs
                         }
-                spawnLink workerNodeId ($(mkClosure 'server) (serverInput, selfPid))
+                spawnLink workerNodeId ($(mkClosure 'serverClosureFn) (serverInput, selfPid))
                 serverThreadProcessIds <- expect
                 liftIO $ atomically $ do
                     putTMVar slot serverThreadProcessIds
@@ -178,7 +168,7 @@ solverBackendFromServerProcesses node availableInit = do
             (atomically . modifyTVar' availableVar . returnAvailable)
             (\(_prio, pid) -> run (f pid))
     let doReq :: Request -> Prism' Response a -> m a
-        doReq req o = withServerThread $ \pid -> withRunInIO $ \run -> runProcessForOutput node $ do
+        doReq req o = withServerThread $ \pid -> withRunInIO $ \run -> runProcess' node $ do
             src <- getSelfPid
             liftIO $ run $ logDebug $ "making request to " ++ show pid
             send pid (req, src)
@@ -197,24 +187,11 @@ solverBackendFromServerProcesses node availableInit = do
 
 runDistrib
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => DistribConfig -> SolversConfig -> Checks -> m Report
-runDistrib config solversConfig checks = do
+    => DistribConfig -> SolversConfig -> Checks -> LocalNode -> m Report
+runDistrib config solversConfig checks node = do
     gate <- liftIO $ newSemGate $ sumOf (folded % #numJobs) config.workers
-    withBackend config $ \backend -> do
+    withBackend config node $ \backend -> do
         frontend (applySemGate gate) backend solversConfig checks
-
---
-
-runProcessForOutput :: LocalNode -> Process a -> IO a
-runProcessForOutput node proc = bracket
-    (do
-        done <- newEmptyMVar
-        pid <- forkProcess node $ try proc >>= liftIO . putMVar done
-        return (done, pid))
-    (\(_done, pid) -> do
-        forkProcess node $ kill pid "cancelled")
-    (\(done, _pid) -> do
-        takeMVar done >>= either (throwIO :: SomeException -> IO a) return)
 
 --
 
