@@ -10,7 +10,9 @@ module BV.Core.Prelude
     , OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
     , PairingId'
+    , ProofCheckGroupIndices
     , ProofCheckMeta (..)
+    , ProofScriptEdgePath
     , RODataInputRangeType (..)
     , RODataInputRanges
     , SExprWithPlaceholders

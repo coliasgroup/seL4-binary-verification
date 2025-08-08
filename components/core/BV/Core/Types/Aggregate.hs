@@ -30,6 +30,7 @@ import Data.Binary (Binary)
 import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
+import Optics
 
 newtype Problems t
   = Problems { unwrap :: M.Map (PairingId t) (Problem t) }
@@ -46,7 +47,7 @@ newtype ProofChecks t a
 type ProofChecks' = ProofChecks AsmRefineTag
 
 newtype SMTProofChecks t a
-  = SMTProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t [SMTProofCheckGroup a]) }
+  = SMTProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t (M.Map ProofCheckGroupIndices (SMTProofCheckGroup a))) }
   deriving (Eq, Functor, Generic, Ord, Show)
   deriving newtype (NFData)
 
@@ -68,7 +69,7 @@ newtype CompatSMTProofChecks
   deriving newtype (NFData)
 
 toCompatSMTProofChecks :: SMTProofChecks AsmRefineTag () -> CompatSMTProofChecks
-toCompatSMTProofChecks (SMTProofChecks byPairing) = CompatSMTProofChecks (M.map fold byPairing)
+toCompatSMTProofChecks (SMTProofChecks byPairing) = CompatSMTProofChecks (M.map (toListOf (folded % folded)) byPairing)
 
 -- search outputs
 

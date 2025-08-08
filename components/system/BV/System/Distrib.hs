@@ -32,7 +32,8 @@ import Control.Distributed.Process (NodeId, Process, ProcessId, SendPort,
 import qualified Control.Distributed.Process as D
 import Control.Distributed.Process.Closure (mkClosure, remotable)
 import Control.Distributed.Process.Node (LocalNode, runProcess)
-import Control.Exception.Safe (MonadMask, bracket, throwString)
+import Control.Exception.Safe (MonadMask, SomeException, bracket, throwString,
+                               withException)
 import Control.Monad (forever, replicateM, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, askRunInIO, withRunInIO)
@@ -46,6 +47,7 @@ import GHC.Generics (Generic)
 import Network.Transport (Transport)
 import Optics
 import Optics.Passthrough (PermeableOptic (passthrough))
+import System.IO (hPutStrLn, stderr)
 
 data DistribConfig
   = DistribConfig
@@ -109,7 +111,8 @@ serverThread checks = do
             (req, src) <- expect
             callLocal $ do
                 link src
-                resp <- liftIO $ run $ executeRequest checks req
+                let f (ex :: SomeException) = hPutStrLn stderr $ show ex
+                resp <- liftIO $ flip withException f $ run $ executeRequest checks req
                 send src resp
 
 serverClosureFn :: (ServerInput, ProcessId) -> Process ()

@@ -22,7 +22,7 @@ import BV.Core.Utils.IncludeExcludeFilter
 import Control.DeepSeq (NFData)
 import Control.Monad (guard)
 import Data.Binary (Binary)
-import Data.Foldable (fold)
+import Data.Foldable (toList)
 import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
@@ -59,19 +59,18 @@ data StagesOutput
         -- intermediate, for checking
       , intermediate :: IntermediateStagesOutput
       }
-  deriving (Eq, Generic, NFData)
+  deriving (Eq, Generic)
 
 newtype StagesOutputChecks
-  = StagesOutputChecks { unwrap :: M.Map PairingId' [SMTProofCheckGroup ProofCheckMeta] }
+  = StagesOutputChecks { unwrap :: M.Map PairingId' (M.Map ProofScriptEdgePath (M.Map ProofCheckGroupIndices (SMTProofCheckGroup ProofCheckMeta))) }
   deriving (Eq, Generic, Ord, Show)
-  deriving newtype (NFData)
 
 data ProofCheckMeta
   = ProofCheckMeta
       { path :: ProofScriptNodePath AsmRefineTag
       , desc :: ProofCheckDescription
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 prettyProofCheckMeta :: ProofCheckMeta -> String
 prettyProofCheckMeta meta = prettyProofScriptNodePath meta.path ++ " >>> " ++ meta.desc
@@ -82,6 +81,7 @@ data IntermediateStagesOutput
       , pairings :: Pairings'
       , problems :: Problems'
       , proofChecks :: ProofChecks' ProofCheckDescription
+      , smtProofChecks :: SMTProofChecks' ProofCheckDescription
       , compatProofChecks :: CompatProofChecks
       , compatSMTProofChecks :: CompatSMTProofChecks
       }
@@ -97,6 +97,7 @@ stages input = StagesOutput
         , pairings
         , problems
         , proofChecks
+        , smtProofChecks
         , compatProofChecks
         , compatSMTProofChecks
         }
@@ -183,5 +184,6 @@ stages input = StagesOutput
     compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)
 
     finalChecks =
-        let f = decorateProofScriptWithProofScriptNodePathsWith $ \path -> map (fmap (ProofCheckMeta path))
-         in StagesOutputChecks $ M.map (fold . f) smtProofChecks.unwrap
+        let f = decorateProofScriptWithProofScriptNodePathsWith $ \path groups ->
+                (proofScriptEdgePath path, M.map (fmap (ProofCheckMeta path)) groups)
+         in StagesOutputChecks $ M.map (M.fromList . toList . f) smtProofChecks.unwrap

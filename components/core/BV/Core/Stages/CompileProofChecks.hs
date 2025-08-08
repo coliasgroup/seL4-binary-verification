@@ -13,6 +13,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 
 import Control.Monad.Writer (runWriter)
+import qualified Data.Map as M
 import Data.Traversable (for)
 
 compileProofChecks
@@ -21,9 +22,9 @@ compileProofChecks
     -> Pairings'
     -> ArgRenames AsmRefineTag
     -> [ProofCheck AsmRefineTag a]
-    -> [SMTProofCheckGroup a]
+    -> M.Map ProofCheckGroupIndices (SMTProofCheckGroup a)
 compileProofChecks repGraphInput functionSigs pairings argRenames checks =
-    map
+    M.map
         (compileProofCheckGroup repGraphInput functionSigs pairings argRenames . pruneGroup)
         (proofCheckGroups checks)
   where

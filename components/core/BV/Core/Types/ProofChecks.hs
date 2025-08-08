@@ -9,6 +9,8 @@ module BV.Core.Types.ProofChecks
     , PcImpHypSide (..)
     , ProofCheck (..)
     , ProofCheckDescription
+    , ProofCheckGroup
+    , ProofCheckGroupIndices (..)
     , Restr (..)
     , Visit (..)
     , VisitCount (..)
@@ -20,6 +22,8 @@ import BV.Core.Types.Program
 import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
+import Data.Binary (Binary)
+import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
@@ -30,6 +34,15 @@ data ProofCheck t a
       , hyp :: Hyp t
       }
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
+
+type ProofCheckGroup t a = [ProofCheck t a]
+
+newtype ProofCheckGroupIndices
+  = ProofCheckGroupIndices { unwrap :: S.Set Int }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (Monoid, NFData, Semigroup)
+
+instance Binary ProofCheckGroupIndices
 
 type ProofCheckDescription = String
 

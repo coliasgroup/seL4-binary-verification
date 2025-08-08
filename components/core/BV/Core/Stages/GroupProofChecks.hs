@@ -15,15 +15,13 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
-type ProofCheckGroup t a = [ProofCheck t a]
+proofCheckGroups :: Tag t => [ProofCheck t a] -> M.Map ProofCheckGroupIndices (ProofCheckGroup t a)
+proofCheckGroups = M.fromList . toList . proofCheckGroupsWithKeys
 
-proofCheckGroups :: Tag t => [ProofCheck t a] -> [ProofCheckGroup t a]
-proofCheckGroups = toList . proofCheckGroupsWithKeys
-
-proofCheckGroupsWithKeys :: Tag t => [ProofCheck t a] -> Map CheckGroupKey (ProofCheckGroup t a)
+proofCheckGroupsWithKeys :: Tag t => [ProofCheck t a] -> Map CheckGroupKey (ProofCheckGroupIndices, ProofCheckGroup t a)
 proofCheckGroupsWithKeys checks = M.unionsWith (<>)
-    [ M.singleton (compatKey (groupKey check)) [check]
-    | check <- checks
+    [ M.singleton (compatKey (groupKey check)) (ProofCheckGroupIndices (S.singleton i), [check])
+    | (i, check) <- zip [0..] checks
     ]
 
 newtype CheckGroupKey

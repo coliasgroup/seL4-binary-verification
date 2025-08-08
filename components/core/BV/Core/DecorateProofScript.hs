@@ -3,16 +3,22 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module BV.Core.DecorateProofScript
-    ( ProofScriptNodePath (..)
+    ( ProofNodeEdge
+    , ProofScriptEdgePath
+    , ProofScriptNodePath (..)
     , decorateProofScriptWithProofScriptNodePathsWith
+    , followProofScriptEdgePath
     , prettyProofScriptNodePath
     , proofScriptEdgePath
     ) where
 
-import BV.Core.Types
+import BV.Core.Types.Program
+import BV.Core.Types.ProofScript
+import BV.Core.Types.Tag
 import BV.Utils (ensure)
 
 import Control.DeepSeq (NFData)
+import Data.Binary (Binary)
 import Data.Foldable (fold)
 import Data.Functor (void)
 import GHC.Generics (Generic)
@@ -30,6 +36,10 @@ newtype ProofNodeEdge
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
+instance Binary ProofNodeEdge
+
+type ProofScriptEdgePath = [ProofNodeEdge]
+
 proofScriptNodeEdgePath :: ProofScriptNodePath t -> [(ProofScriptNodePath t, ProofNodeEdge)]
 proofScriptNodeEdgePath = reverse . go
   where
@@ -37,8 +47,14 @@ proofScriptNodeEdgePath = reverse . go
         Nothing -> []
         Just (path', edge) -> (path', edge) : go path'
 
-proofScriptEdgePath :: ProofScriptNodePath t -> [ProofNodeEdge]
+proofScriptEdgePath :: ProofScriptNodePath t -> ProofScriptEdgePath
 proofScriptEdgePath = map snd . proofScriptNodeEdgePath
+
+followProofScriptEdgePath :: ProofScriptEdgePath -> ProofNodeWith t a -> a
+followProofScriptEdgePath = go
+  where
+    go [] (ProofNodeWith a _) = a
+    go (edge:edges) (ProofNodeWith _ node) = go edges (getChild edge node)
 
 traverseChildren :: IxTraversal ProofNodeEdge (ProofNode t a) (ProofNode t b) (ProofNodeWith t a) (ProofNodeWith t b)
 traverseChildren = itraversalVL $ \f ->

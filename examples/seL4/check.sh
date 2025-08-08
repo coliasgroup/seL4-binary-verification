@@ -6,12 +6,12 @@ here=$(dirname $0)
 toplevel=$here/../..
 tmp=$here/tmp
 
-# exe="cabal run sel4-bv-cli --"
-exe=$(nix-build $toplevel -A distrib)/bin/driver
+exe="cabal run sel4-bv-cli --"
+# exe=$(nix-build $toplevel -A distrib)/bin/driver
 
-# workers_arg="-j8"
+workers_arg="-j8"
 # workers_arg="--workers $here/workers.local.yaml"
-workers_arg="--workers $here/workers.remote.yaml"
+# workers_arg="--workers $here/workers.remote.yaml"
 
 mkdir -p $tmp
 

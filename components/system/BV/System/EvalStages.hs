@@ -14,7 +14,7 @@ import BV.Logging
 import BV.System.Core
 import BV.TargetDir
 
-import Control.DeepSeq (NFData, deepseq, force, rnf)
+import Control.DeepSeq (NFData, deepseq, force)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (for_)
