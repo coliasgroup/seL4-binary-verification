@@ -52,7 +52,7 @@ data Check
       , meta :: ProofCheckMeta
       , imp :: SExprWithPlaceholders
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data CheckGroup
   = CheckGroup
@@ -61,7 +61,7 @@ data CheckGroup
       , setup :: [SExprWithPlaceholders]
       , checks :: [Check]
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 newtype CheckIndexInGroup
   = CheckIndexInGroup { unwrap :: Integer }
@@ -73,7 +73,7 @@ data CheckSubgroup
       { group :: CheckGroup
       , checks :: [(CheckIndexInGroup, Check)]
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 data CheckSubgroupId
   = CheckSubgroupId
@@ -87,7 +87,6 @@ instance Binary CheckSubgroupId
 newtype Checks
   = Checks { unwrap :: M.Map PairingId' ChecksForPairing }
   deriving (Eq, Generic, Ord, Show)
-  deriving newtype (NFData)
 
 data ChecksForPairing
   = ChecksForPairing
@@ -95,7 +94,7 @@ data ChecksForPairing
       , count :: Integer
         -- compute this before creating map, to enable laziness
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 elaborateChecksFromInput :: StagesInput -> Checks
 elaborateChecksFromInput input = elaborateChecks (stages input).checks
