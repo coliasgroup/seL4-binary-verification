@@ -1,0 +1,235 @@
+error:
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'sel4-bv-0.1.0.0'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'buildInputs' of derivation 'sel4-bv-0.1.0.0'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:523:13:
+          522|             depsHostHost = elemAt (elemAt dependencies 1) 0;
+          523|             buildInputs = elemAt (elemAt dependencies 1) 1;
+             |             ^
+          524|             depsTargetTarget = elemAt (elemAt dependencies 2) 0;
+
+       … while calling the 'getAttr' builtin
+         at <nix/derivation-internal.nix>:50:17:
+           49|     value = commonAttrs // {
+           50|       outPath = builtins.getAttr outputName strict;
+             |                 ^
+           51|       drvPath = strict.drvPath;
+
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'aeson-2.2.3.0'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'propagatedBuildInputs' of derivation 'aeson-2.2.3.0'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:530:13:
+          529|             depsHostHostPropagated = elemAt (elemAt propagatedDependencies 1) 0;
+          530|             propagatedBuildInputs = elemAt (elemAt propagatedDependencies 1) 1;
+             |             ^
+          531|             depsTargetTargetPropagated = elemAt (elemAt propagatedDependencies 2) 0;
+
+       … while calling the 'getAttr' builtin
+         at <nix/derivation-internal.nix>:50:17:
+           49|     value = commonAttrs // {
+           50|       outPath = builtins.getAttr outputName strict;
+             |                 ^
+           51|       drvPath = strict.drvPath;
+
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'integer-conversion-0.1.1'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'buildInputs' of derivation 'integer-conversion-0.1.1'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:523:13:
+          522|             depsHostHost = elemAt (elemAt dependencies 1) 0;
+          523|             buildInputs = elemAt (elemAt dependencies 1) 1;
+             |             ^
+          524|             depsTargetTarget = elemAt (elemAt dependencies 2) 0;
+
+       … while calling the 'getAttr' builtin
+         at <nix/derivation-internal.nix>:50:17:
+           49|     value = commonAttrs // {
+           50|       outPath = builtins.getAttr outputName strict;
+             |                 ^
+           51|       drvPath = strict.drvPath;
+
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'tasty-quickcheck-0.11.1'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'buildInputs' of derivation 'tasty-quickcheck-0.11.1'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:523:13:
+          522|             depsHostHost = elemAt (elemAt dependencies 1) 0;
+          523|             buildInputs = elemAt (elemAt dependencies 1) 1;
+             |             ^
+          524|             depsTargetTarget = elemAt (elemAt dependencies 2) 0;
+
+       … while calling the 'getAttr' builtin
+         at <nix/derivation-internal.nix>:50:17:
+           49|     value = commonAttrs // {
+           50|       outPath = builtins.getAttr outputName strict;
+             |                 ^
+           51|       drvPath = strict.drvPath;
+
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'regex-tdfa-1.3.2.4'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'buildInputs' of derivation 'regex-tdfa-1.3.2.4'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:523:13:
+          522|             depsHostHost = elemAt (elemAt dependencies 1) 0;
+          523|             buildInputs = elemAt (elemAt dependencies 1) 1;
+             |             ^
+          524|             depsTargetTarget = elemAt (elemAt dependencies 2) 0;
+
+       … while calling the 'getAttr' builtin
+         at <nix/derivation-internal.nix>:50:17:
+           49|     value = commonAttrs // {
+           50|       outPath = builtins.getAttr outputName strict;
+             |                 ^
+           51|       drvPath = strict.drvPath;
+
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'doctest-parallel-0.4'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'propagatedBuildInputs' of derivation 'doctest-parallel-0.4'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:530:13:
+          529|             depsHostHostPropagated = elemAt (elemAt propagatedDependencies 1) 0;
+          530|             propagatedBuildInputs = elemAt (elemAt propagatedDependencies 1) 1;
+             |             ^
+          531|             depsTargetTargetPropagated = elemAt (elemAt propagatedDependencies 2) 0;
+
+       … while calling the 'getAttr' builtin
+         at <nix/derivation-internal.nix>:50:17:
+           49|     value = commonAttrs // {
+           50|       outPath = builtins.getAttr outputName strict;
+             |                 ^
+           51|       drvPath = strict.drvPath;
+
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'ghc-exactprint-1.10.0.0'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'buildInputs' of derivation 'ghc-exactprint-1.10.0.0'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:523:13:
+          522|             depsHostHost = elemAt (elemAt dependencies 1) 0;
+          523|             buildInputs = elemAt (elemAt dependencies 1) 1;
+             |             ^
+          524|             depsTargetTarget = elemAt (elemAt dependencies 2) 0;
+
+       … while calling the 'getAttr' builtin
+         at <nix/derivation-internal.nix>:50:17:
+           49|     value = commonAttrs // {
+           50|       outPath = builtins.getAttr outputName strict;
+             |                 ^
+           51|       drvPath = strict.drvPath;
+
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'extra-1.8'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'buildInputs' of derivation 'extra-1.8'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:523:13:
+          522|             depsHostHost = elemAt (elemAt dependencies 1) 0;
+          523|             buildInputs = elemAt (elemAt dependencies 1) 1;
+             |             ^
+          524|             depsTargetTarget = elemAt (elemAt dependencies 2) 0;
+
+       … while calling the 'getAttr' builtin
+         at <nix/derivation-internal.nix>:50:17:
+           49|     value = commonAttrs // {
+           50|       outPath = builtins.getAttr outputName strict;
+             |                 ^
+           51|       drvPath = strict.drvPath;
+
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'quickcheck-instances-0.3.33'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'buildInputs' of derivation 'quickcheck-instances-0.3.33'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:523:13:
+          522|             depsHostHost = elemAt (elemAt dependencies 1) 0;
+          523|             buildInputs = elemAt (elemAt dependencies 1) 1;
+             |             ^
+          524|             depsTargetTarget = elemAt (elemAt dependencies 2) 0;
+
+       … while calling the 'getAttr' builtin
+         at <nix/derivation-internal.nix>:50:17:
+           49|     value = commonAttrs // {
+           50|       outPath = builtins.getAttr outputName strict;
+             |                 ^
+           51|       drvPath = strict.drvPath;
+
+       … while calling the 'derivationStrict' builtin
+         at <nix/derivation-internal.nix>:37:12:
+           36|
+           37|   strict = derivationStrict drvAttrs;
+             |            ^
+           38|
+
+       … while evaluating derivation 'uuid-types-1.0.6'
+         whose name attribute is located at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:468:13
+
+       … while evaluating attribute 'buildInputs' of derivation 'uuid-types-1.0.6'
+         at /nix/store/6f34rina5i0vrdd87kflkypnh9wnmc0q-source/pkgs/stdenv/generic/make-derivation.nix:523:13:
+          522|             depsHostHost = elemAt (elemAt dependencies 1) 0;
+          523|             buildInputs = elemAt (elemAt dependencies 1) 1;
+             |             ^
+          524|             depsTargetTarget = elemAt (elemAt dependencies 2) 0;
+
+       error: infinite recursion encountered

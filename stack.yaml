@@ -1,4 +1,4 @@
-resolver: nightly-2025-06-29
+resolver: lts-24.3
 
 nix:
   enable: true
