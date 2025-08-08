@@ -44,15 +44,20 @@ library concrete-syntax
     , async
     , attoparsec
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , dlist
     , exceptions
+    , filepath
     , megaparsec
+    , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , sel4-bv:core
     , sel4-bv:smtlib2
@@ -60,6 +65,7 @@ library concrete-syntax
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -131,13 +137,16 @@ library core
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
     , file-embed
     , filepath
+    , monad-logger
     , mtl
     , optics
     , parallel
     , pretty-show
+    , process
     , safe-exceptions
     , sel4-bv:smtlib2
     , sel4-bv:utils
@@ -146,6 +155,7 @@ library core
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
     , vector-binary-instances
   default-language: GHC2024
@@ -182,11 +192,14 @@ library logging
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
+    , filepath
     , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , stm
     , text
@@ -220,7 +233,10 @@ library network-transport-static
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
+    , filepath
+    , monad-logger
     , mtl
     , network-transport
     , optics
@@ -231,6 +247,7 @@ library network-transport-static
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -257,13 +274,18 @@ library search-core
       array
     , async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
+    , filepath
+    , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , sel4-bv:core
     , sel4-bv:logging
@@ -273,6 +295,7 @@ library search-core
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -297,7 +320,9 @@ library search-system-core
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
+    , filepath
     , monad-logger
     , mtl
     , optics
@@ -351,16 +376,21 @@ library smtlib2
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
+    , filepath
     , megaparsec
+    , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , stm
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -381,12 +411,16 @@ library smtlib2-process
       array
     , async
     , base
+    , binary
     , bytestring
     , conduit
     , conduit-extra
     , containers
     , deepseq
+    , directory
     , exceptions
+    , filepath
+    , monad-logger
     , mtl
     , optics
     , parallel
@@ -438,6 +472,7 @@ library system
     , network-transport
     , optics
     , parallel
+    , process
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
@@ -491,7 +526,9 @@ library system-core
     , containers
     , cryptohash-sha256
     , deepseq
+    , directory
     , exceptions
+    , filepath
     , monad-logger
     , mtl
     , optics
@@ -534,15 +571,19 @@ library system-utils
       array
     , async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , distributed-process
     , exceptions
+    , filepath
     , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , sel4-bv:logging
     , stm
@@ -571,14 +612,18 @@ library target-dir
     , array
     , async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
     , filepath
+    , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
@@ -586,6 +631,7 @@ library target-dir
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -608,6 +654,7 @@ library test-utils
       array
     , async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
@@ -620,6 +667,7 @@ library test-utils
     , optparse-applicative
     , parallel
     , pretty-show
+    , process
     , resourcet
     , safe-exceptions
     , sel4-bv:concrete-syntax
@@ -627,7 +675,6 @@ library test-utils
     , sel4-bv:logging
     , sel4-bv:target-dir
     , stm
-    , tagged
     , tasty
     , tasty-hunit
     , text
@@ -654,18 +701,24 @@ library utils
       array
     , async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
+    , filepath
+    , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , stm
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -703,6 +756,7 @@ executable sel4-bv-cli
     , conduit-extra
     , containers
     , deepseq
+    , directory
     , distributed-process
     , distributed-process-async
     , exceptions
@@ -758,12 +812,15 @@ test-suite concrete-syntax-test
     , async
     , attoparsec
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
     , filepath
     , megaparsec
+    , monad-logger
     , mtl
     , optics
     , parallel
@@ -779,6 +836,7 @@ test-suite concrete-syntax-test
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -798,15 +856,18 @@ test-suite core-test
       array
     , async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
     , filepath
     , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
@@ -820,6 +881,7 @@ test-suite core-test
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -842,14 +904,18 @@ test-suite logging-test
     , attoparsec
     , attoparsec-aeson
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
+    , filepath
     , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , sel4-bv:logging
     , sel4-bv:test-utils
@@ -859,6 +925,7 @@ test-suite logging-test
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -878,9 +945,11 @@ test-suite search-test
       array
     , async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
     , filepath
     , monad-logger
@@ -930,12 +999,15 @@ test-suite smtlib2-test
     , async
     , attoparsec
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
     , filepath
     , megaparsec
+    , monad-logger
     , mtl
     , optics
     , parallel
@@ -951,6 +1023,7 @@ test-suite smtlib2-test
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
 
@@ -970,13 +1043,18 @@ test-suite system-test
       array
     , async
     , base
+    , binary
     , bytestring
     , containers
     , deepseq
+    , directory
     , exceptions
+    , filepath
+    , monad-logger
     , mtl
     , optics
     , parallel
+    , process
     , safe-exceptions
     , sel4-bv:system
     , sel4-bv:system-core
@@ -985,5 +1063,6 @@ test-suite system-test
     , text
     , transformers
     , transformers-base
+    , unliftio-core
     , vector
   default-language: GHC2024
