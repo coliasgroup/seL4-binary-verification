@@ -42,7 +42,7 @@ data InlineScriptEntry t
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary t => Binary (InlineScriptEntry t) where
+instance Binary t => Binary (InlineScriptEntry t)
 
 data NodeSource
   = NodeSource

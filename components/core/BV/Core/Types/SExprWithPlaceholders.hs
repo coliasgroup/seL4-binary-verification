@@ -31,7 +31,7 @@ data GenericAtomOrPlaceholder a
   | AtomOrPlaceholderPlaceholder SExprPlaceholder
   deriving (Eq, Foldable, Functor, Generic, NFData, Ord, Show, Traversable)
 
-instance Binary a => Binary (GenericAtomOrPlaceholder a) where
+instance Binary a => Binary (GenericAtomOrPlaceholder a)
 
 type AtomOrPlaceholder = GenericAtomOrPlaceholder Atom
 
@@ -40,7 +40,7 @@ data SExprPlaceholder
   | SExprPlaceholderMemDomSort
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary SExprPlaceholder where
+instance Binary SExprPlaceholder
 
 readSToTryRead :: ReadS a -> String -> Maybe a
 readSToTryRead p s = case p s of

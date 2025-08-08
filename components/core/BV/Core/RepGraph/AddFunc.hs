@@ -82,7 +82,7 @@ instance MonadStructs m => MonadStructs (WithAddFunc t m) where
 instance MonadRepGraphSolver m => MonadRepGraphSolver (WithAddFunc t m) where
     liftSolver = WithAddFunc . liftSolver
 
-instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (WithAddFunc t m) where
+instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (WithAddFunc t m)
 
 instance (RefineTag t, MonadRepGraph t m) => MonadRepGraph t (WithAddFunc t m) where
     runPostEmitCallNodeHook = addFunc

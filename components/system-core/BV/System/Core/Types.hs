@@ -82,7 +82,7 @@ data CheckSubgroupId
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary CheckSubgroupId where
+instance Binary CheckSubgroupId
 
 newtype Checks
   = Checks { unwrap :: M.Map PairingId' ChecksForPairing }
@@ -221,7 +221,7 @@ data CheckPath
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary CheckPath where
+instance Binary CheckPath
 
 pathForCheck :: Check -> CheckPath
 pathForCheck check = CheckPath
@@ -250,7 +250,7 @@ data CheckSubgroupPath
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary CheckSubgroupPath where
+instance Binary CheckSubgroupPath
 
 pathForCheckSubgroup :: CheckSubgroup -> CheckSubgroupPath
 pathForCheckSubgroup subgroup = CheckSubgroupPath

@@ -89,7 +89,7 @@ newtype ByTag t a
 instance (Tag t, Show a) => Show (ByTag t a) where
     show byTag = show $ toList $ withTag (,) <$> withTags byTag
 
-instance Binary a => Binary (ByTag t a) where
+instance Binary a => Binary (ByTag t a)
 
 instance StaticTag t => IsList.IsList (ByTag t a) where
     type Item (ByTag t a) = a

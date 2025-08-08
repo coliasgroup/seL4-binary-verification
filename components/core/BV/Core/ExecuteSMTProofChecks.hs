@@ -58,7 +58,7 @@ data OnlineSolverFailureInfo
       }
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary OnlineSolverFailureInfo where
+instance Binary OnlineSolverFailureInfo
 
 data OnlineSolverFailureReason
   = OnlineSolverAnsweredSat
@@ -66,7 +66,7 @@ data OnlineSolverFailureReason
   | OnlineSolverAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary OnlineSolverFailureReason where
+instance Binary OnlineSolverFailureReason
 
 -- TODO
 -- - This hyp numbering doesn't match graph-refine.

@@ -56,7 +56,7 @@ data PeerException e
   | PeerExceptionMalformedMessage String
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
 
-instance (Typeable e, Show e) => Exception (PeerException e) where
+instance (Typeable e, Show e) => Exception (PeerException e)
 
 withPeers'
     :: (Typeable e, Show e)

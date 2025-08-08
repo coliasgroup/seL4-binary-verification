@@ -77,7 +77,7 @@ newtype LogContextEntry
   = LogContextEntry { unwrap :: String }
   deriving (Eq, FromJSON, Generic, Ord, Show, ToJSON)
 
-instance Binary LogContextEntry where
+instance Binary LogContextEntry
 
 makeLogContextEntry :: String -> LogContextEntry
 makeLogContextEntry s =

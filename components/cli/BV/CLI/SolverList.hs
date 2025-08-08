@@ -25,7 +25,7 @@ data SolverList
       }
   deriving (Eq, Generic, Ord, Show)
 
-instance ToJSON SolverList where
+instance ToJSON SolverList
 
 instance FromJSON SolverList where
     parseJSON = withObject "SolverList" $ \v -> SolverList

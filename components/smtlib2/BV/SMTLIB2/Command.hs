@@ -93,7 +93,7 @@ data SatResult
   | Unknown SExpr
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary SatResult where
+instance Binary SatResult
 
 checkSatWithTimeoutE :: (MonadSolver m, MonadError CommandError m) => Maybe SolverTimeout -> m (Maybe SatResult)
 checkSatWithTimeoutE timeout = runMaybeT $ do

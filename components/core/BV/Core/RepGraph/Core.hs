@@ -116,27 +116,27 @@ class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
 -- instance (MonadTrans t, MonadRepGraph t m) => MonadRepGraphDefaultHelper m (t m) where
 --     liftMonadRepGraphDefaultHelper = lift
 
-instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (ReaderT r m) where
+instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (ReaderT r m)
 
-instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (StateT s  m) where
+instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (StateT s  m)
 
-instance (Monoid w, MonadRepGraph t m) => MonadRepGraphDefaultHelper t m (RWST r w s m) where
+instance (Monoid w, MonadRepGraph t m) => MonadRepGraphDefaultHelper t m (RWST r w s m)
 
-instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (MaybeT m) where
+instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (MaybeT m)
 
-instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (ExceptT e m) where
+instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (ExceptT e m)
 
-instance MonadRepGraph t m => MonadRepGraph t (ReaderT r m) where
+instance MonadRepGraph t m => MonadRepGraph t (ReaderT r m)
 
-instance MonadRepGraph t m => MonadRepGraph t (StateT s m) where
+instance MonadRepGraph t m => MonadRepGraph t (StateT s m)
 
-instance (Monoid w, MonadRepGraph t m) => MonadRepGraph t (RWST r w s m) where
+instance (Monoid w, MonadRepGraph t m) => MonadRepGraph t (RWST r w s m)
 
-instance MonadRepGraph t m => MonadRepGraph t (MaybeT m) where
+instance MonadRepGraph t m => MonadRepGraph t (MaybeT m)
 
-instance MonadRepGraph t m => MonadRepGraph t (ExceptT e m) where
+instance MonadRepGraph t m => MonadRepGraph t (ExceptT e m)
 
-instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (ForTag t m) where
+instance MonadRepGraph t m => MonadRepGraphDefaultHelper t m (ForTag t m)
 
 data RepGraphEnv t
   = RepGraphEnv

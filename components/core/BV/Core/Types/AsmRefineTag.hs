@@ -31,7 +31,7 @@ data AsmRefineTag
   | C
   deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Show)
 
-instance Binary AsmRefineTag where
+instance Binary AsmRefineTag
 
 instance Tag AsmRefineTag where
     prettyTag = \case

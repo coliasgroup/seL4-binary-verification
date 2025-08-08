@@ -60,7 +60,7 @@ data OnlineSolverConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary OnlineSolverConfig where
+instance Binary OnlineSolverConfig
 
 data OfflineSolverConfig
   = OfflineSolverConfig
@@ -71,7 +71,7 @@ data OfflineSolverConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary OfflineSolverConfig where
+instance Binary OfflineSolverConfig
 
 data SolverCommand
   = SolverCommand
@@ -80,7 +80,7 @@ data SolverCommand
       }
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary SolverCommand where
+instance Binary SolverCommand
 
 type OfflineSolverCommandName = String
 

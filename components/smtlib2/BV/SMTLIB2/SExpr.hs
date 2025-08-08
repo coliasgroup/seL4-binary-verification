@@ -75,7 +75,7 @@ instance Monad GenericSExpr where
         Atom a -> f a
         List xs -> List (map (>>= f) xs)
 
-instance Binary a => Binary (GenericSExpr a) where
+instance Binary a => Binary (GenericSExpr a)
 
 type SExpr = GenericSExpr Atom
 
@@ -86,7 +86,7 @@ newtype Atom
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance Binary Atom where
+instance Binary Atom
 
 data UncheckedAtom
   = NumeralAtom Natural
@@ -97,7 +97,7 @@ data UncheckedAtom
   | KeywordAtom String
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary UncheckedAtom where
+instance Binary UncheckedAtom
 
 checkSExpr :: UncheckedSExpr -> Maybe SExpr
 checkSExpr = traverse checkAtom

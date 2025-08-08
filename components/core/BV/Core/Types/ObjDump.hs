@@ -30,7 +30,7 @@ data ObjDumpInfo
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary ObjDumpInfo where
+instance Binary ObjDumpInfo
 
 data Symbol
   = Symbol
@@ -40,7 +40,7 @@ data Symbol
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Symbol where
+instance Binary Symbol
 
 data Section
   = Section
@@ -49,7 +49,7 @@ data Section
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Section where
+instance Binary Section
 
 symbolEnd :: Symbol -> Integer
 symbolEnd = (+) <$> view #addr <*> view #size
@@ -64,7 +64,7 @@ data ROData
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary ROData where
+instance Binary ROData
 
 data RODataRange
   = RODataRange
@@ -73,7 +73,7 @@ data RODataRange
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary RODataRange where
+instance Binary RODataRange
 
 data RODataInputRangeType
   = RODataInputRangeTypeSection

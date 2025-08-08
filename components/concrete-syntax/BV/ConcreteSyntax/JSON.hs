@@ -85,9 +85,9 @@ deriving instance FromJSON CompatProofChecks
 
 deriving instance ToJSON CompatProofChecks
 
-instance Tag t => FromJSON (ProofCheck t String) where
+instance Tag t => FromJSON (ProofCheck t String)
 
-instance Tag t => ToJSON (ProofCheck t String) where
+instance Tag t => ToJSON (ProofCheck t String)
 
 instance Tag t => FromJSON (Hyp t) where
     parseJSON = parseLine
@@ -99,13 +99,13 @@ deriving instance FromJSON CompatSMTProofChecks
 
 deriving instance ToJSON CompatSMTProofChecks
 
-instance FromJSON (SMTProofCheckGroup ()) where
+instance FromJSON (SMTProofCheckGroup ())
 
-instance ToJSON (SMTProofCheckGroup ()) where
+instance ToJSON (SMTProofCheckGroup ())
 
-instance FromJSON (SMTProofCheckImp ()) where
+instance FromJSON (SMTProofCheckImp ())
 
-instance ToJSON (SMTProofCheckImp ()) where
+instance ToJSON (SMTProofCheckImp ())
 
 instance FromJSON SExprWithPlaceholders where
     parseJSON = parseTextFaster parseSExprWithPlaceholdersFaster

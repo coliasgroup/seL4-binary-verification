@@ -34,7 +34,7 @@ instance MonadStructs m => MonadStructs (WithAsmStackRep m) where
 instance MonadRepGraphSolver m => MonadRepGraphSolver (WithAsmStackRep m) where
     liftSolver = WithAsmStackRep . liftSolver
 
-instance MonadRepGraph AsmRefineTag m => MonadRepGraphDefaultHelper AsmRefineTag m (WithAsmStackRep m) where
+instance MonadRepGraph AsmRefineTag m => MonadRepGraphDefaultHelper AsmRefineTag m (WithAsmStackRep m)
 
 instance MonadRepGraph AsmRefineTag m => MonadRepGraph AsmRefineTag (WithAsmStackRep m) where
     runProblemVarRepHook = asmStackRepHook

@@ -22,7 +22,7 @@ data ModelConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary ModelConfig where
+instance Binary ModelConfig
 
 prettyModelConfig :: ModelConfig -> String
 prettyModelConfig modelConfig = prettyMemoryMode modelConfig.memoryMode
@@ -32,7 +32,7 @@ data MemoryMode
   | MemoryModeWord32
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary MemoryMode where
+instance Binary MemoryMode
 
 prettyMemoryMode :: MemoryMode -> String
 prettyMemoryMode = \case

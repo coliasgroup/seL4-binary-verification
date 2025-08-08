@@ -32,7 +32,7 @@ newtype ProofScript t a
   deriving (Eq, Foldable, Functor, Generic, Generic1, Ord, Show, Traversable)
   deriving newtype (NFData, NFData1)
 
-instance (Tag t, Binary t, Binary a) => Binary (ProofScript t a) where
+instance (Tag t, Binary t, Binary a) => Binary (ProofScript t a)
 
 data ProofNodeWith t a
   = ProofNodeWith
@@ -52,7 +52,7 @@ data ProofNodeWith t a
     , Traversable
     )
 
-instance (Tag t, Binary t, Binary a) => Binary (ProofNodeWith t a) where
+instance (Tag t, Binary t, Binary a) => Binary (ProofNodeWith t a)
 
 data ProofNode t a
   = ProofNodeLeaf
@@ -73,7 +73,7 @@ data ProofNode t a
     , Traversable
     )
 
-instance (Tag t, Binary t, Binary a) => Binary (ProofNode t a) where
+instance (Tag t, Binary t, Binary a) => Binary (ProofNode t a)
 
 data RestrProofNode t a
   = RestrProofNode
@@ -95,7 +95,7 @@ data RestrProofNode t a
     , Traversable
     )
 
-instance (Tag t, Binary t, Binary a) => Binary (RestrProofNode t a) where
+instance (Tag t, Binary t, Binary a) => Binary (RestrProofNode t a)
 
 data RestrProofNodeRange
   = RestrProofNodeRange
@@ -105,14 +105,14 @@ data RestrProofNodeRange
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary RestrProofNodeRange where
+instance Binary RestrProofNodeRange
 
 data RestrProofNodeRangeKind
   = RestrProofNodeRangeKindNumber
   | RestrProofNodeRangeKindOffset
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary RestrProofNodeRangeKind where
+instance Binary RestrProofNodeRangeKind
 
 prettyRestrProofNodeRangeKind :: RestrProofNodeRangeKind -> String
 prettyRestrProofNodeRangeKind = \case
@@ -139,7 +139,7 @@ data CaseSplitProofNode t a
     , Traversable
     )
 
-instance (Tag t, Binary t, Binary a) => Binary (CaseSplitProofNode t a) where
+instance (Tag t, Binary t, Binary a) => Binary (CaseSplitProofNode t a)
 
 data SplitProofNode t a
   = SplitProofNode
@@ -163,7 +163,7 @@ data SplitProofNode t a
     , Traversable
     )
 
-instance (Tag t, Binary t, Binary a) => Binary (SplitProofNode t a) where
+instance (Tag t, Binary t, Binary a) => Binary (SplitProofNode t a)
 
 data SplitProofNodeDetails
   = SplitProofNodeDetails
@@ -174,7 +174,7 @@ data SplitProofNodeDetails
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary SplitProofNodeDetails where
+instance Binary SplitProofNodeDetails
 
 data SingleRevInductProofNode t a
   = SingleRevInductProofNode
@@ -199,7 +199,7 @@ data SingleRevInductProofNode t a
     , Traversable
     )
 
-instance (Tag t, Binary t, Binary a) => Binary (SingleRevInductProofNode t a) where
+instance (Tag t, Binary t, Binary a) => Binary (SingleRevInductProofNode t a)
 
 data Lambda
   = Lambda
@@ -209,7 +209,7 @@ data Lambda
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Lambda where
+instance Binary Lambda
 
 traverseRestrProofNodeChild
     :: Applicative f

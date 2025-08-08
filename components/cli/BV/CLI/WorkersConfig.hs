@@ -22,7 +22,7 @@ data WorkersConfig
       }
   deriving (Eq, Generic, Ord, Show)
 
-instance FromJSON WorkersConfig where
+instance FromJSON WorkersConfig
 
 data WorkerConfig
   = WorkerConfig

@@ -48,7 +48,7 @@ newtype Ident
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance Binary Ident where
+instance Binary Ident
 
 instance IsString Ident where
     fromString = Ident
@@ -60,7 +60,7 @@ data Named a
       }
   deriving (Eq, Functor, Generic, NFData, Ord, Show)
 
-instance Binary a => Binary (Named a) where
+instance Binary a => Binary (Named a)
 
 toListOfNamed :: Map Ident a -> [Named a]
 toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toAscList
@@ -78,7 +78,7 @@ data NameTy
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary NameTy where
+instance Binary NameTy
 
 data Program
   = Program
@@ -88,7 +88,7 @@ data Program
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Program where
+instance Binary Program
 
 instance Semigroup Program where
     x <> y = Program
@@ -112,7 +112,7 @@ data Struct
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Struct where
+instance Binary Struct
 
 data StructField
   = StructField
@@ -121,7 +121,7 @@ data StructField
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary StructField where
+instance Binary StructField
 
 data ConstGlobal
   = ConstGlobal
@@ -129,7 +129,7 @@ data ConstGlobal
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary ConstGlobal where
+instance Binary ConstGlobal
 
 data Function
   = Function
@@ -139,7 +139,7 @@ data Function
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Function where
+instance Binary Function
 
 type NodeMap = Map NodeAddr Node
 
@@ -150,14 +150,14 @@ data FunctionBody
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary FunctionBody where
+instance Binary FunctionBody
 
 newtype NodeAddr
   = NodeAddr { unwrap :: Integer }
   deriving (Enum, Eq, Generic, Ord, Show)
   deriving newtype (Integral, NFData, Num, Real)
 
-instance Binary NodeAddr where
+instance Binary NodeAddr
 
 instance PrintfArg NodeAddr where
     formatArg = formatArg . (.unwrap)
@@ -169,7 +169,7 @@ data NodeId
   | Addr NodeAddr
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary NodeId where
+instance Binary NodeId
 
 prettyNodeId :: NodeId -> String
 prettyNodeId = \case
@@ -183,7 +183,7 @@ data Node
   | NodeCall CallNode
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Node where
+instance Binary Node
 
 data BasicNode
   = BasicNode
@@ -192,7 +192,7 @@ data BasicNode
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary BasicNode where
+instance Binary BasicNode
 
 data CondNode
   = CondNode
@@ -202,7 +202,7 @@ data CondNode
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary CondNode where
+instance Binary CondNode
 
 data CallNode
   = CallNode
@@ -213,7 +213,7 @@ data CallNode
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary CallNode where
+instance Binary CallNode
 
 data VarUpdate
   = VarUpdate
@@ -222,7 +222,7 @@ data VarUpdate
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary VarUpdate where
+instance Binary VarUpdate
 
 data Expr
   = Expr
@@ -231,7 +231,7 @@ data Expr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Expr where
+instance Binary Expr
 
 data ExprType
   = ExprTypeBool
@@ -259,7 +259,7 @@ data ExprType
   | ExprTypeGlobalWrapper ExprType
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary ExprType where
+instance Binary ExprType
 
 data ExprValue
   = ExprValueVar Ident
@@ -271,7 +271,7 @@ data ExprValue
   | ExprValueSMTExpr MaybeSplit
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary ExprValue where
+instance Binary ExprValue
 
 data Op
   = OpPlus
@@ -334,14 +334,14 @@ data Op
   | OpMemWrapper
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Op where
+instance Binary Op
 
 data MaybeSplit
   = NotSplit SExprWithPlaceholders
   | Split SplitMem
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary MaybeSplit where
+instance Binary MaybeSplit
 
 fromNotSplit :: MaybeSplit -> SExprWithPlaceholders
 fromNotSplit = view $ expecting #_NotSplit

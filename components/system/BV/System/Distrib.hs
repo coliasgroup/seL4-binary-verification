@@ -70,7 +70,7 @@ data ServerInput
       }
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary ServerInput where
+instance Binary ServerInput
 
 data Request
   = RequestOnline OnlineSolverConfig CheckSubgroupPath
@@ -78,7 +78,7 @@ data Request
   | RequestOfflineSingle OfflineSolverConfig CheckPath
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary Request where
+instance Binary Request
 
 data Response
   = ResponseOnline (Either OnlineSolverFailureInfo ())
@@ -86,7 +86,7 @@ data Response
   | ResponseOfflineSingle (Maybe SatResult)
   deriving (Eq, Generic, Ord, Show)
 
-instance Binary Response where
+instance Binary Response
 
 executeRequest :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => Checks -> Request -> m Response
 executeRequest checks = \case

@@ -77,14 +77,14 @@ newtype StackBounds
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance Binary StackBounds where
+instance Binary StackBounds
 
 newtype InlineScripts t
   = InlineScripts { unwrap :: M.Map (PairingId t) (InlineScript t) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance (Tag t, Binary t) => Binary (InlineScripts t) where
+instance (Tag t, Binary t) => Binary (InlineScripts t)
 
 type InlineScripts' = InlineScripts AsmRefineTag
 
@@ -93,6 +93,6 @@ newtype Proofs t a
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance (Tag t, Binary t, Binary a) => Binary (Proofs t a) where
+instance (Tag t, Binary t, Binary a) => Binary (Proofs t a)
 
 type Proofs' = Proofs AsmRefineTag

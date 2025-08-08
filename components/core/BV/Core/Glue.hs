@@ -48,7 +48,7 @@ data StagesInput
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary StagesInput where
+instance Binary StagesInput
 
 data StagesOutput
   = StagesOutput
