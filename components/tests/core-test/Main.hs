@@ -31,7 +31,6 @@ testStagesWithReference opts = do
     mismatchDumpDir = mismatchOutDirOf opts
     ctx = EvalStagesContext
         { forceAll = True
-        , forceFingerprints = True
         , dumpTargetDir = Nothing
         , referenceTargetDir = Just referenceTargetDir
         , mismatchDumpDir = Just mismatchDumpDir

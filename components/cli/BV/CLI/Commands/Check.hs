@@ -65,7 +65,6 @@ runCheck opts = do
     let checkFilter = getCheckFilter opts
     let evalStagesCtx = EvalStagesContext
             { forceAll = opts.forceEvalStages
-            , forceFingerprints = False
             , dumpTargetDir = TargetDir <$> opts.dumpTargetDir
             , referenceTargetDir = TargetDir <$> opts.referenceTargetDir
             , mismatchDumpDir = opts.mismatchDir

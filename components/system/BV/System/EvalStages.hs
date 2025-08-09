@@ -25,12 +25,10 @@ import GHC.Generics (Generic)
 import Optics
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
-import Text.Printf (printf)
 
 data EvalStagesContext
   = EvalStagesContext
       { forceAll :: Bool
-      , forceFingerprints :: Bool
       , dumpTargetDir :: Maybe TargetDir
       , referenceTargetDir :: Maybe TargetDir
       , mismatchDumpDir :: Maybe FilePath
@@ -62,15 +60,7 @@ evalStages ctx input = do
         register noop targetDirFiles.smtProofChecks output.intermediate.compatSMTProofChecks
         logInfo "Registered all intermediate artifacts"
 
-
-    let checks = elaborateChecks output.checks
-
-    when ctx.forceFingerprints $ do
-        logInfo $ printf "Enumerating check groups"
-        !_ <- return $ rnf $ (foldMap (M.keys . (.groups)) (M.elems checks.unwrap) :: [CheckGroupFingerprint])
-        logInfo "Done enumerating check groups"
-
-    return checks
+    return $ elaborateChecks output.checks
 
   where
 
