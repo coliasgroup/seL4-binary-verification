@@ -15,6 +15,8 @@ module BV.ConcreteSyntax.GraphLangLike.Parsing
     , wordWithOr
     ) where
 
+import BV.Utils (fromIntegerChecked)
+
 import Data.Bifunctor (first)
 import Data.Char (isSpace)
 import Data.Maybe (isJust)
@@ -84,12 +86,12 @@ instance ParseInLine Integer where
 
 -- TODO fail instead of throw
 instance ParseInLine Int where
-    parseInLine = fromInteger <$> parseInLine
+    parseInLine = fromIntegerChecked <$> parseInLine
 
 parseManyInLineWith :: Parser a -> Parser [a]
 parseManyInLineWith p = do
     n <- parseInLine
-    count (fromInteger n) p
+    count (fromIntegerChecked n) p
 
 instance ParseInLine a => ParseInLine [a] where
     parseInLine = parseManyInLineWith parseInLine

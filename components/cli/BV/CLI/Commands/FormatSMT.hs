@@ -12,6 +12,7 @@ import BV.Core.Types (SExprWithPlaceholders)
 import BV.Logging
 import BV.SMTLIB2.SExpr.Build.Pretty
 import BV.SMTLIB2.SExpr.Parse.Attoparsec
+import BV.Utils (fromIntegerChecked)
 
 import Control.Applicative (Alternative ((<|>)))
 import Control.Monad.Catch (MonadThrow)
@@ -69,7 +70,7 @@ colorDelimsAt nestLevel = (wrap "(", wrap ")")
     wrap b = fromString setCope <> b <> fromString resetCode
 
 selectColor :: Integer -> Color
-selectColor nestLevel = colorByNestLevel ! (fromInteger nestLevel `mod` V.length colorByNestLevel)
+selectColor nestLevel = colorByNestLevel ! (fromIntegerChecked nestLevel `mod` V.length colorByNestLevel)
 
 colorByNestLevel :: Vector Color
 colorByNestLevel =

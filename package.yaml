@@ -145,6 +145,7 @@ internal-libraries:
     dependencies:
       - sel4-bv:core
       - sel4-bv:smtlib2
+      - sel4-bv:utils
       # external
       - aeson
       - aeson-pretty

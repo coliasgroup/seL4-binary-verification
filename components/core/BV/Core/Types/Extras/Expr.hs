@@ -4,7 +4,7 @@ module BV.Core.Types.Extras.Expr where
 
 import BV.Core.Arch (archWordSizeBits)
 import BV.Core.Types
-import BV.Utils (ensure, expecting, is)
+import BV.Utils (ensure, expecting, fromIntegerChecked, is)
 
 import Control.DeepSeq (NFData)
 import Data.Bits (shiftL)
@@ -184,7 +184,7 @@ alignedE :: Integer -> Expr -> Expr
 alignedE n expr = bitwiseAndE expr mask `eqE` numE ty 0
   where
     ty = ensureType isWordT expr
-    mask = numE ty ((1 `shiftL` fromInteger n) - 1)
+    mask = numE ty ((1 `shiftL` fromIntegerChecked n) - 1)
 
 castE :: ExprType -> Expr -> Expr
 castE ty expr =

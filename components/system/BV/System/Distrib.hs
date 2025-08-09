@@ -19,7 +19,7 @@ import BV.System.Core
 import BV.System.Utils
 import BV.System.Utils.Async
 import BV.System.Utils.Distrib
-import BV.Utils (expecting)
+import BV.Utils (expecting, fromIntegerChecked)
 
 import Control.Concurrent (newChan, readChan, writeChan)
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently))
@@ -121,7 +121,7 @@ serverClosureFn (input, replyProcessId) = do
     let logAction entry = do
             when (levelAtLeastWithTrace LevelDebug entry.level) $ do
                 writeChan localLogChan entry
-    threadProcessIds <- replicateM (fromInteger input.numThreads) $ do
+    threadProcessIds <- replicateM (fromIntegerChecked input.numThreads) $ do
         threadProcessId <- spawnLocal $ runLoggingWithContextT (serverThread checks) logAction
         link threadProcessId
         return threadProcessId

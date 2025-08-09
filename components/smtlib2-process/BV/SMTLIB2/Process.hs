@@ -38,6 +38,7 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB
 import GHC.Generics (Generic)
+import GHC.Stack (HasCallStack)
 import System.Process (CreateProcess)
 
 newtype SolverT m a
@@ -159,8 +160,8 @@ readTChanWithTimeout maybeMicroseconds chan = case maybeMicroseconds of
 solverTimeoutToMicroseconds :: SolverTimeout -> Int
 solverTimeoutToMicroseconds timeout = fromIntegerChecked (solverTimeoutToSeconds timeout * 10^6)
 
-fromIntegerChecked :: forall a. (Bounded a, Integral a) => Integer -> a
-fromIntegerChecked x =
-    if x <= toInteger (maxBound :: a)
-    then fromInteger x
-    else error "out of range"
+fromIntegerChecked :: forall a. HasCallStack => (Num a, Integral a, Bounded a) => Integer -> a
+fromIntegerChecked x = if lo <= x && x <= hi then fromInteger x else error "out of bounds"
+  where
+    lo = toInteger (minBound :: a)
+    hi = toInteger (maxBound :: a)

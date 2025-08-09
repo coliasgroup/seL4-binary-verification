@@ -10,6 +10,7 @@ module BV.Utils
     , expectingIx
     , expecting_
     , findWithCallstack
+    , fromIntegerChecked
     , is
     , todo
     , unimplemented
@@ -76,6 +77,14 @@ expecting_ optic = to (fromJust . preview optic)
 
 is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
 is k s = isJust (preview k s)
+
+--
+
+fromIntegerChecked :: forall a. HasCallStack => (Num a, Integral a, Bounded a) => Integer -> a
+fromIntegerChecked x = if lo <= x && x <= hi then fromInteger x else error "out of bounds"
+  where
+    lo = toInteger (minBound :: a)
+    hi = toInteger (maxBound :: a)
 
 --
 
