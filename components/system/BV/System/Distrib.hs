@@ -117,9 +117,6 @@ serverThread checks = do
                         _ :: ProcessMonitorNotification <- expect
                         return ()
                     , do
-                        -- TODO do something better than log to stderr
-                        -- let f (ex :: SomeException) = hPutStrLn stderr $ show ex
-                        -- resp <- liftIO $ flip withException f $ run $ executeRequest checks req
                         resp <- liftIO $ run $ executeRequest checks req
                         send src resp
                     ]
