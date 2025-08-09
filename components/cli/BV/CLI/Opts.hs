@@ -195,7 +195,10 @@ optsParserInfo =
 
 optsParser :: Parser Opts
 optsParser = do
-    justDumpOptions <- switch (internal <> long "just-dump-options")
+    justDumpOptions <- switch'
+        [ internal
+        , long "just-dump-options"
+        ]
     globalOpts <- globalOptsParser
     commandOpts <- commandOptsParser
     pure $ Opts
@@ -414,7 +417,10 @@ checkOptsParser = do
         , help "Output file for report"
         , action "file"
         ]
-    forceEvalStages <- switch (long "force-eval-stages" <> help "Force evaluation of stages")
+    forceEvalStages <- switch'
+        [ long "force-eval-stages"
+        , help "Force evaluation of stages"
+        ]
     dumpTargetDir <- optional $ option' str
         [ long "dump-target-dir"
         , metavar "DIRECTORY"
@@ -430,7 +436,10 @@ checkOptsParser = do
         , metavar "DIRECTORY"
         , action "directory"
         ]
-    justCompareChecks <- switch (long "just-compare-checks" <> help "Just compare checks to reference")
+    justCompareChecks <- switch'
+        [ long "just-compare-checks"
+        , help "Just compare checks to reference"
+        ]
     pure $ CheckOpts
         { footprint
         , numCababilities
@@ -511,7 +520,10 @@ lineWrappingOptsParser = do
         , metavar "N"
         , help "Indent width"
         ]
-    color <- switch (long "color" <> help "Add color")
+    color <- switch'
+        [ long "color"
+        , help "Add color"
+        ]
     pure $ LineWrappingOpts
         { preferredMaxLineWidth
         , indentWidth
@@ -536,6 +548,9 @@ option' r = option r . mconcat
 
 argument' :: ReadM a -> [Mod ArgumentFields a] -> Parser a
 argument' r = argument r . mconcat
+
+switch' :: [Mod FlagFields Bool] -> Parser Bool
+switch' = switch . mconcat
 
 parseIncludeFingerprintPattern :: String -> Either String (Ident, C.ByteString)
 parseIncludeFingerprintPattern s = runExcept $ do
