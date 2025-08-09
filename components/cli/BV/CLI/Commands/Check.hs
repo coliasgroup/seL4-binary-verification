@@ -112,6 +112,7 @@ runCheck opts = do
                                                 localNode
                                                 (nodeIdFromWorkerName workerName)
                                                 workerConfig.numSolverCores
+                                        checkNumSolverCores solversConfig $ sumOf folded numSolverCoresByWorker
                                         let backendConfig = DistribConfig
                                                 { transport
                                                 , workers = M.fromList $ flip map (M.toList workersConfig.workers) $ \(workerName, workerConfig) ->
