@@ -16,9 +16,9 @@ import BV.Core.Prelude
 import BV.Logging
 import BV.SMTLIB2.Command
 import BV.System.Core
-import BV.System.Utils
 import BV.System.Utils.Async
 import BV.System.Utils.Distrib
+import BV.System.Utils.SemGate
 import BV.Utils (expecting, fromIntegerChecked)
 
 import Control.Concurrent (newChan, readChan, writeChan)

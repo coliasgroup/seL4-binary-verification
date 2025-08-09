@@ -444,8 +444,6 @@ library system
       BV.System.Distrib
       BV.System.EvalStages
       BV.System.Local
-      BV.System.Utils
-      BV.System.Utils.TSemN
   hs-source-dirs:
       components/system
   default-extensions:
@@ -557,6 +555,7 @@ library system-utils
   exposed-modules:
       BV.System.Utils.Async
       BV.System.Utils.Distrib
+      BV.System.Utils.SemGate
       BV.System.Utils.Stopwatch
       BV.System.Utils.UnliftIO.Async
   hs-source-dirs:

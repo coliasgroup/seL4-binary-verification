@@ -7,7 +7,7 @@ module BV.System.Local
 
 import BV.Logging
 import BV.System.Core
-import BV.System.Utils
+import BV.System.Utils.SemGate
 
 import Control.Exception.Safe (MonadMask)
 import Control.Monad.IO.Class (liftIO)

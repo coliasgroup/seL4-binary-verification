@@ -1,15 +1,26 @@
-module BV.System.Utils.TSemN
-    ( TSemN
-    , newTSemN
-    , signalTSemN
-    , waitTSemN
+module BV.System.Utils.SemGate
+    ( SemGate
+    , applySemGate
+    , newSemGate
     ) where
 
-import Control.Concurrent.STM (STM, TVar, modifyTVar', newTVar, readTVar, retry,
-                               writeTVar)
-import Control.Exception.Safe (throwString)
+import Control.Concurrent.STM (STM, TVar, atomically, modifyTVar', newTVar,
+                               readTVar, retry, writeTVar)
+import Control.Exception.Safe (bracket_, throwString)
 import Control.Monad (when)
+import Control.Monad.IO.Unlift (MonadUnliftIO, liftIOOp)
 import Data.Typeable (Typeable)
+
+newtype SemGate
+  = SemGate TSemN
+
+newSemGate :: Integer -> IO SemGate
+newSemGate width = SemGate <$> atomically (newTSemN width)
+
+applySemGate :: MonadUnliftIO m => SemGate -> Integer -> m a -> m a
+applySemGate (SemGate sem) n = liftIOOp $ bracket_ (atomically (waitTSemN sem n)) (atomically (signalTSemN sem n))
+
+--
 
 data TSemN
   = TSemN
