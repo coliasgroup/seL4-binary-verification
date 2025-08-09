@@ -22,7 +22,6 @@ import BV.System.Utils.SemGate
 import BV.Utils (expecting, fromIntegerChecked)
 
 import Control.Concurrent (newChan, readChan, writeChan)
-import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently))
 import Control.Concurrent.STM (modifyTVar', newEmptyTMVarIO, newTVarIO,
                                putTMVar, readTMVar, stateTVar)
 import Control.Distributed.Process (NodeId, Process, ProcessId,
@@ -43,7 +42,7 @@ import Control.Monad.Trans (lift)
 import Data.Binary (Binary)
 import Data.Map ((!))
 import qualified Data.Map as M
-import Data.Traversable (for)
+import Data.Void (absurd)
 import GHC.Generics (Generic)
 import Network.Transport (Transport)
 import Optics
@@ -107,7 +106,7 @@ serverThread :: Checks -> LoggingWithContextT Process ()
 serverThread checks = do
     selfPid <- lift getSelfPid
     withPushLogContext (show selfPid) $ do
-        run <- mapLoggingWithContextT liftIO askRunInIO
+        run <- askRunInIO
         lift $ forever $ do
             (req, src) <- expect
             callLocal $ do
@@ -121,8 +120,8 @@ serverThread checks = do
                         send src resp
                     ]
 
-serverClosureFn :: (ServerInput, ProcessId) -> Process ()
-serverClosureFn (input, replyProcessId) = do
+serverClosureFn :: (ServerInput, SendPort [ProcessId]) -> Process ()
+serverClosureFn (input, replyChan) = absurd <$> do
     localLogChan <- liftIO newChan
     let logAction entry = do
             when (levelAtLeastWithTrace LevelDebug entry.level) $ do
@@ -131,7 +130,7 @@ serverClosureFn (input, replyProcessId) = do
         threadProcessId <- spawnLocal $ runLoggingWithContextT (serverThread checks) logAction
         link threadProcessId
         return threadProcessId
-    send replyProcessId threadProcessIds
+    sendChan replyChan threadProcessIds
     forever $ do
         entry <- liftIO $ readChan localLogChan
         sendChan input.logChanSend entry
@@ -142,28 +141,27 @@ remotable ['serverClosureFn]
 
 withBackend :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => DistribConfig -> LocalNode -> (SolverBackend m -> m a) -> m a
 withBackend config node f = withRunInIO $ \run -> do
-    serverThreadProcessIdSlots <- for config.workers $ const newEmptyTMVarIO
-    let background = runConcurrently $ ifor_ serverThreadProcessIdSlots $ \workerNodeId slot -> Concurrently $ do
-            runProcess node $ do
-                selfPid <- getSelfPid
-                (logChanSend, logChanRecv) <- D.newChan
+    serverThreadProcessIdsSlot <- newEmptyTMVarIO
+    let background = runProcess node $ do
+            (logChanSend, logChanRecv) <- D.newChan
+            serverThreadProcessIds <- ifor config.workers $ \workerNodeId workerConfig -> do
+                (retSend, retRecv) <- D.newChan
                 let serverInput = ServerInput
                         { stagesInput = config.stagesInput
                         , logChanSend
-                        , numThreads = (config.workers ! workerNodeId).numSolverCores
+                        , numThreads = workerConfig.numSolverCores
                         }
-                spawnLink workerNodeId ($(mkClosure 'serverClosureFn) (serverInput, selfPid))
-                serverThreadProcessIds <- expect
-                liftIO $ atomically $ do
-                    putTMVar slot serverThreadProcessIds
-                forever $ do
-                    entry <- receiveChan logChanRecv
-                    liftIO $ run $ logEntryWithContext entry
+                spawnLink workerNodeId $ ($(mkClosure 'serverClosureFn) (serverInput, retSend))
+                receiveChan retRecv
+            liftIO $ atomically $ putTMVar serverThreadProcessIdsSlot serverThreadProcessIds
+            forever $ do
+                entry <- receiveChan logChanRecv
+                liftIO $ run $ logEntryWithContext entry
     withLinkedAsync background $ \_ -> run $ do
-        serverThreadProcessIds <- for serverThreadProcessIdSlots $ liftIO . atomically . readTMVar
+        serverThreadProcessIds <- liftIO $ atomically $ readTMVar serverThreadProcessIdsSlot
         let available = M.fromListWith (<>)
-                [ ((config.workers ! workerNodeId).priority, jobPids)
-                | (workerNodeId, jobPids) <- M.toList serverThreadProcessIds
+                [ ((config.workers ! workerNodeId).priority, threadPids)
+                | (workerNodeId, threadPids) <- M.toList serverThreadProcessIds
                 ]
         backend <- solverBackendFromServerProcesses node available
         f backend
