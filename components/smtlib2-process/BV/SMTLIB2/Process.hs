@@ -32,7 +32,7 @@ import Data.Conduit.Process (FlushInput (FlushInput),
                              waitForStreamingProcess)
 import Data.Conduit.Text (decodeUtf8)
 import qualified Data.Conduit.Text as CT
-import Data.Foldable (asum)
+import Data.Foldable (asum, traverse_)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
@@ -106,7 +106,7 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
         let sexprToChunks sexpr = map T.encodeUtf8 (TL.toChunks (TB.toLazyText (buildSExpr sexpr <> "\n")))
 
         let sink sexpr = runConduit $
-                (traverse (yield . Chunk) (sexprToChunks sexpr) >> yield Flush)
+                (traverse_ (yield . Chunk) (sexprToChunks sexpr) >> yield Flush)
                 .| procStdin
 
         let source = runConduit $

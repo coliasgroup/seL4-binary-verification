@@ -130,7 +130,7 @@ data CheckFilter
   deriving (Generic)
 
 filterChecks :: CheckFilter -> Checks -> Checks
-filterChecks checkFilter = #unwrap %~ ((iover (itraversed % traversed) f) . M.filterWithKey (\k _v -> checkFilter.pairings k))
+filterChecks checkFilter = #unwrap %~ (iover (itraversed % traversed) f . M.filterWithKey (\k _v -> checkFilter.pairings k))
   where
     f :: PairingId' -> M.Map ProofCheckGroupIndices CheckSubgroup -> M.Map ProofCheckGroupIndices CheckSubgroup
     f pairingId xgroups = case (checkFilter.groups pairingId, checkFilter.checks pairingId) of

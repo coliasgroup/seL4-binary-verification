@@ -119,9 +119,9 @@ smtToVal sexpr = case viewSExpr sexpr of
     Atom (SymbolAtom "true") -> Just trueE
     Atom (SymbolAtom "false") -> Just falseE
     Atom (HexadecimalAtom s) ->
-        Just $ numE (wordT (todo)) (readS readHex s)
+        Just $ numE (wordT todo) (readS readHex s)
     Atom (BinaryAtom s) ->
-        Just $ numE (wordT (todo)) (readS readBin s)
+        Just $ numE (wordT todo) (readS readBin s)
     List [Atom (SymbolAtom "_"), Atom (SymbolAtom ('b':'v':bits)), Atom (NumeralAtom n)] ->
         Just $ numE (wordT (read bits)) (toInteger n)
     _ -> Nothing
@@ -182,7 +182,7 @@ testHypCommon wantModel sexpr = case wantModel of
         return $ over (#_TestResultWithFalse % _Just) (reconstructModel exprs req) r
 
 testHyp :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m Bool
-testHyp hyp = (isTrueResult . ensureNoModel) <$> testHypCommon False hyp
+testHyp hyp = isTrueResult . ensureNoModel <$> testHypCommon False hyp
 
 testHypGetModel :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m (TestResultWith Model)
 testHypGetModel hyp = ensureModel <$> testHypCommon True hyp
@@ -209,21 +209,21 @@ testHypWhyps
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
     => Expr -> [Hyp t] -> m Bool
 testHypWhyps hyp hyps =
-    (isTrueResult . ensureNoModel . fromJust) <$>
+    isTrueResult . ensureNoModel . fromJust <$>
         withoutCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsGetModel
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
     => Expr -> [Hyp t] -> m (TestResultWith Model)
 testHypWhypsGetModel hyp hyps =
-    (ensureModel . fromJust) <$>
+    ensureModel . fromJust <$>
         withoutCache (testHypWhypsCommon False True hyp hyps)
 
 testHypWhypsWithCache
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
     => Expr -> [Hyp t] -> StateT Cache m Bool
 testHypWhypsWithCache hyp hyps =
-    (isTrueResult . ensureNoModel . fromJust) <$>
+    isTrueResult . ensureNoModel . fromJust <$>
         withCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsWithCacheFast

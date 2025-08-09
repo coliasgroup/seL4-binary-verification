@@ -1,6 +1,5 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE MultiWayIf #-}
 
 -- TODO
 {-# LANGUAGE UndecidableInstances #-}
@@ -259,7 +258,7 @@ withMapSlotForTag l k m = do
 --
 
 askProblem :: MonadRepGraph t m => m (Problem t)
-askProblem = liftRepGraph $ gview $ #problem
+askProblem = liftRepGraph $ gview #problem
 
 askNode :: MonadRepGraph t m => NodeAddr -> m Node
 askNode addr = liftRepGraph $ gview $ #problem % #nodes % at addr % unwrapped
@@ -770,7 +769,7 @@ emitNode visit = do
                         for opt $ \v -> do
                             modify $ M.insert out (Split v)
                             return $ Split v
-                    return $ zipWith (,) (map (.ty) callNode.output) $ zipWith fromMaybe notSplit split
+                    return $ zip (map (.ty) callNode.output) $ zipWith fromMaybe notSplit split
                 key <- askWithTag visit
                 liftRepGraph $ #funcs %= M.insertWith (error "unexpected") key (ins, outs, success)
                 joinForTag $ runPostEmitCallNodeHook visit

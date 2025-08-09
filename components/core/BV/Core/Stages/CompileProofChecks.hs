@@ -1,5 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-
 module BV.Core.Stages.CompileProofChecks
     ( FunctionSignature (..)
     , RepGraphBaseInput (..)

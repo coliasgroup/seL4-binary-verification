@@ -78,11 +78,10 @@ filterSubgroupUsingCache = traverseOf #checks . filterM $ \(_i, check) -> withPu
         Nothing -> do
             return True
         Just AcceptableSatResultUnsat -> do
-            logDebug $ "cache hit: unsat"
+            logDebug "cache hit: unsat"
             return False
         Just AcceptableSatResultSat -> do
-            logDebug $ "cache hit: sat"
-            return False
+            logDebug "cache hit: sat"
             throwError $ CheckFailure
                 { cause = SomeSolverAnsweredSat Cache
                 , source = CheckFailureSourceCheck check

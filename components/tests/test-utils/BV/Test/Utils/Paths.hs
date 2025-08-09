@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedLists #-}
-
 module BV.Test.Utils.Paths where
 
 import System.FilePath ((</>))

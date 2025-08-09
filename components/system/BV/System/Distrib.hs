@@ -151,7 +151,7 @@ withBackend config node f = withRunInIO $ \run -> do
                         , logChanSend
                         , numThreads = workerConfig.numSolverCores
                         }
-                spawnLink workerNodeId $ ($(mkClosure 'serverClosureFn) (serverInput, retSend))
+                spawnLink workerNodeId ($(mkClosure 'serverClosureFn) (serverInput, retSend))
                 receiveChan retRecv
             liftIO $ atomically $ putTMVar serverThreadProcessIdsSlot serverThreadProcessIds
             forever $ do

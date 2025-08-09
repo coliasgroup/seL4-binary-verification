@@ -92,8 +92,8 @@ getRecursionIdents runRepGraph functions =
         , S.size comp > 1 || callsSelf (S.findMin comp)
         ]
     callsSelf v = v `elem` (g A.! v)
-    prevs comp' = S.fromList $ map fromVertex
-        [ v
+    prevs comp' = S.fromList
+        [ fromVertex v
         | v <- G.vertices g
         , any (`elem` (g A.! v)) (S.toList comp)
         , v `S.notMember` comp
@@ -130,11 +130,11 @@ addRecursionIdent runRepGraph functions f group = do
                 resOpt <- lift $ lift $ findUnknownRecursion runRepGraph functions pa.problem group idents tag assns
                 for_ resOpt $ \res -> do
                     fname <- zoom _1 $ use $ to extractProblem % #nodes % at res % unwrapped % expecting #_NodeCall % #functionName
-                    zoom _2 $ modify $ (++ [fname])
+                    zoom _2 $ modify (++ [fname])
                     len <- zoom _2 $ gets length
                     let nextTag = FunTag len
                     zoom _1 $ addEntrypoint $ WithTag nextTag $ Named fname $ functions M.! fname
-                    zoom _1 $ doAnalysis
+                    zoom _1 doAnalysis
                     todo
                 todo
         go

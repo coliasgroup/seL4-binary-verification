@@ -35,7 +35,7 @@ import BV.SMTLIB2
 
 import Control.DeepSeq (NFData)
 import Control.Exception (Exception, toException)
-import Control.Monad (guard, (>=>))
+import Control.Monad (guard, zipWithM, (>=>))
 import Control.Monad.Catch (MonadThrow, throwM)
 import Control.Monad.Except (ExceptT, MonadError, runExceptT, throwError)
 import Control.Monad.Trans (lift)
@@ -138,7 +138,7 @@ getValueE terms = do
                     List [term', value] <- return assoc
                     guard $ term == term'
                     return value
-            sequenceA $ zipWith f terms assocs
+            zipWithM f terms assocs
     maybe (throwError (UnexpectedResponse resp)) return opt
 
 getValue :: (MonadSolver m, MonadThrow m) => [SExpr] -> m [SExpr]

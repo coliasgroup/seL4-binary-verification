@@ -1,5 +1,3 @@
-{-# LANGUAGE MultiWayIf #-}
-
 module BV.Core.RepGraph.AddFunc
     ( FunctionSignatures
     , WithAddFunc

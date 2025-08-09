@@ -22,13 +22,12 @@ import BV.Core.Utils.IncludeExcludeFilter
 import Control.DeepSeq (NFData)
 import Control.Monad (guard)
 import Data.Binary (Binary)
-import Data.Foldable (toList)
+import Data.Foldable (for_, toList)
 import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (isJust)
 import qualified Data.Set as S
-import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 
@@ -150,7 +149,7 @@ stages input = StagesOutput
         let namedFuns =
                 let f funName prog = Named funName (prog.functions ! funName)
                  in f <$> pairingId <*> finalPrograms
-        for namedFuns $ \namedFun -> guard $ isJust namedFun.value.body
+        for_ namedFuns $ \namedFun -> guard $ isJust namedFun.value.body
         let inlineScript = M.findWithDefault [] pairingId input.inlineScripts.unwrap -- TODO
         let problem = buildProblem lookupFunction inlineScript namedFuns
         return (pairingId, problem)

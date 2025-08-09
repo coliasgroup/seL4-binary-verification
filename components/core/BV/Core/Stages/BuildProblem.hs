@@ -102,7 +102,7 @@ reserveNodeAddr = do
     modify $ #nodes % at addr ?~ Nothing
     return addr
 
-insertNodeWithMeta :: Monad m => NodeAddr -> (NodeWithMeta t) -> StateT (ProblemBuilder t) m ()
+insertNodeWithMeta :: Monad m => NodeAddr -> NodeWithMeta t -> StateT (ProblemBuilder t) m ()
 insertNodeWithMeta addr nodeWithMeta = do
     zoom (#nodes % at addr) $ do
         gets isJust >>= ensureM

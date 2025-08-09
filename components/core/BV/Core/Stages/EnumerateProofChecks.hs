@@ -141,10 +141,10 @@ getAssumptions :: MonadChecks t m => m [Hyp t]
 getAssumptions = use #assumptions
 
 restrictL :: MonadChecks t m => t -> [Restr] -> m ()
-restrictL tag restrs = #restrs %= ((map (WithTag tag) restrs) ++)
+restrictL tag restrs = #restrs %= (map (WithTag tag) restrs ++)
 
 restrictR :: MonadChecks t m => t -> [Restr] -> m ()
-restrictR tag restrs = #restrs %= (++ (map (WithTag tag) restrs))
+restrictR tag restrs = #restrs %= (++ map (WithTag tag) restrs)
 
 restrict1L :: MonadChecks t m => t -> Restr -> m ()
 restrict1L tag = restrictL tag . (:[])
