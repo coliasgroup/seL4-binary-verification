@@ -557,6 +557,7 @@ library system-utils
       BV.System.Utils.Distrib
       BV.System.Utils.SemGate
       BV.System.Utils.Stopwatch
+      BV.System.Utils.UnliftIO
       BV.System.Utils.UnliftIO.Async
   hs-source-dirs:
       components/system-utils
