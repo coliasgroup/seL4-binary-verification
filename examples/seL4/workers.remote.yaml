@@ -7,20 +7,20 @@ workers:
     command: [
       "run-worker-over-ssh",
       "r1-host",
-      "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
+      "-i", "~/foo/bar.pem",
       "--",
     ]
   r2:
     command: [
       "run-worker-over-ssh",
       "r2-host",
-      "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
+      "-i", "~/foo/bar.pem",
       "--",
     ]
   r3:
     command: [
       "run-worker-over-ssh",
       "r3-host",
-      "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
+      "-i", "~/foo/bar.pem",
       "--",
     ]
