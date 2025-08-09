@@ -1,25 +1,25 @@
 workers:
   w1:
     local: true
-    footprint: 3
+    num_solver_cores: 3
   w2:
     command: [
       "ssh", "localhost", "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
       "--",
       "foo/bar/seL4-binary-verification/examples/seL4/run-worker-in-nix-shell.sh",
     ]
-    footprint: 3
+    num_solver_cores: 3
   w3:
     command: [
       "ssh", "localhost", "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
       "--",
       "foo/bar/seL4-binary-verification/examples/seL4/run-worker-in-nix-shell.sh",
     ]
-    footprint: 3
+    num_solver_cores: 3
   w4:
     command: [
       "ssh", "localhost", "-i", "~/foo/bar.pem", "-o", "StrictHostKeyChecking=no",
       "--",
       "foo/bar/seL4-binary-verification/examples/seL4/run-worker-in-nix-shell.sh",
     ]
-    footprint: 3
+    num_solver_cores: 3

@@ -53,13 +53,14 @@ data DistribConfig
   = DistribConfig
       { transport :: Transport
       , workers :: M.Map NodeId DistribWorkerConfig
+      , numEvalCores :: Integer
       , stagesInput :: StagesInput
       }
   deriving (Generic)
 
 data DistribWorkerConfig
   = DistribWorkerConfig
-      { numJobs :: Integer
+      { numSolverCores :: Integer
       , priority :: Integer
       }
   deriving (Eq, Generic, Ord, Show)
@@ -144,7 +145,7 @@ withBackend config node f = withRunInIO $ \run -> do
                 let serverInput = ServerInput
                         { stagesInput = config.stagesInput
                         , logChanSend
-                        , numThreads = (config.workers ! workerNodeId).numJobs
+                        , numThreads = (config.workers ! workerNodeId).numSolverCores
                         }
                 spawnLink workerNodeId ($(mkClosure 'serverClosureFn) (serverInput, selfPid))
                 serverThreadProcessIds <- expect
@@ -192,9 +193,9 @@ runDistrib
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
     => DistribConfig -> SolversConfig -> Checks -> LocalNode -> m Report
 runDistrib config solversConfig checks node = do
-    gate <- liftIO $ newSemGate $ sumOf (folded % #numJobs) config.workers
+    gate <- liftIO $ newSemGate $ sumOf (folded % #numSolverCores) config.workers
     withBackend config node $ \backend -> do
-        frontend (applySemGate gate) backend solversConfig checks
+        frontend config.numEvalCores (applySemGate gate) backend solversConfig checks
 
 --
 

@@ -9,7 +9,7 @@ tmp=$here/tmp
 exe="cabal run sel4-bv-cli --"
 # exe=$(nix-build $toplevel -A distrib)/bin/driver
 
-workers_arg="-j8"
+workers_arg="--num-solver-cores 8"
 # workers_arg="--workers $here/workers.local.yaml"
 # workers_arg="--workers $here/workers.remote.yaml"
 
@@ -17,7 +17,7 @@ mkdir -p $tmp
 
 $exe \
     check \
-    --num-capabilities 8 \
+    --num-eval-cores 8 \
     --target-dir $here/target-dir \
     --c-function-prefix Kernel_C. \
     --rodata-section .rodata \

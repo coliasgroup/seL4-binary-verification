@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module BV.CLI.Commands.Check
     ( runCheck
     ) where
@@ -17,10 +19,10 @@ import BV.System.Distrib
 import BV.System.EvalStages
 import BV.System.Local
 import BV.System.Utils.Async
-import BV.TargetDir
-
 import BV.System.Utils.Distrib (runProcess')
-import BV.Utils (ensureM)
+import BV.TargetDir
+import BV.Utils (ensure, fromIntegerChecked)
+
 import Conduit (awaitForever)
 import Control.Applicative (Alternative ((<|>)), asum)
 import Control.Concurrent.Async (Concurrently (Concurrently), forConcurrently_,
@@ -39,10 +41,11 @@ import qualified Data.ByteString.Char8 as BC
 import Data.Conduit (connect)
 import qualified Data.Conduit.Combinators as C
 import Data.Foldable (for_)
+import Data.Function (applyWhen)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromMaybe, isNothing)
 import qualified Data.Set as S
 import qualified Data.Yaml as Y
 import GHC.Conc (getNumProcessors, setNumCapabilities)
@@ -83,15 +86,13 @@ runCheck opts = do
         solverList <- readSolverList opts.solvers
         let solversConfig = getSolversConfig opts solverList
         withCacheCtx <- getWithCacheCtx opts
-        maxNumConcurrentSolversLocal <- configureLocalResources
-            opts.footprint
-            opts.numCababilities
-            opts.numJobs
         runChecks <- case opts.workers of
             Nothing -> do
-                checkMaxNumConcurrentSolvers solversConfig maxNumConcurrentSolversLocal
+                (numEvalCores, numSolverCores) <- configureLocalCPUResources opts.numCoresOpts
+                checkNumSolverCores solversConfig numSolverCores
                 let backendConfig = LocalConfig
-                        { numJobs = maxNumConcurrentSolversLocal
+                        { numEvalCores
+                        , numSolverCores
                         }
                 return $ runLocal backendConfig solversConfig
             Just workersConfigPath -> do
@@ -105,20 +106,20 @@ runCheck opts = do
                                     localNode <- liftIO $ newLocalNode transport distribRemoteTable
                                     let nids = map nodeIdFromWorkerName $ M.keys workersConfig.workers
                                     withWatchdogs localNode nids $ do
-                                        numJobsByWorker <- ifor workersConfig.workers $ \workerName workerConfig ->
-                                            configureRemoteResources
+                                        numEvalCores <- configureDriverCPUResources opts.numCoresOpts
+                                        numSolverCoresByWorker <- ifor workersConfig.workers $ \workerName workerConfig ->
+                                            configureWorkerCPUResources
                                                 localNode
                                                 (nodeIdFromWorkerName workerName)
-                                                workerConfig.footprintOpt
-                                                workerConfig.numCapabilitiesOpt
-                                                workerConfig.numJobsOpt
+                                                workerConfig.numSolverCores
                                         let backendConfig = DistribConfig
                                                 { transport
                                                 , workers = M.fromList $ flip map (M.toList workersConfig.workers) $ \(workerName, workerConfig) ->
                                                     (,) (nodeIdFromWorkerName workerName) $ DistribWorkerConfig
-                                                        { numJobs = numJobsByWorker M.! workerName
+                                                        { numSolverCores = numSolverCoresByWorker M.! workerName
                                                         , priority = workerConfig.priority
                                                         }
+                                                , numEvalCores
                                                 , stagesInput = input
                                                 }
                                         runDistrib backendConfig solversConfig checks localNode
@@ -257,66 +258,82 @@ withWatchdogs localNode nids m = withRunInIO $ \run -> do
             throwString $ show cond
     liftIO $ runConcurrently $ watchdogs <|> Concurrently (run m)
 
-configureResourcesWith
+configureLocalCPUResources
     :: (MonadLoggerWithContext m, MonadIO m)
-    => m Int
-    -> (Int -> m ())
-    -> Maybe Integer -> Maybe Integer -> Maybe Integer -> m Integer
-configureResourcesWith getNumProcessors' setNumCapabilities' footprintOpt numCapabilitiesOpt numJobsOpt = do
-    footprint <- maybe getDefaultFootprint return footprintOpt
-    ensureM $ footprint >= minCaps + minJobs
-    (numCaps, numJobs) <- case (numCapabilitiesOpt, numJobsOpt) of
-        (Just numCaps', Just numJobs') -> do
-            return (numCaps', numJobs')
-        (Just numCaps', Nothing) -> do
-            return (numCaps', footprint - numCaps')
-        (Nothing, Just numJobs') -> do
-            return (footprint - numJobs', numJobs')
-        (Nothing, Nothing) -> do
-            let rem_ = footprint - minJobs - minCaps
-            let remCaps = rem_ `div` 3
-            let remJobs = rem_ - remCaps
-            let numCaps' = minCaps + remCaps
-            let numJobs' = minJobs + remJobs
-            return (numCaps', numJobs')
-    ensureM $ numCaps >= minCaps
-    ensureM $ numJobs >= minJobs
-    ensureM $ numCaps + numJobs <= footprint
-    setNumCapabilities' (fromInteger numCaps)
-    return numJobs
+    => CheckNumCoresOpts -> m (Integer, Integer)
+configureLocalCPUResources opts = do
+    numProcs <- toInteger <$> liftIO getNumProcessors
+    let minNumCores = fromMaybe 1 opts.numEvalCores + fromMaybe 1 opts.numSolverCores
+    let numCoresOpt = (+) <$> opts.numEvalCores <*> opts.numSolverCores
+    let (numCaps, numCores) = computeCapsAndCores numProcs minNumCores numCoresOpt
+    let (numEvalCores, numSolverCores) = case (opts.numEvalCores, opts.numSolverCores) of
+            (Just n, _) -> (n, numCores - n)
+            (_, Just n) -> (numCores - n, n)
+            (Nothing, Nothing) ->
+                let extra = numCores - 2
+                    eval = 1 + (extra `div` 3)
+                 in (eval, numCores - eval)
+    liftIO $ setNumCapabilities $ fromIntegerChecked numCaps
+    logInfo $ printf "local numCaps=%d numEvalCores=%d numSolverCores=%d"
+        numCaps numEvalCores numSolverCores
+    return (numEvalCores, numSolverCores)
+
+configureDriverCPUResources
+    :: (MonadLoggerWithContext m, MonadIO m)
+    => CheckNumCoresOpts -> m Integer
+configureDriverCPUResources opts = do
+    numProcs <- toInteger <$> liftIO getNumProcessors
+    unless (isNothing opts.numSolverCores) $ do
+        logWarn "driver ignoring --num-solver-cores"
+    let (numCaps, numEvalCores) = computeCapsAndCores numProcs 1 opts.numEvalCores
+    liftIO $ setNumCapabilities $ fromIntegerChecked numCaps
+    logInfo $ printf "driver numCaps=%d numEvalCores=%d" numCaps numEvalCores
+    return numEvalCores
+
+configureWorkerCPUResources
+    :: (MonadLoggerWithContext m, MonadIO m)
+    => LocalNode -> NodeId -> Maybe Integer -> m Integer
+configureWorkerCPUResources localNode nid numSolverCoresOpt = do
+    numProcs <- fmap toInteger $ runProcess' localNode $ call
+        $(functionTDict 'getNumProcessorsClosureFn)
+        nid
+        ($(mkClosure 'getNumProcessorsClosureFn)
+            ())
+    let (numCaps, numSolverCores) = computeCapsAndCores numProcs 1 numSolverCoresOpt
+    runProcess' localNode $ call
+        $(functionTDict 'setNumCapabilitiesClosureFn)
+        nid
+        ($(mkClosure 'setNumCapabilitiesClosureFn)
+            (fromIntegerChecked numCaps :: Int))
+    logInfo $ printf "worker %s numCaps=%d numSolverCores=%d" (show nid) numCaps numSolverCores
+    return numSolverCores
+
+computeCapsAndCores :: Integer -> Integer -> Maybe Integer -> (Integer, Integer)
+computeCapsAndCores numProcs minNumCores numCoresOpt = ensure check (numCaps, numCores)
   where
-    minJobs = 1
-    minCaps = 1
-    getDefaultFootprint = do
-        numProcessors <- toInteger <$> getNumProcessors'
-        return $ numProcessors - 1
+    maxCaps = case numProcs of
+        1 -> 1
+        n | n > 1 -> n - 1
+    minCaps = case numCoresOpt of
+        Nothing -> minNumCores
+        Just n | n >= 1 -> n
+    requestedCaps = case numCoresOpt of
+        Nothing -> maxCaps
+        Just n -> n + 1
+    numCaps = restrict (minCaps, maxCaps) requestedCaps
+    numCores = case numCoresOpt of
+        Nothing -> max minNumCores $ applyWhen (numCaps >= 3) (subtract 1) numCaps
+        Just n -> n
+    check = minNumCores <= numCores && numCores <= numCaps
 
-configureLocalResources
-    :: (MonadLoggerWithContext m, MonadIO m)
-    => Maybe Integer -> Maybe Integer -> Maybe Integer -> m Integer
-configureLocalResources =
-    configureResourcesWith
-        (liftIO getNumProcessors)
-        (liftIO . setNumCapabilities)
+restrict :: (Integer, Integer) -> Integer -> Integer
+restrict (lo, hi) n = case (lo <= n, n <= hi) of
+    (False, _) -> lo
+    (_, False) -> hi
+    _ -> n
 
-configureRemoteResources
-    :: (MonadLoggerWithContext m, MonadIO m)
-    => LocalNode -> NodeId -> Maybe Integer -> Maybe Integer -> Maybe Integer -> m Integer
-configureRemoteResources localNode nid = do
-    configureResourcesWith
-        (runProcess' localNode
-            (call
-                $(functionTDict 'getNumProcessorsClosureFn)
-                nid
-                ($(mkClosure 'getNumProcessorsClosureFn) ())))
-        (\n -> runProcess' localNode
-            (call
-                $(functionTDict 'setNumCapabilitiesClosureFn)
-                nid
-                ($(mkClosure 'setNumCapabilitiesClosureFn) n)))
-
-checkMaxNumConcurrentSolvers :: (MonadIO m, MonadLogger m) => SolversConfig -> Integer -> m ()
-checkMaxNumConcurrentSolvers solversConfig n = do
+checkNumSolverCores :: (MonadIO m, MonadLogger m) => SolversConfig -> Integer -> m ()
+checkNumSolverCores solversConfig n = do
     let min_ = minNumJobs solversConfig
     when (n < min_) $ do
         liftIO $ die $ printf

@@ -1,7 +1,8 @@
 {-# LANGUAGE ApplicativeDo #-}
 
 module BV.CLI.Opts
-    ( CheckOpts (..)
+    ( CheckNumCoresOpts (..)
+    , CheckOpts (..)
     , CommandOpts (..)
     , ExtractSMTDirection (..)
     , ExtractSMTOpts (..)
@@ -112,9 +113,7 @@ data NotWorkerCommandOpts
 
 data CheckOpts
   = CheckOpts
-      { footprint :: Maybe Integer
-      , numCababilities :: Maybe Integer
-      , numJobs :: Maybe Integer
+      { numCoresOpts :: CheckNumCoresOpts
       , solvers :: FilePath
       , workers :: Maybe FilePath
       , onlineSolverTimeout :: SolverTimeout
@@ -137,6 +136,13 @@ data CheckOpts
       , includeChecks :: [(Ident, CheckFingerprintPattern)]
       , reportFile :: Maybe FilePath
       , justCompareChecks :: Bool
+      }
+  deriving (Generic, Show)
+
+data CheckNumCoresOpts
+  = CheckNumCoresOpts
+      { numEvalCores :: Maybe Integer
+      , numSolverCores :: Maybe Integer
       }
   deriving (Generic, Show)
 
@@ -341,23 +347,21 @@ checkOptsParser = do
         , value defaultOfflineSolverTimeout
         , help "Timeout for offline solvers"
         ]
-    footprint <- optional $ option' auto
-        [ long "footprint"
-        , short 'f'
-        , metavar "FOOTPRINT"
-        , help "Total number of cores to use"
-        ]
-    numCababilities <- optional $ option' auto
-        [ long "num-capabilities"
-        , metavar "NUM_CAPABILITIES"
-        , help "Number of Haskell RTS capabilities"
-        ]
-    numJobs <- optional $ option' auto
-        [ long "num-jobs"
-        , short 'j'
-        , metavar "NUM_JOBS"
-        , help "Maximum number of concurrent solvers"
-        ]
+    numCoresOpts <- do
+        numEvalCores <- optional $ option' auto
+            [ long "num-eval-cores"
+            , metavar "NUM_EVAL_CORES"
+            , help "Number of Haskell cores for evaluating proof check groups"
+            ]
+        numSolverCores <- optional $ option' auto
+            [ long "num-solver-cores"
+            , metavar "NUM_SMT_CORES"
+            , help "Number of SMT solver cores"
+            ]
+        pure $ CheckNumCoresOpts
+            { numEvalCores
+            , numSolverCores
+            }
     sqliteCache <- optional $ option' str
         [ long "sqlite-cache"
         , metavar "DATABASE"
@@ -441,9 +445,7 @@ checkOptsParser = do
         , help "Just compare checks to reference"
         ]
     pure $ CheckOpts
-        { footprint
-        , numCababilities
-        , numJobs
+        { numCoresOpts
         , solvers
         , workers
         , onlineSolverTimeout

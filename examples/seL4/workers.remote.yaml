@@ -1,7 +1,7 @@
 workers:
   local:
     local: true
-    footprint: 8
+    num_solver_cores: 8
     priority: -1
   r1:
     command: [

@@ -10,9 +10,13 @@ import BV.System.Core.Types
 import BV.System.Core.Utils.Logging
 import BV.System.Utils.Stopwatch
 import BV.System.Utils.UnliftIO.Async
+import BV.Utils (fromIntegerChecked)
 
+import Control.Concurrent (newQSem, signalQSem, waitQSem)
 import Control.Concurrent.STM (newTVarIO, readTVar)
 import Control.Concurrent.STM.TVar (writeTVar)
+import Control.DeepSeq (deepseq)
+import Control.Exception.Safe (bracket_)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
@@ -20,21 +24,19 @@ import Control.Monad.STM (atomically)
 import Data.Foldable (for_)
 import Optics
 import Text.Printf (printf)
-import Control.Concurrent (getNumCapabilities, newQSem, waitQSem, signalQSem)
-import Control.Exception.Safe (bracket_)
-import Control.DeepSeq (deepseq)
 
 frontend
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
-    => SolverGate m
+    => Integer
+    -> SolverGate m
     -> SolverBackend m
     -> SolversConfig
     -> Checks
     -> m Report
-frontend gate backend config checks = do
+frontend numEvalCores gate backend config checks = do
     let numGroups = length (toListOf (#unwrap % folded % folded % folded) checks :: [CheckSubgroup])
     logInfo $ printf "%d groups to check" numGroups
-    sem <- liftIO $ newQSem . max 1 . (-) 1 =<< getNumCapabilities
+    sem <- liftIO $ newQSem $ fromIntegerChecked numEvalCores
     completedGroups <- liftIO $ newTVarIO (0 :: Integer)
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do

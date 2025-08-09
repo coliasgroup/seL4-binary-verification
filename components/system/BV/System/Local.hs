@@ -16,7 +16,8 @@ import GHC.Generics (Generic)
 
 data LocalConfig
   = LocalConfig
-      { numJobs :: Integer
+      { numEvalCores :: Integer
+      , numSolverCores :: Integer
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -24,5 +25,5 @@ runLocal
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
     => LocalConfig -> SolversConfig -> Checks -> m Report
 runLocal config solversConfig checks = do
-    gate <- liftIO $ newSemGate config.numJobs
-    frontend (applySemGate gate) localSolverBackend solversConfig checks
+    gate <- liftIO $ newSemGate config.numSolverCores
+    frontend config.numEvalCores (applySemGate gate) localSolverBackend solversConfig checks

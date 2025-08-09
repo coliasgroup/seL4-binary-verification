@@ -27,9 +27,7 @@ instance FromJSON WorkersConfig
 data WorkerConfig
   = WorkerConfig
       { command :: NonEmpty String
-      , footprintOpt :: Maybe Integer
-      , numCapabilitiesOpt :: Maybe Integer
-      , numJobsOpt :: Maybe Integer
+      , numSolverCores :: Maybe Integer
       , priority :: Integer
       }
   deriving (Eq, Generic, Ord, Show)
@@ -37,9 +35,7 @@ data WorkerConfig
 instance FromJSON WorkerConfig where
     parseJSON = withObject "WorkerConfig" $ \v -> WorkerConfig
         <$> (v .: "command" <|> explicitParseField localTrue v "local")
-        <*> v .:? "footprint"
-        <*> v .:? "num_capabilities"
-        <*> v .:? "num_jobs"
+        <*> v .:? "num_solver_cores"
         <*> v .:? "priority" .!= 0
       where
         localTrue = \case
