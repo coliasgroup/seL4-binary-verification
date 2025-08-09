@@ -9,6 +9,6 @@ toplevel=$here/../..
 tmp=$here/tmp/local
 mkdir -p $tmp
 
-logfile=$tmp/log.$$.txt
+logfile=$tmp/log.$(date +%s).$RANDOM.txt
 
 (cd $toplevel && nix-shell --run "cabal run sel4-bv-cli -- $*") 2> >(tee $logfile >&2)
