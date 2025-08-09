@@ -56,7 +56,7 @@ instance Binary WatchdogCondition
 
 watchdog :: NodeId -> Process WatchdogCondition
 watchdog nid = do
-    mon <- A.async $ A.task $ WatchdogConditionNodeMonitorNotification <$> expect
+    mon <- A.async $ A.task $ WatchdogConditionNodeMonitorNotification <$> (monitorNode nid >> expect)
     timer <- A.async $ A.task $ watchdogTimer nid
     (_, r) <- A.waitAnyCancel [mon, timer]
     let A.AsyncDone cond = r
