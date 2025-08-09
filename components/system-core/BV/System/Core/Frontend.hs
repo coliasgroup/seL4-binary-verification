@@ -20,6 +20,9 @@ import Control.Monad.STM (atomically)
 import Data.Foldable (for_)
 import Optics
 import Text.Printf (printf)
+import Control.Concurrent (getNumCapabilities, newQSem, waitQSem, signalQSem)
+import Control.Exception.Safe (bracket_)
+import Control.DeepSeq (deepseq)
 
 frontend
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadCache m, MonadMask m)
@@ -31,12 +34,15 @@ frontend
 frontend gate backend config checks = do
     let numGroups = length (toListOf (#unwrap % folded % folded % folded) checks :: [CheckSubgroup])
     logInfo $ printf "%d groups to check" numGroups
+    sem <- liftIO $ newQSem . max 1 . (-) 1 =<< getNumCapabilities
     completedGroups <- liftIO $ newTVarIO (0 :: Integer)
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
             withPushLogContextPairing pairingId $ do
                 runConcurrentlyUnliftIOE $ do
                     for_ (checksForPairing ^.. folded % folded) (\subgroup -> makeConcurrentlyUnliftIOE $ do
+                        liftIO $ bracket_ (waitQSem sem) (signalQSem sem) $ do
+                            subgroup.group.fingerprint `deepseq` return ()
                         withPushLogContextCheckGroup subgroup.group $ do
                             result <- runSolvers gate backend config subgroup
                             logInfo $ case result of
