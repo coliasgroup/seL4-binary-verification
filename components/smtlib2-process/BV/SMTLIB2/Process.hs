@@ -15,10 +15,9 @@ import BV.SMTLIB2.SExpr.Build
 import BV.SMTLIB2.SExpr.Parse.Attoparsec
 
 import Control.Applicative ((<|>))
-import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
-                                 link, withAsync)
+import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently))
 import Control.Concurrent.STM
-import Control.Exception (Exception, SomeException, bracket, finally)
+import Control.Exception (Exception, SomeException, bracket, finally, throwIO)
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow, try)
 import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -33,12 +32,15 @@ import Data.Conduit.Process (FlushInput (FlushInput),
                              waitForStreamingProcess)
 import Data.Conduit.Text (decodeUtf8)
 import qualified Data.Conduit.Text as CT
+import Data.Foldable (asum)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB
+import Data.Void (absurd)
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
+import System.Exit (ExitCode)
 import System.Process (CreateProcess)
 
 newtype SolverT m a
@@ -129,21 +131,20 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
                     readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
                 }
 
-        let env = runConcurrently $
-                    SolverProcessExceptionSource <$> Concurrently (try source)
-                <|> SolverProcessExceptionLogging <$> Concurrently (try logging)
-                <|> SolverProcessExceptionTermination <$ Concurrently termination
+        let env = asum $ map (Concurrently . (>>= throwIO))
+                [ SolverProcessExceptionSource <$> try source
+                , SolverProcessExceptionLogging <$> try logging
+                , SolverProcessExceptionTermination <$> termination
+                ]
 
         let interaction = runSolverT m (modifyCtx (liftIOContext ctx))
 
-        withRunInIO $ \run -> liftIO $ withAsync env $ \envA -> do
-            link envA
-            run interaction
+        withRunInIO $ \run -> liftIO $ runConcurrently $ Concurrently (run interaction) <|> (absurd <$> env)
 
 data SolverProcessException
   = SolverProcessExceptionSource (Either SomeException ())
   | SolverProcessExceptionLogging (Either SomeException ())
-  | SolverProcessExceptionTermination
+  | SolverProcessExceptionTermination ExitCode
   deriving (Generic, Show)
 
 instance Exception SolverProcessException
