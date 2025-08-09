@@ -4,14 +4,14 @@ set -eu -o pipefail
 
 here=$(dirname $0)
 toplevel=$here/../..
-tmp=$here/tmp
+tmp=$here/tmp/fix
 
-exe="cabal run sel4-bv-cli --"
-# exe=$(nix-build $toplevel -A distrib)/bin/driver
+# exe="cabal run sel4-bv-cli --"
+exe=$(nix-build $toplevel -A distrib)/bin/driver
 
-workers_arg="--num-solver-cores 8"
+# workers_arg="--num-solver-cores 8"
 # workers_arg="--workers $here/workers.local.yaml"
-# workers_arg="--workers $here/workers.remote.yaml"
+workers_arg="--workers $here/workers.remote.yaml"
 
 mkdir -p $tmp
 
