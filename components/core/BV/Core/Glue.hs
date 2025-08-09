@@ -184,5 +184,5 @@ stages input = StagesOutput
 
     finalChecks =
         let f = decorateProofScriptWithProofScriptNodePathsWith $ \path groups ->
-                (proofScriptEdgePath path, M.map (fmap (ProofCheckMeta path)) groups)
+                (proofScriptEdgePath path, M.fromList (over (traversed % _2 % mapped) (ProofCheckMeta path) groups))
          in StagesOutputChecks $ M.map (M.fromList . toList . f) smtProofChecks.unwrap

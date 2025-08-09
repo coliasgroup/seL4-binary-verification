@@ -15,8 +15,8 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
-proofCheckGroups :: Tag t => [ProofCheck t a] -> M.Map ProofCheckGroupIndices (ProofCheckGroup t a)
-proofCheckGroups = M.fromList . toList . proofCheckGroupsWithKeys
+proofCheckGroups :: Tag t => [ProofCheck t a] -> [(ProofCheckGroupIndices, ProofCheckGroup t a)]
+proofCheckGroups = toList . proofCheckGroupsWithKeys
 
 proofCheckGroupsWithKeys :: Tag t => [ProofCheck t a] -> Map CheckGroupKey (ProofCheckGroupIndices, ProofCheckGroup t a)
 proofCheckGroupsWithKeys checks = M.unionsWith (<>)

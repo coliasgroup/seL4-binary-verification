@@ -47,7 +47,7 @@ newtype ProofChecks t a
 type ProofChecks' = ProofChecks AsmRefineTag
 
 newtype SMTProofChecks t a
-  = SMTProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t (M.Map ProofCheckGroupIndices (SMTProofCheckGroup a))) }
+  = SMTProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t [(ProofCheckGroupIndices, SMTProofCheckGroup a)]) }
   deriving (Eq, Functor, Generic, Ord, Show)
   deriving newtype (NFData)
 
@@ -69,7 +69,7 @@ newtype CompatSMTProofChecks
   deriving newtype (NFData)
 
 toCompatSMTProofChecks :: SMTProofChecks AsmRefineTag () -> CompatSMTProofChecks
-toCompatSMTProofChecks (SMTProofChecks byPairing) = CompatSMTProofChecks (M.map (toListOf (folded % folded)) byPairing)
+toCompatSMTProofChecks (SMTProofChecks byPairing) = CompatSMTProofChecks (M.map (toListOf (folded % folded % _2)) byPairing)
 
 -- search outputs
 
