@@ -25,10 +25,11 @@ import Control.Concurrent (newChan, readChan, writeChan)
 import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently))
 import Control.Concurrent.STM (modifyTVar', newEmptyTMVarIO, newTVarIO,
                                putTMVar, readTMVar, stateTVar)
-import Control.Distributed.Process (NodeId, NodeMonitorNotification, Process,
-                                    ProcessId, SendPort, callLocal, expect,
-                                    getSelfPid, link, monitor, receiveChan,
-                                    send, sendChan, spawnLink, spawnLocal)
+import Control.Distributed.Process (NodeId, Process, ProcessId,
+                                    ProcessMonitorNotification, SendPort,
+                                    callLocal, expect, getSelfPid, link,
+                                    monitor, receiveChan, send, sendChan,
+                                    spawnLink, spawnLocal)
 import qualified Control.Distributed.Process as D
 import qualified Control.Distributed.Process.Async as A
 import Control.Distributed.Process.Closure (mkClosure, remotable)
@@ -113,7 +114,7 @@ serverThread checks = do
                 A.waitAnyCancel =<< traverse (A.asyncLinked . A.task)
                     [ do
                         monitor src
-                        _ :: NodeMonitorNotification <- expect
+                        _ :: ProcessMonitorNotification <- expect
                         return ()
                     , do
                         -- TODO do something better than log to stderr
