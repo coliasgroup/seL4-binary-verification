@@ -101,34 +101,32 @@ elaborateChecks (SMTProofChecks smtProofChecks) =
     Checks $
         flip M.mapWithKey smtProofChecks $ \pairingId ->
             M.fromList . toList .
-                (decorateProofScriptWithProofScriptNodePathsWith $ \nodePath (groups :: [(ProofCheckGroupCheckIndices, SMTProofCheckGroup ProofCheckDescription)]) ->
-                    let edgePath = proofScriptEdgePath nodePath
-                        g indices_ smtCheckGroup =
+                (decorateProofScriptWithProofScriptNodePathsWith $ \nodePath groups ->
+                    let mkGroup indices_ smtCheckGroup =
                             let group = CheckGroup
                                     { fingerprint = fingerprintCheckGroup smtCheckGroup
                                     , path = CheckGroupPath
                                         { pairingId
-                                        , proofScriptEdgePath = edgePath
+                                        , proofScriptEdgePath = proofScriptEdgePath nodePath
                                         , checkIndices = indices_
                                         , fingerprint = group.fingerprint
                                         }
                                     , proofScriptNodePath = nodePath
                                     , setup = smtCheckGroup.setup
                                     , checks =
-                                        [ let fingerprint = fingerprintCheck (SMTProofCheck smtCheckGroup.setup imp)
-                                           in Check
-                                                { fingerprint
-                                                , group
-                                                , indexInGroup
-                                                , desc = imp.meta
-                                                , imp = imp.term
-                                                }
+                                        [ Check
+                                            { fingerprint = fingerprintCheck (SMTProofCheck smtCheckGroup.setup imp)
+                                            , group
+                                            , indexInGroup
+                                            , desc = imp.meta
+                                            , imp = imp.term
+                                            }
                                         | (indexInGroup, imp) <- zip (map CheckIndexInGroup [0..]) smtCheckGroup.imps
                                         ]
                                     }
                              in fullSubgroup group
                      in ( proofScriptEdgePath nodePath
-                        , M.mapWithKey g $ M.fromList groups
+                        , M.mapWithKey mkGroup $ M.fromList groups
                         ))
 
 fullSubgroup :: CheckGroup -> CheckSubgroup
@@ -154,8 +152,7 @@ filterChecks checkFilter = #unwrap %~ (iover (itraversed % traversed) f . M.filt
         (fgroupOpt, fcheckOpt) ->
             let fgroup = fromMaybe (const True) fgroupOpt
                 fcheck = fromMaybe (const True) fcheckOpt
-             in (traversed %~ takeSubgroupByFingerprint fcheck)
-                    . M.filter (\v -> fgroup v.group.fingerprint)
+             in (traversed %~ takeSubgroupByFingerprint fcheck) . M.filter (\v -> fgroup v.group.fingerprint)
 
 takeEmptySubgroup :: CheckSubgroup -> CheckSubgroup
 takeEmptySubgroup = #checks .~ M.empty
