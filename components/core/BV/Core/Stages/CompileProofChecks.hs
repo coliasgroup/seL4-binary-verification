@@ -20,7 +20,7 @@ compileProofChecks
     -> Pairings'
     -> ArgRenames AsmRefineTag
     -> [ProofCheck AsmRefineTag a]
-    -> [(ProofCheckGroupIndices, SMTProofCheckGroup a)]
+    -> [(ProofCheckGroupCheckIndices, SMTProofCheckGroup a)]
 compileProofChecks repGraphInput functionSigs pairings argRenames checks =
     over (traversed % _2)
         (compileProofCheckGroup repGraphInput functionSigs pairings argRenames . pruneGroup)

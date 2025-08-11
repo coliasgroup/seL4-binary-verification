@@ -22,7 +22,6 @@ import BV.System.Utils.Stopwatch
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.Binary (Binary)
-import Data.List (genericIndex)
 import GHC.Generics (Generic)
 import System.Process (CreateProcess, proc)
 import Text.Printf (printf)
@@ -113,7 +112,7 @@ logOnlineSolverResult subgroup result = do
             logDebug "answered unsat for all checks"
         Left abort -> do
             logDebug $ printf "answered sat for %d checks" abort.index
-            let (_i, check) = subgroup.checks `genericIndex` abort.index
+            let check = subgroup `indexSubgroup` abort.index
             withPushLogContextCheck check $ do
                 case abort.reason of
                     OnlineSolverTimedOut -> do

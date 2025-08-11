@@ -35,8 +35,8 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Trans (lift)
 import Data.Bifunctor (first)
-import Data.Foldable (for_)
-import Data.List (genericIndex, genericLength)
+import Data.Foldable (for_, toList)
+import Data.List (genericLength)
 import GHC.Generics (Generic)
 
 data OfflineSolversConfig
@@ -132,7 +132,7 @@ newtype OfflineSolversFailureHypIndex
   deriving (Eq, Generic, Ord, Show)
 
 getHypAtIndex :: OfflineSolversFailureHypIndex -> CheckSubgroup -> Check
-getHypAtIndex i subgroup = snd $ subgroup.checks `genericIndex` i.unwrap
+getHypAtIndex i subgroup = subgroup `indexSubgroup` i.unwrap
 
 runParellelOfflineSolvers
     :: forall m. (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
@@ -161,7 +161,7 @@ runParellelOfflineSolvers config checkSubgroupBackend checkBackend subgroup = do
             hypStrategy = do
                 withPushLogContext "hyp" $ do
                     result <- runExceptT $ do
-                        for_ (zip (map OfflineSolversFailureHypIndex [0..]) (map snd subgroup.checks)) $ \(hypIndex, check) -> do
+                        for_ (zip (map OfflineSolversFailureHypIndex [0..]) (toList subgroup.checks)) $ \(hypIndex, check) -> do
                             conclusionResult <- lift . forConcurrentlyUnliftIOE_ (offlineSolverConfigsForScope SolverScopeHyp config) $ \solver -> do
                                 withPushLogContextOfflineSolver solver $ do
                                     satResult <- checkBackend solver check

@@ -19,7 +19,7 @@ import BV.Core.Types.Program (Ident (..), Struct (..))
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import Data.Map (Map)
-import qualified Data.Map.Lazy as M
+import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 

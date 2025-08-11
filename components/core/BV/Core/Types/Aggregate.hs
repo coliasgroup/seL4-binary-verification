@@ -28,10 +28,12 @@ import BV.Core.Types.Tag
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import Data.Foldable (fold)
+import Data.Functor (void)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
-import Data.Functor (void)
+
+-- stages
 
 newtype Problems t
   = Problems { unwrap :: M.Map (PairingId t) (Problem t) }
@@ -45,14 +47,14 @@ newtype ProofChecks t a
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
-type ProofChecks' = ProofChecks AsmRefineTag
+type ProofChecks' = ProofChecks AsmRefineTag ProofCheckDescription
 
 newtype SMTProofChecks t a
-  = SMTProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t [(ProofCheckGroupIndices, SMTProofCheckGroup a)]) }
+  = SMTProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t [(ProofCheckGroupCheckIndices, SMTProofCheckGroup a)]) }
   deriving (Eq, Functor, Generic, Ord, Show)
   deriving newtype (NFData)
 
-type SMTProofChecks' = SMTProofChecks AsmRefineTag
+type SMTProofChecks' = SMTProofChecks AsmRefineTag ProofCheckDescription
 
 -- compat
 

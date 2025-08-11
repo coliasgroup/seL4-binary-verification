@@ -19,9 +19,11 @@ module BV.System.Core.Types
     , filterChecks
     , findCheck
     , findCheckSubgroup
+    , indexSubgroup
     , pathForCheck
     , pathForCheckSubgroup
     , prettyCheckSubgroupIdShort
+    , prettyProofCheckMeta
     , splitSubgroupAt
     , takeEmptySubgroup
     , takeSubgroupByFingerprint
@@ -37,10 +39,12 @@ import BV.Utils (expectingAt)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
+import Data.Foldable (toList)
 import Data.Function (on)
-import Data.List (genericSplitAt, intercalate, nubBy)
+import Data.List (genericIndex, genericSplitAt, intercalate, nubBy)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
+import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
@@ -48,7 +52,8 @@ data Check
   = Check
       { fingerprint :: CheckFingerprint
       , group :: CheckGroup
-      , meta :: ProofCheckMeta
+      , indexInGroup :: CheckIndexInGroup
+      , desc :: ProofCheckDescription
       , imp :: SExprWithPlaceholders
       }
   deriving (Eq, Generic, Ord, Show)
@@ -56,9 +61,8 @@ data Check
 data CheckGroup
   = CheckGroup
       { fingerprint :: CheckGroupFingerprint
-      , pairingId :: PairingId'
-      , proofScriptNode :: ProofScriptEdgePath
-      , groupIndices :: ProofCheckGroupIndices
+      , path :: CheckGroupPath
+      , proofScriptNodePath :: ProofScriptNodePath AsmRefineTag
       , setup :: [SExprWithPlaceholders]
       , checks :: [Check]
       }
@@ -72,53 +76,65 @@ newtype CheckIndexInGroup
 data CheckSubgroup
   = CheckSubgroup
       { group :: CheckGroup
-      , checks :: [(CheckIndexInGroup, Check)]
+      , checks :: M.Map CheckIndexInGroup Check
       }
   deriving (Eq, Generic, Ord, Show)
 
 data CheckSubgroupId
   = CheckSubgroupId
       { groupFingerprint :: CheckGroupFingerprint
-      , checkIndices :: [CheckIndexInGroup]
+      , checkIndices :: S.Set CheckIndexInGroup
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary CheckSubgroupId
 
 newtype Checks
-  = Checks { unwrap :: M.Map PairingId' (M.Map ProofScriptEdgePath (M.Map ProofCheckGroupIndices CheckSubgroup)) }
+  = Checks { unwrap :: M.Map PairingId' (M.Map ProofScriptEdgePath (M.Map ProofCheckGroupCheckIndices CheckSubgroup)) }
   deriving (Eq, Generic, Ord, Show)
 
 elaborateChecksFromInput :: StagesInput -> Checks
 elaborateChecksFromInput input = elaborateChecks (stages input).checks
 
-elaborateChecks :: StagesOutputChecks -> Checks
-elaborateChecks stagesOutputChecks = Checks $
-    flip M.mapWithKey stagesOutputChecks.unwrap $ \pairingId ->
-        M.mapWithKey $ \proofScriptNode ->
-            M.mapWithKey $ \groupIndices smtGroup ->
-                let group = CheckGroup
-                        { fingerprint = fingerprintCheckGroup smtGroup
-                        , pairingId
-                        , proofScriptNode
-                        , groupIndices
-                        , setup = smtGroup.setup
-                        , checks =
-                            [ Check
-                                { fingerprint = fingerprintCheck (SMTProofCheck smtGroup.setup imp)
-                                , group
-                                , meta = imp.meta
-                                , imp = imp.term
-                                }
-                            | imp <- smtGroup.imps
-                            ]
-                        }
-                 in fullSubgroup group
+elaborateChecks :: SMTProofChecks' -> Checks
+elaborateChecks (SMTProofChecks smtProofChecks) =
+    Checks $
+        flip M.mapWithKey smtProofChecks $ \pairingId ->
+            M.fromList . toList .
+                (decorateProofScriptWithProofScriptNodePathsWith $ \nodePath (groups :: [(ProofCheckGroupCheckIndices, SMTProofCheckGroup ProofCheckDescription)]) ->
+                    let edgePath = proofScriptEdgePath nodePath
+                        g indices_ smtCheckGroup =
+                            let group = CheckGroup
+                                    { fingerprint = fingerprintCheckGroup smtCheckGroup
+                                    , path = CheckGroupPath
+                                        { pairingId
+                                        , proofScriptEdgePath = edgePath
+                                        , checkIndices = indices_
+                                        , fingerprint = group.fingerprint
+                                        }
+                                    , proofScriptNodePath = nodePath
+                                    , setup = smtCheckGroup.setup
+                                    , checks =
+                                        [ let fingerprint = fingerprintCheck (SMTProofCheck smtCheckGroup.setup imp)
+                                           in Check
+                                                { fingerprint
+                                                , group
+                                                , indexInGroup
+                                                , desc = imp.meta
+                                                , imp = imp.term
+                                                }
+                                        | (indexInGroup, imp) <- zip (map CheckIndexInGroup [0..]) smtCheckGroup.imps
+                                        ]
+                                    }
+                             in fullSubgroup group
+                     in ( proofScriptEdgePath nodePath
+                        , M.mapWithKey g $ M.fromList groups
+                        ))
 
 fullSubgroup :: CheckGroup -> CheckSubgroup
 fullSubgroup group = CheckSubgroup
     { group
-    , checks = zip (map CheckIndexInGroup [0..]) group.checks
+    , checks = M.fromList $ zip (map CheckIndexInGroup [0..]) group.checks
     }
 
 data CheckFilter
@@ -132,7 +148,7 @@ data CheckFilter
 filterChecks :: CheckFilter -> Checks -> Checks
 filterChecks checkFilter = #unwrap %~ (iover (itraversed % traversed) f . M.filterWithKey (\k _v -> checkFilter.pairings k))
   where
-    f :: PairingId' -> M.Map ProofCheckGroupIndices CheckSubgroup -> M.Map ProofCheckGroupIndices CheckSubgroup
+    f :: PairingId' -> M.Map ProofCheckGroupCheckIndices CheckSubgroup -> M.Map ProofCheckGroupCheckIndices CheckSubgroup
     f pairingId xgroups = case (checkFilter.groups pairingId, checkFilter.checks pairingId) of
         (Nothing, Nothing) -> xgroups
         (fgroup, fcheck) -> groups
@@ -142,37 +158,38 @@ filterChecks checkFilter = #unwrap %~ (iover (itraversed % traversed) f . M.filt
                     . M.filter (\v -> fromMaybe (const True) fgroup v.group.fingerprint)
 
 takeEmptySubgroup :: CheckSubgroup -> CheckSubgroup
-takeEmptySubgroup = #checks .~ []
+takeEmptySubgroup = #checks .~ M.empty
 
 takeSubgroupByIndexInGroup :: (CheckIndexInGroup -> Bool) -> CheckSubgroup -> CheckSubgroup
-takeSubgroupByIndexInGroup p = #checks %~ filter (\(i, _check) -> p i)
+takeSubgroupByIndexInGroup p = #checks %~ M.filterWithKey (\i _check -> p i)
 
 takeSubgroupByFingerprint :: (CheckFingerprint -> Bool) -> CheckSubgroup -> CheckSubgroup
-takeSubgroupByFingerprint p = #checks %~ filter (\(_i, check) -> p check.fingerprint)
+takeSubgroupByFingerprint p = #checks %~ M.filter (\check -> p check.fingerprint)
 
 splitSubgroupAt :: Integer -> CheckSubgroup -> (CheckSubgroup, CheckSubgroup)
 splitSubgroupAt i subgroup = (subgroup & #checks .~ l, subgroup & #checks .~ r)
   where
-    (l, r) = genericSplitAt i subgroup.checks
+    (l, r) = over each M.fromList $ genericSplitAt i $ M.toList subgroup.checks
+
+indexSubgroup :: CheckSubgroup -> Integer -> Check
+indexSubgroup subgroup i = toList subgroup.checks `genericIndex` i
 
 deduplicateSubgroup :: CheckSubgroup -> CheckSubgroup
-deduplicateSubgroup = #checks %~ nubBy ((==) `on` view (_2 % #fingerprint))
+deduplicateSubgroup = #checks %~ M.fromList . nubBy ((==) `on` view (_2 % #fingerprint)) . M.toList
 
 takeSubgroupId :: CheckSubgroup -> CheckSubgroupId
 takeSubgroupId subgroup =
     CheckSubgroupId
         { groupFingerprint = subgroup.group.fingerprint
-        , checkIndices = map fst subgroup.checks
+        , checkIndices = M.keysSet subgroup.checks
         }
 
 prettyCheckSubgroupIdShort :: CheckSubgroupId -> String
 prettyCheckSubgroupIdShort subgroupId =
     prettyCheckGroupFingerprintShort subgroupId.groupFingerprint
     ++ "("
-    ++ intercalate "," (map (show . (.unwrap)) subgroupId.checkIndices)
+    ++ intercalate "," (map (show . (.unwrap)) (toList subgroupId.checkIndices))
     ++ ")"
-
---
 
 toCoreCheck :: Check -> SMTProofCheck ()
 toCoreCheck check = SMTProofCheck
@@ -191,19 +208,15 @@ toCoreCheckGroup subgroup = SMTProofCheckGroup
             { meta = ()
             , term = check.imp
             }
-        | (_i, check) <- subgroup.checks
+        | check <- toList subgroup.checks
         ]
     }
 
---
-
 data CheckPath
   = CheckPath
-      { pairingId :: PairingId'
-      , proofScriptNode :: ProofScriptEdgePath
-      , groupIndices :: ProofCheckGroupIndices
-      , groupFingerprint :: CheckGroupFingerprint
-      , checkFingerprint :: CheckFingerprint
+      { checkGroupPath :: CheckGroupPath
+      , indexInGroup :: CheckIndexInGroup
+      , fingerprint :: CheckFingerprint
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -211,35 +224,38 @@ instance Binary CheckPath
 
 pathForCheck :: Check -> CheckPath
 pathForCheck check = CheckPath
-    { pairingId = check.group.pairingId
-    , proofScriptNode = check.group.proofScriptNode
-    , groupIndices = check.group.groupIndices
-    , groupFingerprint = check.group.fingerprint
-    , checkFingerprint = check.fingerprint
+    { checkGroupPath = check.group.path
+    , indexInGroup = check.indexInGroup
+    , fingerprint = check.fingerprint
     }
 
-findChecks :: CheckPath -> Checks -> [Check]
-findChecks path checks =
-    [ check
-    | (_i, check) <- subgroup.checks
-    , check.fingerprint == path.checkFingerprint
-    ]
-  where
-    subgroup = checks ^.
-        #unwrap
-            % expectingAt path.pairingId
-            % expectingAt path.proofScriptNode
-            % expectingAt path.groupIndices
-
 findCheck :: CheckPath -> Checks -> Check
-findCheck path checks = head $ findChecks path checks
+findCheck path checks = findCheckGroup path.checkGroupPath checks
+    ^. #checks
+    % expectingAt path.indexInGroup
+
+data CheckGroupPath
+  = CheckGroupPath
+      { pairingId :: PairingId'
+      , proofScriptEdgePath :: ProofScriptEdgePath
+      , checkIndices :: ProofCheckGroupCheckIndices
+      , fingerprint :: CheckGroupFingerprint
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary CheckGroupPath
+
+findCheckGroup :: CheckGroupPath -> Checks -> CheckSubgroup
+findCheckGroup path checks = checks
+    ^. #unwrap
+    % expectingAt path.pairingId
+    % expectingAt path.proofScriptEdgePath
+    % expectingAt path.checkIndices
 
 data CheckSubgroupPath
   = CheckSubgroupPath
-      { pairingId :: PairingId'
-      , proofScriptNode :: ProofScriptEdgePath
-      , groupIndices :: ProofCheckGroupIndices
-      , subgroupId :: CheckSubgroupId
+      { groupPath :: CheckGroupPath
+      , checkIndices :: S.Set CheckIndexInGroup
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -247,18 +263,17 @@ instance Binary CheckSubgroupPath
 
 pathForCheckSubgroup :: CheckSubgroup -> CheckSubgroupPath
 pathForCheckSubgroup subgroup = CheckSubgroupPath
-    { pairingId = subgroup.group.pairingId
-    , proofScriptNode = subgroup.group.proofScriptNode
-    , groupIndices = subgroup.group.groupIndices
-    , subgroupId = takeSubgroupId subgroup
+    { groupPath = subgroup.group.path
+    , checkIndices = M.keysSet subgroup.checks
     }
 
 findCheckSubgroup :: CheckSubgroupPath -> Checks -> CheckSubgroup
 findCheckSubgroup path checks =
-    takeSubgroupByIndexInGroup (`elem` path.subgroupId.checkIndices) subgroup
-  where
-    subgroup = checks ^.
-        #unwrap
-            % expectingAt path.pairingId
-            % expectingAt path.proofScriptNode
-            % expectingAt path.groupIndices
+    takeSubgroupByIndexInGroup (`S.member` path.checkIndices) $
+        findCheckGroup path.groupPath checks
+
+--
+
+prettyProofCheckMeta :: Check -> String
+prettyProofCheckMeta check =
+    prettyProofScriptNodePath check.group.proofScriptNodePath ++ " >>> " ++ check.desc

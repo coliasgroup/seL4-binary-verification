@@ -2,6 +2,7 @@
 
 module BV.Core.Prelude
     ( AsmFunctionFilter
+    , AsmRefineTag (..)
     , Ident (..)
     , IncludeExcludeFilter (..)
     , IntermediateStagesOutput (..)
@@ -10,29 +11,34 @@ module BV.Core.Prelude
     , OnlineSolverFailureInfo (..)
     , OnlineSolverFailureReason (..)
     , PairingId'
-    , ProofCheckGroupIndices
-    , ProofCheckMeta (..)
+    , ProofCheckDescription
+    , ProofCheckGroupCheckIndices
+    , ProofNodeEdge
     , ProofScriptEdgePath
+    , ProofScriptNodePath (..)
     , RODataInputRangeType (..)
     , RODataInputRanges
     , SExprWithPlaceholders
     , SMTProofCheck (..)
     , SMTProofCheckGroup (..)
     , SMTProofCheckImp (..)
+    , SMTProofChecks (..)
+    , SMTProofChecks'
     , StagesInput (..)
     , StagesOutput (..)
-    , StagesOutputChecks (..)
     , applyIncludeExcludeFilter
+    , decorateProofScriptWithProofScriptNodePathsWith
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
+    , followProofScriptEdgePath
     , getAsm
     , getC
     , prettyMemoryMode
     , prettyModelConfig
     , prettyPairingId
-    , prettyProofCheckMeta
     , prettyProofScriptNodePath
+    , proofScriptEdgePath
     , stages
     ) where
 

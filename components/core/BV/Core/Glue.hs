@@ -5,15 +5,11 @@
 
 module BV.Core.Glue
     ( IntermediateStagesOutput (..)
-    , ProofCheckMeta (..)
     , StagesInput (..)
     , StagesOutput (..)
-    , StagesOutputChecks (..)
-    , prettyProofCheckMeta
     , stages
     ) where
 
-import BV.Core.DecorateProofScript
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras
@@ -22,7 +18,7 @@ import BV.Core.Utils.IncludeExcludeFilter
 import Control.DeepSeq (NFData)
 import Control.Monad (guard)
 import Data.Binary (Binary)
-import Data.Foldable (for_, toList)
+import Data.Foldable (for_)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (isJust)
@@ -47,7 +43,7 @@ instance Binary StagesInput
 
 data StagesOutput
   = StagesOutput
-      { checks :: StagesOutputChecks
+      { checks :: SMTProofChecks'
         -- report
       , unhandledInlineAssemblyFunctions :: [Ident]
       , unhandledInstructionFunctions :: [Ident]
@@ -56,27 +52,12 @@ data StagesOutput
       }
   deriving (Eq, Generic)
 
-newtype StagesOutputChecks
-  = StagesOutputChecks { unwrap :: M.Map PairingId' (M.Map ProofScriptEdgePath (M.Map ProofCheckGroupIndices (SMTProofCheckGroup ProofCheckMeta))) }
-  deriving (Eq, Generic, Ord, Show)
-
-data ProofCheckMeta
-  = ProofCheckMeta
-      { path :: ProofScriptNodePath AsmRefineTag
-      , desc :: ProofCheckDescription
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-prettyProofCheckMeta :: ProofCheckMeta -> String
-prettyProofCheckMeta meta = prettyProofScriptNodePath meta.path ++ " >>> " ++ meta.desc
-
 data IntermediateStagesOutput
   = IntermediateStagesOutput
       { functions :: Program
       , pairings :: Pairings'
       , problems :: Problems'
-      , proofChecks :: ProofChecks' ProofCheckDescription
-      , smtProofChecks :: SMTProofChecks' ProofCheckDescription
+      , proofChecks :: ProofChecks'
       , compatProofChecks :: CompatProofChecks
       , compatSMTProofChecks :: CompatSMTProofChecks
       }
@@ -84,7 +65,7 @@ data IntermediateStagesOutput
 
 stages :: StagesInput -> StagesOutput
 stages input = StagesOutput
-    { checks = finalChecks
+    { checks = smtProofChecks
     , unhandledInlineAssemblyFunctions = getC unhandledAsmFunctionNames
     , unhandledInstructionFunctions = getAsm unhandledAsmFunctionNames
     , intermediate = IntermediateStagesOutput
@@ -92,7 +73,6 @@ stages input = StagesOutput
         , pairings
         , problems
         , proofChecks
-        , smtProofChecks
         , compatProofChecks = toCompatProofChecks proofChecks
         , compatSMTProofChecks = toCompatSMTProofChecks smtProofChecks
         }
@@ -162,8 +142,3 @@ stages input = StagesOutput
                 }
          in compileProofChecks repGraphInput functionSigs pairings (lookupOrigVarNameFor problem)
                 <$> (proofChecks.unwrap M.! pairingId)
-
-    finalChecks =
-        let f = decorateProofScriptWithProofScriptNodePathsWith $ \path groups ->
-                (proofScriptEdgePath path, M.fromList (over (traversed % _2 % mapped) (ProofCheckMeta path) groups))
-         in StagesOutputChecks $ M.map (M.fromList . toList . f) smtProofChecks.unwrap

@@ -10,7 +10,7 @@ module BV.Core.Types.ProofChecks
     , ProofCheck (..)
     , ProofCheckDescription
     , ProofCheckGroup
-    , ProofCheckGroupIndices (..)
+    , ProofCheckGroupCheckIndices (..)
     , Restr (..)
     , Visit (..)
     , VisitCount (..)
@@ -37,12 +37,12 @@ data ProofCheck t a
 
 type ProofCheckGroup t a = [ProofCheck t a]
 
-newtype ProofCheckGroupIndices
-  = ProofCheckGroupIndices { unwrap :: S.Set Int }
+newtype ProofCheckGroupCheckIndices
+  = ProofCheckGroupCheckIndices { unwrap :: S.Set Int }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (Monoid, NFData, Semigroup)
 
-instance Binary ProofCheckGroupIndices
+instance Binary ProofCheckGroupCheckIndices
 
 type ProofCheckDescription = String
 

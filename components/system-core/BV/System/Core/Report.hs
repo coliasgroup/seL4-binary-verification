@@ -13,6 +13,7 @@ import BV.Core.Prelude
 import BV.System.Core.Fingerprinting
 import BV.System.Core.Types
 
+import Data.Foldable (toList)
 import Data.List (intersperse)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
@@ -59,12 +60,12 @@ prettyCheckFailure err =
   where
     prettySource = case err.source of
         CheckFailureSourceCheck check ->
-            "check " <> prettyCheckFingerprintShort check.fingerprint <> " @{" <> prettyProofCheckMeta check.meta <> "}"
+            "check " <> prettyCheckFingerprintShort check.fingerprint <> " @{" <> prettyProofCheckMeta check <> "}"
         CheckFailureSourceCheckSubgroup subgroup ->
             "check subgroup " <> prettyCheckSubgroupIdShort (takeSubgroupId subgroup) <> " (checks "
             <> mconcat (intersperse ","
-                [ prettyCheckFingerprintShort check.fingerprint <> " @{" <> prettyProofCheckMeta check.meta <> "}"
-                | (_i, check) <- subgroup.checks
+                [ prettyCheckFingerprintShort check.fingerprint <> " @{" <> prettyProofCheckMeta check <> "}"
+                | check <- toList subgroup.checks
                 ])
             <> ")"
     prettyCause = case err.cause of

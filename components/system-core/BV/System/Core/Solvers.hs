@@ -37,7 +37,8 @@ import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Trans (lift)
 import Data.Foldable (for_, toList)
-import Data.List (genericIndex, genericLength)
+import Data.List (genericLength)
+import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 
@@ -72,7 +73,7 @@ filterSubgroupUsingCache
     :: (MonadCache m, MonadLoggerWithContext m)
     => CheckSubgroup
     -> ExceptT CheckFailure m CheckSubgroup
-filterSubgroupUsingCache = traverseOf #checks . filterM $ \(_i, check) -> withPushLogContextCheck check $ do
+filterSubgroupUsingCache = traverseOf #checks . filterM' $ \check -> withPushLogContextCheck check $ do
     cached <- queryCache check.fingerprint
     case cached of
         Nothing -> do
@@ -86,6 +87,8 @@ filterSubgroupUsingCache = traverseOf #checks . filterM $ \(_i, check) -> withPu
                 { cause = SomeSolverAnsweredSat Cache
                 , source = CheckFailureSourceCheck check
                 }
+  where
+    filterM' f m = M.fromList <$> filterM (f . snd) (M.toList m)
 
 filterSubgroupsUsingOnlineSolver
     :: (MonadLoggerWithContext m, MonadCache m)
@@ -104,11 +107,11 @@ filterSubgroupsUsingOnlineSolver gate backend config subgroup =
                         let (unsat', notYetChecked) = splitSubgroupAt failureInfo.index subgroup
                             rest' = case failureInfo.reason of
                                 OnlineSolverAnsweredSat ->
-                                    let (_i, check) = subgroup.checks `genericIndex` failureInfo.index
+                                    let check = subgroup `indexSubgroup` failureInfo.index
                                      in Left check
                                 _ -> Right notYetChecked
                          in (unsat', rest')
-            for_ unsat.checks $ \(_i, check) -> do
+            for_ unsat.checks $ \check -> do
                 updateCache AcceptableSatResultUnsat check.fingerprint
             case rest of
                 Right notYetChecked -> do
@@ -129,10 +132,10 @@ checkUsingOfflineSolvers
     -> CheckSubgroup
     -> ExceptT CheckFailure m ()
 checkUsingOfflineSolvers gate backend config subgroup =
-    case subgroup.checks of
+    case toList subgroup.checks of
         [] -> do
             return ()
-        [(_i, check)] -> do
+        [check] -> do
             result <- lift . gate (numParallelSolversForSingleCheck config.offline) $
                 runParellelOfflineSolversForSingleCheck
                     config.offline
@@ -161,11 +164,11 @@ checkUsingOfflineSolvers gate backend config subgroup =
                     subgroup
             case result of
                 Right () -> do
-                    for_ subgroup.checks $ \(_i, check) -> do
+                    for_ subgroup.checks $ \check -> do
                         updateCache AcceptableSatResultUnsat check.fingerprint
                 Left failureInfo -> do
                     let (unsat, _) = splitSubgroupAt failureInfo.numSuccessfulChecks subgroup
-                    for_ unsat.checks $ \(_i, check) -> do
+                    for_ unsat.checks $ \check -> do
                         updateCache AcceptableSatResultUnsat check.fingerprint
                     cause <- case failureInfo.cause of
                         SomeOfflineSolverAnsweredSat satAnswser -> do
