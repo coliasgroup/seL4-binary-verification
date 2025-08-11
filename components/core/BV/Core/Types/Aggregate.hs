@@ -7,8 +7,8 @@ module BV.Core.Types.Aggregate
     , Problems'
     , ProofChecks (..)
     , ProofChecks'
-    , Proofs (..)
-    , Proofs'
+    , ProofScripts (..)
+    , ProofScripts'
     , SMTProofChecks (..)
     , SMTProofChecks'
     , StackBounds (..)
@@ -89,11 +89,11 @@ instance (Tag t, Binary t) => Binary (InlineScripts t)
 
 type InlineScripts' = InlineScripts AsmRefineTag
 
-newtype Proofs t a
-  = Proofs { unwrap :: M.Map (PairingId t) (ProofScript t a) }
+newtype ProofScripts t a
+  = ProofScripts { unwrap :: M.Map (PairingId t) (ProofScript t a) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance (Tag t, Binary t, Binary a) => Binary (Proofs t a)
+instance (Tag t, Binary t, Binary a) => Binary (ProofScripts t a)
 
-type Proofs' = Proofs AsmRefineTag
+type ProofScripts' = ProofScripts AsmRefineTag

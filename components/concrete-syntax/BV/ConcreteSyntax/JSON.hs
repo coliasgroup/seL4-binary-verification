@@ -71,9 +71,9 @@ instance RefineTag t => FromJSON (PairingEq t) where
 instance RefineTag t => ToJSON (PairingEq t) where
     toJSON = buildLine
 
-deriving instance RefineTag t => FromJSON (Proofs t ())
+deriving instance RefineTag t => FromJSON (ProofScripts t ())
 
-deriving instance RefineTag t => ToJSON (Proofs t ())
+deriving instance RefineTag t => ToJSON (ProofScripts t ())
 
 instance RefineTag t => FromJSON (ProofScript t ()) where
     parseJSON = parseLine

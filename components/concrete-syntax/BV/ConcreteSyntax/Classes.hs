@@ -83,8 +83,8 @@ deriving via (GraphLangLikeBVFile Problems') instance WriteBVFile TL.Text Proble
 deriving via (JSONBVFile (InlineScripts t)) instance RefineTag t => ReadBVFile BL.ByteString (InlineScripts t)
 deriving via (JSONBVFile (InlineScripts t)) instance RefineTag t => WriteBVFile BL.ByteString (InlineScripts t)
 
-deriving via (JSONBVFile (Proofs t ())) instance RefineTag t => ReadBVFile BL.ByteString (Proofs t ())
-deriving via (JSONBVFile (Proofs t ())) instance RefineTag t => WriteBVFile BL.ByteString (Proofs t ())
+deriving via (JSONBVFile (ProofScripts t ())) instance RefineTag t => ReadBVFile BL.ByteString (ProofScripts t ())
+deriving via (JSONBVFile (ProofScripts t ())) instance RefineTag t => WriteBVFile BL.ByteString (ProofScripts t ())
 
 deriving via (JSONBVFile (Pairings t)) instance RefineTag t => ReadBVFile BL.ByteString (Pairings t)
 deriving via (JSONBVFile (Pairings t)) instance RefineTag t => WriteBVFile BL.ByteString (Pairings t)
