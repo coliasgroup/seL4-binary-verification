@@ -20,8 +20,8 @@ module BV.System.Core.Types
     , findCheck
     , findCheckSubgroup
     , indexSubgroup
-    , pathForCheck
-    , pathForCheckSubgroup
+    , pathOfCheck
+    , pathOfCheckSubgroup
     , prettyCheckSubgroupIdShort
     , prettyProofCheckMeta
     , splitSubgroupAt
@@ -218,8 +218,8 @@ data CheckPath
 
 instance Binary CheckPath
 
-pathForCheck :: Check -> CheckPath
-pathForCheck check = CheckPath
+pathOfCheck :: Check -> CheckPath
+pathOfCheck check = CheckPath
     { checkGroupPath = check.group.path
     , indexInGroup = check.indexInGroup
     , fingerprint = check.fingerprint
@@ -257,8 +257,8 @@ data CheckSubgroupPath
 
 instance Binary CheckSubgroupPath
 
-pathForCheckSubgroup :: CheckSubgroup -> CheckSubgroupPath
-pathForCheckSubgroup subgroup = CheckSubgroupPath
+pathOfCheckSubgroup :: CheckSubgroup -> CheckSubgroupPath
+pathOfCheckSubgroup subgroup = CheckSubgroupPath
     { groupPath = subgroup.group.path
     , checkIndices = M.keysSet subgroup.checks
     }

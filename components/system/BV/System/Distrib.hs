@@ -185,11 +185,11 @@ solverBackendFromServerProcesses node availableInit = do
                 Nothing -> throwString "unexpected response"
     return $ SolverBackend
         { online = \config subgroup ->
-            doReq (RequestOnline config (pathForCheckSubgroup subgroup)) #_ResponseOnline
+            doReq (RequestOnline config (pathOfCheckSubgroup subgroup)) #_ResponseOnline
         , offline = \config subgroup ->
-            doReq (RequestOffline config (pathForCheckSubgroup subgroup)) #_ResponseOffline
+            doReq (RequestOffline config (pathOfCheckSubgroup subgroup)) #_ResponseOffline
         , offlineSingle = \config check ->
-            doReq (RequestOfflineSingle config (pathForCheck check)) #_ResponseOfflineSingle
+            doReq (RequestOfflineSingle config (pathOfCheck check)) #_ResponseOfflineSingle
         }
 
 runDistrib
