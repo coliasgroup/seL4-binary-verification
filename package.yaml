@@ -133,9 +133,6 @@ internal-libraries:
       - file-embed
       - split
       - vector-binary-instances
-      # TODO for debugging
-      - pretty-show
-      # - pretty-simple
 
   concrete-syntax:
     visibility: public
@@ -258,9 +255,7 @@ internal-libraries:
       - resourcet
       - tasty
       - tasty-hunit
-      # TODO prune
       - pretty-show
-      # - pretty-simple
 
 executables:
 
@@ -294,7 +289,7 @@ executables:
       - optparse-applicative
       - resourcet
       - yaml
-      # TODO for debugging
+      # for debugging
       - pretty-simple
     ghc-options: *exe-ghc-options
 
@@ -356,8 +351,8 @@ tests:
       # external
       - aeson
       - attoparsec
-      - Glob
       - megaparsec
+      - Glob
       - tasty
       - tasty-hunit
     ghc-options: *test-ghc-options
@@ -394,6 +389,6 @@ tests:
     ghc-options: *test-ghc-options
 
 # NOTES
-
-# - pretty-show
-# - pretty-simple
+# - Useful for debugging:
+#   - pretty-show
+#   - pretty-simple

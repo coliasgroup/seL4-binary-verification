@@ -90,7 +90,6 @@ library core
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
       BV.Core.Arch
-      BV.Core.Debug.Utils
       BV.Core.GenerateFreshName
       BV.Core.Glue
       BV.Core.RepGraph.AddFunc
@@ -146,7 +145,6 @@ library core
     , mtl
     , optics
     , parallel
-    , pretty-show
     , process
     , safe-exceptions
     , sel4-bv:smtlib2

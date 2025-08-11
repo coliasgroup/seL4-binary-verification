@@ -17,9 +17,9 @@ module BV.System.Core.Types
     , elaborateChecks
     , elaborateChecksFromInput
     , filterChecks
+    , indexSubgroup
     , lookupCheck
     , lookupCheckSubgroup
-    , indexSubgroup
     , pathOfCheck
     , pathOfCheckSubgroup
     , prettyCheckSubgroupIdShort
