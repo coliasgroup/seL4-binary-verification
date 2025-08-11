@@ -100,4 +100,4 @@ newtype ProofScripts t a
 
 instance (Tag t, Binary t, Binary a) => Binary (ProofScripts t a)
 
-type ProofScripts' = ProofScripts AsmRefineTag
+type ProofScripts' = ProofScripts AsmRefineTag ()

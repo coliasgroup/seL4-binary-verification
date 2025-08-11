@@ -52,7 +52,7 @@ data TargetDirFiles
       , stackBounds :: TargetDirFile StackBounds
       , inlineScripts :: TargetDirFile InlineScripts'
       , pairings :: TargetDirFile Pairings'
-      , proofScripts :: TargetDirFile (ProofScripts' ())
+      , proofScripts :: TargetDirFile ProofScripts'
       , proofChecks :: TargetDirFile CompatProofChecks
       , smtProofChecks :: TargetDirFile CompatSMTProofChecks
       }

@@ -34,7 +34,7 @@ data StagesInput
       , cFunctionPrefix :: String
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts'
-      , proofScripts :: ProofScripts' ()
+      , proofScripts :: ProofScripts'
       , earlyAsmFunctionFilter :: AsmFunctionFilter
       }
   deriving (Eq, Generic, NFData, Ord, Show)
