@@ -66,7 +66,7 @@ parsePrintSeL4 opts = testGroup "seL4"
     , f targetDirFiles.stackBounds
     , f targetDirFiles.inlineScripts
     , f targetDirFiles.pairings
-    , f targetDirFiles.proofs
+    , f targetDirFiles.proofScripts
     , g opts.defaultTargetDirForSlowTests targetDirFiles.proofChecks
     , g opts.defaultTargetDirForSlowTests targetDirFiles.smtProofChecks
     ]

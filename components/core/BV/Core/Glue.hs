@@ -42,7 +42,7 @@ data StagesInput
       , cFunctionPrefix :: String
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts'
-      , proofs :: ProofScripts' ()
+      , proofScripts :: ProofScripts' ()
       , earlyAsmFunctionFilter :: AsmFunctionFilter
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -154,7 +154,7 @@ stages input = StagesOutput
         let problem = buildProblem lookupFunction inlineScript namedFuns
         return (pairingId, problem)
 
-    provenProblems = problems & #unwrap %~ (`M.restrictKeys` M.keysSet input.proofs.unwrap)
+    provenProblems = problems & #unwrap %~ (`M.restrictKeys` M.keysSet input.proofScripts.unwrap)
 
     lookupOrigVarNameFor problem = problemArgRenames problem $
         signatureOfFunction . lookupFunction <$> withTags (pairingIdOfProblem problem)
@@ -166,7 +166,7 @@ stages input = StagesOutput
 
     proofChecks' = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings.unwrap M.! pairingId
-            proofScript = input.proofs.unwrap M.! pairingId
+            proofScript = input.proofScripts.unwrap M.! pairingId
          in enumerateProofChecks (lookupOrigVarNameFor problem) pairing problem proofScript
 
     compatProofChecks = toCompatProofChecks proofChecks

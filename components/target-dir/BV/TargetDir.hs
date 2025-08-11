@@ -52,7 +52,7 @@ data TargetDirFiles
       , stackBounds :: TargetDirFile StackBounds
       , inlineScripts :: TargetDirFile InlineScripts'
       , pairings :: TargetDirFile Pairings'
-      , proofs :: TargetDirFile (ProofScripts' ())
+      , proofScripts :: TargetDirFile (ProofScripts' ())
       , proofChecks :: TargetDirFile CompatProofChecks
       , smtProofChecks :: TargetDirFile CompatSMTProofChecks
       }
@@ -69,7 +69,7 @@ targetDirFiles = TargetDirFiles
     , stackBounds = TargetDirFile "StackBounds.txt"
     , inlineScripts = TargetDirFile "inline-scripts.json"
     , pairings = TargetDirFile "pairings.json"
-    , proofs = TargetDirFile "proofs.json"
+    , proofScripts = TargetDirFile "proofs.json"
     , proofChecks = TargetDirFile "proof-checks.json"
     , smtProofChecks = TargetDirFile "smt-proof-checks.json"
     }
@@ -136,7 +136,7 @@ readStagesInputEither earlyAsmFunctionFilter cFunctionPrefix rodataInputRanges t
         readTargetDirRODataEither objDumpInfo rodataInputRanges targetDir targetDirFiles.rodata
     stackBounds <- f targetDirFiles.stackBounds
     inlineScripts <- f targetDirFiles.inlineScripts
-    proofs <- f targetDirFiles.proofs
+    proofScripts <- f targetDirFiles.proofScripts
     return $ StagesInput
         { programs = byAsmRefineTag (ByAsmRefineTag
             { asm = asmFunctions
@@ -147,7 +147,7 @@ readStagesInputEither earlyAsmFunctionFilter cFunctionPrefix rodataInputRanges t
         , cFunctionPrefix
         , stackBounds
         , inlineScripts
-        , proofs
+        , proofScripts
         , earlyAsmFunctionFilter
         }
   where
