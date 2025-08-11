@@ -69,7 +69,7 @@ targetDirFiles = TargetDirFiles
     , stackBounds = TargetDirFile "StackBounds.txt"
     , inlineScripts = TargetDirFile "inline-scripts.json"
     , pairings = TargetDirFile "pairings.json"
-    , proofScripts = TargetDirFile "proofs.json"
+    , proofScripts = TargetDirFile "proof-scripts.json"
     , proofChecks = TargetDirFile "proof-checks.json"
     , smtProofChecks = TargetDirFile "smt-proof-checks.json"
     }
