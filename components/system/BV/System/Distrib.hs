@@ -94,13 +94,13 @@ executeRequest :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => Ch
 executeRequest checks = \case
     RequestOnline config subgroupId ->
         ResponseOnline <$>
-            localSolverBackend.online config (findCheckSubgroup subgroupId checks)
+            localSolverBackend.online config (lookupCheckSubgroup subgroupId checks)
     RequestOffline config subgroupId ->
         ResponseOffline <$>
-            localSolverBackend.offline config (findCheckSubgroup subgroupId checks)
+            localSolverBackend.offline config (lookupCheckSubgroup subgroupId checks)
     RequestOfflineSingle config checkFingerprint ->
         ResponseOfflineSingle <$>
-            localSolverBackend.offlineSingle config (findCheck checkFingerprint checks)
+            localSolverBackend.offlineSingle config (lookupCheck checkFingerprint checks)
 
 serverThread :: Checks -> LoggingWithContextT Process ()
 serverThread checks = do

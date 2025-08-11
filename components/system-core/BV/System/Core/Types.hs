@@ -17,8 +17,8 @@ module BV.System.Core.Types
     , elaborateChecks
     , elaborateChecksFromInput
     , filterChecks
-    , findCheck
-    , findCheckSubgroup
+    , lookupCheck
+    , lookupCheckSubgroup
     , indexSubgroup
     , pathOfCheck
     , pathOfCheckSubgroup
@@ -225,8 +225,8 @@ pathOfCheck check = CheckPath
     , fingerprint = check.fingerprint
     }
 
-findCheck :: CheckPath -> Checks -> Check
-findCheck path checks = findCheckGroup path.checkGroupPath checks
+lookupCheck :: CheckPath -> Checks -> Check
+lookupCheck path checks = lookupCheckGroup path.checkGroupPath checks
     ^. #checks
     % expectingAt path.indexInGroup
 
@@ -241,8 +241,8 @@ data CheckGroupPath
 
 instance Binary CheckGroupPath
 
-findCheckGroup :: CheckGroupPath -> Checks -> CheckSubgroup
-findCheckGroup path checks = checks
+lookupCheckGroup :: CheckGroupPath -> Checks -> CheckSubgroup
+lookupCheckGroup path checks = checks
     ^. #unwrap
     % expectingAt path.pairingId
     % expectingAt path.proofScriptEdgePath
@@ -263,10 +263,10 @@ pathOfCheckSubgroup subgroup = CheckSubgroupPath
     , checkIndices = M.keysSet subgroup.checks
     }
 
-findCheckSubgroup :: CheckSubgroupPath -> Checks -> CheckSubgroup
-findCheckSubgroup path checks =
+lookupCheckSubgroup :: CheckSubgroupPath -> Checks -> CheckSubgroup
+lookupCheckSubgroup path checks =
     takeSubgroupByIndexInGroup (`S.member` path.checkIndices) $
-        findCheckGroup path.groupPath checks
+        lookupCheckGroup path.groupPath checks
 
 --
 
