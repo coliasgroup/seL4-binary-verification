@@ -23,7 +23,6 @@ import Control.DeepSeq (NFData)
 import Control.Monad (guard)
 import Data.Binary (Binary)
 import Data.Foldable (for_, toList)
-import Data.Functor (void)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (isJust)
@@ -97,8 +96,8 @@ stages input = StagesOutput
         , problems
         , proofChecks
         , smtProofChecks
-        , compatProofChecks
-        , compatSMTProofChecks
+        , compatProofChecks = toCompatProofChecks proofChecks
+        , compatSMTProofChecks = toCompatSMTProofChecks smtProofChecks
         }
     }
 
@@ -169,8 +168,6 @@ stages input = StagesOutput
             proofScript = input.proofScripts.unwrap M.! pairingId
          in enumerateProofChecks (lookupOrigVarNameFor problem) pairing problem proofScript
 
-    compatProofChecks = toCompatProofChecks proofChecks
-
     smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let repGraphInput = RepGraphBaseInput
                 { structs = input.programs <&> (.structs)
@@ -179,8 +176,6 @@ stages input = StagesOutput
                 }
          in compileProofChecks repGraphInput functionSigs pairings (lookupOrigVarNameFor problem)
                 <$> (proofChecks.unwrap M.! pairingId)
-
-    compatSMTProofChecks = toCompatSMTProofChecks (void smtProofChecks)
 
     finalChecks =
         let f = decorateProofScriptWithProofScriptNodePathsWith $ \path groups ->

@@ -31,6 +31,7 @@ import Data.Foldable (fold)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
+import Data.Functor (void)
 
 newtype Problems t
   = Problems { unwrap :: M.Map (PairingId t) (Problem t) }
@@ -61,15 +62,16 @@ newtype CompatProofChecks
   deriving newtype (NFData)
 
 toCompatProofChecks :: ProofChecks AsmRefineTag String -> CompatProofChecks
-toCompatProofChecks (ProofChecks byPairing) = CompatProofChecks (M.map fold byPairing)
+toCompatProofChecks (ProofChecks byPairing) = CompatProofChecks $ M.map fold byPairing
 
 newtype CompatSMTProofChecks
   = CompatSMTProofChecks { unwrap :: M.Map PairingId' [SMTProofCheckGroup ()] }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-toCompatSMTProofChecks :: SMTProofChecks AsmRefineTag () -> CompatSMTProofChecks
-toCompatSMTProofChecks (SMTProofChecks byPairing) = CompatSMTProofChecks (M.map (toListOf (folded % folded % _2)) byPairing)
+toCompatSMTProofChecks :: SMTProofChecks AsmRefineTag a -> CompatSMTProofChecks
+toCompatSMTProofChecks smtProofChecks = CompatSMTProofChecks $
+    M.map (toListOf (folded % folded % _2)) (void smtProofChecks).unwrap
 
 -- search outputs
 
