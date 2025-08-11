@@ -149,13 +149,13 @@ filterChecks :: CheckFilter -> Checks -> Checks
 filterChecks checkFilter = #unwrap %~ (iover (itraversed % traversed) f . M.filterWithKey (\k _v -> checkFilter.pairings k))
   where
     f :: PairingId' -> M.Map ProofCheckGroupCheckIndices CheckSubgroup -> M.Map ProofCheckGroupCheckIndices CheckSubgroup
-    f pairingId xgroups = case (checkFilter.groups pairingId, checkFilter.checks pairingId) of
-        (Nothing, Nothing) -> xgroups
-        (fgroup, fcheck) -> groups
-          where
-            groups = xgroups &
-                (traversed %~ takeSubgroupByFingerprint (fromMaybe (const True) fcheck))
-                    . M.filter (\v -> fromMaybe (const True) fgroup v.group.fingerprint)
+    f pairingId = case (checkFilter.groups pairingId, checkFilter.checks pairingId) of
+        (Nothing, Nothing) -> id
+        (fgroupOpt, fcheckOpt) ->
+            let fgroup = fromMaybe (const True) fgroupOpt
+                fcheck = fromMaybe (const True) fcheckOpt
+             in (traversed %~ takeSubgroupByFingerprint fcheck)
+                    . M.filter (\v -> fgroup v.group.fingerprint)
 
 takeEmptySubgroup :: CheckSubgroup -> CheckSubgroup
 takeEmptySubgroup = #checks .~ M.empty
