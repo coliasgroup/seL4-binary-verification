@@ -178,11 +178,10 @@ deduplicateSubgroup :: CheckSubgroup -> CheckSubgroup
 deduplicateSubgroup = #checks %~ M.fromList . nubBy ((==) `on` view (_2 % #fingerprint)) . M.toList
 
 takeSubgroupId :: CheckSubgroup -> CheckSubgroupId
-takeSubgroupId subgroup =
-    CheckSubgroupId
-        { groupFingerprint = subgroup.group.fingerprint
-        , checkIndices = M.keysSet subgroup.checks
-        }
+takeSubgroupId subgroup = CheckSubgroupId
+    { groupFingerprint = subgroup.group.fingerprint
+    , checkIndices = M.keysSet subgroup.checks
+    }
 
 prettyCheckSubgroupIdShort :: CheckSubgroupId -> String
 prettyCheckSubgroupIdShort subgroupId =
