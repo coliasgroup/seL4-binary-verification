@@ -30,9 +30,6 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
--- import Control.DeepSeq (liftRnf)
--- import Control.Parallel.Strategies (evalSeq, rdeepseq, rparWith, using)
-
 data StagesInput
   = StagesInput
       { programs :: ByTag' Program
@@ -137,13 +134,7 @@ stages input = StagesOutput
 
     pairings = Pairings $ normalPairings `M.union` inlineAsmPairings.unwrap
 
-    -- TODO
-    -- By doing this we lose laziness, and it's probably overkill anyways (reduces eval from ~8s -> ~4s)
-    -- Also, since implementing compileProofChecks, takes up too much memory
-    -- problems = using problems' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
-    problems = problems'
-
-    problems' = Problems $ M.fromList $ do
+    problems = Problems $ M.fromList $ do
         pairingId <- normalFunctionPairingIds
         let namedFuns =
                 let f funName prog = Named funName (prog.functions ! funName)
@@ -158,12 +149,7 @@ stages input = StagesOutput
     lookupOrigVarNameFor problem = problemArgRenames problem $
         signatureOfFunction . lookupFunction <$> withTags (pairingIdOfProblem problem)
 
-    -- TODO (see above)
-    -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith (evalSeq (liftRnf (const ()))))
-    -- proofChecks = using proofChecks' $ traverseOf (#unwrap % traversed) (rparWith rdeepseq)
-    proofChecks = proofChecks'
-
-    proofChecks' = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    proofChecks = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings.unwrap M.! pairingId
             proofScript = input.proofScripts.unwrap M.! pairingId
          in enumerateProofChecks (lookupOrigVarNameFor problem) pairing problem proofScript
