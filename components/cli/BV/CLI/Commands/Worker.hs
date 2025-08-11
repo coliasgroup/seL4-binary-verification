@@ -14,8 +14,6 @@ import qualified Data.ByteString.Char8 as C
 import Network.Transport (EndPointAddress (EndPointAddress))
 import System.IO (BufferMode (LineBuffering), hSetBuffering, stderr)
 
--- TODO
--- "thread blocked indefinitely in an MVar operation", from somewhere in distributed-process
 runWorker :: WorkerOpts -> IO ()
 runWorker opts = do
     hSetBuffering stderr LineBuffering
