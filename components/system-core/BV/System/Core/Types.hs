@@ -48,14 +48,8 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
-data Check
-  = Check
-      { fingerprint :: CheckFingerprint
-      , group :: CheckGroup
-      , indexInGroup :: CheckIndexInGroup
-      , desc :: ProofCheckDescription
-      , imp :: SExprWithPlaceholders
-      }
+newtype Checks
+  = Checks { unwrap :: M.Map PairingId' (M.Map ProofScriptEdgePath (M.Map ProofCheckGroupCheckIndices CheckSubgroup)) }
   deriving (Eq, Generic, Ord, Show)
 
 data CheckGroup
@@ -73,6 +67,16 @@ newtype CheckIndexInGroup
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (Binary, NFData)
 
+data Check
+  = Check
+      { fingerprint :: CheckFingerprint
+      , group :: CheckGroup
+      , indexInGroup :: CheckIndexInGroup
+      , desc :: ProofCheckDescription
+      , imp :: SExprWithPlaceholders
+      }
+  deriving (Eq, Generic, Ord, Show)
+
 data CheckSubgroup
   = CheckSubgroup
       { group :: CheckGroup
@@ -89,9 +93,76 @@ data CheckSubgroupId
 
 instance Binary CheckSubgroupId
 
-newtype Checks
-  = Checks { unwrap :: M.Map PairingId' (M.Map ProofScriptEdgePath (M.Map ProofCheckGroupCheckIndices CheckSubgroup)) }
-  deriving (Eq, Generic, Ord, Show)
+prettyCheckSubgroupIdShort :: CheckSubgroupId -> String
+prettyCheckSubgroupIdShort subgroupId =
+    prettyCheckGroupFingerprintShort subgroupId.groupFingerprint
+    ++ "("
+    ++ intercalate "," (map (show . (.unwrap)) (toList subgroupId.checkIndices))
+    ++ ")"
+
+--
+
+data CheckGroupPath
+  = CheckGroupPath
+      { pairingId :: PairingId'
+      , proofScriptEdgePath :: ProofScriptEdgePath
+      , checkIndices :: ProofCheckGroupCheckIndices
+      , fingerprint :: CheckGroupFingerprint
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary CheckGroupPath
+
+lookupCheckGroup :: CheckGroupPath -> Checks -> CheckSubgroup
+lookupCheckGroup path checks = checks
+    ^. #unwrap
+    % expectingAt path.pairingId
+    % expectingAt path.proofScriptEdgePath
+    % expectingAt path.checkIndices
+
+data CheckPath
+  = CheckPath
+      { checkGroupPath :: CheckGroupPath
+      , indexInGroup :: CheckIndexInGroup
+      , fingerprint :: CheckFingerprint
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary CheckPath
+
+pathOfCheck :: Check -> CheckPath
+pathOfCheck check = CheckPath
+    { checkGroupPath = check.group.path
+    , indexInGroup = check.indexInGroup
+    , fingerprint = check.fingerprint
+    }
+
+lookupCheck :: CheckPath -> Checks -> Check
+lookupCheck path checks = lookupCheckGroup path.checkGroupPath checks
+    ^. #checks
+    % expectingAt path.indexInGroup
+
+data CheckSubgroupPath
+  = CheckSubgroupPath
+      { groupPath :: CheckGroupPath
+      , checkIndices :: S.Set CheckIndexInGroup
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary CheckSubgroupPath
+
+pathOfCheckSubgroup :: CheckSubgroup -> CheckSubgroupPath
+pathOfCheckSubgroup subgroup = CheckSubgroupPath
+    { groupPath = subgroup.group.path
+    , checkIndices = M.keysSet subgroup.checks
+    }
+
+lookupCheckSubgroup :: CheckSubgroupPath -> Checks -> CheckSubgroup
+lookupCheckSubgroup path checks =
+    takeSubgroupByIndexInGroup (`S.member` path.checkIndices) $
+        lookupCheckGroup path.groupPath checks
+
+--
 
 elaborateChecksFromInput :: StagesInput -> Checks
 elaborateChecksFromInput input = elaborateChecks (stages input).checks
@@ -129,30 +200,13 @@ elaborateChecks (SMTProofChecks smtProofChecks) =
                         , M.mapWithKey mkGroup $ M.fromList groups
                         ))
 
+--
+
 fullSubgroup :: CheckGroup -> CheckSubgroup
 fullSubgroup group = CheckSubgroup
     { group
     , checks = M.fromList $ zip (map CheckIndexInGroup [0..]) group.checks
     }
-
-data CheckFilter
-  = CheckFilter
-      { pairings :: PairingId' -> Bool
-      , groups :: PairingId' -> Maybe (CheckGroupFingerprint -> Bool)
-      , checks :: PairingId' -> Maybe (CheckFingerprint -> Bool)
-      }
-  deriving (Generic)
-
-filterChecks :: CheckFilter -> Checks -> Checks
-filterChecks checkFilter = #unwrap %~ (iover (itraversed % traversed) f . M.filterWithKey (\k _v -> checkFilter.pairings k))
-  where
-    f :: PairingId' -> M.Map ProofCheckGroupCheckIndices CheckSubgroup -> M.Map ProofCheckGroupCheckIndices CheckSubgroup
-    f pairingId = case (checkFilter.groups pairingId, checkFilter.checks pairingId) of
-        (Nothing, Nothing) -> id
-        (fgroupOpt, fcheckOpt) ->
-            let fgroup = fromMaybe (const True) fgroupOpt
-                fcheck = fromMaybe (const True) fcheckOpt
-             in (traversed %~ takeSubgroupByFingerprint fcheck) . M.filter (\v -> fgroup v.group.fingerprint)
 
 takeEmptySubgroup :: CheckSubgroup -> CheckSubgroup
 takeEmptySubgroup = #checks .~ M.empty
@@ -180,12 +234,28 @@ takeSubgroupId subgroup = CheckSubgroupId
     , checkIndices = M.keysSet subgroup.checks
     }
 
-prettyCheckSubgroupIdShort :: CheckSubgroupId -> String
-prettyCheckSubgroupIdShort subgroupId =
-    prettyCheckGroupFingerprintShort subgroupId.groupFingerprint
-    ++ "("
-    ++ intercalate "," (map (show . (.unwrap)) (toList subgroupId.checkIndices))
-    ++ ")"
+--
+
+data CheckFilter
+  = CheckFilter
+      { pairings :: PairingId' -> Bool
+      , groups :: PairingId' -> Maybe (CheckGroupFingerprint -> Bool)
+      , checks :: PairingId' -> Maybe (CheckFingerprint -> Bool)
+      }
+  deriving (Generic)
+
+filterChecks :: CheckFilter -> Checks -> Checks
+filterChecks checkFilter = #unwrap %~ (iover (itraversed % traversed) f . M.filterWithKey (\k _v -> checkFilter.pairings k))
+  where
+    f :: PairingId' -> M.Map ProofCheckGroupCheckIndices CheckSubgroup -> M.Map ProofCheckGroupCheckIndices CheckSubgroup
+    f pairingId = case (checkFilter.groups pairingId, checkFilter.checks pairingId) of
+        (Nothing, Nothing) -> id
+        (fgroupOpt, fcheckOpt) ->
+            let fgroup = fromMaybe (const True) fgroupOpt
+                fcheck = fromMaybe (const True) fcheckOpt
+             in (traversed %~ takeSubgroupByFingerprint fcheck) . M.filter (\v -> fgroup v.group.fingerprint)
+
+--
 
 toCoreCheck :: Check -> SMTProofCheck ()
 toCoreCheck check = SMTProofCheck
@@ -207,66 +277,6 @@ toCoreCheckGroup subgroup = SMTProofCheckGroup
         | check <- toList subgroup.checks
         ]
     }
-
-data CheckPath
-  = CheckPath
-      { checkGroupPath :: CheckGroupPath
-      , indexInGroup :: CheckIndexInGroup
-      , fingerprint :: CheckFingerprint
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary CheckPath
-
-pathOfCheck :: Check -> CheckPath
-pathOfCheck check = CheckPath
-    { checkGroupPath = check.group.path
-    , indexInGroup = check.indexInGroup
-    , fingerprint = check.fingerprint
-    }
-
-lookupCheck :: CheckPath -> Checks -> Check
-lookupCheck path checks = lookupCheckGroup path.checkGroupPath checks
-    ^. #checks
-    % expectingAt path.indexInGroup
-
-data CheckGroupPath
-  = CheckGroupPath
-      { pairingId :: PairingId'
-      , proofScriptEdgePath :: ProofScriptEdgePath
-      , checkIndices :: ProofCheckGroupCheckIndices
-      , fingerprint :: CheckGroupFingerprint
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary CheckGroupPath
-
-lookupCheckGroup :: CheckGroupPath -> Checks -> CheckSubgroup
-lookupCheckGroup path checks = checks
-    ^. #unwrap
-    % expectingAt path.pairingId
-    % expectingAt path.proofScriptEdgePath
-    % expectingAt path.checkIndices
-
-data CheckSubgroupPath
-  = CheckSubgroupPath
-      { groupPath :: CheckGroupPath
-      , checkIndices :: S.Set CheckIndexInGroup
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary CheckSubgroupPath
-
-pathOfCheckSubgroup :: CheckSubgroup -> CheckSubgroupPath
-pathOfCheckSubgroup subgroup = CheckSubgroupPath
-    { groupPath = subgroup.group.path
-    , checkIndices = M.keysSet subgroup.checks
-    }
-
-lookupCheckSubgroup :: CheckSubgroupPath -> Checks -> CheckSubgroup
-lookupCheckSubgroup path checks =
-    takeSubgroupByIndexInGroup (`S.member` path.checkIndices) $
-        lookupCheckGroup path.groupPath checks
 
 --
 
