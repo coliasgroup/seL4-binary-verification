@@ -1,6 +1,55 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Types.Extras.Expr where
+module BV.Core.Types.Extras.Expr
+    ( alignedE
+    , andE
+    , bitwiseAndE
+    , boolE
+    , boolT
+    , castCToAsmE
+    , castE
+    , clzE
+    , eqE
+    , falseE
+    , fromBoolE
+    , globalWrapperT
+    , impliesE
+    , isBoolT
+    , isMachineWordT
+    , isMemT
+    , isWordT
+    , lessE
+    , lessEqE
+    , machineWordE
+    , machineWordT
+    , machineWordVarE
+    , memAccE
+    , memT
+    , memUpdE
+    , minusE
+    , modulusE
+    , nImpliesE
+    , negE
+    , notE
+    , numE
+    , orE
+    , plusE
+    , rodataE
+    , smtExprE
+    , stackWrapperE
+    , structT
+    , timesE
+    , tokenE
+    , tokenT
+    , trueE
+    , varE
+    , varFromNameTyE
+    , word32E
+    , word32T
+    , wordReverseE
+    , wordT
+    , wordTBits
+    ) where
 
 import BV.Core.Arch (archWordSizeBits)
 import BV.Core.Types
