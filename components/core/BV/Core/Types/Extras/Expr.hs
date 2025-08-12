@@ -57,7 +57,6 @@ import BV.Utils (ensure, expecting, fromIntegerChecked, is)
 
 import Control.DeepSeq (NFData)
 import Data.Bits (shiftL)
-import Data.Maybe (fromJust)
 import Data.Monoid (Endo (Endo, appEndo))
 import GHC.Generics (Generic)
 import Optics
@@ -74,26 +73,11 @@ word32T = wordT 32
 memT :: ExprType
 memT = ExprTypeMem
 
-domT :: ExprType
-domT = ExprTypeDom
-
-htdT :: ExprType
-htdT = ExprTypeHtd
-
-pmsT :: ExprType
-pmsT = ExprTypePms
-
-typeT :: ExprType
-typeT = ExprTypeType
-
 tokenT :: ExprType
 tokenT = ExprTypeToken
 
 structT :: Ident -> ExprType
 structT = ExprTypeStruct
-
-ptrT :: ExprType -> ExprType
-ptrT = ExprTypePtr
 
 globalWrapperT :: ExprType -> ExprType
 globalWrapperT = ExprTypeGlobalWrapper
@@ -111,9 +95,6 @@ isWordWithSizeT n = (==) (wordT n)
 
 isMachineWordT :: ExprType -> Bool
 isMachineWordT = isWordWithSizeT archWordSizeBits
-
-toWordBitsT :: ExprType -> Integer
-toWordBitsT = fromJust . preview #_ExprTypeWord
 
 isMemT :: ExprType -> Bool
 isMemT = is #_ExprTypeMem
@@ -201,20 +182,11 @@ lessEqWithSignednessE isSigned lhs rhs = ensureTypesEqualAnd_ isWordT lhs rhs $
 lessE :: Expr -> Expr -> Expr
 lessE = lessWithSignednessE False
 
-lessSignedE :: Expr -> Expr -> Expr
-lessSignedE = lessWithSignednessE True
-
 lessEqE :: Expr -> Expr -> Expr
 lessEqE = lessEqWithSignednessE False
 
-lessEqSignedE :: Expr -> Expr -> Expr
-lessEqSignedE = lessEqWithSignednessE True
-
 bitwiseAndE :: Expr -> Expr -> Expr
 bitwiseAndE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpBWAnd [lhs, rhs])
-
-bitwiseOrE :: Expr -> Expr -> Expr
-bitwiseOrE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpBWOr [lhs, rhs])
 
 wordReverseE :: Expr -> Expr
 wordReverseE x = Expr (ensureType isWordT x) (opV OpWordReverse [x])
@@ -273,9 +245,6 @@ varE ty = Expr ty . ExprValueVar
 
 varFromNameTyE :: NameTy -> Expr
 varFromNameTyE arg = varE arg.ty arg.name
-
-wordVarE :: Integer -> Ident -> Expr
-wordVarE bits = varE (wordT bits)
 
 memAccE :: ExprType -> Expr -> Expr -> Expr
 memAccE ty addr mem =
