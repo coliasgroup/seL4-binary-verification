@@ -98,7 +98,6 @@ initState = State
 class (RefineTag t, MonadReader (Context t) m, MonadState (State t) m) => MonadChecks t m where
     branch :: m a -> m a
     branchRestrs :: m a -> m a
-    branchAssumptions :: m a -> m a
 
 instance (RefineTag t, Monad m) => MonadChecks t (StateT (State t) (ReaderT (Context t) m)) where
 
@@ -112,18 +111,11 @@ instance (RefineTag t, Monad m) => MonadChecks t (StateT (State t) (ReaderT (Con
         #restrs .= restrs
         return a
 
-    branchAssumptions m = do
-        assumptions <- getAssumptions
-        a <- m
-        #assumptions .= assumptions
-        return a
-
 type CheckWriter t = WriterT (NodeProofChecks t)
 
 instance MonadChecks t m => MonadChecks t (CheckWriter t m) where
     branch = mapWriterT branch
     branchRestrs = mapWriterT branchRestrs
-    branchAssumptions = mapWriterT branchAssumptions
 
 assumeL :: MonadChecks t m => [Hyp t] -> m ()
 assumeL hyps = #assumptions %= (hyps ++)
