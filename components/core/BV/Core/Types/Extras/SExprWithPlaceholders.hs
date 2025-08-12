@@ -22,6 +22,7 @@ module BV.Core.Types.Extras.SExprWithPlaceholders
     , intWithWidthS
     , iteS
     , ixS
+    , labelS
     , loadWord32S
     , loadWord64S
     , loadWord8S
@@ -45,7 +46,6 @@ import BV.SMTLIB2
 import BV.Utils (ensure)
 
 import Data.Function (applyWhen)
-import Data.Maybe (fromJust)
 import Text.Printf (printf)
 
 -- TODO private
@@ -75,9 +75,6 @@ listS = List
 
 atomS :: Atom -> S
 atomS = Atom . AtomOrPlaceholderAtom
-
-uncheckedAtomS :: UncheckedAtom -> S
-uncheckedAtomS = atomS . fromJust . checkAtom
 
 placeholderS :: SExprPlaceholder -> S
 placeholderS = Atom . AtomOrPlaceholderPlaceholder
@@ -137,9 +134,6 @@ boolS = "Bool"
 trueS :: S
 trueS = "true"
 
-falseS :: S
-falseS = "false"
-
 binOpS :: String -> S -> S -> S
 binOpS op x y = [symbolS op, x, y]
 
@@ -154,9 +148,6 @@ andS = binOpS "and"
 
 andNS :: [S] -> S
 andNS xs = List $ "and" : xs
-
-orS :: S -> S -> S
-orS = binOpS "or"
 
 orNS :: [S] -> S
 orNS xs = List $ "or" : xs
@@ -229,8 +220,3 @@ parseSymbolS sexpr = do
     case viewAtom atom of
         SymbolAtom s -> Just s
         _ -> Nothing
-
-matchPatternS :: Eq a => GenericSExpr a -> GenericSExpr a -> Bool
-matchPatternS (Atom p) (Atom x) = p == x
-matchPatternS (List ps) (List xs) = length ps <= length xs && and (zipWith matchPatternS ps xs)
-matchPatternS _ _ = False
