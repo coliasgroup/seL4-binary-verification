@@ -21,13 +21,12 @@ compileProofChecks
     -> ArgRenames AsmRefineTag
     -> [ProofCheck AsmRefineTag a]
     -> [(ProofCheckGroupCheckIndices, SMTProofCheckGroup a)]
-compileProofChecks repGraphInput functionSigs pairings argRenames checks =
+compileProofChecks repGraphInput functionSigs pairings argRenames unprunedChecks =
     over (traversed % _2)
-        (compileProofCheckGroup repGraphInput functionSigs pairings argRenames . pruneGroup)
-        (proofCheckGroups checks)
+        (compileProofCheckGroup repGraphInput functionSigs pairings argRenames)
+        (proofCheckGroups prunedChecks)
   where
-    pruneCheck = pruneProofCheck (analyzeProblem repGraphInput.problem)
-    pruneGroup = map pruneCheck
+    prunedChecks = map (pruneProofCheck (analyzeProblem repGraphInput.problem)) unprunedChecks
 
 compileProofCheckGroup
     :: RepGraphBaseInput AsmRefineTag
