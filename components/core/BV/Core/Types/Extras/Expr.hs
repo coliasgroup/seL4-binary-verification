@@ -1,7 +1,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module BV.Core.Types.Extras.Expr
-    ( alignedE
+    ( MemOp (..)
+    , MemOpKind (..)
+    , alignedE
     , andE
     , bitwiseAndE
     , boolE
@@ -12,6 +14,7 @@ module BV.Core.Types.Extras.Expr
     , eqE
     , falseE
     , fromBoolE
+    , getMemAccess
     , globalWrapperT
     , impliesE
     , isBoolT
