@@ -1,7 +1,43 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module BV.Core.Types.Extras.SExprWithPlaceholders where
+module BV.Core.Types.Extras.SExprWithPlaceholders
+    ( S -- TODO
+    , andNS
+    , andS
+    , assertS
+    , binS
+    , bitVecS
+    , boolS
+    , bvaddS
+    , bvandS
+    , bvuleS
+    , concatS
+    , declareFunS
+    , defineFunS
+    , eqS
+    , hexS
+    , impliesS
+    , intS
+    , intWithWidthS
+    , iteS
+    , ixS
+    , loadWord32S
+    , loadWord64S
+    , loadWord8S
+    , machineWordS
+    , memDomSortS
+    , memSortS
+    , notS
+    , orNS
+    , parseSymbolS
+    , showSExprWithPlaceholders
+    , storeWord32S
+    , storeWord64S
+    , storeWord8S
+    , symbolS
+    , trueS
+    ) where
 
 import BV.Core.Arch
 import BV.Core.Types.SExprWithPlaceholders
