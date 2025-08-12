@@ -37,7 +37,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
         ++
         retPreconds
         ++
-        maybeToList (outerAddr <&> \addr -> stackPointer `lessEqE` addr)
+        maybeToList (lessEqE stackPointer <$> outerAddr)
 
     postEqs =
         [ (r i, r i)
@@ -66,8 +66,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
             let theseRetOutEqs = zip (map varFromNameTyE varRetsC) [r 0]
              in ([], [], theseRetOutEqs, [])
         else
-            let
-                theseRetPreconds =
+            let theseRetPreconds =
                     [ alignedE 2 (r 0)
                     , stackPointer `lessEqE` r 0
                     ] ++

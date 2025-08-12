@@ -32,7 +32,8 @@ compilePValidAlignExprs = walkFunctionExprs f
         ExprValueOp OpPAlignValid args -> case args of
             [ Expr ExprTypeType (ExprValueType tyVal)
                 , ptr@(Expr (ExprTypeWord wordSize) (ExprValueVar _))
-                ] | wordSize == archWordSizeBits -> withoutStructs $ alignValidIneq (PValidTypeType tyVal) ptr
+                ] | wordSize == archWordSizeBits ->
+                        withoutStructs $ alignValidIneq (PValidTypeType tyVal) ptr
             _ -> error ""
         _ -> expr
 
