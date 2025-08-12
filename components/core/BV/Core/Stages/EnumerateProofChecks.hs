@@ -26,7 +26,7 @@ import Optics
 import Optics.State.Operators ((%=), (.=))
 import Text.Printf (printf)
 
-type NodeProofChecks t = [ProofCheck t ProofCheckDescription]
+type NodeProofChecks t = ProofCheckGroup t ProofCheckDescription
 
 enumerateProofChecks :: RefineTag t => ArgRenames t -> Pairing t -> Problem t -> ProofScript t () -> ProofScript t (NodeProofChecks t)
 enumerateProofChecks argRenames pairing problem proofScript =

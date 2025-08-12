@@ -43,7 +43,7 @@ newtype Problems t
 type Problems' = Problems AsmRefineTag
 
 newtype ProofChecks t a
-  = ProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t [ProofCheck t a]) }
+  = ProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t (ProofCheckGroup t a)) }
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
@@ -59,7 +59,7 @@ type SMTProofChecks' = SMTProofChecks AsmRefineTag ProofCheckDescription
 -- compat
 
 newtype CompatProofChecks
-  = CompatProofChecks { unwrap :: M.Map PairingId' [ProofCheck AsmRefineTag String] }
+  = CompatProofChecks { unwrap :: M.Map PairingId' (ProofCheckGroup AsmRefineTag String) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
