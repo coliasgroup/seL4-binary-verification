@@ -9,10 +9,15 @@ import BV.Core.Stages.EnumerateProofChecks (pruneProofCheck)
 import BV.Core.Stages.GroupProofChecks
 import BV.Core.Types
 import BV.Core.Types.Extras
+import BV.Utils (ensure)
 
 import Control.Monad.Writer (runWriter)
+import qualified Data.Set as S
 import Data.Traversable (for)
 import Optics
+import Data.Function (applyWhen)
+import Debug.Trace (trace)
+import Data.List (intercalate)
 
 compileProofChecks
     :: RepGraphBaseInput AsmRefineTag
@@ -35,6 +40,7 @@ compileProofCheckGroup
     -> ProofCheckGroup AsmRefineTag a
     -> SMTProofCheckGroup a
 compileProofCheckGroup repGraphInput lookupSig pairings group =
+    ensure (all visitNodesAreDistinct group) $
     SMTProofCheckGroup setup imps
   where
     (imps, setup) =
@@ -57,3 +63,16 @@ interpretGroup group = do
     for hyps $ \(check, expr) -> do
         sexpr <- withoutEnv $ convertExprNotSplit expr
         return $ SMTProofCheckImp check.meta sexpr
+
+visitNodesAreDistinct :: RefineTag t => ProofCheck t a -> Bool
+visitNodesAreDistinct check =
+    applyWhen (not ok) f ok
+  where
+    f = trace $ intercalate "\n" (map show visits)
+    visits = check ^.. checkVisits % #value
+    visitOk :: Visit -> Bool
+    visitOk visit = S.size restrs == S.size nodes
+      where
+        restrs = S.fromList visit.restrs
+        nodes = S.map (view #nodeAddr) restrs
+    ok = all visitOk visits
