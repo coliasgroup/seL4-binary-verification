@@ -48,6 +48,6 @@ interpretGroup group = do
         concl <- interpretHyp check.hyp
         expr <- interpretHypImps check.hyps concl
         return (check, expr)
-    for hyps $ \(check, term) -> do
-        sexpr <- withoutEnv $ convertExprNoSplit term
+    for hyps $ \(check, expr) -> do
+        sexpr <- withoutEnv $ convertExprNoSplit expr
         return $ SMTProofCheckImp check.meta sexpr
