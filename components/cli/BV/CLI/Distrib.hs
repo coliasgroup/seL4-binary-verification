@@ -2,8 +2,23 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module BV.CLI.Distrib where
+module BV.CLI.Distrib
+    ( distribRemoteTable
+    , driverAddr
+    , driverNodeId
+    , getNumProcessorsClosureFn
+    , getNumProcessorsClosureFn__sdict
+    , getNumProcessorsClosureFn__static
+    , getNumProcessorsClosureFn__tdict
+    , setNumCapabilitiesClosureFn
+    , setNumCapabilitiesClosureFn__sdict
+    , setNumCapabilitiesClosureFn__static
+    , setNumCapabilitiesClosureFn__tdict
+    , watchdog
+    , watchdogTimer
+    ) where
 
 import qualified BV.System.Distrib (__remoteTable)
 

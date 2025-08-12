@@ -1,4 +1,8 @@
-module BV.Test.Utils.Paths where
+module BV.Test.Utils.Paths
+    ( defaultGraphRefineDir
+    , defaultOutDir
+    , defaultTestTargetDir
+    ) where
 
 import System.FilePath ((</>))
 
