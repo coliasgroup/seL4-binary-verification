@@ -27,7 +27,6 @@ module BV.Core.Types.Extras.ProofCheck
     , pcTrivH
     , pcTrueH
     , simpleVC
-    , tagV
     , toMapVC
     , trueIfAt
     , trueIfAt'
@@ -124,11 +123,6 @@ fromMapVC :: M.Map NodeAddr VisitCount -> [Restr]
 fromMapVC = map f . M.toAscList
   where
     f (nodeAddr, visitCount) = Restr { nodeAddr, visitCount }
-
---
-
-tagV :: t -> Visit -> WithTag t Visit
-tagV = WithTag
 
 --
 

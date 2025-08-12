@@ -198,7 +198,7 @@ instantiatePairingEqs direction = branch $ do
     let eqs = case direction of
             PairingEqDirectionIn -> pairing.inEqs
             PairingEqDirectionOut -> pairing.outEqs
-    let visitFor quadrant = tagV quadrant.tag <$> case quadrant.direction of
+    let visitFor quadrant = WithTag quadrant.tag <$> case quadrant.direction of
             PairingEqDirectionIn -> do
                 entryPoint <- viewAtTag quadrant.tag <$> askEntryPoints
                 return $ Visit entryPoint []
