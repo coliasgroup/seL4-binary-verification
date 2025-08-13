@@ -57,7 +57,7 @@ import Control.Monad.Reader (Reader, ReaderT (runReaderT), asks)
 import Control.Monad.RWS (RWST, lift, modify, tell)
 import Control.Monad.State (StateT, execStateT, get)
 import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Writer (WriterT)
+import Control.Monad.Writer (WriterT, execWriterT)
 import Data.Foldable (for_)
 import Data.Functor (void)
 import Data.List (nub, sortOn)
@@ -805,7 +805,7 @@ getStackEqImplies split stTop other = do
     return $ impliesS cond (eqS stTop rhs)
 
 getImmBasisMems :: MonadRepGraphSolver m => S -> m (Set S)
-getImmBasisMems = flip execStateT S.empty . go
+getImmBasisMems = execWriterT . go
   where
     go = \case
         List (op:args) -> if
@@ -818,10 +818,10 @@ getImmBasisMems = flip execStateT S.empty . go
                 go m
         m -> do
             let Just sym = parseSymbolS m
-            isCached <- liftSolver $ use $ #cachedExprNames % to (S.member (Name sym))
+            isCached <- lift $ liftSolver $ use $ #cachedExprNames % to (S.member (Name sym))
             if isCached
-                then getDef (Name sym) >>= go
-                else modify $ S.insert m
+                then lift (getDef (Name sym)) >>= go
+                else tell $ S.singleton m
 
 addPValids :: MonadRepGraphSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValids = go False
