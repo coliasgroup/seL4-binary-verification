@@ -486,6 +486,17 @@ maybeContract visit var v = case v of
     NotSplit sexpr | length (showSExprWithPlaceholders sexpr) > 80 -> contract visit var sexpr
     _ -> return v
 
+contractPcEnv :: MonadRepGraphForTag t m => Visit -> PcEnv -> m PcEnv
+contractPcEnv visit (PcEnv pc env) = do
+    pc' <- case pc.value of
+        ExprValueSMTExpr _ -> return pc
+        _ -> do
+            hint <- pathCondName visit
+            name <- withEnv env $ addDef hint pc
+            return $ smtExprE boolT name
+    env' <- M.traverseWithKey (maybeContract visit) env
+    return $ PcEnv pc' env'
+
 specialize :: Visit -> NodeAddr -> [[Restr]]
 specialize visit split = ensure (isOptionsVC vc)
     [ fromMapVC $ M.insert split (fromSimpleVC n) m
@@ -611,15 +622,8 @@ getNodePcEnvRaw visit = do
                                     pc' <- withEnv env $ convertInnerExpr pc
                                     return $ PcEnv pc' M.empty
                                 _ -> return arcPcEnvs
-                            (PcEnv pc env, _large) <- mergeEnvsPcs optimizedArcPcEnvs
-                            shortPc <- case pc.value of
-                                ExprValueSMTExpr _ -> return pc
-                                _ -> do
-                                    hint <- pathCondName visit
-                                    name <- withEnv env $ addDef hint pc
-                                    return $ smtExprE boolT name
-                            shortEnv <- M.traverseWithKey (maybeContract visit) env
-                            return $ PcEnv shortPc shortEnv
+                            (pcEnv, _large) <- mergeEnvsPcs optimizedArcPcEnvs
+                            contractPcEnv visit pcEnv
 
 getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
