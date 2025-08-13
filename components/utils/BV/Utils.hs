@@ -16,6 +16,7 @@ module BV.Utils
     , setFilterA
     , todo
     , unimplemented
+    , applyWhenM
     , unwrapped
     , whileM
     , (!@)
@@ -113,3 +114,6 @@ setFilterA f s = S.fromList <$> filterM f (S.toList s)
 
 mapFilterA :: (Ord k, Applicative f) => (b -> f Bool) -> M.Map k b -> f (M.Map k b)
 mapFilterA f m = M.fromList <$> filterM (f . snd) (M.toList m)
+
+applyWhenM :: Monad m => Bool -> (a -> m a) -> a -> m a
+applyWhenM c f = if c then f else return
