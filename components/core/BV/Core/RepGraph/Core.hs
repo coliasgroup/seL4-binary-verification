@@ -677,11 +677,6 @@ getArcPcEnv prev visit = runMaybeT $ do
 
 pruneVisit :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe Visit)
 pruneVisit visit = do
-    restrsOpt <- pruneRestrs visit
-    return $ restrsOpt <&> \restrs -> visit & #restrs .~ restrs
-
-pruneRestrs :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe [Restr])
-pruneRestrs visit = do
     restrsWithReachability <- for visit.restrs $ \restr ->
         (restr,) <$> askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
     if flip any restrsWithReachability $ \(restr, reachable) ->
@@ -697,7 +692,7 @@ pruneRestrs visit = do
                     loopIdOpt' <- askLoopHead restr.nodeAddr
                     when (loopIdOpt' == Just loopId && isOptionsVC restr.visitCount) $ do
                         throwError $ TooGeneral { split = restr.nodeAddr }
-            return $ Just restrs
+            return $ Just $ visit & #restrs .~ restrs
 
 warmPcEnvCache :: MonadRepGraphForTag t m => Visit -> m ()
 warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
