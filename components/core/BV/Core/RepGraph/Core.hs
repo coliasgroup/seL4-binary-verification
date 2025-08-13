@@ -747,17 +747,13 @@ emitNode visit = do
                 --     env
                 -- let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
                 (outs, env') <- flip runStateT env $ do
-                    notSplit <- for callNode.output $ \out -> do
+                    for_ callNode.output $ \out -> do
                         var <- addVarRestrWithMemCalls (localName out.name visit) out.ty memCalls
                         modify $ M.insert out (NotSplit (nameS var))
-                        -- return $ NotSplit (nameS var)
-                    split <- for callNode.output $ \out -> do
+                    for_ callNode.output $ \out -> do
                         opt <- get >>= varRepRequest out VarRepRequestKindCall visit
                         for opt $ \v -> do
                             modify $ M.insert out (Split v)
-                            -- return $ Split v
-                    -- return $ zip (map (.ty) callNode.output) $ zipWith fromMaybe notSplit split
-                    return ()
                 let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
                 key <- askWithTag visit
                 liftRepGraph $ #funcs %= M.insertWith undefined key (ins, outs, success)
