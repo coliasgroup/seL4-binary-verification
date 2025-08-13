@@ -663,15 +663,12 @@ getArcPcEnvs pred_ visit = do
 getArcPcEnv :: MonadRepGraphForTag t m => Visit -> Visit -> m (Maybe PcEnv)
 getArcPcEnv prev visit = runMaybeT $ do
     key <- askWithTag prev
-    opt <- liftRepGraph $ use $ #arcPcEnvs % at key
-    case opt of
-        Just r -> hoistMaybe $ r !? visit.nodeId
-        Nothing -> do
-            MaybeT $ getNodePcEnv prev
-            arcs <- M.fromList <$> emitNode prev
-            runPostEmitNodeHook prev
-            liftRepGraph $ #arcPcEnvs %= M.insert key arcs
-            hoistMaybe $ arcs !? visit.nodeId
+    pcEnvs <- withMapSlot #arcPcEnvs key $ do
+        MaybeT $ getNodePcEnv prev
+        arcs <- M.fromList <$> emitNode prev
+        runPostEmitNodeHook prev
+        return arcs
+    hoistMaybe $ pcEnvs !? visit.nodeId
 
 pruneVisit :: MonadRepGraphForTag t m => Visit -> m (Maybe Visit)
 pruneVisit visit = do
