@@ -1,5 +1,6 @@
 module BV.Utils
-    ( compose2
+    ( applyWhenM
+    , compose2
     , compose3
     , compose4
     , compose5
@@ -12,6 +13,8 @@ module BV.Utils
     , findWithCallstack
     , fromIntegerChecked
     , is
+    , mapFilterA
+    , setFilterA
     , todo
     , unimplemented
     , unwrapped
@@ -19,11 +22,12 @@ module BV.Utils
     , (!@)
     ) where
 
-import Control.Monad (when)
+import Control.Monad (filterM, when)
 import Data.Either (fromRight)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
+import qualified Data.Set as S
 import GHC.Stack (HasCallStack)
 import Optics
 
@@ -104,3 +108,12 @@ whileM cond body = go
         when p $ do
             body
             go
+
+setFilterA :: (Ord a, Applicative f) => (a -> f Bool) -> S.Set a -> f (S.Set a)
+setFilterA f s = S.fromList <$> filterM f (S.toList s)
+
+mapFilterA :: (Ord k, Applicative f) => (b -> f Bool) -> M.Map k b -> f (M.Map k b)
+mapFilterA f m = M.fromList <$> filterM (f . snd) (M.toList m)
+
+applyWhenM :: Monad m => Bool -> (a -> m a) -> a -> m a
+applyWhenM c f = if c then f else return

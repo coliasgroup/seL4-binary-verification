@@ -62,12 +62,11 @@ import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
 import Control.Monad.RWS (MonadState (get), MonadWriter (..), RWST)
-import Control.Monad.State (StateT (runStateT), execStateT, modify)
+import Control.Monad.State (StateT, execStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList, traverse_)
-import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
@@ -437,14 +436,11 @@ scanMemCalls tyVals = do
 addLoopMemCalls :: MonadRepGraphForTag t m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCalls split = traverse $ \memCalls -> do
     loopBody <- askLoopBody split
-    fnames <- fmap (S.fromList . catMaybes) $ for (toList loopBody) $ \n -> do
-        node <- askNode n
-        return $ case node of
-            NodeCall callNode -> Just callNode.functionName
-            _ -> Nothing
+    fnames <- fmap (S.fromList . catMaybes) $ for (toList loopBody) $ \n ->
+        preview (#_NodeCall % #functionName) <$> askNode n
     let newMemCalls = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
-                Just x -> x & #max .~ Nothing
-                Nothing -> MemCallsForFunction 0 Nothing
+            Just x -> x & #max .~ Nothing
+            Nothing -> MemCallsForFunction 0 Nothing
     return $ M.union newMemCalls memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
@@ -531,21 +527,13 @@ addInputEnvs = do
     traverse_ f (withTags p.sides)
   where
     f (WithTag tag side) = runForTag tag $ do
-        env <- flip execStateT M.empty $ do
-            for_ side.input $ \arg -> do
-                var <- addVarRestrWithMemCalls
-                    (arg.name.unwrap ++ "_init")
-                    arg.ty
-                    (Just M.empty)
-                modify $ M.insert arg (NotSplit (nameS var))
-            for_ side.input $ \arg -> do
-                env <- get
-                opt <- varRepRequest
-                    arg
-                    VarRepRequestKindInit
-                    (Visit { nodeId = side.entryPoint, restrs = []})
-                    env
-                for_ opt $ \splitMem -> modify $ M.insert arg (Split splitMem)
+        env <- xxx
+            VarRepRequestKindInit
+            (Just M.empty)
+            (\name -> name.unwrap ++ "_init")
+            (Visit { nodeId = side.entryPoint, restrs = []})
+            side.input
+            M.empty
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
 
 getPcWithTag :: MonadRepGraph t m => WithTag t Visit -> m Expr
@@ -631,28 +619,28 @@ getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
+        let isConstM var = do
+                let checkConst = case var.ty of
+                        ExprTypeHtd -> True
+                        ExprTypeDom -> True
+                        _ -> False
+                if checkConst then isSyntacticConstant var visitAddr else return False
+        consts <- setFilterA isConstM (M.keysSet prevEnv)
+        let isConst = (`S.member` consts)
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         let add name ty = do
                 let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
                 addVarRestrWithMemCalls hint ty memCalls
-        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevEnv $ \var _v -> do
-            let checkConst = case var.ty of
-                    ExprTypeHtd -> True
-                    ExprTypeDom -> True
-                    _ -> False
-            isSyntConst <- if checkConst then isSyntacticConstant var visitAddr else return False
-            if isSyntConst
-                then do
-                    modify $ S.insert var
-                    return $ prevEnv ! var
-                else do
-                    NotSplit . nameS <$> lift (add (var.name.unwrap ++ "_after") var.ty)
-        env' <- flip M.traverseWithKey env $ \var v -> do
-            if S.member var consts
-                then return v
-                else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit env
-        pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
-        return $ PcEnv pc' env'
+        notSplitEnv <- flip M.traverseWithKey prevEnv $ \var v ->
+            if isConst var
+            then return v
+            else NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
+        env <- flip M.traverseWithKey notSplitEnv $ \var v ->
+            if isConst var
+            then return v
+            else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit notSplitEnv
+        pc <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
+        return $ PcEnv pc env
   where
     visitAddr = nodeAddrOf visit.nodeId
 
@@ -672,9 +660,7 @@ getArcPcEnv prev visit = runMaybeT $ do
     key <- askWithTag prev
     pcEnvs <- withMapSlot #arcPcEnvs key $ do
         MaybeT $ getNodePcEnv prev
-        arcs <- M.fromList <$> emitNode prev
-        runPostEmitNodeHook prev
-        return arcs
+        emitNode prev
     hoistMaybe $ pcEnvs !? visit.nodeId
 
 pruneVisit :: MonadRepGraphForTag t m => Visit -> m (Maybe Visit)
@@ -713,12 +699,13 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
             _ -> return prevChain
     iters = 5000 :: Integer
 
-emitNode :: MonadRepGraphForTag t m => Visit -> m [(NodeId, PcEnv)]
+emitNode :: MonadRepGraphForTag t m => Visit -> m (M.Map NodeId PcEnv)
 emitNode visit = do
     pcEnv@(PcEnv pc env) <- fromJust <$> getNodePcEnv visit
     let nodeAddr = nodeAddrOf visit.nodeId
     node <- askNode nodeAddr
-    if pc == falseE
+    arcs <- M.fromList <$>
+        if pc == falseE
         then return [ (cont, PcEnv falseE M.empty) | cont <- node ^.. nodeConts ]
         else case node of
             NodeCond condNode | condNode.left == condNode.right -> do
@@ -736,13 +723,13 @@ emitNode visit = do
                     return (update.var, val)
                 return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
-                let nameHint = condName visit
-                freshName <- getFreshIdent nameHint
-                let cond = varE boolT freshName
-                def <- withEnv env $ addLocalDef () () nameHint condNode.expr
+                let condNameHint = condName visit
+                condIdent <- getFreshIdent condNameHint
+                let cond = varE boolT condIdent
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
-                let env' = M.insert (NameTy freshName boolT) def env
+                condDef <- withEnv env $ addLocalDef () () condNameHint condNode.expr
+                let env' = M.insert (NameTy condIdent boolT) condDef env
                 return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
                 joinForTag $ runPreEmitCallNodeHook visit pc env
@@ -750,21 +737,37 @@ emitNode visit = do
                 success <- smtExprE boolT . NotSplit . nameS <$> addVar nameHint boolT
                 ins <- for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr arg)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
-                (outs, env') <- flip runStateT env $ do
-                    notSplit <- for callNode.output $ \out -> do
-                        var <- addVarRestrWithMemCalls (localName out.name visit) out.ty memCalls
-                        modify $ M.insert out (NotSplit (nameS var))
-                        return $ NotSplit (nameS var)
-                    split <- for callNode.output $ \out -> do
-                        opt <- get >>= varRepRequest out VarRepRequestKindCall visit
-                        for opt $ \v -> do
-                            modify $ M.insert out (Split v)
-                            return $ Split v
-                    return $ zip (map (.ty) callNode.output) $ zipWith fromMaybe notSplit split
+                env' <- xxx
+                    VarRepRequestKindCall
+                    memCalls
+                    (\name -> localName name visit)
+                    visit
+                    callNode.output
+                    env
+                let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
                 key <- askWithTag visit
-                liftRepGraph $ #funcs %= M.insertWith (error "unexpected") key (ins, outs, success)
+                liftRepGraph $ #funcs %= M.insertWith undefined key (ins, outs, success)
                 joinForTag $ runPostEmitCallNodeHook visit
                 return [(callNode.next, PcEnv pc env')]
+    runPostEmitNodeHook visit
+    return arcs
+
+xxx :: MonadRepGraphForTag t m => VarRepRequestKind -> Maybe MemCalls -> (Ident -> NameHint) -> Visit -> [NameTy] -> ExprEnv -> m ExprEnv
+xxx kind memCalls mkName visit vars = execStateT $ do
+    for_ vars $ \var -> do
+        v <- addVarRestrWithMemCalls
+            (mkName var.name)
+            var.ty
+            memCalls
+        modify $ M.insert var (NotSplit (nameS v))
+    for_ vars $ \var -> do
+        env <- get
+        opt <- varRepRequest
+            var
+            kind
+            visit
+            env
+        for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
 
 isSyntacticConstant :: MonadRepGraphForTag t m => NameTy -> NodeAddr -> m Bool
 isSyntacticConstant var split = do
