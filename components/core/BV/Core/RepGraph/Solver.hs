@@ -514,10 +514,10 @@ foldAssocBalanced f = go
 mergeEnvs :: MonadRepGraphSolver m => [PcEnv] -> m ExprEnv
 mergeEnvs envs = do
     varEnvs <-
-        fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty . concat) $
+        fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty) $
             for envs $ \(PcEnv pc env) -> do
                 pc' <- withEnv env $ convertExprNoSplit pc
-                return $ fmap (\val -> M.singleton val ([pc'] :: [S])) env
+                return $ fmap (\val -> M.singleton val [pc']) env
     let flattenVal valsByPc =
             let Just (valsByPrightInit, (lastVal, _)) = unsnoc valsByPc
                 f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
