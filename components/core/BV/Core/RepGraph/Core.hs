@@ -664,18 +664,18 @@ getArcPcEnvs pred_ visit = do
             concat <$> traverse (getArcPcEnvs pred_ . Visit visit.nodeId) (specialize visit split)
 
 getArcPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> Visit -> m (Maybe PcEnv)
-getArcPcEnv unprunedVisit otherVisit = runMaybeT $ do
-    visit <- MaybeT $ pruneVisit unprunedVisit
-    key <- askWithTag visit
+getArcPcEnv unprunePrev visit = runMaybeT $ do
+    prev <- MaybeT $ pruneVisit unprunePrev
+    key <- askWithTag prev
     opt <- liftRepGraph $ use $ #arcPcEnvs % at key
     case opt of
-        Just r -> hoistMaybe $ r !? otherVisit.nodeId
+        Just r -> hoistMaybe $ r !? visit.nodeId
         Nothing -> do
-            MaybeT $ tryGetNodePcEnv visit
-            arcs <- M.fromList <$> emitNode visit
-            runPostEmitNodeHook visit
+            MaybeT $ tryGetNodePcEnv prev
+            arcs <- M.fromList <$> emitNode prev
+            runPostEmitNodeHook prev
             liftRepGraph $ #arcPcEnvs %= M.insert key arcs
-            hoistMaybe $ arcs !? otherVisit.nodeId
+            hoistMaybe $ arcs !? visit.nodeId
 
 pruneVisit :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe Visit)
 pruneVisit visit = do
