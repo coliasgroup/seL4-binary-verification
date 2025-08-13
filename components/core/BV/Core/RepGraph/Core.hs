@@ -630,11 +630,7 @@ getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
-        memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
-        let add name ty = do
-                let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
-                addVarRestrWithMemCalls hint ty memCalls
-        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevEnv $ \var _v -> do
+        consts <- flip setFilterA (M.keysSet prevEnv) $ \var -> do
             let checkConst = case var.ty of
                     ExprTypeHtd -> True
                     ExprTypeDom -> True
@@ -646,6 +642,11 @@ getLoopPcEnv visit = do
                     return $ prevEnv ! var
                 else do
                     NotSplit . nameS <$> lift (add (var.name.unwrap ++ "_after") var.ty)
+        memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
+        let add name ty = do
+                let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
+                addVarRestrWithMemCalls hint ty memCalls
+        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevEnv $ \var _v -> do
         env' <- flip M.traverseWithKey env $ \var v -> do
             if S.member var consts
                 then return v
