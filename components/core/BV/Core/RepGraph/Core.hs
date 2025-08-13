@@ -745,7 +745,7 @@ emitNode visit = do
                     visit
                     callNode.output
                     env
-                let outs = [ (out.ty, env ! out) | out <- callNode.output ]
+                let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
                 key <- askWithTag visit
                 liftRepGraph $ #funcs %= M.insertWith undefined key (ins, outs, success)
                 joinForTag $ runPostEmitCallNodeHook visit
