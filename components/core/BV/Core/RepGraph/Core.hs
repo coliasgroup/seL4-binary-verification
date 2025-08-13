@@ -639,9 +639,8 @@ getLoopPcEnv visit = do
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         nonConsts <- filterM (fmap not . isConstM) (M.keys prevEnv)
-        let mkName ident = printf "%s_after_loop_at_%s" ident.unwrap (prettyNodeId visit.nodeId)
         env <- xxx
-            mkName
+            (\ident -> printf "%s_after_loop_at_%s" ident.unwrap (prettyNodeId visit.nodeId))
             memCalls
             VarRepRequestKindLoop
             visit
