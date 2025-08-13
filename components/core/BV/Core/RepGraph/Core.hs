@@ -757,7 +757,7 @@ emitNode visit = do
     runPostEmitNodeHook visit
     return arcs
 
-xxx :: MonadRepGraph t m => Maybe MemCalls -> (Ident -> NameHint) -> Visit -> [NameTy] -> ExprEnv -> m ExprEnv
+xxx :: MonadRepGraphForTag t m => Maybe MemCalls -> (Ident -> NameHint) -> Visit -> [NameTy] -> ExprEnv -> m ExprEnv
 xxx memCalls mkName visit vars = execStateT $ do
     for_ vars $ \var -> do
         v <- addVarRestrWithMemCalls
