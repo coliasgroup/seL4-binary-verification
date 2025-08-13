@@ -19,7 +19,6 @@ module BV.Core.RepGraph.Solver
     , SolverOutput
     , SolverState
     , addDef
-    , addDefNotSplit
     , addPValidDomAssertions
     , addSplitMemVar
     , addVar
@@ -30,7 +29,6 @@ module BV.Core.RepGraph.Solver
     , convertExpr
     , convertExprNoSplit
     , convertInnerExpr
-    , getDef
     , initSolver
     , initSolverEnv
     , initSolverState
