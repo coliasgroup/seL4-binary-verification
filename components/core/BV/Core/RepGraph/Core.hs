@@ -486,6 +486,39 @@ addVarRestrWithMemCalls nameHint ty memCallsOpt = do
 
 --
 
+data VarRepRequestKind
+  = VarRepRequestKindCall
+  | VarRepRequestKindInit
+  | VarRepRequestKindLoop
+  deriving (Eq, Generic, Ord, Show)
+
+varRepRequest :: MonadRepGraphForTag t m => NameTy -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
+varRepRequest var kind visit env = runMaybeT $ do
+    let n = nodeAddrOf visit.nodeId
+    addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind n
+    addrSexpr <- withEnv env $ convertExpr addrExpr
+    let name' = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
+    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) name' var.ty
+
+xxx
+    :: MonadRepGraphForTag t m
+    => (Ident -> NameHint)
+    -> Maybe MemCalls
+    -> VarRepRequestKind
+    -> Visit
+    -> [NameTy]
+    -> ExprEnv
+    -> m ExprEnv
+xxx mkName memCalls kind visit vars = execStateT $ do
+    for_ vars $ \var -> do
+        v <- addVarRestrWithMemCalls (mkName var.name) var.ty memCalls
+        modify $ M.insert var (NotSplit (nameS v))
+    for_ vars $ \var -> do
+        opt <- get >>= varRepRequest var kind visit
+        for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
+
+--
+
 contract :: MonadRepGraph t m => Visit -> NameTy -> SExprWithPlaceholders -> m MaybeSplit
 contract visit var sexpr = withMapSlot #contractions sexpr $ do
     let name' = localNameBefore var.name visit
@@ -506,23 +539,6 @@ contractPcEnv visit (PcEnv pc env) = do
             return $ smtExprE boolT name
     env' <- M.traverseWithKey (maybeContract visit) env
     return $ PcEnv pc' env'
-
---
-
-data VarRepRequestKind
-  = VarRepRequestKindCall
-  | VarRepRequestKindInit
-  | VarRepRequestKindLoop
-  deriving (Eq, Generic, Ord, Show)
-
-varRepRequest :: MonadRepGraphForTag t m => NameTy -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
-varRepRequest var kind visit env = runMaybeT $ do
-    let n = nodeAddrOf visit.nodeId
-    addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind n
-    addrSexpr <- withEnv env $ convertExpr addrExpr
-    let name' = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
-    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) name' var.ty
-
 --
 
 addInputEnvs :: MonadRepGraph t m => m ()
@@ -751,23 +767,6 @@ emitNode visit = do
                 return [(callNode.next, PcEnv pc env')]
     runPostEmitNodeHook visit
     return arcs
-
-xxx
-    :: MonadRepGraphForTag t m
-    => (Ident -> NameHint)
-    -> Maybe MemCalls
-    -> VarRepRequestKind
-    -> Visit
-    -> [NameTy]
-    -> ExprEnv
-    -> m ExprEnv
-xxx mkName memCalls kind visit vars = execStateT $ do
-    for_ vars $ \var -> do
-        v <- addVarRestrWithMemCalls (mkName var.name) var.ty memCalls
-        modify $ M.insert var (NotSplit (nameS v))
-    for_ vars $ \var -> do
-        opt <- get >>= varRepRequest var kind visit
-        for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
 
 isSyntacticConstant :: MonadRepGraphForTag t m => NameTy -> NodeAddr -> m Bool
 isSyntacticConstant var split = do
