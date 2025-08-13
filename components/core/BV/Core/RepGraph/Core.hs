@@ -531,6 +531,7 @@ addInputEnvs = do
   where
     f (WithTag tag side) = runForTag tag $ do
         env <- xxx
+            VarRepRequestKindInit
             (Just M.empty)
             (\name -> name.unwrap ++ "_init")
             (Visit { nodeId = side.entryPoint, restrs = []})
@@ -739,21 +740,13 @@ emitNode visit = do
                 success <- smtExprE boolT . NotSplit . nameS <$> addVar nameHint boolT
                 ins <- for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr arg)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
-                -- env' <- xxx
-                --     memCalls
-                --     (\name -> localName name visit)
-                --     visit
-                --     callNode.output
-                --     env
-                -- let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
-                env' <- flip execStateT env $ do
-                    for_ callNode.output $ \out -> do
-                        var <- addVarRestrWithMemCalls (localName out.name visit) out.ty memCalls
-                        modify $ M.insert out (NotSplit (nameS var))
-                    for_ callNode.output $ \out -> do
-                        opt <- get >>= varRepRequest out VarRepRequestKindCall visit
-                        for opt $ \v -> do
-                            modify $ M.insert out (Split v)
+                env' <- xxx
+                    VarRepRequestKindCall
+                    memCalls
+                    (\name -> localName name visit)
+                    visit
+                    callNode.output
+                    env
                 let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
                 key <- askWithTag visit
                 liftRepGraph $ #funcs %= M.insertWith undefined key (ins, outs, success)
@@ -762,8 +755,8 @@ emitNode visit = do
     runPostEmitNodeHook visit
     return arcs
 
-xxx :: MonadRepGraphForTag t m => Maybe MemCalls -> (Ident -> NameHint) -> Visit -> [NameTy] -> ExprEnv -> m ExprEnv
-xxx memCalls mkName visit vars = execStateT $ do
+xxx :: MonadRepGraphForTag t m => VarRepRequestKind -> Maybe MemCalls -> (Ident -> NameHint) -> Visit -> [NameTy] -> ExprEnv -> m ExprEnv
+xxx kind memCalls mkName visit vars = execStateT $ do
     for_ vars $ \var -> do
         v <- addVarRestrWithMemCalls
             (mkName var.name)
@@ -774,7 +767,7 @@ xxx memCalls mkName visit vars = execStateT $ do
         env <- get
         opt <- varRepRequest
             var
-            VarRepRequestKindInit
+            kind
             visit
             env
         for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
