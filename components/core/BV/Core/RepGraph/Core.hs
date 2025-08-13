@@ -67,6 +67,7 @@ import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList, traverse_)
+import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
@@ -617,11 +618,12 @@ getNodePcEnvRaw visit = do
                     case arcPcEnvs of
                         [] -> return Nothing
                         _ -> Just <$> do
-                            optimizedArcPcEnvs <- case visit.nodeId of
-                                Err -> for arcPcEnvs $ \(PcEnv pc env) -> do
-                                    pc' <- withEnv env $ convertInnerExpr pc
-                                    return $ PcEnv pc' M.empty
-                                _ -> return arcPcEnvs
+                            let optimize = case visit.nodeId of
+                                    Err -> traverse $ \(PcEnv pc env) -> do
+                                        pc' <- withEnv env $ convertInnerExpr pc
+                                        return $ PcEnv pc' M.empty
+                                    _ -> return
+                            optimizedArcPcEnvs <- optimize arcPcEnvs
                             (pcEnv, _large) <- mergeEnvsPcs optimizedArcPcEnvs
                             contractPcEnv visit pcEnv
 
