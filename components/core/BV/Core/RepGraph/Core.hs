@@ -315,6 +315,15 @@ incrVCs vcount n incr = if
     vcOld = m ! n
     vcNew = incrVC incr vcOld
 
+specialize :: Visit -> NodeAddr -> [Visit]
+specialize visit split = ensure (isOptionsVC vc)
+    [ visit & #restrs .~ (fromMapVC (M.insert split (fromSimpleVC n) m))
+    | n <- enumerateSimpleVC vc
+    ]
+  where
+    m = toMapVC visit.restrs
+    vc = m ! split
+
 getHasInnerLoop :: MonadRepGraphForTag t m => NodeAddr -> m Bool
 getHasInnerLoop loopHead = withMapSlotForTag #hasInnerLoop loopHead $ do
     p <- liftRepGraph $ gview #problem
@@ -493,15 +502,6 @@ contractPcEnv visit (PcEnv pc env) = do
             return $ smtExprE boolT name
     env' <- M.traverseWithKey (maybeContract visit) env
     return $ PcEnv pc' env'
-
-specialize :: Visit -> NodeAddr -> [Visit]
-specialize visit split = ensure (isOptionsVC vc)
-    [ visit & #restrs .~ (fromMapVC (M.insert split (fromSimpleVC n) m))
-    | n <- enumerateSimpleVC vc
-    ]
-  where
-    m = toMapVC visit.restrs
-    vc = m ! split
 
 --
 
