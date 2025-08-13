@@ -739,12 +739,25 @@ emitNode visit = do
                 success <- smtExprE boolT . NotSplit . nameS <$> addVar nameHint boolT
                 ins <- for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr arg)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
-                env' <- xxx
-                    memCalls
-                    (\name -> localName name visit)
-                    visit
-                    callNode.output
-                    env
+                -- env' <- xxx
+                --     memCalls
+                --     (\name -> localName name visit)
+                --     visit
+                --     callNode.output
+                --     env
+                -- let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
+                (outs, env') <- flip runStateT env $ do
+                    notSplit <- for callNode.output $ \out -> do
+                        var <- addVarRestrWithMemCalls (localName out.name visit) out.ty memCalls
+                        modify $ M.insert out (NotSplit (nameS var))
+                        -- return $ NotSplit (nameS var)
+                    split <- for callNode.output $ \out -> do
+                        opt <- get >>= varRepRequest out VarRepRequestKindCall visit
+                        for opt $ \v -> do
+                            modify $ M.insert out (Split v)
+                            -- return $ Split v
+                    -- return $ zip (map (.ty) callNode.output) $ zipWith fromMaybe notSplit split
+                    return ()
                 let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
                 key <- askWithTag visit
                 liftRepGraph $ #funcs %= M.insertWith undefined key (ins, outs, success)
