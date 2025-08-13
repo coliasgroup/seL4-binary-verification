@@ -605,7 +605,7 @@ getNodePcEnvRaw visit = do
                         for (toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
                     case arcPcEnvs of
                         [] -> return Nothing
-                        _ -> do
+                        _ -> Just <$> do
                             optimizedArcPcEnvs <- case visit.nodeId of
                                 Err -> for arcPcEnvs $ \(PcEnv pc env) -> do
                                     pc' <- withEnv env $ convertInnerExpr pc
@@ -619,7 +619,7 @@ getNodePcEnvRaw visit = do
                                     name <- withEnv env $ addDef hint pc
                                     return $ smtExprE boolT name
                             shortEnv <- M.traverseWithKey (maybeContract visit) env
-                            return $ Just $ PcEnv shortPc shortEnv
+                            return $ PcEnv shortPc shortEnv
 
 getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
