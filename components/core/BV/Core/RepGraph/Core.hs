@@ -477,12 +477,12 @@ mergeMemCalls xcalls ycalls =
 addLocalDef :: MonadRepGraph t m => () -> () -> NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
 addLocalDef _ _ = addDef
 
-addVarRestrWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> Maybe MemCalls -> m Name
+addVarRestrWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> Maybe MemCalls -> m MaybeSplit
 addVarRestrWithMemCalls nameHint ty memCallsOpt = do
-    r <- addVarRestr nameHint ty
+    r <- nameS <$> addVarRestr nameHint ty
     when (isMemT ty) $ do
-        liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
-    return r
+        liftRepGraph $ #memCalls %= M.insert r (fromJust memCallsOpt)
+    return $ NotSplit r
 
 data VarRepRequestKind
   = VarRepRequestKindCall
@@ -510,7 +510,7 @@ xxx
 xxx mkName memCalls kind visit vars = execStateT $ do
     for_ vars $ \var -> do
         v <- addVarRestrWithMemCalls (mkName var.name) var.ty memCalls
-        modify $ M.insert var (NotSplit (nameS v))
+        modify $ M.insert var v
     for_ vars $ \var -> do
         opt <- get >>= varRepRequest var kind visit
         for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
@@ -659,7 +659,7 @@ getLoopPcEnv visit = do
         --     then return v
         --     else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit notSplitEnv
         -- pc <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
-        pc <- smtExprE boolT . NotSplit . nameS <$>
+        pc <- smtExprE boolT <$>
             addVarRestrWithMemCalls
                 (printf "pc_of_loop_at_%s" (prettyNodeId visit.nodeId))
                 boolT
