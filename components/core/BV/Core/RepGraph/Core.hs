@@ -436,14 +436,11 @@ scanMemCalls tyVals = do
 addLoopMemCalls :: MonadRepGraphForTag t m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCalls split = traverse $ \memCalls -> do
     loopBody <- askLoopBody split
-    fnames <- fmap (S.fromList . catMaybes) $ for (toList loopBody) $ \n -> do
-        node <- askNode n
-        return $ case node of
-            NodeCall callNode -> Just callNode.functionName
-            _ -> Nothing
+    fnames <- fmap (S.fromList . catMaybes) $ for (toList loopBody) $ \n ->
+        preview (#_NodeCall % #functionName) <$> askNode n
     let newMemCalls = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
-                Just x -> x & #max .~ Nothing
-                Nothing -> MemCallsForFunction 0 Nothing
+            Just x -> x & #max .~ Nothing
+            Nothing -> MemCallsForFunction 0 Nothing
     return $ M.union newMemCalls memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
