@@ -517,10 +517,7 @@ mergeEnvs envs = do
         fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty . concat) $
             for envs $ \(PcEnv pc env) -> do
                 pc' <- withEnv env $ convertExprNoSplit pc
-                return $
-                    [ M.singleton var (M.singleton val [pc'])
-                    | (var, val) <- M.toList env
-                    ]
+                return $ fmap (\val -> M.singleton val ([pc'] :: [S])) env
     let flattenVal valsByPc =
             let Just (valsByPrightInit, (lastVal, _)) = unsnoc valsByPc
                 f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
