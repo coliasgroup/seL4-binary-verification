@@ -530,21 +530,12 @@ addInputEnvs = do
     traverse_ f (withTags p.sides)
   where
     f (WithTag tag side) = runForTag tag $ do
-        env <- flip execStateT M.empty $ do
-            for_ side.input $ \arg -> do
-                var <- addVarRestrWithMemCalls
-                    (arg.name.unwrap ++ "_init")
-                    arg.ty
-                    (Just M.empty)
-                modify $ M.insert arg (NotSplit (nameS var))
-            for_ side.input $ \arg -> do
-                env <- get
-                opt <- varRepRequest
-                    arg
-                    VarRepRequestKindInit
-                    (Visit { nodeId = side.entryPoint, restrs = []})
-                    env
-                for_ opt $ \splitMem -> modify $ M.insert arg (Split splitMem)
+        env <- xxx
+            (Just M.empty)
+            (\name -> name.unwrap ++ "_init")
+            (Visit { nodeId = side.entryPoint, restrs = []})
+            side.input
+            M.empty
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
 
 getPcWithTag :: MonadRepGraph t m => WithTag t Visit -> m Expr
@@ -766,7 +757,7 @@ emitNode visit = do
     runPostEmitNodeHook visit
     return arcs
 
-xxx :: MonadRepGraphForTag t m => Maybe MemCalls -> (Ident -> NameHint) -> Visit -> [NameTy] -> ExprEnv -> m ExprEnv
+xxx :: MonadRepGraph t m => Maybe MemCalls -> (Ident -> NameHint) -> Visit -> [NameTy] -> ExprEnv -> m ExprEnv
 xxx memCalls mkName visit vars = execStateT $ do
     for_ vars $ \var -> do
         v <- addVarRestrWithMemCalls
