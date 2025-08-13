@@ -518,7 +518,7 @@ mergeEnvs envs = do
             $ for envs $ \(PcEnv pc env) -> do
                 pc' <- withEnv env $ convertExprNoSplit pc
                 return $
-                    [ M.singleton var (M.singleton val ([pc'] :: [S]))
+                    [ M.singleton var (M.singleton val [pc'])
                     | (var, val) <- M.toList env
                     ]
     let flattenVal valsByPc =
@@ -790,8 +790,8 @@ addImpliesStackEq sp s1 s2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (s
     assertSMTFact $ eqS (bvandS (nameS addr) (hexS "00000003")) (hexS "00000000")
     sp' <- convertExprNoSplit sp
     assertSMTFact $ bvuleS sp' (nameS addr)
-    let mk = memAccE word32T (smtExprE word32T (NotSplit (nameS addr)))
-    addDefNotSplit "stack-eq" $ eqE (mk s1) (mk s2)
+    let f = memAccE word32T (smtExprE word32T (NotSplit (nameS addr)))
+    addDefNotSplit "stack-eq" $ eqE (f s1) (f s2)
 
 getStackEqImplies :: MonadRepGraphSolver m => S -> S -> MaybeSplit -> ReaderT ExprEnv m S
 getStackEqImplies split stTop other = do
