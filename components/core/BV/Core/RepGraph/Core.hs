@@ -288,15 +288,15 @@ askPreds n = do
     tag <- askTag
     liftRepGraph $ gview $ #analysis % #preds % atTag tag % to ($ n)
 
-askUnprunedPrevs :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
-askUnprunedPrevs visit = do
+askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
+askPrevs visit = do
     preds <- toList <$> askPreds visit.nodeId
     let f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
     return $ mapMaybe f preds
 
-askPrevs :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
-askPrevs visit = do
-    unprunedPrevs <- askUnprunedPrevs visit
+askPrevsPruned :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
+askPrevsPruned visit = do
+    unprunedPrevs <- askPrevs visit
     catMaybes <$> traverse pruneVisit unprunedPrevs
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
@@ -655,18 +655,17 @@ getLoopPcEnv visit = do
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askUnprunedPrevs visit
+        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevs visit
         ensureM $ length prevs <= 1
-        for prevs $ \unprunedPrev -> runMaybeT $ do
-            prev <- MaybeT $ pruneVisit unprunedPrev
-            MaybeT $ getArcPcEnv prev visit
+        for prevs $ \prev -> getArcPcEnv prev visit
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
             concat <$> traverse (getArcPcEnvs pred_ . Visit visit.nodeId) (specialize visit split)
 
 getArcPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> Visit -> m (Maybe PcEnv)
-getArcPcEnv visit otherVisit = runMaybeT $ do
+getArcPcEnv unprunedVisit otherVisit = runMaybeT $ do
+    visit <- MaybeT $ pruneVisit unprunedVisit
     key <- askWithTag visit
     opt <- liftRepGraph $ use $ #arcPcEnvs % at key
     case opt of
@@ -711,7 +710,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
                 key <- askWithTag prev
                 present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member key)
                 return $ not present && prev.restrs == curVisit.restrs
-        runExceptT (askPrevs curVisit >>= filterM f) >>= \case
+        runExceptT (askPrevsPruned curVisit >>= filterM f) >>= \case
             Right (v:_) -> go (i - 1) (v:prevChain) v
             _ -> return prevChain
     iters = 5000 :: Integer
