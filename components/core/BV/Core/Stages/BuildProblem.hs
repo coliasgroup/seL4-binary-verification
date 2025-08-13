@@ -24,7 +24,7 @@ import Control.Monad.Identity (runIdentity)
 import Control.Monad.State (StateT, evalStateT, get, gets, modify, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
-import Data.Foldable (for_)
+import Data.Foldable (for_, toList)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe, isJust)
@@ -146,9 +146,9 @@ addFunction
     :: (Tag t, Monad m) => WithTag t (Named Function) -> NodeId -> StateT (ProblemBuilder t) m AddFunctionRenames
 addFunction (WithTag tag (Named funName fun)) retTarget = do
     varRenames <- M.fromList <$>
-        for (S.toAscList origVars) (\name -> (name,) <$> getFreshName name)
+        for (toList origVars) (\name -> (name,) <$> getFreshName name)
     nodeAddrRenames <- M.fromList <$>
-        for (S.toAscList origNodeAddrs) (\addr -> (addr,) <$> reserveNodeAddr)
+        for (toList origNodeAddrs) (\addr -> (addr,) <$> reserveNodeAddr)
     let renames = AddFunctionRenames
             { var = varRenames
             , nodeAddr = nodeAddrRenames
@@ -216,7 +216,7 @@ padMergePoints = do
                     (M.keysSet problem.nodes))
     nonTrivialEdgesToMergePoints <-
         fmap concat . for (M.toAscList allMergePointPreds) $ \(mergePointAddr, mergePointPreds) -> do
-            fmap concat . for (S.toAscList mergePointPreds) $ \predAddr -> do
+            fmap concat . for (toList mergePointPreds) $ \predAddr -> do
                 predNode <- use $ nodeAt predAddr
                 return $ case predNode of
                     NodeBasic (BasicNode { varUpdates = [] }) -> []

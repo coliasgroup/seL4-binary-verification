@@ -17,6 +17,7 @@ import Text.ParserCombinators.ReadP
 import Control.Monad (unless)
 import Control.Monad.Writer (runWriter, tell)
 import Data.Char (isAlphaNum, isDigit, isHexDigit)
+import Data.Foldable (toList)
 import Data.Functor (void)
 import Data.List (intercalate, stripPrefix)
 import qualified Data.Map as M
@@ -38,9 +39,9 @@ addInlineAssemblySpecs progs =
         , c = cProg'
         })
 
-    requiredInstFuns = S.toAscList (rightInstFuns `S.union` leftInstFuns)
+    requiredInstFuns = toList (rightInstFuns `S.union` leftInstFuns)
 
-    unhandled = S.toAscList <$> byAsmRefineTag (ByAsmRefineTag
+    unhandled = toList <$> byAsmRefineTag (ByAsmRefineTag
         { asm = asmUnhandledFunNames
         , c = cUnhandledFunNames
         })

@@ -66,7 +66,7 @@ import Control.Monad.State (StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
-import Data.Foldable (for_, traverse_)
+import Data.Foldable (for_, toList, traverse_)
 import Data.Function (applyWhen)
 import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
@@ -292,7 +292,7 @@ askPreds n = do
 askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
 askPrevs visit = do
     let m = toMapVC visit.restrs
-    preds <- S.toAscList <$> askPreds visit.nodeId
+    preds <- toList <$> askPreds visit.nodeId
     let f p = Visit (Addr p) <$>
             if M.member p m
             then incrVCs visit.restrs p (-1)
@@ -440,7 +440,7 @@ scanMemCalls tyVals = do
 addLoopMemCalls :: MonadRepGraphForTag t m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
 addLoopMemCalls split = traverse $ \memCalls -> do
     loopBody <- askLoopBody split
-    fnames <- fmap (S.fromList . catMaybes) $ for (S.toAscList loopBody) $ \n -> do
+    fnames <- fmap (S.fromList . catMaybes) $ for (toList loopBody) $ \n -> do
         node <- askNode n
         return $ case node of
             NodeCall callNode -> Just callNode.functionName
@@ -603,9 +603,9 @@ getNodePcEnvRaw visit = do
             case filter f visit.restrs of
                 restr:_ -> getLoopPcEnv restr.nodeAddr visit.restrs
                 [] -> do
-                    pcEnvs <- concatMap catMaybes <$> do
+                    pcEnvs <- toListOf (folded % folded % _Just) <$> do
                         preds <- askPreds visit.nodeId
-                        for (S.toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
+                        for (toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
                     case pcEnvs of
                         [] -> return Nothing
                         _ -> do
@@ -803,7 +803,7 @@ isSyntacticConstant var split = do
                                     _ -> return newName
                         _ -> return newName
                     allPreds <- askPreds $ Addr n
-                    let preds = [ (newName', n2) | n2 <- S.toAscList allPreds, n2 `S.member` loopSet ]
+                    let preds = [ (newName', n2) | n2 <- toList allPreds, n2 `S.member` loopSet ]
                     let unknowns = [ p | p <- preds, p `S.notMember` safe ]
                     let (visit', safe') =
                             if null unknowns
