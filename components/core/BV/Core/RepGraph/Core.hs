@@ -646,18 +646,31 @@ getLoopPcEnv visit = do
         consts <- setFilterA isConstM (M.keysSet prevEnv)
         let isConst = (`S.member` consts)
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
-        let add name ty = do
-                let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
-                addVarRestrWithMemCalls hint ty memCalls
-        notSplitEnv <- flip M.traverseWithKey prevEnv $ \var v ->
-            if isConst var
-            then return v
-            else NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
-        env <- flip M.traverseWithKey notSplitEnv $ \var v ->
-            if isConst var
-            then return v
-            else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit notSplitEnv
-        pc <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
+        let mkName ident = printf "%s_after_loop_at_%s" ident.unwrap (prettyNodeId visit.nodeId)
+        -- let add name ty = do
+        --         let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
+        --         addVarRestrWithMemCalls hint ty memCalls
+        env <- xxx
+            mkName
+            memCalls
+            VarRepRequestKindLoop
+            visit
+            (filter (not . isConst) (M.keys prevEnv))
+            prevEnv
+        -- notSplitEnv <- flip M.traverseWithKey prevEnv $ \var v ->
+        --     if isConst var
+        --     then return v
+        --     else NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
+        -- env <- flip M.traverseWithKey notSplitEnv $ \var v ->
+        --     if isConst var
+        --     then return v
+        --     else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit notSplitEnv
+        -- pc <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
+        pc <- smtExprE boolT . NotSplit . nameS <$>
+            addVarRestrWithMemCalls
+            (printf "pc_of_loop_at_%s" (prettyNodeId visit.nodeId))
+            boolT
+            memCalls
         return $ PcEnv pc env
   where
     visitAddr = nodeAddrOf visit.nodeId
