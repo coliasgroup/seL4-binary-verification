@@ -80,6 +80,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import Data.Functor (void)
 
 -- TODO cache more accross groups?
 
@@ -297,7 +298,9 @@ askPrevs visit = do
 askPrevsPruned :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
 askPrevsPruned visit = do
     unprunedPrevs <- askPrevs visit
-    catMaybes <$> traverse pruneVisit unprunedPrevs
+    prevs <- catMaybes <$> traverse pruneVisit unprunedPrevs
+    traverse_ checkGenerality prevs
+    return prevs
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
@@ -656,6 +659,7 @@ getArcPcEnvs pred_ visit = do
         ensureM $ length prevs <= 1
         for prevs $ \prev -> runMaybeT $ do
             prunedPrev <- MaybeT $ pruneVisit prev
+            checkGenerality prunedPrev
             MaybeT $ getArcPcEnv prunedPrev visit
     case r of
         Right x -> return x
@@ -675,24 +679,26 @@ getArcPcEnv prev visit = runMaybeT $ do
             liftRepGraph $ #arcPcEnvs %= M.insert key arcs
             hoistMaybe $ arcs !? visit.nodeId
 
-pruneVisit :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe Visit)
+pruneVisit :: MonadRepGraphForTag t m => Visit -> m (Maybe Visit)
 pruneVisit visit = do
     restrsWithReachability <- for visit.restrs $ \restr ->
         (restr,) <$> askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
-    if flip any restrsWithReachability $ \(restr, reachable) ->
-            not reachable && not (hasZeroVC restr.visitCount)
-        then do
-            return Nothing
-        else do
-            let restrs = sort [ restr | (restr, reachable) <- restrsWithReachability, reachable ]
-            runMaybeT $ do
-                nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
-                loopId <- MaybeT $ askLoopHead nodeAddr
-                for_ restrs $ \restr -> do
-                    loopIdOpt' <- askLoopHead restr.nodeAddr
-                    when (loopIdOpt' == Just loopId && isOptionsVC restr.visitCount) $ do
-                        throwError $ TooGeneral { split = restr.nodeAddr }
-            return $ Just $ visit & #restrs .~ restrs
+    return $
+        if flip any restrsWithReachability $ \(restr, reachable) ->
+                not reachable && not (hasZeroVC restr.visitCount)
+        then Nothing
+        else Just $
+                visit & #restrs .~
+                    sort [ restr | (restr, reachable) <- restrsWithReachability, reachable ]
+
+checkGenerality :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m ()
+checkGenerality visit = void $ runMaybeT $ do
+    nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
+    loopId <- MaybeT $ askLoopHead nodeAddr
+    for_ visit.restrs $ \restr -> do
+        loopIdOpt' <- askLoopHead restr.nodeAddr
+        when (loopIdOpt' == Just loopId && isOptionsVC restr.visitCount) $ do
+            throwError $ TooGeneral { split = restr.nodeAddr }
 
 warmPcEnvCache :: MonadRepGraphForTag t m => Visit -> m ()
 warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
