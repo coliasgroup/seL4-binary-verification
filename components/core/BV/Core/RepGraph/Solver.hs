@@ -518,12 +518,12 @@ mergeEnvs envs = do
             for envs $ \(PcEnv pc env) -> do
                 pc' <- withEnv env $ convertExprNoSplit pc
                 return $ fmap (\val -> M.singleton val [pc']) env
-    let flattenVal valsByPc =
-            let Just (valsByPrightInit, (lastVal, _)) = unsnoc valsByPc
-                f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
-             in foldl f lastVal valsByPrightInit
-    return $ fmap (flattenVal . sortOn (compatSMTComparisonKey . fst) . M.toList) varEnvs
+    return $ flattenCompat . sortOn (compatSMTComparisonKey . fst) . M.toList <$> varEnvs
   where
+    flattenCompat valsByPc =
+        let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
+            f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
+            in foldl f lastVal valsByPcInit
     orCompat = \case
         [x] -> x
         xs -> orNS xs
