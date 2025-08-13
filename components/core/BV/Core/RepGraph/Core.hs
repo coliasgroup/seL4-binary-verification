@@ -57,7 +57,7 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, when, guard)
+import Control.Monad (filterM, guard, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
