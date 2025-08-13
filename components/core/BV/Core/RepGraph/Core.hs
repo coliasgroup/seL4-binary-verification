@@ -528,9 +528,9 @@ addInputEnvs = do
   where
     f (WithTag tag side) = runForTag tag $ do
         env <- xxx
-            VarRepRequestKindInit
-            (Just M.empty)
             (\name -> name.unwrap ++ "_init")
+            (Just M.empty)
+            VarRepRequestKindInit
             (Visit { nodeId = side.entryPoint, restrs = []})
             side.input
             M.empty
@@ -734,9 +734,9 @@ emitNode visit = do
                 ins <- for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr arg)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
                 env' <- xxx
-                    VarRepRequestKindCall
-                    memCalls
                     (\name -> localName name visit)
+                    memCalls
+                    VarRepRequestKindCall
                     visit
                     callNode.output
                     env
@@ -748,21 +748,21 @@ emitNode visit = do
     runPostEmitNodeHook visit
     return arcs
 
-xxx :: MonadRepGraphForTag t m => VarRepRequestKind -> Maybe MemCalls -> (Ident -> NameHint) -> Visit -> [NameTy] -> ExprEnv -> m ExprEnv
-xxx kind memCalls mkName visit vars = execStateT $ do
+xxx
+    :: MonadRepGraphForTag t m
+    => (Ident -> NameHint)
+    -> Maybe MemCalls
+    -> VarRepRequestKind
+    -> Visit
+    -> [NameTy]
+    -> ExprEnv
+    -> m ExprEnv
+xxx mkName memCalls kind visit vars = execStateT $ do
     for_ vars $ \var -> do
-        v <- addVarRestrWithMemCalls
-            (mkName var.name)
-            var.ty
-            memCalls
+        v <- addVarRestrWithMemCalls (mkName var.name) var.ty memCalls
         modify $ M.insert var (NotSplit (nameS v))
     for_ vars $ \var -> do
-        env <- get
-        opt <- varRepRequest
-            var
-            kind
-            visit
-            env
+        opt <- get >>= varRepRequest var kind visit
         for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
 
 isSyntacticConstant :: MonadRepGraphForTag t m => NameTy -> NodeAddr -> m Bool
