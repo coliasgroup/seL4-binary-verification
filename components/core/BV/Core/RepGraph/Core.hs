@@ -654,15 +654,16 @@ getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
         prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevs visit
         ensureM $ length prevs <= 1
-        for prevs $ \prev -> getArcPcEnv prev visit
+        for prevs $ \prev -> runMaybeT $ do
+            prunedPrev <- MaybeT $ pruneVisit prev
+            MaybeT $ getArcPcEnv prunedPrev visit
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
             concat <$> traverse (getArcPcEnvs pred_ . Visit visit.nodeId) (specialize visit split)
 
-getArcPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> Visit -> m (Maybe PcEnv)
-getArcPcEnv unprunePrev visit = runMaybeT $ do
-    prev <- MaybeT $ pruneVisit unprunePrev
+getArcPcEnv :: MonadRepGraphForTag t m => Visit -> Visit -> m (Maybe PcEnv)
+getArcPcEnv prev visit = runMaybeT $ do
     key <- askWithTag prev
     opt <- liftRepGraph $ use $ #arcPcEnvs % at key
     case opt of
