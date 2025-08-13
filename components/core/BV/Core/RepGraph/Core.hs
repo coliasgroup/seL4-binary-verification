@@ -624,12 +624,12 @@ getNodePcEnvRaw visit = do
 getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
-    for prevPcEnvOpt $ \prevPcEnv -> do
-        memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls visitAddr
+    for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
+        memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         let add name ty = do
                 let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
                 addVarRestrWithMemCalls hint ty memCalls
-        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevPcEnv.env $ \var _v -> do
+        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevEnv $ \var _v -> do
             let checkConst = case var.ty of
                     ExprTypeHtd -> True
                     ExprTypeDom -> True
@@ -638,7 +638,7 @@ getLoopPcEnv visit = do
             if isSyntConst
                 then do
                     modify $ S.insert var
-                    return $ prevPcEnv.env ! var
+                    return $ prevEnv ! var
                 else do
                     NotSplit . nameS <$> lift (add (var.name.unwrap ++ "_after") var.ty)
         env' <- flip M.traverseWithKey env $ \var v -> do
