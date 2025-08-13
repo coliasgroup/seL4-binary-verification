@@ -600,18 +600,18 @@ getNodePcEnvRaw visit = do
             if any f visit.restrs
                 then getLoopPcEnv visit
                 else do
-                    pcEnvs <- toListOf (folded % folded % _Just) <$> do
+                    arcPcEnvs <- toListOf (folded % folded % _Just) <$> do
                         preds <- askPreds visit.nodeId
                         for (toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
-                    case pcEnvs of
+                    case arcPcEnvs of
                         [] -> return Nothing
                         _ -> do
-                            pcEnvs' <- case visit.nodeId of
-                                Err -> for pcEnvs $ \(PcEnv pc env) -> do
+                            optimizedArcPcEnvs <- case visit.nodeId of
+                                Err -> for arcPcEnvs $ \(PcEnv pc env) -> do
                                     pc' <- withEnv env $ convertInnerExpr pc
                                     return $ PcEnv pc' M.empty
-                                _ -> return pcEnvs
-                            (PcEnv pc env, _large) <- mergeEnvsPcs pcEnvs'
+                                _ -> return arcPcEnvs
+                            (PcEnv pc env, _large) <- mergeEnvsPcs optimizedArcPcEnvs
                             pc' <- case pc.value of
                                 ExprValueSMTExpr _ -> return pc
                                 _ -> do
