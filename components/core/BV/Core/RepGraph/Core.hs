@@ -637,15 +637,8 @@ getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
-        let isConstM var = do
-                let checkConst = case var.ty of
-                        ExprTypeHtd -> True
-                        ExprTypeDom -> True
-                        _ -> False
-                if checkConst then isSyntacticConstant var visitAddr else return False
-        consts <- setFilterA isConstM (M.keysSet prevEnv)
-        let isConst = (`S.member` consts)
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
+        consts <- filterM isConstM (M.keys prevEnv)
         let mkName ident = printf "%s_after_loop_at_%s" ident.unwrap (prettyNodeId visit.nodeId)
         -- let add name ty = do
         --         let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
@@ -655,7 +648,7 @@ getLoopPcEnv visit = do
             memCalls
             VarRepRequestKindLoop
             visit
-            (filter (not . isConst) (M.keys prevEnv))
+            consts
             prevEnv
         -- notSplitEnv <- flip M.traverseWithKey prevEnv $ \var v ->
         --     if isConst var
@@ -668,12 +661,18 @@ getLoopPcEnv visit = do
         -- pc <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
         pc <- smtExprE boolT . NotSplit . nameS <$>
             addVarRestrWithMemCalls
-            (printf "pc_of_loop_at_%s" (prettyNodeId visit.nodeId))
-            boolT
-            memCalls
+                (printf "pc_of_loop_at_%s" (prettyNodeId visit.nodeId))
+                boolT
+                memCalls
         return $ PcEnv pc env
   where
     visitAddr = nodeAddrOf visit.nodeId
+    isConstM var = do
+        let checkConst = case var.ty of
+                ExprTypeHtd -> True
+                ExprTypeDom -> True
+                _ -> False
+        if checkConst then isSyntacticConstant var visitAddr else return False
 
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs pred_ visit = do
