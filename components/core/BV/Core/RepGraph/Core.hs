@@ -601,7 +601,7 @@ getNodePcEnvRaw visit = do
         Nothing -> do
             let f restr = Addr restr.nodeAddr == visit.nodeId && restr.visitCount == offsetVC 0
             if any f visit.restrs
-                then getLoopPcEnv (nodeAddrFromNodeId visit.nodeId) visit.restrs
+                then getLoopPcEnv visit
                 else do
                     pcEnvs <- toListOf (folded % folded % _Just) <$> do
                         preds <- askPreds visit.nodeId
@@ -623,20 +623,20 @@ getNodePcEnvRaw visit = do
                                     return $ smtExprE boolT name
                             Just . PcEnv pc' <$> M.traverseWithKey (maybeContract visit) env
 
-getLoopPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => NodeAddr -> [Restr] -> m (Maybe PcEnv)
-getLoopPcEnv split restrs = do
-    prevPcEnvOpt <- tryGetNodePcEnv $ Visit (Addr split) $ withMapVC (M.insert split (numberVC 0)) restrs
+getLoopPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe PcEnv)
+getLoopPcEnv visit = do
+    prevPcEnvOpt <- tryGetNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \prevPcEnv -> do
-        memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls split
+        memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls visitAddr
         let add name ty = do
-                let name' = printf "%s_loop_at_%s" name (prettyNodeId (Addr split))
+                let name' = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
                 addVarRestrWithMemCalls name' ty memCalls
         (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevPcEnv.env $ \var _v -> do
             let checkConst = case var.ty of
                     ExprTypeHtd -> True
                     ExprTypeDom -> True
                     _ -> False
-            isSyntConst <- if checkConst then isSyntacticConstant var split else return False
+            isSyntConst <- if checkConst then isSyntacticConstant var visitAddr else return False
             if isSyntConst
                 then do
                     modify $ S.insert var
@@ -646,9 +646,11 @@ getLoopPcEnv split restrs = do
         env' <- flip M.traverseWithKey env $ \var v -> do
             if S.member var consts
                 then return v
-                else maybe v Split <$> varRepRequest var VarRepRequestKindLoop (Visit (Addr split) restrs) env
+                else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit env
         pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
         return $ PcEnv pc' env'
+  where
+    visitAddr = nodeAddrFromNodeId visit.nodeId
 
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs n visit2 = do
