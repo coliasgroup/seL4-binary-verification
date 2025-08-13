@@ -289,11 +289,16 @@ askPreds n = do
     tag <- askTag
     liftRepGraph $ gview $ #analysis % #preds % atTag tag % to ($ n)
 
-askPrevs :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
-askPrevs visit = do
+askUnprunedPrevs :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
+askUnprunedPrevs visit = do
     preds <- toList <$> askPreds visit.nodeId
     let f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
-    catMaybes <$> traverse pruneVisit (mapMaybe f preds)
+    return $ mapMaybe f preds
+
+askPrevs :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
+askPrevs visit = do
+    unprunedPrevs <- askUnprunedPrevs visit
+    catMaybes <$> traverse pruneVisit unprunedPrevs
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
@@ -651,9 +656,11 @@ getLoopPcEnv visit = do
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevs visit
+        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askUnprunedPrevs visit
         ensureM $ length prevs <= 1
-        for prevs $ \prev -> getArcPcEnv prev visit
+        for prevs $ \unprunedPrev -> runMaybeT $ do
+            prev <- MaybeT $ pruneVisit unprunedPrev
+            MaybeT $ getArcPcEnv prev visit
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
@@ -697,24 +704,18 @@ pruneRestrs visit = do
             return $ Just restrs
 
 warmPcEnvCache :: MonadRepGraphForTag t m => Visit -> m ()
-warmPcEnvCache visit = do
-    let go = do
-            curVisit <- get
-            let f prev = do
-                    key <- askWithTag prev
-                    present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member key)
-                    return $ not present && prev.restrs == curVisit.restrs
-            runExceptT (askPrevs curVisit >>= filterM f) >>= \case
-                Right (v:_) -> do
-                    tell [v]
-                    put v
-                _ -> do
-                    hoistMaybe Nothing
-    (_, prevChain) <- evalRWST (runMaybeT (replicateM iters go)) () visit
-    ensureM $ length prevChain < iters
-    traverse_ getNodePcEnv (reverse prevChain)
+warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
   where
-    iters = 5000
+    go 0 prevChain _ = return prevChain
+    go i prevChain curVisit = do
+        let f prev = do
+                key <- askWithTag prev
+                present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member key)
+                return $ not present && prev.restrs == curVisit.restrs
+        runExceptT (askPrevs curVisit >>= filterM f) >>= \case
+            Right (v:_) -> go (i - 1) (v:prevChain) v
+            _ -> return prevChain
+    iters = 5000 :: Integer
 
 emitNode :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [(NodeId, PcEnv)]
 emitNode visit = do
