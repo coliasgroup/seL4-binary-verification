@@ -666,7 +666,7 @@ getArcPcEnv prev visit = runMaybeT $ do
 pruneVisit :: MonadRepGraphForTag t m => Visit -> m (Maybe Visit)
 pruneVisit visit = runMaybeT $
     forOf #restrs visit $ \restrs ->
-        fmap concat $ for restrs $ \restr -> do
+        fmap (sort . concat) $ for restrs $ \restr -> do
             reachable <- askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
             guard $ reachable || hasZeroVC restr.visitCount
             return $ if reachable then [restr] else []
