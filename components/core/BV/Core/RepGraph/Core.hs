@@ -578,12 +578,15 @@ getNodePcEnvWithTag :: MonadRepGraph t m => WithTag t Visit -> m (Maybe PcEnv)
 getNodePcEnvWithTag (WithTag tag visit) = runForTag tag $ getNodePcEnv visit
 
 getNodePcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
-getNodePcEnv visit = view (expecting _Right) <$> runExceptT (tryGetNodePcEnv visit)
+getNodePcEnv = getNodePcEnvInner (const (return ()))
 
 tryGetNodePcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe PcEnv)
-tryGetNodePcEnv unprunedVisit = runMaybeT $ do
+tryGetNodePcEnv = getNodePcEnvInner checkGenerality
+
+getNodePcEnvInner :: MonadRepGraphForTag t m => (Visit -> m ()) -> Visit -> m (Maybe PcEnv)
+getNodePcEnvInner check unprunedVisit = runMaybeT $ do
     visit <- MaybeT $ pruneVisit unprunedVisit
-    checkGenerality visit
+    lift $ check visit
     MaybeT $ withMapSlotForTag #nodePcEnvs visit $ do
         warmPcEnvCache visit
         getNodePcEnvRaw visit
