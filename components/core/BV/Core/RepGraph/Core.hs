@@ -590,6 +590,7 @@ getNodePcEnv visit = view (expecting _Right) <$> runExceptT (tryGetNodePcEnv vis
 tryGetNodePcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe PcEnv)
 tryGetNodePcEnv unprunedVisit = runMaybeT $ do
     visit <- MaybeT $ pruneVisit unprunedVisit
+    checkGenerality visit
     MaybeT $ withMapSlotForTag #nodePcEnvs visit $ do
         warmPcEnvCache visit
         getNodePcEnvRaw visit
