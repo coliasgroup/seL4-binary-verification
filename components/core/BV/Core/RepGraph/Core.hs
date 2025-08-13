@@ -738,9 +738,9 @@ emitNode visit = do
                 let condNameHint = condName visit
                 condIdent <- getFreshIdent condNameHint
                 let cond = varE boolT condIdent
-                condDef <- withEnv env $ addLocalDef () () condNameHint condNode.expr
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
+                condDef <- withEnv env $ addLocalDef () () condNameHint condNode.expr
                 let env' = M.insert (NameTy condIdent boolT) condDef env
                 return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
