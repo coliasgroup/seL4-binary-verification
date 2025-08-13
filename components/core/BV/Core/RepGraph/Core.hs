@@ -57,7 +57,7 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, when)
+import Control.Monad (filterM, when, (>=>))
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
@@ -650,16 +650,9 @@ getLoopPcEnv visit = do
                 if isConst var
                 then return v
                 else NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
-        env <- flip M.traverseWithKey prevEnv $ \var v ->
-            if isConst var
-            then return v
-            else NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
-        env' <- flip M.traverseWithKey env $ \var v ->
-            if isConst var
-            then return v
-            else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit env
-        pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
-        return $ PcEnv pc' env'
+        env <- (M.traverseWithKey f >=> M.traverseWithKey g) prevEnv
+        pc <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
+        return $ PcEnv pc env
   where
     visitAddr = nodeAddrOf visit.nodeId
 
