@@ -735,13 +735,13 @@ emitNode visit = do
                     return (update.var, val)
                 return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
-                let nameHint = condName visit
-                freshName <- getFreshIdent nameHint
-                let cond = varE boolT freshName
-                def <- withEnv env $ addLocalDef () () nameHint condNode.expr
+                let condNameHint = condName visit
+                condIdent <- getFreshIdent condNameHint
+                let cond = varE boolT condIdent
+                condDef <- withEnv env $ addLocalDef () () condNameHint condNode.expr
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
-                let env' = M.insert (NameTy freshName boolT) def env
+                let env' = M.insert (NameTy condIdent boolT) condDef env
                 return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
                 joinForTag $ runPreEmitCallNodeHook visit pc env
