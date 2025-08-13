@@ -57,12 +57,11 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, replicateM, when)
+import Control.Monad (filterM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
-import Control.Monad.RWS (MonadState (get, put), MonadWriter (..), RWST,
-                          evalRWST)
+import Control.Monad.RWS (MonadState (get), MonadWriter (..), RWST)
 import Control.Monad.State (StateT (runStateT), execStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
