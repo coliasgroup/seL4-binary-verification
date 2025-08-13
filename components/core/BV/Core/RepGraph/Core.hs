@@ -625,7 +625,7 @@ getNodePcEnvRaw visit = do
 
 getLoopPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
-    prevPcEnvOpt <- tryGetNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
+    prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \prevPcEnv -> do
         memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls visitAddr
         let add name ty = do
@@ -671,7 +671,7 @@ getArcPcEnv unprunePrev visit = runMaybeT $ do
     case opt of
         Just r -> hoistMaybe $ r !? visit.nodeId
         Nothing -> do
-            MaybeT $ tryGetNodePcEnv prev
+            MaybeT $ getNodePcEnv prev
             arcs <- M.fromList <$> emitNode prev
             runPostEmitNodeHook prev
             liftRepGraph $ #arcPcEnvs %= M.insert key arcs
@@ -717,7 +717,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
 
 emitNode :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [(NodeId, PcEnv)]
 emitNode visit = do
-    pcEnv@(PcEnv pc env) <- fromJust <$> tryGetNodePcEnv visit
+    pcEnv@(PcEnv pc env) <- fromJust <$> getNodePcEnv visit
     let nodeAddr = nodeAddrOf visit.nodeId
     node <- askNode nodeAddr
     if pc == falseE
@@ -839,6 +839,6 @@ getFunc unprunedVisit = do
 
 convertInnerExprWithPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Expr -> Visit -> m Expr
 convertInnerExprWithPcEnv expr visit = do
-    pcEnvOpt <- tryGetNodePcEnv visit
+    pcEnvOpt <- getNodePcEnv visit
     let Just (PcEnv _ env) = pcEnvOpt
     withEnv env $ convertInnerExpr expr
