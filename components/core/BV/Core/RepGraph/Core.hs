@@ -600,35 +600,36 @@ getNodePcEnvRaw visit = do
             if any f visit.restrs
                 then getLoopPcEnv visit
                 else do
-                    pcEnvs <- toListOf (folded % folded % _Just) <$> do
+                    arcPcEnvs <- toListOf (folded % folded % _Just) <$> do
                         preds <- askPreds visit.nodeId
                         for (toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
-                    case pcEnvs of
+                    case arcPcEnvs of
                         [] -> return Nothing
-                        _ -> do
-                            pcEnvs' <- case visit.nodeId of
-                                Err -> for pcEnvs $ \(PcEnv pc env) -> do
+                        _ -> Just <$> do
+                            optimizedArcPcEnvs <- case visit.nodeId of
+                                Err -> for arcPcEnvs $ \(PcEnv pc env) -> do
                                     pc' <- withEnv env $ convertInnerExpr pc
                                     return $ PcEnv pc' M.empty
-                                _ -> return pcEnvs
-                            (PcEnv pc env, _large) <- mergeEnvsPcs pcEnvs'
-                            pc' <- case pc.value of
+                                _ -> return arcPcEnvs
+                            (PcEnv pc env, _large) <- mergeEnvsPcs optimizedArcPcEnvs
+                            shortPc <- case pc.value of
                                 ExprValueSMTExpr _ -> return pc
                                 _ -> do
                                     hint <- pathCondName visit
                                     name <- withEnv env $ addDef hint pc
                                     return $ smtExprE boolT name
-                            Just . PcEnv pc' <$> M.traverseWithKey (maybeContract visit) env
+                            shortEnv <- M.traverseWithKey (maybeContract visit) env
+                            return $ PcEnv shortPc shortEnv
 
 getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
-    for prevPcEnvOpt $ \prevPcEnv -> do
-        memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls visitAddr
+    for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
+        memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         let add name ty = do
                 let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
                 addVarRestrWithMemCalls hint ty memCalls
-        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevPcEnv.env $ \var _v -> do
+        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevEnv $ \var _v -> do
             let checkConst = case var.ty of
                     ExprTypeHtd -> True
                     ExprTypeDom -> True
@@ -637,7 +638,7 @@ getLoopPcEnv visit = do
             if isSyntConst
                 then do
                     modify $ S.insert var
-                    return $ prevPcEnv.env ! var
+                    return $ prevEnv ! var
                 else do
                     NotSplit . nameS <$> lift (add (var.name.unwrap ++ "_after") var.ty)
         env' <- flip M.traverseWithKey env $ \var v -> do
