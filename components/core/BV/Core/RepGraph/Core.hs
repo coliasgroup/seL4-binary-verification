@@ -1,5 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE MultiWayIf #-}
 
 -- TODO
 {-# LANGUAGE UndecidableInstances #-}
@@ -67,7 +68,6 @@ import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
 import Data.Foldable (for_, toList, traverse_)
-import Data.Function (applyWhen)
 import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
@@ -291,12 +291,8 @@ askPreds n = do
 
 askPrevs :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
 askPrevs visit = do
-    let m = toMapVC visit.restrs
     preds <- toList <$> askPreds visit.nodeId
-    let f p = Visit (Addr p) <$>
-            if M.member p m
-            then incrVCs visit.restrs p (-1)
-            else Just visit.restrs
+    let f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
     catMaybes <$> traverse pruneVisit (mapMaybe f preds)
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
@@ -304,20 +300,20 @@ askCont visit = do
     let nodeAddr = nodeAddrOf visit.nodeId
     conts <- toListOf nodeConts <$> askNode nodeAddr
     let [cont] = conts
-    let p = any (\restr -> restr.nodeAddr == nodeAddr) visit.restrs
     return $ Visit
         { nodeId = cont
-        , restrs = if p then fromJust (incrVCs visit.restrs nodeAddr 1) else visit.restrs
+        , restrs = fromJust $ incrVCs visit.restrs nodeAddr 1
         }
 
 incrVCs :: [Restr] -> NodeAddr -> Integer -> Maybe [Restr]
-incrVCs vcount n incr =
-    if isEmptyVC vc
-    then Nothing
-    else Just (fromMapVC (M.insert n vc m))
+incrVCs vcount n incr = if
+    | n `M.notMember` m -> Just vcount
+    | isEmptyVC vcNew -> Nothing
+    | otherwise -> Just (fromMapVC (M.insert n vcNew m))
   where
     m = toMapVC vcount
-    vc = incrVC incr (m ! n)
+    vcOld = m ! n
+    vcNew = incrVC incr vcOld
 
 getHasInnerLoop :: MonadRepGraphForTag t m => NodeAddr -> m Bool
 getHasInnerLoop loopHead = withMapSlotForTag #hasInnerLoop loopHead $ do
@@ -844,11 +840,9 @@ getCont visit = do
     let addr = nodeAddrOf visit.nodeId
     conts <- toListOf nodeConts <$> askNode addr
     let [cont] = conts
-    let p = any (\restr -> restr.nodeAddr == addr) visit.restrs
-    let f = applyWhen p $ \restrs -> fromJust (incrVCs restrs (visit.nodeId ^. expecting #_Addr) 1)
     return $ Visit
         { nodeId = cont
-        , restrs = f visit.restrs
+        , restrs = fromJust $ incrVCs visit.restrs addr 1
         }
 
 -- TODO GraphSlice.is_cont
