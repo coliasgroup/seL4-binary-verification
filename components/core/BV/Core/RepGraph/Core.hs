@@ -766,6 +766,23 @@ emitNode visit = do
     runPostEmitNodeHook visit
     return arcs
 
+xxx :: MonadRepGraphForTag t m => Maybe MemCalls -> (Ident -> NameHint) -> Visit -> [NameTy] -> ExprEnv -> m ExprEnv
+xxx memCalls mkName visit vars = execStateT $ do
+    for_ vars $ \var -> do
+        v <- addVarRestrWithMemCalls
+            (mkName var.name)
+            var.ty
+            memCalls
+        modify $ M.insert var (NotSplit (nameS v))
+    for_ vars $ \var -> do
+        env <- get
+        opt <- varRepRequest
+            var
+            VarRepRequestKindInit
+            visit
+            env
+        for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
+
 isSyntacticConstant :: MonadRepGraphForTag t m => NameTy -> NodeAddr -> m Bool
 isSyntacticConstant var split = do
     hasInnerLoop <- getHasInnerLoop split
