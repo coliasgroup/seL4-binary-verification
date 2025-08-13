@@ -130,7 +130,7 @@ makeNodeGraphEdges :: NodeMap -> NodeGraphEdges
 makeNodeGraphEdges nodeMap =
       ((), Ret, [])
     : ((), Err, [])
-    : (M.toAscList nodeMap <&> \(addr, node) -> ((), Addr addr, toListOf nodeConts node))
+    : (M.toList nodeMap <&> \(addr, node) -> ((), Addr addr, toListOf nodeConts node))
 
 makeNodeGraphFromEdges :: NodeGraphEdges -> NodeGraph
 makeNodeGraphFromEdges edges =
@@ -250,7 +250,7 @@ innerLoopsOf nodes loop =
     bodyWithoutHead = S.delete loop.head loop.body
     g = makeNodeGraphFromEdges
             [ ((), src, dsts)
-            | (src, dsts) <- M.toAscList (M.fromListWith (<>) edges)
+            | (src, dsts) <- M.toList (M.fromListWith (<>) edges)
             ]
     edges = do
         ((), Addr src, dsts) <- makeNodeGraphEdges nodes

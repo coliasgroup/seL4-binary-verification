@@ -83,7 +83,7 @@ displayReport report =
     if M.null failed
     then (False, "All checks passed\n")
     else
-        let failures = flip foldMap (M.toAscList failed) $ \(pairingId, err) ->
+        let failures = flip foldMap (M.toList failed) $ \(pairingId, err) ->
                 "Check failure for " <> prettyPairingId pairingId <> ": " <> prettyCheckFailure err <> "\n"
          in (True, failures <> "Some checks failed\n")
   where

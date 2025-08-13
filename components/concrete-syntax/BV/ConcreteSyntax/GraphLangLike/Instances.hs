@@ -257,7 +257,7 @@ instance BuildToFile Program where
 instance BuildInBlock (Named Struct) where
     buildInBlock (Named name (Struct { size, align, fields })) =
         lineInBlock ("Struct" <> put name <> putDec size <> putDec align)
-            <> foldMap buildField (M.toAscList fields)
+            <> foldMap buildField (M.toList fields)
       where
         buildField (fieldName, StructField { ty, offset }) = lineInBlock $
             "StructField" <> put fieldName <> put ty <> putDec offset
@@ -271,7 +271,7 @@ instance BuildInBlock (Named Function) where
             <> mconcat (maybeToList (buildBody <$> body))
       where
         buildBody (FunctionBody { entryPoint, nodes }) =
-            foldMap buildNode (M.toAscList nodes)
+            foldMap buildNode (M.toList nodes)
                 <> lineInBlock ("EntryPoint" <> put entryPoint)
         buildNode (addr, node) = lineInBlock $ put addr <> put node
 
@@ -417,13 +417,13 @@ instance StaticTag t => ParseInBlock (Problem t) where
 --
 
 instance BuildToFile Problems' where
-    buildToFile (Problems problems) = intersperse "\n" $ map (buildBlock . buildInBlock . snd) (M.toAscList problems)
+    buildToFile (Problems problems) = intersperse "\n" $ map (buildBlock . buildInBlock . snd) (M.toList problems)
 
 instance Tag t => BuildInBlock (Problem t) where
     buildInBlock (Problem { sides, nodes }) =
         lineInBlock "Problem"
             <> foldMap (withTag problemSideLine) (withTags sides)
-            <> foldMap nodeLine (M.toAscList nodes)
+            <> foldMap nodeLine (M.toList nodes)
             <> lineInBlock "EndProblem"
       where
         problemSideLine tag (ProblemSide { name, input, output, entryPoint }) = lineInBlock $
@@ -447,7 +447,7 @@ instance ParseFile StackBounds where
             (,) <$> parseInLine <*> parseInLine
 
 instance BuildToFile StackBounds where
-    buildToFile (StackBounds stackBounds) = buildBlock $ foldMap f (M.toAscList stackBounds)
+    buildToFile (StackBounds stackBounds) = buildBlock $ foldMap f (M.toList stackBounds)
       where
         f (ident, expr) = lineInBlock $ "StackBound" <> put ident <> put expr
 

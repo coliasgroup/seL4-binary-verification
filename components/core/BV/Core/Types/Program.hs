@@ -63,7 +63,7 @@ data Named a
 instance Binary a => Binary (Named a)
 
 toListOfNamed :: Map Ident a -> [Named a]
-toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toAscList
+toListOfNamed = map (\(name, value) -> Named { name, value }) . M.toList
 
 fromListOfNamed :: [Named a] -> Map Ident a
 fromListOfNamed = M.fromList . map (\Named { name, value } -> (name, value))

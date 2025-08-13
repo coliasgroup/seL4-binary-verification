@@ -215,7 +215,7 @@ padMergePoints = do
                     (\n -> viewAtTag (analysis.nodeTag n) analysis.preds (Addr n))
                     (M.keysSet problem.nodes))
     nonTrivialEdgesToMergePoints <-
-        fmap concat . for (M.toAscList allMergePointPreds) $ \(mergePointAddr, mergePointPreds) -> do
+        fmap concat . for (M.toList allMergePointPreds) $ \(mergePointAddr, mergePointPreds) -> do
             fmap concat . for (toList mergePointPreds) $ \predAddr -> do
                 predNode <- use $ nodeAt predAddr
                 return $ case predNode of

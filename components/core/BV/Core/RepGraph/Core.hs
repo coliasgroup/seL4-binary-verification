@@ -426,7 +426,7 @@ getMemCalls sexpr = do
 scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m (Maybe MemCalls)
 scanMemCallsEnv env = scanMemCalls
     [ (var.ty, v)
-    | (var, v) <- M.toAscList env
+    | (var, v) <- M.toList env
     ]
 
 scanMemCalls :: MonadRepGraph t m => [(ExprType, MaybeSplit)] -> m (Maybe MemCalls)

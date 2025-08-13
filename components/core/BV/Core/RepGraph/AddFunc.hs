@@ -143,7 +143,7 @@ getFuncAssert visits pairingId pairing = do
 memCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t (Maybe MemCalls) -> WithAddFunc t m (Bool, Maybe String)
 memCallsCompatible byTag = case viewByRefineTag byTag of
     (Just lcalls, Just rcalls) -> do
-        rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toAscList lcalls) $ \(fname, calls) -> do
+        rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toList lcalls) $ \(fname, calls) -> do
             pairingId <- WithAddFunc $ gview $ #pairingsAccess % atTag leftTag % at fname % unwrapped
             let rfname = getRight pairingId
             functionSigs <- WithAddFunc $ gview #functionSigs

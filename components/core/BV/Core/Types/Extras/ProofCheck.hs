@@ -120,7 +120,7 @@ toMapVC restrs = ensure check m
     check = M.size m == length restrs
 
 fromMapVC :: M.Map NodeAddr VisitCount -> [Restr]
-fromMapVC = map f . M.toAscList
+fromMapVC = map f . M.toList
   where
     f (nodeAddr, visitCount) = Restr { nodeAddr, visitCount }
 

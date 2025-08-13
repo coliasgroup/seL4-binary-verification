@@ -166,7 +166,7 @@ getSolversConfig opts solverList = SolversConfig
                 , scopes = g.scopes
                 , modelConfigs = map ModelConfig g.memoryModes
                 }
-            | (commandName, g) <- M.toAscList solverList.offline
+            | (commandName, g) <- M.toList solverList.offline
             ]
         , timeout = opts.offlineSolverTimeout
         }

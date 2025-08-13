@@ -436,7 +436,7 @@ addRODataDef = do
                     [ eqS ["load-word32", "m", p] v
                     | (p, v) <-
                         [ (machineWordS p, machineWordS v)
-                        | (p, v) <- M.toAscList rodata.rodata
+                        | (p, v) <- M.toList rodata.rodata
                         ] ++
                         [ (symbolS roWitness.unwrap, symbolS roWitnessVal.unwrap)
                         ]
@@ -519,13 +519,13 @@ mergeEnvs envs = do
                 pc' <- withEnv env $ convertExprNoSplit pc
                 return $
                     [ M.singleton var (M.singleton val ([pc'] :: [S]))
-                    | (var, val) <- M.toAscList env
+                    | (var, val) <- M.toList env
                     ]
     let flattenVal valsByPc =
             let Just (valsByPrightInit, (lastVal, _)) = unsnoc valsByPc
                 f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
              in foldl f lastVal valsByPrightInit
-    return $ fmap (flattenVal . sortOn (compatSMTComparisonKey . fst) . M.toAscList) varEnvs
+    return $ fmap (flattenVal . sortOn (compatSMTComparisonKey . fst) . M.toList) varEnvs
   where
     orCompat = \case
         [x] -> x
@@ -853,7 +853,7 @@ addPValids = go False
                     let pdata = smtify (pvTy, ptrName, pvKind) (nameS var)
                     let (_, pdataPvKind, pdataPtr, pdataPv) = pdata
                     withoutEnv . assertFact . impliesE pdataPv =<< alignValidIneq pvTy pdataPtr
-                    for_ (sortOn snd (M.toAscList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
+                    for_ (sortOn snd (M.toList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
                         let kinds :: [PValidKind] = [valPvKind, pdataPvKind]
                         unless (PValidKindPWeakValid `elem` kinds && PValidKindPGlobalValid `notElem` kinds) $ do
                             let applyAssertion f =
