@@ -1,5 +1,6 @@
 module BV.Utils
-    ( compose2
+    ( applyWhenM
+    , compose2
     , compose3
     , compose4
     , compose5
@@ -16,7 +17,6 @@ module BV.Utils
     , setFilterA
     , todo
     , unimplemented
-    , applyWhenM
     , unwrapped
     , whileM
     , (!@)
