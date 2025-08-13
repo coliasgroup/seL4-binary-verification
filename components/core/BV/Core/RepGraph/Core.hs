@@ -671,9 +671,7 @@ getArcPcEnv prev visit = runMaybeT $ do
     key <- askWithTag prev
     pcEnvs <- withMapSlot #arcPcEnvs key $ do
         MaybeT $ getNodePcEnv prev
-        arcs <- M.fromList <$> emitNode prev
-        runPostEmitNodeHook prev
-        return arcs
+        emitNode prev
     hoistMaybe $ pcEnvs !? visit.nodeId
 
 pruneVisit :: MonadRepGraphForTag t m => Visit -> m (Maybe Visit)
@@ -712,12 +710,13 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
             _ -> return prevChain
     iters = 5000 :: Integer
 
-emitNode :: MonadRepGraphForTag t m => Visit -> m [(NodeId, PcEnv)]
+emitNode :: MonadRepGraphForTag t m => Visit -> m (M.Map NodeId PcEnv)
 emitNode visit = do
     pcEnv@(PcEnv pc env) <- fromJust <$> getNodePcEnv visit
     let nodeAddr = nodeAddrOf visit.nodeId
     node <- askNode nodeAddr
-    if pc == falseE
+    arcs <- M.fromList <$>
+        if pc == falseE
         then return [ (cont, PcEnv falseE M.empty) | cont <- node ^.. nodeConts ]
         else case node of
             NodeCond condNode | condNode.left == condNode.right -> do
@@ -764,6 +763,8 @@ emitNode visit = do
                 liftRepGraph $ #funcs %= M.insertWith (error "unexpected") key (ins, outs, success)
                 joinForTag $ runPostEmitCallNodeHook visit
                 return [(callNode.next, PcEnv pc env')]
+    runPostEmitNodeHook visit
+    return arcs
 
 isSyntacticConstant :: MonadRepGraphForTag t m => NameTy -> NodeAddr -> m Bool
 isSyntacticConstant var split = do
