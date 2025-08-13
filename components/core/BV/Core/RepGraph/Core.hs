@@ -588,8 +588,8 @@ getNodePcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getNodePcEnv visit = view (expecting _Right) <$> runExceptT (tryGetNodePcEnv visit)
 
 tryGetNodePcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe PcEnv)
-tryGetNodePcEnv visit' = runMaybeT $ do
-    visit <- MaybeT $ pruneVisit visit'
+tryGetNodePcEnv unprunedVisit = runMaybeT $ do
+    visit <- MaybeT $ pruneVisit unprunedVisit
     MaybeT $ withMapSlotForTag #nodePcEnvs visit $ do
         warmPcEnvCache visit
         getNodePcEnvRaw visit
@@ -664,8 +664,8 @@ getArcPcEnvs n visit2 = do
             concat <$> traverse (getArcPcEnvs n . Visit visit2.nodeId) (specialize visit2 split)
 
 getArcPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> Visit -> m (Maybe PcEnv)
-getArcPcEnv visit' otherVisit = runMaybeT $ do
-    visit <- MaybeT $ pruneVisit visit'
+getArcPcEnv unprunedVisit otherVisit = runMaybeT $ do
+    visit <- MaybeT $ pruneVisit unprunedVisit
     key <- askWithTag visit
     opt <- liftRepGraph $ use $ #arcPcEnvs % at key
     case opt of
@@ -830,8 +830,8 @@ getFuncRaw visit = do
     liftRepGraph $ use $ #funcs % at key % unwrapped
 
 getFunc :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
-getFunc visit' = do
-    visit <- fromJust <$> pruneVisit visit'
+getFunc unprunedVisit = do
+    visit <- fromJust <$> pruneVisit unprunedVisit
     node <- askNode (nodeAddrOf visit.nodeId)
     ensureM $ is #_NodeCall node
     key <- askWithTag visit
