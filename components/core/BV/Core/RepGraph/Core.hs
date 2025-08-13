@@ -301,7 +301,7 @@ askPrevs visit = do
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
-    let nodeAddr = nodeAddrFromNodeId visit.nodeId
+    let nodeAddr = nodeAddrOf visit.nodeId
     conts <- toListOf nodeConts <$> askNode nodeAddr
     let [cont] = conts
     let p = any (\restr -> restr.nodeAddr == nodeAddr) visit.restrs
@@ -509,7 +509,7 @@ data VarRepRequestKind
 
 varRepRequest :: MonadRepGraphForTag t m => NameTy -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
 varRepRequest var kind visit env = runMaybeT $ do
-    let n = nodeAddrFromNodeId visit.nodeId
+    let n = nodeAddrOf visit.nodeId
     addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind n
     addrSexpr <- withEnv env $ convertExpr addrExpr
     let name' = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
@@ -650,7 +650,7 @@ getLoopPcEnv visit = do
         pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
         return $ PcEnv pc' env'
   where
-    visitAddr = nodeAddrFromNodeId visit.nodeId
+    visitAddr = nodeAddrOf visit.nodeId
 
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs n visit2 = do
@@ -727,7 +727,7 @@ warmPcEnvCache visit = do
 emitNode :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [(NodeId, PcEnv)]
 emitNode visit = do
     pcEnv@(PcEnv pc env) <- fromJust <$> tryGetNodePcEnv visit
-    let nodeAddr = nodeAddrFromNodeId visit.nodeId
+    let nodeAddr = nodeAddrOf visit.nodeId
     node <- askNode nodeAddr
     if pc == falseE
         then return [ (cont, PcEnv falseE M.empty) | cont <- node ^.. nodeConts ]
@@ -832,7 +832,7 @@ getFuncRaw visit = do
 getFunc :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
 getFunc visit' = do
     visit <- fromJust <$> pruneVisit visit'
-    node <- askNode (nodeAddrFromNodeId visit.nodeId)
+    node <- askNode (nodeAddrOf visit.nodeId)
     ensureM $ is #_NodeCall node
     key <- askWithTag visit
     opt <- liftRepGraph $ use $ #funcs % at key
@@ -844,7 +844,7 @@ getFunc visit' = do
 
 getCont :: MonadRepGraph t m => Visit -> m Visit
 getCont visit = do
-    let addr = nodeAddrFromNodeId visit.nodeId
+    let addr = nodeAddrOf visit.nodeId
     conts <- toListOf nodeConts <$> askNode addr
     let [cont] = conts
     let p = any (\restr -> restr.nodeAddr == addr) visit.restrs

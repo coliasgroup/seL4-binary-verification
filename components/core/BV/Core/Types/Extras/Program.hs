@@ -7,7 +7,7 @@ module BV.Core.Types.Extras.Program
     , HasVarNames (..)
     , TraverseTopLevelExprs (..)
     , VarUpdate (..)
-    , nodeAddrFromNodeId
+    , nodeAddrOf
     , nodeConts
     , programFromFunctions
     , renameVars
@@ -37,8 +37,8 @@ programFromFunctions functions = mempty & #functions .~ functions
 trivialNode :: NodeId -> Node
 trivialNode next = NodeBasic (BasicNode { next, varUpdates = [] })
 
-nodeAddrFromNodeId :: NodeId -> NodeAddr
-nodeAddrFromNodeId = view $ expecting #_Addr
+nodeAddrOf :: NodeId -> NodeAddr
+nodeAddrOf = view $ expecting #_Addr
 
 --
 

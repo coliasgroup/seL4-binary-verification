@@ -212,7 +212,7 @@ loopsFrom g entryPoints =
     | (h, body) <- loopsFromGeneric g.graph (map g.nodeIdToVertex entryPoints)
     ]
   where
-    toNodeAddr = nodeAddrFromNodeId . g.vertexToNodeId
+    toNodeAddr = nodeAddrOf . g.vertexToNodeId
 
 makeLoopData :: Tag t => Problem t -> NodeGraph -> LoopData
 makeLoopData problem nodeGraph = LoopData

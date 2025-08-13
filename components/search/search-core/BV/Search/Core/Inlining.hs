@@ -162,7 +162,7 @@ instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m)
     runPreEmitCallNodeHook visit pc env = do
         tag <- askTag
         p <- askProblem
-        let nodeAddr = nodeAddrFromNodeId visit.nodeId
+        let nodeAddr = nodeAddrOf visit.nodeId
         let fname = p ^. #nodes % at nodeAddr % unwrapped % expecting #_NodeCall % #functionName
         matchedC <- lift $ InlineM $ gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do

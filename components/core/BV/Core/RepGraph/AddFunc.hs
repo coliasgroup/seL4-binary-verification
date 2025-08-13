@@ -176,7 +176,7 @@ orient x y = do
 askFunName :: MonadRepGraph t m => Visit -> m Ident
 askFunName v = do
     p <- askProblem
-    return $ p ^. #nodes % at (nodeAddrFromNodeId v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
+    return $ p ^. #nodes % at (nodeAddrOf v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
 
 liftWithAddFunc :: MonadRepGraph t m => WithAddFuncInner t m a -> ForTag t (WithAddFunc t m) a
 liftWithAddFunc = lift . WithAddFunc
