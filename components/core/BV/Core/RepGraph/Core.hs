@@ -57,7 +57,7 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, when)
+import Control.Monad (filterM, when, guard)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
@@ -664,16 +664,12 @@ getArcPcEnv prev visit = runMaybeT $ do
     hoistMaybe $ pcEnvs !? visit.nodeId
 
 pruneVisit :: MonadRepGraphForTag t m => Visit -> m (Maybe Visit)
-pruneVisit visit = do
-    restrsWithReachability <- for visit.restrs $ \restr ->
-        (restr,) <$> askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
-    return $
-        if flip any restrsWithReachability $ \(restr, reachable) ->
-                not reachable && not (hasZeroVC restr.visitCount)
-        then Nothing
-        else Just $
-                visit & #restrs .~
-                    sort [ restr | (restr, reachable) <- restrsWithReachability, reachable ]
+pruneVisit visit = runMaybeT $
+    forOf #restrs visit $ \restrs ->
+        fmap concat $ for restrs $ \restr -> do
+            reachable <- askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
+            guard $ reachable || hasZeroVC restr.visitCount
+            return $ if reachable then [restr] else []
 
 checkGenerality :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m ()
 checkGenerality visit = void $ runMaybeT $ do
