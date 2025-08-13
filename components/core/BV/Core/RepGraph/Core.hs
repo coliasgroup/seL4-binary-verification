@@ -612,13 +612,14 @@ getNodePcEnvRaw visit = do
                                     return $ PcEnv pc' M.empty
                                 _ -> return arcPcEnvs
                             (PcEnv pc env, _large) <- mergeEnvsPcs optimizedArcPcEnvs
-                            pc' <- case pc.value of
+                            shortPc <- case pc.value of
                                 ExprValueSMTExpr _ -> return pc
                                 _ -> do
                                     hint <- pathCondName visit
                                     name <- withEnv env $ addDef hint pc
                                     return $ smtExprE boolT name
-                            Just . PcEnv pc' <$> M.traverseWithKey (maybeContract visit) env
+                            shortEnv <- M.traverseWithKey (maybeContract visit) env
+                            return $ Just $ PcEnv shortPc shortEnv
 
 getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
