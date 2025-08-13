@@ -600,9 +600,9 @@ getNodePcEnvRaw visit = do
         Just env -> return $ Just $ PcEnv trueE env
         Nothing -> do
             let f restr = Addr restr.nodeAddr == visit.nodeId && restr.visitCount == offsetVC 0
-            case filter f visit.restrs of
-                restr:_ -> getLoopPcEnv restr.nodeAddr visit.restrs
-                [] -> do
+            if any f visit.restrs
+                then getLoopPcEnv (nodeAddrFromNodeId visit.nodeId) visit.restrs
+                else do
                     pcEnvs <- toListOf (folded % folded % _Just) <$> do
                         preds <- askPreds visit.nodeId
                         for (toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
@@ -626,7 +626,7 @@ getNodePcEnvRaw visit = do
 getLoopPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => NodeAddr -> [Restr] -> m (Maybe PcEnv)
 getLoopPcEnv split restrs = do
     prevPcEnvOpt <- tryGetNodePcEnv $ Visit (Addr split) $ withMapVC (M.insert split (numberVC 0)) restrs
-    whenJustThen prevPcEnvOpt $ \prevPcEnv -> do
+    for prevPcEnvOpt $ \prevPcEnv -> do
         memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls split
         let add name ty = do
                 let name' = printf "%s_loop_at_%s" name (prettyNodeId (Addr split))
@@ -648,7 +648,7 @@ getLoopPcEnv split restrs = do
                 then return v
                 else maybe v Split <$> varRepRequest var VarRepRequestKindLoop (Visit (Addr split) restrs) env
         pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
-        return $ Just $ PcEnv pc' env'
+        return $ PcEnv pc' env'
 
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs n visit2 = do

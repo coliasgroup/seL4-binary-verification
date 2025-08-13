@@ -246,32 +246,31 @@ pvalidAssertion2 (pvTy1, _pvKind1, p1, pv1) (pvTy2, _pvKind2, p2, pv2) = do
 --
 
 applyRelWrapper :: Expr -> Expr -> Expr
-applyRelWrapper lhs rhs =
-    case () of
-        _ | ops == S.fromList [OpStackWrapper] ->
-            let sp1:st1:rest1 = argsL
-                sp2:st2:rest2 = argsR
-                excepts = nub $ rest1 ++ rest2
-                f st0 = foldl (\st p -> memUpdE p st (word32E 0)) st0 excepts
-             in boolE $ ExprValueOp OpStackEquals [sp1, f st1, sp2, f st2]
-        _ | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
-            let [[addr, val]] =
-                    [ args
-                    | Expr { value = ExprValueOp OpMemAccWrapper args } <- [lhs, rhs]
-                    ]
-                [[m]] =
-                    [ args
-                    | Expr { value = ExprValueOp OpMemWrapper args } <- [lhs, rhs]
-                    ]
-             in ensure (addr.ty == word32T && m.ty == memT) $
-                    eqE (memAccE val.ty addr m) val
-        _ | ops == S.fromList [OpEqSelectiveWrapper] ->
-            let [lhsV, _, _] = argsL
-                [rhsV, _, _] = argsR
-             in if lhsV.ty == ExprTypeRelWrapper
-                then applyRelWrapper lhsV rhsV
-                else eqE lhs rhs
-        _ -> error ""
+applyRelWrapper lhs rhs = if
+    | ops == S.fromList [OpStackWrapper] ->
+        let sp1:st1:rest1 = argsL
+            sp2:st2:rest2 = argsR
+            excepts = nub $ rest1 ++ rest2
+            f st0 = foldl (\st p -> memUpdE p st (word32E 0)) st0 excepts
+         in boolE $ ExprValueOp OpStackEquals [sp1, f st1, sp2, f st2]
+    | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
+        let [[addr, val]] =
+                [ args
+                | Expr { value = ExprValueOp OpMemAccWrapper args } <- [lhs, rhs]
+                ]
+            [[m]] =
+                [ args
+                | Expr { value = ExprValueOp OpMemWrapper args } <- [lhs, rhs]
+                ]
+         in ensure (addr.ty == word32T && m.ty == memT) $
+                eqE (memAccE val.ty addr m) val
+    | ops == S.fromList [OpEqSelectiveWrapper] ->
+        let [lhsV, _, _] = argsL
+            [rhsV, _, _] = argsR
+         in if lhsV.ty == ExprTypeRelWrapper
+            then applyRelWrapper lhsV rhsV
+            else eqE lhs rhs
+    | otherwise -> error ""
   where
     ops = S.fromList [opL, opR]
     destructOp (Expr { ty = ExprTypeRelWrapper, value = ExprValueOp op args}) = (op, args)
