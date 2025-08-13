@@ -642,6 +642,14 @@ getLoopPcEnv visit = do
         let add name ty = do
                 let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
                 addVarRestrWithMemCalls hint ty memCalls
+        let f var v =
+                if isConst var
+                then return v
+                else NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
+        let g var v =
+                if isConst var
+                then return v
+                else NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
         env <- flip M.traverseWithKey prevEnv $ \var v ->
             if isConst var
             then return v
