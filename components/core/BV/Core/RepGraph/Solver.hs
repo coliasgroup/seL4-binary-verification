@@ -790,7 +790,7 @@ addImpliesStackEq sp s1 s2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (s
     assertSMTFact $ eqS (bvandS (nameS addr) (hexS "00000003")) (hexS "00000000")
     sp' <- convertExprNoSplit sp
     assertSMTFact $ bvuleS sp' (nameS addr)
-    let mk = memAccE word32T $ smtExprE word32T (NotSplit (nameS addr))
+    let mk = memAccE word32T (smtExprE word32T (NotSplit (nameS addr)))
     addDefNotSplit "stack-eq" $ eqE (mk s1) (mk s2)
 
 getStackEqImplies :: MonadRepGraphSolver m => S -> S -> MaybeSplit -> ReaderT ExprEnv m S
