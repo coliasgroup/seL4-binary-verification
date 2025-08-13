@@ -544,10 +544,7 @@ getPcWithTag :: MonadRepGraph t m => WithTag t Visit -> m Expr
 getPcWithTag (WithTag tag visit) = runForTag tag $ getPc visit
 
 getPc :: MonadRepGraphForTag t m => Visit -> m Expr
-getPc visit = view (expecting _Right) <$> runExceptT (tryGetPc visit)
-
-tryGetPc :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m Expr
-tryGetPc visit = tryGetNodePcEnv visit >>= \case
+getPc visit = getNodePcEnv visit >>= \case
     Nothing -> return falseE
     Just (PcEnv pc env) -> withEnv env $ convertInnerExpr pc
 
