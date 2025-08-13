@@ -284,6 +284,14 @@ askLoopBody n = loopBodyOf n <$> askLoopData
 askLoopContaining :: MonadRepGraphForTag t m => NodeAddr -> m Loop
 askLoopContaining n = fromJust . flip loopContainingOf n <$> askLoopData
 
+getHasInnerLoop :: MonadRepGraphForTag t m => NodeAddr -> m Bool
+getHasInnerLoop loopHead = withMapSlotForTag #hasInnerLoop loopHead $ do
+    p <- liftRepGraph $ gview #problem
+    loop <- askLoopContaining loopHead
+    return $ not $ null $ innerLoopsOf p.nodes loop
+
+--
+
 askPreds :: MonadRepGraphForTag t m => NodeId -> m (Set NodeAddr)
 askPreds n = do
     tag <- askTag
@@ -324,11 +332,7 @@ specialize visit split = ensure (isOptionsVC vc)
     m = toMapVC visit.restrs
     vc = m ! split
 
-getHasInnerLoop :: MonadRepGraphForTag t m => NodeAddr -> m Bool
-getHasInnerLoop loopHead = withMapSlotForTag #hasInnerLoop loopHead $ do
-    p <- liftRepGraph $ gview #problem
-    loop <- askLoopContaining loopHead
-    return $ not $ null $ innerLoopsOf p.nodes loop
+--
 
 getFreshIdent :: MonadRepGraph t m => NameHint -> m Ident
 getFreshIdent nameHint = do
