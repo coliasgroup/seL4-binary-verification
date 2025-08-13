@@ -494,9 +494,9 @@ contractPcEnv visit (PcEnv pc env) = do
     env' <- M.traverseWithKey (maybeContract visit) env
     return $ PcEnv pc' env'
 
-specialize :: Visit -> NodeAddr -> [[Restr]]
+specialize :: Visit -> NodeAddr -> [Visit]
 specialize visit split = ensure (isOptionsVC vc)
-    [ fromMapVC $ M.insert split (fromSimpleVC n) m
+    [ visit & #restrs .~ (fromMapVC (M.insert split (fromSimpleVC n) m))
     | n <- enumerateSimpleVC vc
     ]
   where
@@ -653,7 +653,7 @@ getArcPcEnvs pred_ visit = do
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
-            concat <$> traverse (getArcPcEnvs pred_ . Visit visit.nodeId) (specialize visit split)
+            concat <$> traverse (getArcPcEnvs pred_) (specialize visit split)
 
 getArcPcEnv :: MonadRepGraphForTag t m => Visit -> Visit -> m (Maybe PcEnv)
 getArcPcEnv prev visit = runMaybeT $ do
