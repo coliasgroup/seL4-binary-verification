@@ -746,7 +746,7 @@ emitNode visit = do
                 --     callNode.output
                 --     env
                 -- let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
-                (outs, env') <- flip runStateT env $ do
+                env' <- flip execStateT env $ do
                     for_ callNode.output $ \out -> do
                         var <- addVarRestrWithMemCalls (localName out.name visit) out.ty memCalls
                         modify $ M.insert out (NotSplit (nameS var))
