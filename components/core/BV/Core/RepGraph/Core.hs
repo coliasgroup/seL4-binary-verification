@@ -57,7 +57,7 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, replicateM, when)
+import Control.Monad (filterM, replicateM, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
@@ -72,7 +72,7 @@ import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isNothing, mapMaybe)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
