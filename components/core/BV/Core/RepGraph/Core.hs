@@ -57,7 +57,7 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, when, guard)
+import Control.Monad (filterM, guard, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
@@ -477,14 +477,12 @@ mergeMemCalls xcalls ycalls =
 addLocalDef :: MonadRepGraph t m => () -> () -> NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
 addLocalDef _ _ = addDef
 
-addVarRestrWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> Maybe MemCalls -> m Name
+addVarRestrWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> Maybe MemCalls -> m MaybeSplit
 addVarRestrWithMemCalls nameHint ty memCallsOpt = do
-    r <- addVarRestr nameHint ty
+    v <- nameS <$> addVarRestr nameHint ty
     when (isMemT ty) $ do
-        liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
-    return r
-
---
+        liftRepGraph $ #memCalls %= M.insert v (fromJust memCallsOpt)
+    return $ NotSplit v
 
 data VarRepRequestKind
   = VarRepRequestKindCall
@@ -494,11 +492,11 @@ data VarRepRequestKind
 
 varRepRequest :: MonadRepGraphForTag t m => NameTy -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
 varRepRequest var kind visit env = runMaybeT $ do
-    let n = nodeAddrOf visit.nodeId
-    addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind n
+    let addr = nodeAddrOf visit.nodeId
+    addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind addr
     addrSexpr <- withEnv env $ convertExpr addrExpr
-    let name' = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
-    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) name' var.ty
+    let nameHint = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
+    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) nameHint var.ty
 
 xxx
     :: MonadRepGraphForTag t m
@@ -512,7 +510,7 @@ xxx
 xxx mkName memCalls kind visit vars = execStateT $ do
     for_ vars $ \var -> do
         v <- addVarRestrWithMemCalls (mkName var.name) var.ty memCalls
-        modify $ M.insert var (NotSplit (nameS v))
+        modify $ M.insert var v
     for_ vars $ \var -> do
         opt <- get >>= varRepRequest var kind visit
         for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
@@ -639,30 +637,29 @@ getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
-        let isConstM var = do
-                let checkConst = case var.ty of
-                        ExprTypeHtd -> True
-                        ExprTypeDom -> True
-                        _ -> False
-                if checkConst then isSyntacticConstant var visitAddr else return False
-        consts <- setFilterA isConstM (M.keysSet prevEnv)
-        let isConst = (`S.member` consts)
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
-        let add name ty = do
-                let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
-                addVarRestrWithMemCalls hint ty memCalls
-        notSplitEnv <- flip M.traverseWithKey prevEnv $ \var v ->
-            if isConst var
-            then return v
-            else NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
-        env <- flip M.traverseWithKey notSplitEnv $ \var v ->
-            if isConst var
-            then return v
-            else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit notSplitEnv
-        pc <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
+        nonConsts <- filterM (fmap not . isConstM) (M.keys prevEnv)
+        env <- xxx
+            (\ident -> printf "%s_after_loop_at_%s" ident.unwrap (prettyNodeId visit.nodeId))
+            memCalls
+            VarRepRequestKindLoop
+            visit
+            nonConsts
+            prevEnv
+        pc <- smtExprE boolT <$>
+            addVarRestrWithMemCalls
+                (printf "pc_of_loop_at_%s" (prettyNodeId visit.nodeId))
+                boolT
+                memCalls
         return $ PcEnv pc env
   where
     visitAddr = nodeAddrOf visit.nodeId
+    isConstM var = do
+        let checkConst = case var.ty of
+                ExprTypeHtd -> True
+                ExprTypeDom -> True
+                _ -> False
+        if checkConst then isSyntacticConstant var visitAddr else return False
 
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs pred_ visit = do

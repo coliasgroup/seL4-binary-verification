@@ -55,9 +55,9 @@ import Control.Monad (unless, when, (>=>))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), asks)
 import Control.Monad.RWS (RWST, lift, modify, tell)
-import Control.Monad.State (StateT, execStateT, get)
+import Control.Monad.State (StateT, get)
 import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Writer (WriterT)
+import Control.Monad.Writer (WriterT, execWriterT)
 import Data.Foldable (for_)
 import Data.Functor (void)
 import Data.List (nub, sortOn)
@@ -514,19 +514,16 @@ foldAssocBalanced f = go
 mergeEnvs :: MonadRepGraphSolver m => [PcEnv] -> m ExprEnv
 mergeEnvs envs = do
     varEnvs <-
-        fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty . concat)
-            $ for envs $ \(PcEnv pc env) -> do
+        fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty) $
+            for envs $ \(PcEnv pc env) -> do
                 pc' <- withEnv env $ convertExprNoSplit pc
-                return $
-                    [ M.singleton var (M.singleton val ([pc'] :: [S]))
-                    | (var, val) <- M.toList env
-                    ]
-    let flattenVal valsByPc =
-            let Just (valsByPrightInit, (lastVal, _)) = unsnoc valsByPc
-                f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
-             in foldl f lastVal valsByPrightInit
-    return $ fmap (flattenVal . sortOn (compatSMTComparisonKey . fst) . M.toList) varEnvs
+                return $ fmap (\val -> M.singleton val [pc']) env
+    return $ flattenCompat . sortOn (compatSMTComparisonKey . fst) . M.toList <$> varEnvs
   where
+    flattenCompat valsByPc =
+        let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
+            f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
+         in foldl f lastVal valsByPcInit
     orCompat = \case
         [x] -> x
         xs -> orNS xs
@@ -789,9 +786,9 @@ addImpliesStackEq sp s1 s2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (s
     addr <- addVar "stack-eq-witness" word32T
     assertSMTFact $ eqS (bvandS (nameS addr) (hexS "00000003")) (hexS "00000000")
     sp' <- convertExprNoSplit sp
-    assertSMTFact (bvuleS sp' (nameS addr))
-    let ptr = smtExprE word32T (NotSplit (nameS addr))
-    addDefNotSplit "stack-eq" $ eqE (memAccE word32T ptr s1) (memAccE word32T ptr s2)
+    assertSMTFact $ bvuleS sp' (nameS addr)
+    let f = memAccE word32T (smtExprE word32T (NotSplit (nameS addr)))
+    addDefNotSplit "stack-eq" $ eqE (f s1) (f s2)
 
 getStackEqImplies :: MonadRepGraphSolver m => S -> S -> MaybeSplit -> ReaderT ExprEnv m S
 getStackEqImplies split stTop other = do
@@ -808,7 +805,7 @@ getStackEqImplies split stTop other = do
     return $ impliesS cond (eqS stTop rhs)
 
 getImmBasisMems :: MonadRepGraphSolver m => S -> m (Set S)
-getImmBasisMems = flip execStateT S.empty . go
+getImmBasisMems = execWriterT . go
   where
     go = \case
         List (op:args) -> if
@@ -821,10 +818,10 @@ getImmBasisMems = flip execStateT S.empty . go
                 go m
         m -> do
             let Just sym = parseSymbolS m
-            isCached <- liftSolver $ use $ #cachedExprNames % to (S.member (Name sym))
+            isCached <- lift $ liftSolver $ use $ #cachedExprNames % to (S.member (Name sym))
             if isCached
-                then getDef (Name sym) >>= go
-                else modify $ S.insert m
+                then lift (getDef (Name sym)) >>= go
+                else tell $ S.singleton m
 
 addPValids :: MonadRepGraphSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValids = go False
