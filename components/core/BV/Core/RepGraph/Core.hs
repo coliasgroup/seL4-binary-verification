@@ -642,16 +642,14 @@ getLoopPcEnv visit = do
         let add name ty = do
                 let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
                 addVarRestrWithMemCalls hint ty memCalls
-        env <- flip M.traverseWithKey prevEnv $ \var _v -> do
+        env <- flip M.traverseWithKey prevEnv $ \var v ->
             if isConst var
-                then do
-                    return $ prevEnv ! var
-                else do
-                    NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
-        env' <- flip M.traverseWithKey env $ \var v -> do
+            then return v
+            else NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
+        env' <- flip M.traverseWithKey env $ \var v ->
             if isConst var
-                then return v
-                else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit env
+            then return v
+            else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit env
         pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
         return $ PcEnv pc' env'
   where
