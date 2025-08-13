@@ -523,7 +523,7 @@ mergeEnvs envs = do
     flattenCompat valsByPc =
         let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
             f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
-            in foldl f lastVal valsByPcInit
+         in foldl f lastVal valsByPcInit
     orCompat = \case
         [x] -> x
         xs -> orNS xs
