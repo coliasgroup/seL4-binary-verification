@@ -638,7 +638,7 @@ getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
-        consts <- filterM isConstM (M.keys prevEnv)
+        nonConsts <- filterM (fmap not . isConstM) (M.keys prevEnv)
         let mkName ident = printf "%s_after_loop_at_%s" ident.unwrap (prettyNodeId visit.nodeId)
         -- let add name ty = do
         --         let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
@@ -648,7 +648,7 @@ getLoopPcEnv visit = do
             memCalls
             VarRepRequestKindLoop
             visit
-            consts
+            nonConsts
             prevEnv
         -- notSplitEnv <- flip M.traverseWithKey prevEnv $ \var v ->
         --     if isConst var
