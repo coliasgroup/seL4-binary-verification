@@ -30,15 +30,15 @@ import BV.System.Core.Solvers.Backend
 import BV.System.Core.Solvers.Parallel
 import BV.System.Core.Types
 import BV.System.Core.Utils.Logging (withPushLogContextCheck)
+import BV.Utils (mapFilterA)
 
-import Control.Monad (filterM, (>=>))
+import Control.Monad ((>=>))
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Trans (lift)
 import Data.Foldable (for_, toList)
 import Data.List (genericLength)
-import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 
@@ -73,7 +73,7 @@ filterSubgroupUsingCache
     :: (MonadCache m, MonadLoggerWithContext m)
     => CheckSubgroup
     -> ExceptT CheckFailure m CheckSubgroup
-filterSubgroupUsingCache = traverseOf #checks . filterM' $ \check -> withPushLogContextCheck check $ do
+filterSubgroupUsingCache = traverseOf #checks . mapFilterA $ \check -> withPushLogContextCheck check $ do
     cached <- queryCache check.fingerprint
     case cached of
         Nothing -> do
@@ -87,8 +87,6 @@ filterSubgroupUsingCache = traverseOf #checks . filterM' $ \check -> withPushLog
                 { cause = SomeSolverAnsweredSat Cache
                 , source = CheckFailureSourceCheck check
                 }
-  where
-    filterM' f m = M.fromList <$> filterM (f . snd) (M.toList m)
 
 filterSubgroupsUsingOnlineSolver
     :: (MonadLoggerWithContext m, MonadCache m)

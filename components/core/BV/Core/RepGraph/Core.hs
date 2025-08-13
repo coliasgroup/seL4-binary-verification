@@ -655,7 +655,6 @@ getLoopPcEnv visit = do
         return $ PcEnv pc' env'
   where
     visitAddr = nodeAddrOf visit.nodeId
-    filterM' f s = S.fromList <$> filterM f (S.toList s)
 
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs pred_ visit = do
