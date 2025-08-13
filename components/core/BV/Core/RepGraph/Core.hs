@@ -629,8 +629,8 @@ getLoopPcEnv visit = do
     for prevPcEnvOpt $ \prevPcEnv -> do
         memCalls <- scanMemCallsEnv prevPcEnv.env >>= addLoopMemCalls visitAddr
         let add name ty = do
-                let name' = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
-                addVarRestrWithMemCalls name' ty memCalls
+                let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
+                addVarRestrWithMemCalls hint ty memCalls
         (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevPcEnv.env $ \var _v -> do
             let checkConst = case var.ty of
                     ExprTypeHtd -> True
@@ -653,15 +653,15 @@ getLoopPcEnv visit = do
     visitAddr = nodeAddrOf visit.nodeId
 
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
-getArcPcEnvs n visit2 = do
+getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- askPrevs visit2 <&> filter (\visit -> visit.nodeId == Addr n)
+        prevs <- askPrevs visit <&> filter (\prev -> prev.nodeId == Addr pred_)
         ensureM $ length prevs <= 1
-        for prevs $ \visit -> getArcPcEnv visit visit2
+        for prevs $ \prev -> getArcPcEnv prev visit
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
-            concat <$> traverse (getArcPcEnvs n . Visit visit2.nodeId) (specialize visit2 split)
+            concat <$> traverse (getArcPcEnvs pred_ . Visit visit.nodeId) (specialize visit split)
 
 getArcPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> Visit -> m (Maybe PcEnv)
 getArcPcEnv unprunedVisit otherVisit = runMaybeT $ do
