@@ -760,7 +760,7 @@ emitNode visit = do
                             return $ Split v
                     return $ zip (map (.ty) callNode.output) $ zipWith fromMaybe notSplit split
                 key <- askWithTag visit
-                liftRepGraph $ #funcs %= M.insertWith (error "unexpected") key (ins, outs, success)
+                liftRepGraph $ #funcs %= M.insertWith undefined key (ins, outs, success)
                 joinForTag $ runPostEmitCallNodeHook visit
                 return [(callNode.next, PcEnv pc env')]
     runPostEmitNodeHook visit
