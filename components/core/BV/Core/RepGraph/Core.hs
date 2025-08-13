@@ -630,25 +630,26 @@ getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
 getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
-        consts <- flip setFilterA (M.keysSet prevEnv) $ \var -> do
-            let checkConst = case var.ty of
-                    ExprTypeHtd -> True
-                    ExprTypeDom -> True
-                    _ -> False
-            isSyntConst <- if checkConst then isSyntacticConstant var visitAddr else return False
-            if isSyntConst
-                then do
-                    modify $ S.insert var
-                    return $ prevEnv ! var
-                else do
-                    NotSplit . nameS <$> lift (add (var.name.unwrap ++ "_after") var.ty)
+        let isConstM var = do
+                let checkConst = case var.ty of
+                        ExprTypeHtd -> True
+                        ExprTypeDom -> True
+                        _ -> False
+                if checkConst then isSyntacticConstant var visitAddr else return False
+        consts <- setFilterA isConstM (M.keysSet prevEnv)
+        let isConst = (`S.member` consts)
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         let add name ty = do
                 let hint = printf "%s_loop_at_%s" name (prettyNodeId visit.nodeId)
                 addVarRestrWithMemCalls hint ty memCalls
-        (env, consts) <- flip runStateT S.empty $ flip M.traverseWithKey prevEnv $ \var _v -> do
+        env <- flip M.traverseWithKey prevEnv $ \var _v -> do
+            if isConst var
+                then do
+                    return $ prevEnv ! var
+                else do
+                    NotSplit . nameS <$> add (var.name.unwrap ++ "_after") var.ty
         env' <- flip M.traverseWithKey env $ \var v -> do
-            if S.member var consts
+            if isConst var
                 then return v
                 else maybe v Split <$> varRepRequest var VarRepRequestKindLoop visit env
         pc' <- smtExprE boolT . NotSplit . nameS <$> add "pc_of" boolT
