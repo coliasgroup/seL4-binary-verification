@@ -484,8 +484,6 @@ addVarRestrWithMemCalls nameHint ty memCallsOpt = do
         liftRepGraph $ #memCalls %= M.insert (nameS r) (fromJust memCallsOpt)
     return r
 
---
-
 data VarRepRequestKind
   = VarRepRequestKindCall
   | VarRepRequestKindInit
