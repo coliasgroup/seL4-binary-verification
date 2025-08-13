@@ -289,7 +289,7 @@ askPreds n = do
     tag <- askTag
     liftRepGraph $ gview $ #analysis % #preds % atTag tag % to ($ n)
 
-askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
+askPrevs :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
 askPrevs visit = do
     let m = toMapVC visit.restrs
     preds <- toList <$> askPreds visit.nodeId
@@ -297,7 +297,7 @@ askPrevs visit = do
             if M.member p m
             then incrVCs visit.restrs p (-1)
             else Just visit.restrs
-    return $ mapMaybe f preds
+    catMaybes <$> traverse pruneVisit (mapMaybe f preds)
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
@@ -664,8 +664,7 @@ getArcPcEnvs pred_ visit = do
             concat <$> traverse (getArcPcEnvs pred_ . Visit visit.nodeId) (specialize visit split)
 
 getArcPcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> Visit -> m (Maybe PcEnv)
-getArcPcEnv unprunedVisit otherVisit = runMaybeT $ do
-    visit <- MaybeT $ pruneVisit unprunedVisit
+getArcPcEnv visit otherVisit = runMaybeT $ do
     key <- askWithTag visit
     opt <- liftRepGraph $ use $ #arcPcEnvs % at key
     case opt of
@@ -705,14 +704,12 @@ warmPcEnvCache :: MonadRepGraphForTag t m => Visit -> m ()
 warmPcEnvCache visit = do
     let go = do
             curVisit <- get
-            prevs <- askPrevs curVisit
             let f prev = fmap isJust $ runMaybeT $ do
                     key <- askWithTag prev
                     present <- liftRepGraph $ use $ #nodePcEnvs % at key
                     guard $ isNothing present
-                    prunedRestrs <- MaybeT $ pruneRestrs prev
-                    guard $ prunedRestrs == curVisit.restrs
-            runExceptT (filterM f prevs) >>= \case
+                    guard $ prev == curVisit
+            runExceptT (askPrevs curVisit >>= filterM f) >>= \case
                 Right (v:_) -> do
                     tell [v]
                     put v
