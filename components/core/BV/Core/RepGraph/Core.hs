@@ -479,10 +479,10 @@ addLocalDef _ _ = addDef
 
 addVarRestrWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> Maybe MemCalls -> m MaybeSplit
 addVarRestrWithMemCalls nameHint ty memCallsOpt = do
-    r <- nameS <$> addVarRestr nameHint ty
+    v <- nameS <$> addVarRestr nameHint ty
     when (isMemT ty) $ do
-        liftRepGraph $ #memCalls %= M.insert r (fromJust memCallsOpt)
-    return $ NotSplit r
+        liftRepGraph $ #memCalls %= M.insert v (fromJust memCallsOpt)
+    return $ NotSplit v
 
 data VarRepRequestKind
   = VarRepRequestKindCall
@@ -492,11 +492,11 @@ data VarRepRequestKind
 
 varRepRequest :: MonadRepGraphForTag t m => NameTy -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
 varRepRequest var kind visit env = runMaybeT $ do
-    let n = nodeAddrOf visit.nodeId
-    addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind n
+    let addr = nodeAddrOf visit.nodeId
+    addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind addr
     addrSexpr <- withEnv env $ convertExpr addrExpr
-    let name' = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
-    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) name' var.ty
+    let nameHint = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
+    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) nameHint var.ty
 
 xxx
     :: MonadRepGraphForTag t m
