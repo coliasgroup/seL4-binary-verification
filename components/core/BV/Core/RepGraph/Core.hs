@@ -293,14 +293,7 @@ askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
 askPrevs visit = do
     preds <- toList <$> askPreds visit.nodeId
     let f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
-    return $ mapMaybe f preds
-
-askPrevsPruned :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m [Visit]
-askPrevsPruned visit = do
-    unprunedPrevs <- askPrevs visit
-    prevs <- catMaybes <$> traverse pruneVisit unprunedPrevs
-    traverse_ checkGenerality prevs
-    return prevs
+    catMaybes <$> traverse pruneVisit (mapMaybe f preds)
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
@@ -658,10 +651,7 @@ getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
         prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevs visit
         ensureM $ length prevs <= 1
-        for prevs $ \prev -> runMaybeT $ do
-            prunedPrev <- MaybeT $ pruneVisit prev
-            checkGenerality prunedPrev
-            MaybeT $ getArcPcEnv prunedPrev visit
+        for prevs $ \prev -> checkGenerality prev >> getArcPcEnv prev visit
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
@@ -707,10 +697,11 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
     go 0 prevChain _ = return prevChain
     go i prevChain curVisit = do
         let f prev = do
+                checkGenerality prev
                 key <- askWithTag prev
                 present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member key)
                 return $ not present && prev.restrs == curVisit.restrs
-        runExceptT (askPrevsPruned curVisit >>= filterM f) >>= \case
+        runExceptT (askPrevs curVisit >>= filterM f) >>= \case
             Right (v:_) -> go (i - 1) (v:prevChain) v
             _ -> return prevChain
     iters = 5000 :: Integer
