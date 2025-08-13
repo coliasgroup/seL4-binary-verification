@@ -651,7 +651,7 @@ getLoopPcEnv visit = do
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- askPrevs visit <&> filter (\prev -> prev.nodeId == Addr pred_)
+        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevs visit
         ensureM $ length prevs <= 1
         for prevs $ \prev -> getArcPcEnv prev visit
     case r of
@@ -666,7 +666,7 @@ getArcPcEnv visit otherVisit = runMaybeT $ do
     case opt of
         Just r -> hoistMaybe $ r !? otherVisit.nodeId
         Nothing -> do
-            _ <- MaybeT $ tryGetNodePcEnv visit
+            MaybeT $ tryGetNodePcEnv visit
             arcs <- M.fromList <$> emitNode visit
             runPostEmitNodeHook visit
             liftRepGraph $ #arcPcEnvs %= M.insert key arcs
@@ -700,11 +700,10 @@ warmPcEnvCache :: MonadRepGraphForTag t m => Visit -> m ()
 warmPcEnvCache visit = do
     let go = do
             curVisit <- get
-            let f prev = fmap isJust $ runMaybeT $ do
+            let f prev = do
                     key <- askWithTag prev
-                    present <- liftRepGraph $ use $ #nodePcEnvs % at key
-                    guard $ isNothing present
-                    guard $ prev == curVisit
+                    present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member key)
+                    return $ not present && prev == curVisit
             runExceptT (askPrevs curVisit >>= filterM f) >>= \case
                 Right (v:_) -> do
                     tell [v]
