@@ -703,7 +703,7 @@ warmPcEnvCache visit = do
             let f prev = do
                     key <- askWithTag prev
                     present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member key)
-                    return $ not present && prev == curVisit
+                    return $ not present && prev.restrs == curVisit.restrs
             runExceptT (askPrevs curVisit >>= filterM f) >>= \case
                 Right (v:_) -> do
                     tell [v]
