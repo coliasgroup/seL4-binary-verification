@@ -297,12 +297,12 @@ askPrevs visit = do
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
-    let nodeAddr = nodeAddrOf visit.nodeId
-    conts <- toListOf nodeConts <$> askNode nodeAddr
+    let addr = nodeAddrOf visit.nodeId
+    conts <- toListOf nodeConts <$> askNode addr
     let [cont] = conts
     return $ Visit
         { nodeId = cont
-        , restrs = fromJust $ incrVCs visit.restrs nodeAddr 1
+        , restrs = fromJust $ incrVCs visit.restrs addr 1
         }
 
 incrVCs :: [Restr] -> NodeAddr -> Integer -> Maybe [Restr]
@@ -830,20 +830,10 @@ getFunc unprunedVisit = do
     key <- askWithTag visit
     opt <- liftRepGraph $ use $ #funcs % at key
     when (isNothing opt) $ do
-        cont <- getCont visit
+        cont <- askCont visit
         getNodePcEnv cont
         return ()
     getFuncRaw visit
-
-getCont :: MonadRepGraph t m => Visit -> m Visit
-getCont visit = do
-    let addr = nodeAddrOf visit.nodeId
-    conts <- toListOf nodeConts <$> askNode addr
-    let [cont] = conts
-    return $ Visit
-        { nodeId = cont
-        , restrs = fromJust $ incrVCs visit.restrs addr 1
-        }
 
 -- TODO GraphSlice.is_cont
 
