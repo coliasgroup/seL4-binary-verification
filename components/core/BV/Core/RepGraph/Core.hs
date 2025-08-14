@@ -297,16 +297,11 @@ askPreds n = do
     tag <- askTag
     liftRepGraph $ gview $ #analysis % #preds % atTag tag % to ($ n)
 
-askPrevsUnpruned :: MonadRepGraphForTag t m => Visit -> m [Visit]
-askPrevsUnpruned visit = do
+askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
+askPrevs visit = do
     preds <- toList <$> askPreds visit.nodeId
     let f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
     return $ mapMaybe f preds
-
-askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
-askPrevs visit = do
-    unprunedPrevs <- askPrevsUnpruned visit
-    catMaybes <$> traverse pruneVisit unprunedPrevs
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
@@ -670,12 +665,11 @@ getLoopPcEnv visit = do
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevsUnpruned visit
+        prevs <- askPrevs visit >>= pruneVisits . filter (\prev -> prev.nodeId == Addr pred_)
         ensureM $ length prevs <= 1
-        fmap catMaybes $ for prevs $ \prev -> runMaybeT $ do
-            prunedPrev <- MaybeT $ pruneVisit prev
-            checkGenerality prunedPrev
-            MaybeT $ getArcPcEnv prunedPrev visit
+        fmap catMaybes $ for prevs $ \prev -> do
+            checkGenerality prev
+            getArcPcEnv prev visit
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
@@ -719,7 +713,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
                 key <- askWithTag prev
                 present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member key)
                 return $ not present && prev.restrs == curVisit.restrs
-        runExceptT (askPrevs curVisit >>= filterM f) >>= \case
+        runExceptT (askPrevs curVisit >>= pruneVisits >>= filterM f) >>= \case
             Right (v:_) -> go (i - 1) (v:prevChain) v
             _ -> return prevChain
     iters = 5000 :: Integer
