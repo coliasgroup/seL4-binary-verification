@@ -297,11 +297,16 @@ askPreds n = do
     tag <- askTag
     liftRepGraph $ gview $ #analysis % #preds % atTag tag % to ($ n)
 
-askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
-askPrevs visit = do
+askPrevsUnpruned :: MonadRepGraphForTag t m => Visit -> m [Visit]
+askPrevsUnpruned visit = do
     preds <- toList <$> askPreds visit.nodeId
     let f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
-    catMaybes <$> traverse pruneVisit (mapMaybe f preds)
+    return $ mapMaybe f preds
+
+askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
+askPrevs visit = do
+    unprunedPrevs <- askPrevsUnpruned visit
+    catMaybes <$> traverse pruneVisit unprunedPrevs
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
@@ -664,9 +669,12 @@ getLoopPcEnv visit = do
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevs visit
+        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevsUnpruned visit
         ensureM $ length prevs <= 1
-        for prevs $ \prev -> checkGenerality prev >> getArcPcEnv prev visit
+        for prevs $ \prev -> runMaybeT $ do
+            prunedPrev <- MaybeT $ pruneVisit prev
+            checkGenerality prunedPrev
+            MaybeT $ getArcPcEnv prunedPrev visit
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
