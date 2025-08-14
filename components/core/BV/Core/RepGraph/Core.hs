@@ -539,6 +539,7 @@ contractPcEnv visit (PcEnv pc env) = do
             return $ smtExprE boolT name
     env' <- M.traverseWithKey (maybeContract visit) env
     return $ PcEnv pc' env'
+
 --
 
 addInputEnvs :: MonadRepGraph t m => m ()
