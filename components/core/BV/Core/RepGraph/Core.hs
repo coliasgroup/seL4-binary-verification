@@ -445,8 +445,7 @@ scanMemCallsEnv env = scanMemCalls
 
 scanMemCalls :: MonadRepGraph t m => [(ExprType, MaybeSplit)] -> m (Maybe MemCalls)
 scanMemCalls tyVals = do
-    let vals = [ v | (ty, v) <- tyVals, ty == memT ]
-    memCalls <- traverse getMemCalls (vals ^.. folded % #_NotSplit)
+    memCalls <- traverse getMemCalls [ v | (ty, NotSplit v) <- tyVals, ty == memT ]
     return $ case memCalls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
