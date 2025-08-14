@@ -301,7 +301,7 @@ askPrevs :: MonadRepGraphForTag t m => Visit -> m [Visit]
 askPrevs visit = do
     preds <- toList <$> askPreds visit.nodeId
     let f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
-    catMaybes <$> traverse pruneVisit (mapMaybe f preds)
+    return $ mapMaybe f preds
 
 askCont :: MonadRepGraph t m => Visit -> m Visit
 askCont visit = do
@@ -416,8 +416,10 @@ getMemCalls sexpr = do
     memCallsOpt <- liftRepGraph $ use $ #memCalls % at sexpr
     whenNothing memCallsOpt $ do
         case sexpr of
-            List [op, x, _, _] | isStore op -> getMemCalls x
-            List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
+            List [op, x, _, _] | isStore op ->
+                getMemCalls x
+            List [op, _, x, y] | op == symbolS "ite" ->
+                mergeMemCalls <$> getMemCalls x <*> getMemCalls y
             _ -> do
                 r <- runMaybeT $ do
                     name <- hoistMaybe $ parseSymbolS sexpr
@@ -440,8 +442,7 @@ scanMemCallsEnv env = scanMemCalls
 
 scanMemCalls :: MonadRepGraph t m => [(ExprType, MaybeSplit)] -> m (Maybe MemCalls)
 scanMemCalls tyVals = do
-    let vals = [ v | (ty, v) <- tyVals, ty == memT ]
-    memCalls <- traverse getMemCalls (vals ^.. folded % #_NotSplit)
+    memCalls <- traverse getMemCalls [ v | (ty, NotSplit v) <- tyVals, ty == memT ]
     return $ case memCalls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
@@ -494,9 +495,9 @@ varRepRequest :: MonadRepGraphForTag t m => NameTy -> VarRepRequestKind -> Visit
 varRepRequest var kind visit env = runMaybeT $ do
     let addr = nodeAddrOf visit.nodeId
     addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind addr
-    addrSexpr <- withEnv env $ convertExpr addrExpr
+    addrSexpr <- withEnv env $ convertExprNoSplit addrExpr
     let nameHint = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
-    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) nameHint var.ty
+    addSplitMemVar addrSexpr nameHint var.ty
 
 xxx
     :: MonadRepGraphForTag t m
@@ -511,8 +512,9 @@ xxx mkName memCalls kind visit vars = execStateT $ do
     for_ vars $ \var -> do
         v <- addVarRestrWithMemCalls (mkName var.name) var.ty memCalls
         modify $ M.insert var v
+    intermediateEnv <- get
     for_ vars $ \var -> do
-        opt <- get >>= varRepRequest var kind visit
+        opt <- varRepRequest var kind visit intermediateEnv
         for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
 
 --
@@ -537,6 +539,7 @@ contractPcEnv visit (PcEnv pc env) = do
             return $ smtExprE boolT name
     env' <- M.traverseWithKey (maybeContract visit) env
     return $ PcEnv pc' env'
+
 --
 
 addInputEnvs :: MonadRepGraph t m => m ()
@@ -618,9 +621,9 @@ getNodePcEnvRaw visit = do
             if any f visit.restrs
                 then getLoopPcEnv visit
                 else do
-                    arcPcEnvs <- toListOf (folded % folded % _Just) <$> do
-                        preds <- askPreds visit.nodeId
-                        for (toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
+                    arcPcEnvs <- toListOf (folded % folded) <$> do
+                        preds <- toList <$> askPreds visit.nodeId
+                        for preds $ \pred_ -> getArcPcEnvs pred_ visit
                     case arcPcEnvs of
                         [] -> return Nothing
                         _ -> Just <$> do
@@ -661,12 +664,14 @@ getLoopPcEnv visit = do
                 _ -> False
         if checkConst then isSyntacticConstant var visitAddr else return False
 
-getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
+getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevs visit
+        prevs <- askPrevs visit >>= pruneVisits . filter (\prev -> prev.nodeId == Addr pred_)
         ensureM $ length prevs <= 1
-        for prevs $ \prev -> checkGenerality prev >> getArcPcEnv prev visit
+        fmap catMaybes $ for prevs $ \prev -> do
+            checkGenerality prev
+            getArcPcEnv prev visit
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
@@ -688,6 +693,9 @@ pruneVisit visit = runMaybeT $
             guard $ reachable || hasZeroVC restr.visitCount
             return $ if reachable then [restr] else []
 
+pruneVisits :: MonadRepGraphForTag t m => [Visit] -> m [Visit]
+pruneVisits visits = catMaybes <$> traverse pruneVisit visits
+
 checkGenerality :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m ()
 checkGenerality visit = void $ runMaybeT $ do
     nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
@@ -707,7 +715,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
                 key <- askWithTag prev
                 present <- liftRepGraph $ use $ #nodePcEnvs % to (M.member key)
                 return $ not present && prev.restrs == curVisit.restrs
-        runExceptT (askPrevs curVisit >>= filterM f) >>= \case
+        runExceptT (askPrevs curVisit >>= pruneVisits >>= filterM f) >>= \case
             Right (v:_) -> go (i - 1) (v:prevChain) v
             _ -> return prevChain
     iters = 5000 :: Integer
