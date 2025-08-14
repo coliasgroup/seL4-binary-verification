@@ -163,10 +163,11 @@ instance PrintfArg NodeAddr where
     formatArg = formatArg . (.unwrap)
     parseFormat _ = parseFormat (undefined :: Integer)
 
+-- HACK order matches graph-refine
 data NodeId
-  = Ret
+  = Addr NodeAddr
   | Err
-  | Addr NodeAddr
+  | Ret
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary NodeId
