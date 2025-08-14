@@ -12,7 +12,7 @@ import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
 import BV.Search.Core.Solver
-import BV.Utils (expecting, unwrapped)
+import BV.Utils (expecting, is, unwrapped)
 
 import Control.Monad (unless, when)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
@@ -20,14 +20,15 @@ import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, get, gets, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (execWriterT, tell)
-import Data.Foldable (for_, toList)
-import Data.List (sortOn)
+import Data.Foldable (for_, toList, traverse_)
+import Data.Functor (void)
 import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
+import Data.List (sort)
 
 data DiscoverInlineScriptInput
   = DiscoverInlineScriptInput
@@ -116,14 +117,11 @@ nextReachableUnmatchedCInlinePointInner = runForTag C $ do
     loops <- allInnerLoops p.nodes <$> askLoopData
     let limits = [ Restr loop.head (doubleRangeVC 3 3) | loop <- loops ]
     let reachable = reachableFrom g ((getC p.sides).entryPoint)
-    for_ (sortOn compatKey reachable) $ \n -> runExceptT $ tryGetNodePcEnv $ Visit n limits
-  where
-    -- HACK match graph-refine
-    compatKey :: NodeId -> (Int, Maybe NodeAddr)
-    compatKey = \case
-        Addr n -> (0, Just n)
-        Ret -> (1, Nothing)
-        Err -> (2, Nothing)
+    let f n = void $ runExceptT $ tryGetNodePcEnv $ Visit n limits
+    -- HACK order matches graph-refine
+    traverse_ f $ sort $ filter (is #_Addr) reachable
+    f Ret
+    f Err
 
 type InlineMInner m = ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT InlinerInput m))
 
