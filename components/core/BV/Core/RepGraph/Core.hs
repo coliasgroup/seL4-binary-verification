@@ -73,10 +73,10 @@ import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe, isNothing, mapMaybe)
-import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
+import Data.Void (absurd)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
@@ -781,43 +781,47 @@ isSyntacticConstant var split = do
         then return False
         else do
             loopSet <- askLoopBody split
-            let go visit safe (name, n) = do
-                    node <- askNode n
-                    let newName = name
-                    newName' <- case node of
+            let go safe visit (name, nodeAddr) = do
+                    node <- askNode nodeAddr
+                    newName <- fromMaybe name <$> case node of
                         NodeCall callNode ->
                             if NameTy name var.ty `elem` callNode.output
-                            then throwError False
-                            else return newName
+                            then returnEarly False
+                            else return Nothing
                         NodeBasic basicNode -> do
                             let updateExprs =
                                     [ u.val
                                     | u <- basicNode.varUpdates
                                     , u.var == NameTy name var.ty
                                     ]
-                            case traverse (preview (#value % #_ExprValueVar)) updateExprs of
-                                Nothing -> throwError False
-                                Just updateExprIdents -> case updateExprIdents of
-                                    name':_ -> return name'
-                                    _ -> return newName
-                        _ -> return newName
-                    allPreds <- askPreds $ Addr n
-                    let preds = [ (newName', n2) | n2 <- toList allPreds, n2 `S.member` loopSet ]
-                    let unknowns = [ p | p <- preds, p `S.notMember` safe ]
-                    let (visit', safe') =
-                            if null unknowns
-                            then (visit, S.insert (name, n) safe)
-                            else (visit <> Seq.fromList [(name, n)] <> Seq.fromList unknowns, safe)
-                    let f v = case unsnoc v of
-                            Nothing -> throwError True
-                            Just (v', hd) -> do
-                                if hd `S.member` safe'
-                                then f v'
-                                else if snd hd == split
-                                    then throwError False
-                                    else go v' safe' hd
-                    f visit'
-            view (expecting _Left) <$> runExceptT (go mempty (S.singleton (var.name, split)) (var.name, split))
+                            case updateExprs of
+                                [] -> return Nothing
+                                [Expr _ (ExprValueVar ident)] -> return $ Just ident
+                                [_] -> returnEarly False
+                        _ -> return Nothing
+                    preds <- S.intersection loopSet <$> askPreds (Addr nodeAddr)
+                    let unknowns = toList $ S.map (newName,) preds `S.difference` safe
+                    case unknowns of
+                        [] -> goFilter
+                            (S.insert (name, nodeAddr) safe)
+                            visit
+                        _ -> goFilter
+                            safe
+                            (unknowns ++ [(name, nodeAddr)] ++ visit)
+                goFilter safe visit = case visit of
+                    [] -> returnEarly True
+                    (name, nodeAddr):visit' -> if
+                        | (name, nodeAddr) `S.member` safe -> goFilter safe visit'
+                        | nodeAddr == split -> returnEarly False
+                        | otherwise -> go safe visit' (name, nodeAddr)
+            either id absurd <$>
+                runExceptT
+                    (go
+                        (S.singleton (var.name, split))
+                        []
+                        (var.name, split))
+  where
+    returnEarly = throwError
 
 --
 
