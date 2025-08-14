@@ -325,7 +325,7 @@ incrVCs vcount n incr = if
 
 specialize :: Visit -> NodeAddr -> [Visit]
 specialize visit split = ensure (isOptionsVC vc)
-    [ visit & #restrs .~ (fromMapVC (M.insert split (fromSimpleVC n) m))
+    [ visit & #restrs .~ fromMapVC (M.insert split (fromSimpleVC n) m)
     | n <- enumerateSimpleVC vc
     ]
   where
@@ -692,7 +692,7 @@ pruneVisit visit = runMaybeT $
         fmap (sort . concat) $ for restrs $ \restr -> do
             reachable <- askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
             guard $ reachable || hasZeroVC restr.visitCount
-            return $ if reachable then [restr] else []
+            return $ [ restr | reachable ]
 
 pruneVisits :: MonadRepGraphForTag t m => [Visit] -> m [Visit]
 pruneVisits visits = catMaybes <$> traverse pruneVisit visits
