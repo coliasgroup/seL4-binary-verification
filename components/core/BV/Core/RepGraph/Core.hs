@@ -57,7 +57,7 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, when)
+import Control.Monad (filterM, guard, unless, when)
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
@@ -799,14 +799,14 @@ isSyntacticConstant var split = do
                                 [Expr _ (ExprValueVar ident)] -> return $ Just ident
                                 [_] -> notConst
                         _ -> return Nothing
-                    preds <- S.map (newName,) . S.intersection loopSet <$> askPreds (Addr nodeAddr)
-                    for_ preds $ \pred_ -> goCont pred_
+                    preds <- S.intersection loopSet <$> askPreds (Addr nodeAddr)
+                    traverse_ goCont $ S.map (newName,) preds
                     modify $ S.insert (name, nodeAddr)
                 goCont (name, nodeAddr) = do
                     safe <- get
-                    if | (name, nodeAddr) `S.member` safe -> return ()
-                       | nodeAddr == split -> notConst
-                       | otherwise -> go (name, nodeAddr)
+                    unless ((name, nodeAddr) `S.member` safe) $ do
+                        when (nodeAddr == split) notConst
+                        go (name, nodeAddr)
             isRight <$> runExceptT
                     (evalStateT (go (var.name, split)) (S.singleton (var.name, split)))
   where
