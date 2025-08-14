@@ -781,12 +781,12 @@ isSyntacticConstant var split = do
         then return False
         else do
             loopSet <- askLoopBody split
-            let go (name, nodeAddr) = do
-                    node <- askNode nodeAddr
-                    newName <- fromMaybe name <$> case node of
+            let go (name, addr) = do
+                    node <- askNode addr
+                    predName <- fromMaybe name <$> case node of
                         NodeCall callNode ->
                             if NameTy name var.ty `elem` callNode.output
-                            then notConst
+                            then throwNotConst
                             else return Nothing
                         NodeBasic basicNode -> do
                             let updateExprs =
@@ -797,20 +797,23 @@ isSyntacticConstant var split = do
                             case updateExprs of
                                 [] -> return Nothing
                                 [Expr _ (ExprValueVar ident)] -> return $ Just ident
-                                [_] -> notConst
+                                [_] -> throwNotConst
                         _ -> return Nothing
-                    preds <- S.intersection loopSet <$> askPreds (Addr nodeAddr)
-                    traverse_ goCont $ S.map (newName,) preds
-                    modify $ S.insert (name, nodeAddr)
-                goCont (name, nodeAddr) = do
-                    safe <- get
-                    unless ((name, nodeAddr) `S.member` safe) $ do
-                        when (nodeAddr == split) notConst
-                        go (name, nodeAddr)
-            isRight <$> runExceptT
-                    (evalStateT (go (var.name, split)) (S.singleton (var.name, split)))
+                    preds <- S.intersection loopSet <$> askPreds (Addr addr)
+                    for_ preds $ \predAddr -> do
+                        let predVar = (predName, predAddr)
+                        safe <- get
+                        unless (predVar `S.member` safe) $ do
+                            when (predAddr == split) throwNotConst
+                            go predVar
+                            modify $ S.insert predVar
+            isRight <$>
+                runExceptT
+                    (evalStateT
+                        (go (var.name, split))
+                        (S.singleton (var.name, split)))
   where
-    notConst = throwError ()
+    throwNotConst = throwError ()
 
 --
 
