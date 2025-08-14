@@ -620,8 +620,8 @@ getNodePcEnvRaw visit = do
                 then getLoopPcEnv visit
                 else do
                     arcPcEnvs <- toListOf (folded % folded) <$> do
-                        preds <- askPreds visit.nodeId
-                        for (toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
+                        preds <- toList <$> askPreds visit.nodeId
+                        for preds $ \pred_ -> getArcPcEnvs pred_ visit
                     case arcPcEnvs of
                         [] -> return Nothing
                         _ -> Just <$> do
