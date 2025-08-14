@@ -623,7 +623,7 @@ getNodePcEnvRaw visit = do
             if any f visit.restrs
                 then getLoopPcEnv visit
                 else do
-                    arcPcEnvs <- toListOf (folded % folded % _Just) <$> do
+                    arcPcEnvs <- toListOf (folded % folded) <$> do
                         preds <- askPreds visit.nodeId
                         for (toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
                     case arcPcEnvs of
@@ -666,12 +666,12 @@ getLoopPcEnv visit = do
                 _ -> False
         if checkConst then isSyntacticConstant var visitAddr else return False
 
-getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [Maybe PcEnv]
+getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
         prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevsUnpruned visit
         ensureM $ length prevs <= 1
-        for prevs $ \prev -> runMaybeT $ do
+        fmap catMaybes $ for prevs $ \prev -> runMaybeT $ do
             prunedPrev <- MaybeT $ pruneVisit prev
             checkGenerality prunedPrev
             MaybeT $ getArcPcEnv prunedPrev visit
