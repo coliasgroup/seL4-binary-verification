@@ -670,7 +670,7 @@ getLoopPcEnv visit = do
 getArcPcEnvs :: MonadRepGraphForTag t m => NodeAddr -> Visit -> m [PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevs visit
+        prevs <- filter (\prev -> prev.nodeId == Addr pred_) <$> askPrevsUnpruned visit
         ensureM $ length prevs <= 1
         fmap catMaybes $ for prevs $ \prev -> runMaybeT $ do
             prunedPrev <- MaybeT $ pruneVisit prev
