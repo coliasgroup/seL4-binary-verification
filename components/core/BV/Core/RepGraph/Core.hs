@@ -62,10 +62,11 @@ import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
 import Control.Monad.RWS (MonadState (get), MonadWriter (..), RWST)
-import Control.Monad.State (StateT, execStateT, modify)
+import Control.Monad.State (StateT, evalStateT, execStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
+import Data.Either (isRight)
 import Data.Foldable (for_, toList, traverse_)
 import Data.Functor (void)
 import Data.List (intercalate, sort, tails)
@@ -76,7 +77,6 @@ import Data.Maybe (catMaybes, fromJust, fromMaybe, isNothing, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
-import Data.Void (absurd)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
@@ -781,12 +781,12 @@ isSyntacticConstant var split = do
         then return False
         else do
             loopSet <- askLoopBody split
-            let go safe visit (name, nodeAddr) = do
+            let go (name, nodeAddr) = do
                     node <- askNode nodeAddr
                     newName <- fromMaybe name <$> case node of
                         NodeCall callNode ->
                             if NameTy name var.ty `elem` callNode.output
-                            then returnEarly False
+                            then notConst
                             else return Nothing
                         NodeBasic basicNode -> do
                             let updateExprs =
@@ -797,31 +797,20 @@ isSyntacticConstant var split = do
                             case updateExprs of
                                 [] -> return Nothing
                                 [Expr _ (ExprValueVar ident)] -> return $ Just ident
-                                [_] -> returnEarly False
+                                [_] -> notConst
                         _ -> return Nothing
-                    preds <- S.intersection loopSet <$> askPreds (Addr nodeAddr)
-                    let unknowns = toList $ S.map (newName,) preds `S.difference` safe
-                    case unknowns of
-                        [] -> goFilter
-                            (S.insert (name, nodeAddr) safe)
-                            visit
-                        _ -> goFilter
-                            safe
-                            (unknowns ++ [(name, nodeAddr)] ++ visit)
-                goFilter safe visit = case visit of
-                    [] -> returnEarly True
-                    (name, nodeAddr):visit' -> if
-                        | (name, nodeAddr) `S.member` safe -> goFilter safe visit'
-                        | nodeAddr == split -> returnEarly False
-                        | otherwise -> go safe visit' (name, nodeAddr)
-            either id absurd <$>
-                runExceptT
-                    (go
-                        (S.singleton (var.name, split))
-                        []
-                        (var.name, split))
+                    preds <- S.map (newName,) . S.intersection loopSet <$> askPreds (Addr nodeAddr)
+                    for_ preds $ \pred_ -> goCont pred_
+                    modify $ S.insert (name, nodeAddr)
+                goCont (name, nodeAddr) = do
+                    safe <- get
+                    if | (name, nodeAddr) `S.member` safe -> return ()
+                       | nodeAddr == split -> notConst
+                       | otherwise -> go (name, nodeAddr)
+            isRight <$> runExceptT
+                    (evalStateT (go (var.name, split)) (S.singleton (var.name, split)))
   where
-    returnEarly = throwError
+    notConst = throwError ()
 
 --
 
