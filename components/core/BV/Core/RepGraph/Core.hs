@@ -697,6 +697,9 @@ pruneVisit visit = runMaybeT $
             guard $ reachable || hasZeroVC restr.visitCount
             return $ if reachable then [restr] else []
 
+pruneVisits :: MonadRepGraphForTag t m => [Visit] -> m [Visit]
+pruneVisits visits = catMaybes <$> traverse pruneVisit visits
+
 checkGenerality :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m ()
 checkGenerality visit = void $ runMaybeT $ do
     nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
