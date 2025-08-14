@@ -421,8 +421,10 @@ getMemCalls sexpr = do
     memCallsOpt <- liftRepGraph $ use $ #memCalls % at sexpr
     whenNothing memCallsOpt $ do
         case sexpr of
-            List [op, x, _, _] | isStore op -> getMemCalls x
-            List [op, _, x, y] | op == symbolS "ite" -> mergeMemCalls <$> getMemCalls x <*> getMemCalls y
+            List [op, x, _, _] | isStore op ->
+                getMemCalls x
+            List [op, _, x, y] | op == symbolS "ite" ->
+                mergeMemCalls <$> getMemCalls x <*> getMemCalls y
             _ -> do
                 r <- runMaybeT $ do
                     name <- hoistMaybe $ parseSymbolS sexpr
