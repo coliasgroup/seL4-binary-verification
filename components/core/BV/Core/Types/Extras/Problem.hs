@@ -36,7 +36,7 @@ import Data.Foldable (toList)
 import Data.Function (applyWhen)
 import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
-import Data.List (find)
+import Data.List (find, sort)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
@@ -216,7 +216,7 @@ loopsFrom g entryPoints =
 
 makeLoopData :: Tag t => Problem t -> NodeGraph -> LoopData
 makeLoopData problem nodeGraph = LoopData
-    { inOrder = loops
+    { inOrder = sort loops
     , heads = M.fromList [ (loop.head, loop) | loop <- loops ]
     , members = M.fromList $ flip concatMap loops $ \loop ->
         [ let role = if n == loop.head then LoopRoleHead else LoopRoleBody
