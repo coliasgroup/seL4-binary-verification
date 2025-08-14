@@ -495,9 +495,9 @@ varRepRequest :: MonadRepGraphForTag t m => NameTy -> VarRepRequestKind -> Visit
 varRepRequest var kind visit env = runMaybeT $ do
     let addr = nodeAddrOf visit.nodeId
     addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind addr
-    addrSexpr <- withEnv env $ convertExpr addrExpr
+    addrSexpr <- withEnv env $ convertExprNoSplit addrExpr
     let nameHint = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
-    addSplitMemVar (addrSexpr ^. expecting #_NotSplit) nameHint var.ty
+    addSplitMemVar addrSexpr nameHint var.ty
 
 xxx
     :: MonadRepGraphForTag t m
