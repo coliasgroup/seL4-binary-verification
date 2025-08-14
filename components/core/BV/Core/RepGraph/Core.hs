@@ -512,8 +512,9 @@ xxx mkName memCalls kind visit vars = execStateT $ do
     for_ vars $ \var -> do
         v <- addVarRestrWithMemCalls (mkName var.name) var.ty memCalls
         modify $ M.insert var v
+    intermediateEnv <- get
     for_ vars $ \var -> do
-        opt <- get >>= varRepRequest var kind visit
+        opt <- varRepRequest var kind visit intermediateEnv
         for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
 
 --
