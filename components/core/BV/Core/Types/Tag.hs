@@ -30,7 +30,7 @@ module BV.Core.Types.Tag
     , withTags
     ) where
 
-import BV.Utils (ensure, expectingIx)
+import BV.Utils (ensure, expectingIx, formatArgSimple)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
@@ -43,6 +43,7 @@ import GHC.Generics (Generic)
 import qualified GHC.IsList as IsList
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import Optics
+import Text.Printf (PrintfArg (formatArg))
 
 class
     ( Eq t
@@ -51,6 +52,7 @@ class
     , Enum t
     , NFData t
     , Generic t
+    , PrintfArg t
     ) => Tag t where
 
     prettyTag :: t -> String
@@ -166,6 +168,9 @@ getRight = view (atTag rightTag)
 data TrivialTag (name :: Symbol)
   = TrivialTag
   deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Read, Show)
+
+instance KnownSymbol name => PrintfArg (TrivialTag name) where
+    formatArg = formatArgSimple prettyTag
 
 instance KnownSymbol name => Tag (TrivialTag name) where
     prettyTag _ = symbolVal (Proxy :: Proxy name)

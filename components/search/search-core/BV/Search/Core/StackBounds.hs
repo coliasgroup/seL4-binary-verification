@@ -26,7 +26,7 @@ import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
-import Text.Printf (printf)
+import Text.Printf (PrintfArg (formatArg), printf)
 
 -- TODO WIP WIP WIP
 
@@ -107,7 +107,7 @@ getRecursionIdents runRepGraph functions =
         logInfo $ printf "Doing recursion analysis for function group:"
         logInfo $ printf "  %s" $ show $ map (.unwrap) $ S.toList group
         for_ (S.toList (S.difference (prevs group) group)) $ \f -> do
-            logInfo $ printf "  checking for for %s" f.unwrap
+            logInfo $ printf "  checking for for %P" f
             whileM (addRecursionIdent runRepGraph functions f group) (return ())
 
 addRecursionIdent
@@ -166,6 +166,9 @@ findUnknownRecursion runRepGraph group idents tag assns = undefined
 newtype FunTag
   = FunTag Int
   deriving (Enum, Eq, Generic, NFData, Ord, Show)
+
+instance PrintfArg FunTag where
+    formatArg = formatArgSimple prettyTag
 
 instance Tag FunTag where
     prettyTag (FunTag i) = "fun" ++ show i

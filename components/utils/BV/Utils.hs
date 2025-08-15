@@ -11,6 +11,7 @@ module BV.Utils
     , expectingIx
     , expecting_
     , findWithCallstack
+    , formatArgSimple
     , fromIntegerChecked
     , is
     , mapFilterA
@@ -30,6 +31,7 @@ import Data.Maybe (fromJust, isJust)
 import qualified Data.Set as S
 import GHC.Stack (HasCallStack)
 import Optics
+import qualified Text.Printf as P
 
 --
 
@@ -117,3 +119,11 @@ mapFilterA f m = M.fromList <$> filterM (f . snd) (M.toList m)
 
 applyWhenM :: Monad m => Bool -> (a -> m a) -> a -> m a
 applyWhenM c f = if c then f else return
+
+--
+
+formatArgSimple :: (a -> String) -> a -> P.FieldFormatter
+formatArgSimple pretty a fmt =
+    if P.fmtChar (P.vFmt 'P' fmt) == 'P'
+    then P.formatString (pretty a) (fmt { P.fmtChar = 's', P.fmtPrecision = Nothing })
+    else P.errorBadFormat (P.fmtChar fmt)

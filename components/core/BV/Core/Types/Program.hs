@@ -32,7 +32,7 @@ module BV.Core.Types.Program
     ) where
 
 import BV.Core.Types.SExprWithPlaceholders (SExprWithPlaceholders)
-import BV.Utils (expecting)
+import BV.Utils (expecting, formatArgSimple)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
@@ -52,6 +52,9 @@ instance Binary Ident
 
 instance IsString Ident where
     fromString = Ident
+
+instance PrintfArg Ident where
+    formatArg = formatArgSimple (.unwrap)
 
 data Named a
   = Named
@@ -160,8 +163,7 @@ newtype NodeAddr
 instance Binary NodeAddr
 
 instance PrintfArg NodeAddr where
-    formatArg = formatArg . (.unwrap)
-    parseFormat _ = parseFormat (undefined :: Integer)
+    formatArg = formatArgSimple $ show . (.unwrap)
 
 -- HACK order matches graph-refine
 data NodeId
@@ -171,6 +173,9 @@ data NodeId
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary NodeId
+
+instance PrintfArg NodeId where
+    formatArg = formatArgSimple prettyNodeId
 
 prettyNodeId :: NodeId -> String
 prettyNodeId = \case

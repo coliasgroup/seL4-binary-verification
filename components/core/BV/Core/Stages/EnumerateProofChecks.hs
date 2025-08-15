@@ -280,15 +280,15 @@ emitRestrNodeChecks restrNode = branch $ do
     for_ minPredVCOpt $ \minPredVC -> do
         pcTrueH <$> visit minPredVC >>=
             conclude
-                (printf "Check of restr min %d %s for %d"
+                (printf "Check of restr min %d %P for %P"
                     restrNode.range.x
-                    (prettyRestrProofNodeRangeKind restrNode.range.kind)
+                    restrNode.range.kind
                     restrNode.point)
     pcFalseH <$> visit (maxVCForRestrNode restrNode.range) >>=
         conclude
-            (printf "Check of restr max %d %s for %d"
+            (printf "Check of restr max %d %P for %P"
                 restrNode.range.y
-                (prettyRestrProofNodeRangeKind restrNode.range.kind)
+                restrNode.range.kind
                 restrNode.point)
 
 assumeRestrTriv :: MonadChecks t m => RestrProofNode t a -> m ()
@@ -357,7 +357,7 @@ emitSplitNodeInductStepChecks splitNode = branch $ do
     assumeSplitLoop splitNode False
     getSplitHypsAt (offsetVC n) splitNode
         >>= concludeManyWith (\desc ->
-            printf "Induct check (%s) at inductive step for %d"
+            printf "Induct check (%s) at inductive step for %P"
                 desc
                 (getLeft splitNode.details).split)
 
@@ -465,7 +465,7 @@ emitSingleLoopInductStepChecks node = branch $ do
     getLoopEqHypsAt False (offsetVC node.n) node
         >>= concludeManyWith
             (\desc ->
-                printf "Induct check (%s) at inductive step for %d"
+                printf "Induct check (%s) at inductive step for %P"
                     desc
                     node.point)
 
@@ -476,7 +476,7 @@ emitSingleLoopInductBaseChecks node = branch $ do
         assume1R =<< pcTrueH <$> getSplitVisitAt (numberVC i) details
         getLoopEqHypsAt False (numberVC i) node
             >>= concludeManyWith
-                (\desc -> printf "Base check (%s, %d) at induct step for %d" desc i node.point)
+                (\desc -> printf "Base check (%s, %d) at induct step for %P" desc i node.point)
 
 emitSingleLoopRevInductChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleLoopRevInductChecks node = branch $ do

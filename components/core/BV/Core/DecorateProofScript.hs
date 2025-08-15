@@ -12,7 +12,6 @@ module BV.Core.DecorateProofScript
     , proofScriptEdgePath
     ) where
 
-import BV.Core.Types.Program
 import BV.Core.Types.ProofScript
 import BV.Core.Types.Tag
 import BV.Utils (ensure)
@@ -127,15 +126,15 @@ briefNode = \case
     ProofNodeLeaf ->
         "leaf"
     ProofNodeRestr node ->
-        printf "restr %s (%s)" (show node.point.unwrap) (prettyTag node.tag)
+        printf "restr %P (%P)" node.point node.tag
     ProofNodeCaseSplit node ->
-        printf "case split %s (%s)" (show node.addr.unwrap) (prettyTag node.tag)
+        printf "case split %P (%P)" node.addr node.tag
     ProofNodeSplit node ->
         let s = withTags node.details <&> \(WithTag tag details) ->
-                    printf "%s (%s)" (show details.split.unwrap) (prettyTag tag) :: String
-         in printf "split %s and %s" (getRight s) (getLeft s)
+                    printf "%P (%P)" details.split tag :: String
+         in printf "split %P and %P" (getRight s) (getLeft s)
     ProofNodeSingleRevInduct node ->
-        printf "restr %s (%s)" (show node.point.unwrap) (prettyTag node.tag)
+        printf "restr %P (%P)" node.point node.tag
 
 briefEdge :: ProofNode t a -> ProofNodeEdge -> Maybe String
 briefEdge node (ProofNodeEdge i) = case node of

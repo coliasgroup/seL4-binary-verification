@@ -18,12 +18,14 @@ module BV.Core.Types.AsmRefineTag
 import BV.Core.Types.Pairing
 import BV.Core.Types.Problem
 import BV.Core.Types.Tag
+import BV.Utils (formatArgSimple)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import Data.Vector.Binary ()
 import GHC.Generics (Generic)
 import GHC.IsList (fromList)
+import Text.Printf (PrintfArg (formatArg))
 
 data AsmRefineTag
   = Asm
@@ -31,6 +33,9 @@ data AsmRefineTag
   deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Show)
 
 instance Binary AsmRefineTag
+
+instance PrintfArg AsmRefineTag where
+    formatArg = formatArgSimple prettyTag
 
 instance Tag AsmRefineTag where
     prettyTag = \case

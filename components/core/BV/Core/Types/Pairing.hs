@@ -71,11 +71,11 @@ instance Monoid (Pairings t) where
 
 prettyPairingId :: forall t. RefineTag t => PairingId t -> String
 prettyPairingId pairingId =
-    printf "%s (%s) <= %s (%s)"
-        (pairingId ^. atTag leftTag).unwrap
-        (prettyTag (leftTag :: t))
-        (pairingId ^. atTag rightTag).unwrap
-        (prettyTag (rightTag :: t))
+    printf "%P (%P) <= %P (%P)"
+        (pairingId ^. atTag leftTag)
+        (leftTag :: t)
+        (pairingId ^. atTag rightTag)
+        (rightTag :: t)
 
 prettyPairingEqSideQuadrant :: RefineTag t => PairingEqSideQuadrant t ->  String
 prettyPairingEqSideQuadrant (PairingEqSideQuadrant { tag, direction }) =

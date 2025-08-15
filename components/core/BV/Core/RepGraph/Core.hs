@@ -346,10 +346,10 @@ getFreshIdent nameHint = do
 --
 
 localNameBefore :: Ident -> Visit -> NameHint
-localNameBefore s vis = printf "%s_v_at_%s" s.unwrap (nodeCountName vis)
+localNameBefore s vis = printf "%P_v_at_%s" s (nodeCountName vis)
 
 localName :: Ident -> Visit -> NameHint
-localName s vis = printf "%s_after_%s" s.unwrap (nodeCountName vis)
+localName s vis = printf "%P_after_%s" s (nodeCountName vis)
 
 condName :: Visit -> NameHint
 condName  vis = printf "cond_at_%s" (nodeCountName vis)
@@ -357,7 +357,7 @@ condName  vis = printf "cond_at_%s" (nodeCountName vis)
 pathCondName :: MonadRepGraphForTag t m => Visit -> m NameHint
 pathCondName visit = do
     tag <- askTag
-    return $ printf "path_cond_to_%s_%s" (nodeCountName visit) (prettyTag tag)
+    return $ printf "path_cond_to_%s_%P" (nodeCountName visit) tag
 
 successName :: Ident -> Visit -> NameHint
 successName fname vis =
@@ -377,7 +377,7 @@ nodeCountName :: Visit -> NameHint
 nodeCountName vis = intercalate "_" $
     [ prettyNodeId vis.nodeId
     ] ++
-    [ printf "%s=%s" (prettyNodeId (Addr restr.nodeAddr)) (visitCountName restr.visitCount)
+    [ printf "%P=%s" restr.nodeAddr (visitCountName restr.visitCount)
     | restr <- vis.restrs
     ]
 
@@ -496,7 +496,7 @@ varRepRequest var kind visit env = runMaybeT $ do
     let addr = nodeAddrOf visit.nodeId
     addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind addr
     addrSexpr <- withEnv env $ convertExprNoSplit addrExpr
-    let nameHint = printf "%s_for_%s" var.name.unwrap (nodeCountName visit)
+    let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
     addSplitMemVar addrSexpr nameHint var.ty
 
 -- TODO rename
@@ -644,7 +644,7 @@ getLoopPcEnv visit = do
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         nonConsts <- filterM (fmap not . isConstM) (M.keys prevEnv)
         env <- addVarsToEnvWithRepRequests
-            (\ident -> printf "%s_after_loop_at_%s" ident.unwrap (prettyNodeId visit.nodeId))
+            (\ident -> printf "%P_after_loop_at_%P" ident visit.nodeId)
             memCalls
             VarRepRequestKindLoop
             visit
@@ -652,7 +652,7 @@ getLoopPcEnv visit = do
             prevEnv
         pc <- smtExprE boolT <$>
             addVarRestrWithMemCalls
-                (printf "pc_of_loop_at_%s" (prettyNodeId visit.nodeId))
+                (printf "pc_of_loop_at_%P" visit.nodeId)
                 boolT
                 memCalls
         return $ PcEnv pc env

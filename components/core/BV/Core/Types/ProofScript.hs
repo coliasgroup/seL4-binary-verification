@@ -22,10 +22,12 @@ module BV.Core.Types.ProofScript
 
 import BV.Core.Types.Program
 import BV.Core.Types.Tag
+import BV.Utils (formatArgSimple)
 
 import Control.DeepSeq (NFData, NFData1)
 import Data.Binary (Binary)
 import GHC.Generics (Generic, Generic1)
+import Text.Printf (PrintfArg (formatArg))
 
 newtype ProofScript t a
   = ProofScript { root :: ProofNodeWith t a }
@@ -118,6 +120,9 @@ prettyRestrProofNodeRangeKind :: RestrProofNodeRangeKind -> String
 prettyRestrProofNodeRangeKind = \case
     RestrProofNodeRangeKindNumber -> "Number"
     RestrProofNodeRangeKindOffset -> "Offset"
+
+instance PrintfArg RestrProofNodeRangeKind where
+    formatArg = formatArgSimple prettyRestrProofNodeRangeKind
 
 data CaseSplitProofNode t a
   = CaseSplitProofNode
