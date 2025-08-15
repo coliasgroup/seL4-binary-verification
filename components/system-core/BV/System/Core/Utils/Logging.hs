@@ -30,7 +30,7 @@ import System.Process (CreateProcess)
 
 withPushLogContextPairing :: MonadLoggerWithContext m => PairingId' -> m a -> m a
 withPushLogContextPairing pairingId = withPushLogContext $
-    "pairing " ++ (getAsm pairingId).unwrap
+    "pairing " ++ pairingId.asm.unwrap
 
 withPushLogContextCheckGroup :: MonadLoggerWithContext m => CheckGroup -> m a -> m a
 withPushLogContextCheckGroup group = withPushLogContextCheckGroupFingerprint group.fingerprint

@@ -210,13 +210,13 @@ getRODataInputRanges opts =
 
 getCheckFilter :: CheckOpts -> CheckFilter
 getCheckFilter opts = CheckFilter
-    { pairings = \pairingId -> applyIncludeExcludeFilter pairingsFilter (getAsm pairingId)
-    , groups = \pairingId -> M.lookup (getAsm pairingId) groupPatterns <&> \pats ->
+    { pairings = \pairingId -> applyIncludeExcludeFilter pairingsFilter pairingId.asm
+    , groups = \pairingId -> M.lookup pairingId.asm groupPatterns <&> \pats ->
         \groupFingerprint -> or
             [ matchCheckGroupFingerprint pat groupFingerprint
             | pat <- pats
             ]
-    , checks = \pairingId -> M.lookup (getAsm pairingId) checkPatterns <&> \pats ->
+    , checks = \pairingId -> M.lookup pairingId.asm checkPatterns <&> \pats ->
         \checkFingerprint -> or
             [ matchCheckFingerprint pat checkFingerprint
             | pat <- pats

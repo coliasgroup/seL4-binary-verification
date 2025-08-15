@@ -66,8 +66,8 @@ data IntermediateStagesOutput
 stages :: StagesInput -> StagesOutput
 stages input = StagesOutput
     { checks = smtProofChecks
-    , unhandledInlineAssemblyFunctions = getC unhandledAsmFunctionNames
-    , unhandledInstructionFunctions = getAsm unhandledAsmFunctionNames
+    , unhandledInlineAssemblyFunctions = unhandledAsmFunctionNames.c
+    , unhandledInstructionFunctions = unhandledAsmFunctionNames.asm
     , intermediate = IntermediateStagesOutput
         { functions = collectedFunctions
         , pairings
@@ -98,17 +98,17 @@ stages input = StagesOutput
     functionSigs = signatureOfFunction . lookupFunction
 
     collectedFunctions = programFromFunctions $
-        M.unionWith (error "not disjoint") (getC finalPrograms).functions (getAsm finalPrograms).functions
+        M.unionWith (error "not disjoint") finalPrograms.c.functions finalPrograms.asm.functions
 
     normalFunctionPairingIds = do
-        asm <- M.keys (getAsm finalPrograms).functions
+        asm <- M.keys finalPrograms.asm.functions
         let c = asm & #unwrap %~ (input.cFunctionPrefix ++)
-        guard $ c `M.member` (getC finalPrograms).functions
+        guard $ c `M.member` finalPrograms.c.functions
         return $ byAsmRefineTag (ByAsmRefineTag { asm, c })
 
     normalPairings =
         let f pairingId = formulatePairing
-                (input.stackBounds.unwrap ! getAsm pairingId)
+                (input.stackBounds.unwrap ! pairingId.asm)
                 (functionSigs (viewWithTag C pairingId))
          in M.fromSet f (S.fromList normalFunctionPairingIds)
 

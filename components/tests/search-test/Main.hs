@@ -42,7 +42,7 @@ testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
             , rodata = stagesInput.rodata
             , cFunctionPrefix = stagesInput.cFunctionPrefix
             , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
-            , asmFunctions = S.fromList $ map getAsm $ S.toList $ M.keysSet stagesInput.inlineScripts.unwrap
+            , asmFunctions = S.fromList $ map (.asm) $ S.toList $ M.keysSet stagesInput.inlineScripts.unwrap
             }
     gate <- liftIO $ newSemGate =<< numThreads
     let f input = makeConcurrentlyUnliftIO $ applySemGate gate 1 $ do

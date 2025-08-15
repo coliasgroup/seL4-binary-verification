@@ -31,8 +31,8 @@ addInlineAssemblySpecs :: ByTag' Program -> (Pairings', ByTag' Program, ByTag' [
 addInlineAssemblySpecs progs =
     (pairings, finalProgs, unhandled)
   where
-    (asmProg', (leftInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun (getAsm progs)
-    (cProg', (rightInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun (getC progs)
+    (asmProg', (leftInstFuns, asmUnhandledFunNames)) = applyDecoder decodeAsmInstFun progs.asm
+    (cProg', (rightInstFuns, cUnhandledFunNames)) = applyDecoder decodeCInstFun progs.c
 
     intermediateProgs = byAsmRefineTag (ByAsmRefineTag
         { asm = asmProg'
@@ -175,7 +175,7 @@ decodeAsmInstFun funName _fun = f <$> stripPrefix "instruction'" funName.unwrap
                 output =
                     [ NameTy reg machineWordT | (reg, RegRoleOut) <- zip regAssignments regSpec ]
                     ++ [ NameTy "mem" memT ]
-                funBody = trivialProxyFunctionBody (getAsm (instFunctionName instFun)) input output
+                funBody = trivialProxyFunctionBody (instFunctionName instFun).asm input output
              in (funBody, instFun)
 
 decodeCInstFun :: InstFunDecoder
@@ -188,7 +188,7 @@ decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
                 (oscs, omems, _) = splitScalarPairs fun.output
                 input = map varFromNameTyE iscs ++ [ tokenE token ] ++ map varFromNameTyE imems
                 output = oscs ++ omems
-                funBody = trivialProxyFunctionBody (getC (instFunctionName instFun)) input output
+                funBody = trivialProxyFunctionBody (instFunctionName instFun).c input output
              in (funBody, instFun)
 
 trivialProxyFunctionBody :: Ident -> [Expr] -> [NameTy] -> FunctionBody

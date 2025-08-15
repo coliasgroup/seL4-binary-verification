@@ -53,7 +53,7 @@ discoverInlineScript run input =
     lookupFun = input.functions
     funs = withTags input.pairingId <&> \nameWithTag -> Named nameWithTag.value (lookupFun nameWithTag)
     allMatched = S.fromList $ input.matches ^.. folded % folded
-    asmToCMatch = M.fromList $ [ (getAsm match, getC match) | match <- S.toList input.matches ]
+    asmToCMatch = M.fromList $ [ (match.asm, match.c) | match <- S.toList input.matches ]
     presentInProblem problem = S.fromList $ problem ^.. #nodes % folded % #_NodeCall % #functionName
     inlineCompletelyUnmatched problem =
         let matched = S.intersection (presentInProblem problem) allMatched
@@ -116,7 +116,7 @@ nextReachableUnmatchedCInlinePointInner = runForTag C $ do
     g <- askNodeGraph
     loops <- allInnerLoops p.nodes <$> askLoopData
     let limits = [ Restr loop.head (doubleRangeVC 3 3) | loop <- loops ]
-    let reachable = reachableFrom g ((getC p.sides).entryPoint)
+    let reachable = reachableFrom g p.sides.c.entryPoint
     let f n = void $ runExceptT $ tryGetNodePcEnv $ Visit n limits
     -- HACK order matches graph-refine
     traverse_ f $ sort $ filter (is #_Addr) reachable

@@ -51,7 +51,7 @@ prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
     lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions M.! funName
 
     pairings = S.fromList $ do
-        asm <- M.keys (getAsm finalPrograms).functions
+        asm <- M.keys finalPrograms.asm.functions
         let c = asm & #unwrap %~ (input.cFunctionPrefix ++)
-        guard $ c `M.member` (getC finalPrograms).functions
+        guard $ c `M.member` finalPrograms.c.functions
         return $ byAsmRefineTag (ByAsmRefineTag { asm, c })

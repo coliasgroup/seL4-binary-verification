@@ -49,7 +49,7 @@ discoverStackBounds run input = do
     logInfo ""
     let asmClosure = callClosure (input.functions . WithTag Asm) input.includeAsmFrom
     -- logInfo $ show ("asm closure", asmClosure ^.. folded % #unwrap)
-    let cClosure = S.fromList $ input.pairings ^.. folded % filtered ((`S.member` asmClosure) . getAsm) % atTag C
+    let cClosure = S.fromList $ input.pairings ^.. folded % filtered ((`S.member` asmClosure) . (.asm)) % atTag C
     -- logInfo $ show ("c closure", cClosure ^.. folded % #unwrap)
     cIdents <- getRecursionIdents
         runRepGraphAsm
