@@ -12,7 +12,7 @@ import BV.Core.Logic (splitScalarPairs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Data.Function (on, applyWhen)
+import Data.Function (applyWhen, on)
 import Data.Maybe (mapMaybe, maybeToList)
 import Optics
 
