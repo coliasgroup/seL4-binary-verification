@@ -101,15 +101,15 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
     outerAddr = lastOf folded (take (length varArgsC) argSeq) >>= snd
 
     argEqs =
-        [ leftIn asm === rightIn (castCToAsmE asm.ty (varFromNameTyE c))
+        [ asmIn asm === cIn (castCToAsmE asm.ty (varFromNameTyE c))
         | (c, (asm, _addr)) <- zip varArgsC argSeq
         ]
 
-    inEqs = argEqs ++ memIeqs ++ [ leftIn expr === leftIn trueE | expr <- preconds ]
+    inEqs = argEqs ++ memIeqs ++ [ asmIn expr === asmIn trueE | expr <- preconds ]
 
-    retEqs = [ leftOut asm === rightOut (castCToAsmE asm.ty c) | (c, asm) <- retOutEqs ]
+    retEqs = [ asmOut asm === cOut (castCToAsmE asm.ty c) | (c, asm) <- retOutEqs ]
 
-    leftInvs = [ leftIn vin === leftOut vout | (vin, vout) <- postEqs ]
+    leftInvs = [ asmIn vin === asmOut vout | (vin, vout) <- postEqs ]
 
     outEqs = retEqs ++ memOeqs ++ leftInvs
 
@@ -127,20 +127,20 @@ mkMemEqs asmInMem cInMemOpt asmOutMemOpt cOutMemOpt =
   where
     inEqs = case cInMemOpt of
         Nothing ->
-            [ leftIn (rodataE asmInMem) === rightIn trueE
+            [ asmIn (rodataE asmInMem) === cIn trueE
             ]
         Just cInMem ->
-            [ leftIn asmInMem === rightIn cInMem
-            , rightIn (rodataE cInMem) === rightIn trueE
+            [ asmIn asmInMem === cIn cInMem
+            , cIn (rodataE cInMem) === cIn trueE
             ]
     outEqs = case (asmOutMemOpt, cOutMemOpt) of
         (_, Nothing) ->
-            [ leftOut asmOutMem === leftIn asmInMem
+            [ asmOut asmOutMem === asmIn asmInMem
             | asmOutMem <- toList asmOutMemOpt
             ]
         (Just asmOutMem, Just cOutMem) ->
-            [ leftOut asmOutMem === rightOut cOutMem
-            , rightOut (rodataE cOutMem) === rightOut trueE
+            [ asmOut asmOutMem === cOut cOutMem
+            , cOut (rodataE cOutMem) === cOut trueE
             ]
 
 maybeFromList :: [a] -> Maybe a
