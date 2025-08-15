@@ -362,12 +362,15 @@ emitSplitNodeInductStepChecks splitNode = branch $ do
                 (getLeft splitNode.details).split)
 
 getSplitNodeCErrHyp :: MonadChecks t m => SplitProofNode t () -> m (Hyp t)
-getSplitNodeCErrHyp splitNode = branch $ do
+getSplitNodeCErrHyp splitNode = getSplitNodeCErrHypInner splitNode.n splitNode.loopRMax (getRight splitNode.details)
+
+getSplitNodeCErrHypInner :: MonadChecks t m => Integer -> Integer -> SplitProofNodeDetails -> m (Hyp t)
+getSplitNodeCErrHypInner n loopRMax detailsR = branch $ do
     restrict1L rightTag $
-        Restr (getRight splitNode.details).split $
+        Restr detailsR.split $
             doubleRangeVC
-                ((getRight splitNode.details).seqStart + (splitNode.n * (getRight splitNode.details).step))
-                (splitNode.loopRMax + 2)
+                (detailsR.seqStart + (n * detailsR.step))
+                (loopRMax + 2)
     applyRestrOthers
     pcFalseH <$> getVisitWithTag rightTag Err
 
@@ -514,14 +517,7 @@ getLoopCounterEqHyp node = do
             (Just (eqInductH node.point.unwrap 0))
 
 getSingleLoopRevCErrHyp :: MonadChecks t m => SplitProofNodeDetails -> m (Hyp t)
-getSingleLoopRevCErrHyp details = getSplitNodeCErrHyp (SplitProofNode
-    { n = 1
-    , loopRMax = 1
-    , details = byRefineTag undefined details
-    , eqs = undefined
-    , p1 = undefined
-    , p2 = undefined
-    })
+getSingleLoopRevCErrHyp = getSplitNodeCErrHypInner 1 1
 
 assumeSingleRevInduct :: MonadChecks t m => SingleRevInductProofNode t () -> m ()
 assumeSingleRevInduct node = branchRestrs $ do
