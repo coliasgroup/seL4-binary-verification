@@ -124,8 +124,9 @@ stages input = StagesOutput
 
     proofChecks = ProofChecks $ flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings.unwrap M.! pairingId
+            sigs = lookupFunctionSig <$> withTags pairingId
             proofScript = input.proofScripts.unwrap M.! pairingId
-         in enumerateProofChecks (lookupOrigVarNameFor problem) pairing problem proofScript
+         in enumerateProofChecks problem sigs pairing proofScript
 
     smtProofChecks = SMTProofChecks $ flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let repGraphInput = RepGraphBaseInput

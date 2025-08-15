@@ -28,11 +28,11 @@ import Text.Printf (printf)
 
 type NodeProofChecks t = ProofCheckGroup t ProofCheckDescription
 
-enumerateProofChecks :: RefineTag t => ArgRenames t -> Pairing t -> Problem t -> ProofScript t () -> ProofScript t (NodeProofChecks t)
-enumerateProofChecks argRenames pairing problem proofScript =
+enumerateProofChecks :: RefineTag t => Problem t -> ByTag t FunctionSignature -> Pairing t -> ProofScript t () -> ProofScript t (NodeProofChecks t)
+enumerateProofChecks problem sigs pairing proofScript =
     ProofScript $ runReader (evalStateT m initState) context
   where
-    context = initContext argRenames pairing problem
+    context = initContext problem sigs pairing
     m = enumerateProofChecksInner
         (assumeR =<< instantiatePairingEqs PairingEqDirectionIn)
         proofScript.root
@@ -45,19 +45,19 @@ pruneProofCheck analysis = over checkVisits pruneVisitWithTag
 
 data Context t
   = Context
-      { pairing :: Pairing t
-      , problem :: Problem t
+      { problem :: Problem t
       , analysis :: ProblemAnalysis t
       , argRenames :: ArgRenames t
+      , pairing :: Pairing t
       }
   deriving (Generic)
 
-initContext :: RefineTag t => ArgRenames t -> Pairing t -> Problem t -> Context t
-initContext argRenames pairing problem = Context
-    { pairing
-    , problem
+initContext :: RefineTag t => Problem t -> ByTag t FunctionSignature -> Pairing t -> Context t
+initContext problem sigs pairing = Context
+    { problem
     , analysis = analyzeProblem problem
-    , argRenames
+    , argRenames = problemArgRenames problem sigs
+    , pairing
     }
 
 askPairing :: MonadReader (Context t) m => m (Pairing t)
