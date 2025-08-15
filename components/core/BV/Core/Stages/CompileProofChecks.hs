@@ -16,7 +16,7 @@ import Optics
 
 compileProofChecks
     :: RepGraphBaseInput AsmRefineTag
-    -> FunctionSignatures AsmRefineTag
+    -> LookupFunctionSignature AsmRefineTag
     -> Pairings'
     -> ArgRenames AsmRefineTag
     -> [ProofCheck AsmRefineTag a]
@@ -31,7 +31,7 @@ compileProofChecks repGraphInput functionSigs pairings argRenames checks =
 
 compileProofCheckGroup
     :: RepGraphBaseInput AsmRefineTag
-    -> FunctionSignatures AsmRefineTag
+    -> LookupFunctionSignature AsmRefineTag
     -> Pairings'
     -> ArgRenames AsmRefineTag
     -> ProofCheckGroup AsmRefineTag a

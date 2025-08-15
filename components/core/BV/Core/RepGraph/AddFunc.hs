@@ -1,5 +1,5 @@
 module BV.Core.RepGraph.AddFunc
-    ( FunctionSignatures
+    ( LookupFunctionSignature
     , WithAddFunc
     , runWithAddFunc
     ) where
@@ -26,7 +26,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 
-type FunctionSignatures t = WithTag t Ident -> FunctionSignature
+type LookupFunctionSignature t = WithTag t Ident -> FunctionSignature
 
 type WithAddFuncInner t m = StateT (State t) (ReaderT (Env t) m)
 
@@ -40,7 +40,7 @@ instance MonadTrans (WithAddFunc t) where
 
 data Env t
   = Env
-      { functionSigs :: FunctionSignatures t
+      { functionSigs :: LookupFunctionSignature t
       , pairings :: Pairings t
       , pairingsAccess :: ByTag t (M.Map Ident (PairingId t))
       }
@@ -52,13 +52,13 @@ data State t
       }
   deriving (Generic)
 
-runWithAddFunc :: RefineTag t => MonadRepGraph t m => FunctionSignatures t -> Pairings t -> WithAddFunc t m a -> m a
+runWithAddFunc :: RefineTag t => MonadRepGraph t m => LookupFunctionSignature t -> Pairings t -> WithAddFunc t m a -> m a
 runWithAddFunc functionSigs pairings m =
     runReaderT
         (evalStateT m.run initState)
         (initEnv functionSigs pairings)
 
-initEnv :: RefineTag t => FunctionSignatures t -> Pairings t -> Env t
+initEnv :: RefineTag t => LookupFunctionSignature t -> Pairings t -> Env t
 initEnv functionSigs pairings = Env
     { functionSigs
     , pairings
