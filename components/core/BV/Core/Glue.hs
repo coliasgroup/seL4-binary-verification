@@ -103,9 +103,9 @@ stages input = StagesOutput
         let f pairingId = formulatePairing
                 (input.stackBounds.unwrap ! pairingId.asm)
                 (lookupFunctionSig (viewWithTag C pairingId))
-         in M.fromSet f (S.fromList normalFunctionPairingIds)
+         in Pairings $ M.fromSet f (S.fromList normalFunctionPairingIds)
 
-    pairings = Pairings $ normalPairings `M.union` inlineAsmPairings.unwrap
+    pairings = normalPairings <> inlineAsmPairings
 
     problems = Problems $ M.fromList $ do
         pairingId <- normalFunctionPairingIds
@@ -120,14 +120,14 @@ stages input = StagesOutput
     provenProblems = problems & #unwrap %~ (`M.restrictKeys` M.keysSet input.proofScripts.unwrap)
 
     lookupOrigVarNameFor problem = problemArgRenames problem $
-        signatureOfFunction . lookupFunction <$> withTags (pairingIdOfProblem problem)
+        lookupFunctionSig <$> withTags (pairingIdOfProblem problem)
 
-    proofChecks = ProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    proofChecks = ProofChecks $ flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let pairing = pairings.unwrap M.! pairingId
             proofScript = input.proofScripts.unwrap M.! pairingId
          in enumerateProofChecks (lookupOrigVarNameFor problem) pairing problem proofScript
 
-    smtProofChecks = SMTProofChecks . flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    smtProofChecks = SMTProofChecks $ flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
         let repGraphInput = RepGraphBaseInput
                 { structs = input.programs <&> (.structs)
                 , rodata = input.rodata
