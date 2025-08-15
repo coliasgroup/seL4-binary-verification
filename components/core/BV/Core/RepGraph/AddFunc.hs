@@ -1,6 +1,5 @@
 module BV.Core.RepGraph.AddFunc
-    ( LookupFunctionSignature
-    , WithAddFunc
+    ( WithAddFunc
     , runWithAddFunc
     ) where
 
@@ -25,8 +24,6 @@ import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
-
-type LookupFunctionSignature t = WithTag t Ident -> FunctionSignature
 
 type WithAddFuncInner t m = StateT (State t) (ReaderT (Env t) m)
 

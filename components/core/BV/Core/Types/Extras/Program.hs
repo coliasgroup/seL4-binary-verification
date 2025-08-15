@@ -6,6 +6,7 @@ module BV.Core.Types.Extras.Program
     , FunctionSignature (..)
     , HasVarDecls (..)
     , HasVarNames (..)
+    , LookupFunctionSignature
     , TraverseTopLevelExprs (..)
     , VarUpdate (..)
     , applyFunctionFilter
@@ -167,3 +168,5 @@ signatureOfFunction fun = FunctionSignature
     { input = fun.input
     , output = fun.output
     }
+
+type LookupFunctionSignature t = WithTag t Ident -> FunctionSignature
