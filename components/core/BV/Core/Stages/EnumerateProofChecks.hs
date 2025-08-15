@@ -453,12 +453,10 @@ getSplitHypsAt splitNode visit = branch $ do
 
 emitSingleRevInductNodeChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleRevInductNodeChecks node = branch $ do
-    sequence_
-        [ branch $ emitSingleLoopInductStepChecks node
-        , branch $ emitSingleLoopInductBaseChecks node
-        , branch $ emitSingleLoopRevInductChecks node
-        , branch $ emitSingleLoopRevInductBaseChecks node
-        ]
+    branch $ emitSingleLoopInductStepChecks node
+    branch $ emitSingleLoopInductBaseChecks node
+    branch $ emitSingleLoopRevInductChecks node
+    branch $ emitSingleLoopRevInductBaseChecks node
 
 emitSingleLoopInductStepChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleLoopInductStepChecks node = branch $ do

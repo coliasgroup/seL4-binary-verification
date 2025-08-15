@@ -22,13 +22,13 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Writer (execWriterT, tell)
 import Data.Foldable (for_, toList, traverse_)
 import Data.Functor (void)
+import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
-import Data.List (sort)
 
 data DiscoverInlineScriptInput
   = DiscoverInlineScriptInput
