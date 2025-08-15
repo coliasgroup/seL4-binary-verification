@@ -3,6 +3,8 @@ module BV.Core.Arch
     , archWordSizeBits
     ) where
 
+-- TODO make configurable
+
 archWordSizeBits :: Integer
 archWordSizeBits = 32
 
