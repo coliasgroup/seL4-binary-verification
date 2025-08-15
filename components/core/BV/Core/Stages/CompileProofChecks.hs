@@ -18,12 +18,11 @@ compileProofChecks
     :: RepGraphBaseInput AsmRefineTag
     -> LookupFunctionSignature AsmRefineTag
     -> Pairings'
-    -> ArgRenames AsmRefineTag
     -> [ProofCheck AsmRefineTag a]
     -> [(ProofCheckGroupCheckIndices, SMTProofCheckGroup a)]
-compileProofChecks repGraphInput lookupSig pairings argRenames checks =
+compileProofChecks repGraphInput lookupSig pairings checks =
     over (traversed % _2)
-        (compileProofCheckGroup repGraphInput lookupSig pairings argRenames . pruneGroup)
+        (compileProofCheckGroup repGraphInput lookupSig pairings . pruneGroup)
         (proofCheckGroups checks)
   where
     pruneCheck = pruneProofCheck (analyzeProblem repGraphInput.problem)
@@ -33,10 +32,9 @@ compileProofCheckGroup
     :: RepGraphBaseInput AsmRefineTag
     -> LookupFunctionSignature AsmRefineTag
     -> Pairings'
-    -> ArgRenames AsmRefineTag
     -> ProofCheckGroup AsmRefineTag a
     -> SMTProofCheckGroup a
-compileProofCheckGroup repGraphInput lookupSig pairings argRenames group =
+compileProofCheckGroup repGraphInput lookupSig pairings group =
     SMTProofCheckGroup setup imps
   where
     (imps, setup) =
@@ -44,6 +42,10 @@ compileProofCheckGroup repGraphInput lookupSig pairings argRenames group =
             (runRepGraphBase
                 repGraphInput
                 (runWithAddFunc lookupSig pairings (runWithAsmStackRep argRenames m)))
+    argRenames =
+        problemArgRenames repGraphInput.problem $
+            lookupSig <$>
+                withTags (pairingIdOfProblem repGraphInput.problem)
     m = interpretGroup group <* addPValidDomAssertions
 
 interpretGroup :: (RefineTag t, MonadRepGraph t m) => ProofCheckGroup t a -> m [SMTProofCheckImp a]

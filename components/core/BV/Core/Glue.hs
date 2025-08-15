@@ -119,9 +119,6 @@ stages input = StagesOutput
 
     provenProblems = M.restrictKeys problems.unwrap (M.keysSet input.proofScripts.unwrap)
 
-    lookupOrigVarNameFor problem = problemArgRenames problem $
-        lookupFunctionSig <$> withTags (pairingIdOfProblem problem)
-
     proofChecks = ProofChecks $ flip M.mapWithKey provenProblems $ \pairingId problem ->
         let pairing = pairings.unwrap M.! pairingId
             sigs = lookupFunctionSig <$> withTags pairingId
@@ -134,5 +131,5 @@ stages input = StagesOutput
                 , rodata = input.rodata
                 , problem
                 }
-         in compileProofChecks repGraphInput lookupFunctionSig pairings (lookupOrigVarNameFor problem)
+         in compileProofChecks repGraphInput lookupFunctionSig pairings
                 <$> (proofChecks.unwrap M.! pairingId)
