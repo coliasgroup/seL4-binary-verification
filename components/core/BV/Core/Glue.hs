@@ -86,7 +86,7 @@ stages input = StagesOutput
         , c = pseudoCompile input.objDumpInfo
         })
 
-    alteredPrograms = fixupProgram <$> (alterProgramByTag <*> input.programs)
+    alteredPrograms = alterProgramByTag <*> (fixupProgram <$> input.programs)
 
     (inlineAsmPairings, alteredProgramsWithInlineAsm, unhandledAsmFunctionNames) =
         addInlineAssemblySpecs alteredPrograms

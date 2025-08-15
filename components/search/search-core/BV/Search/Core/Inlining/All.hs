@@ -38,7 +38,7 @@ prepareAllDiscoverInlineScriptInput input = scripts
         , c = pseudoCompile input.objDumpInfo
         })
 
-    alteredPrograms = fixupProgram <$> (alterProgramByTag <*> input.programs)
+    alteredPrograms = alterProgramByTag <*> (fixupProgram <$> input.programs)
 
     (inlineAsmPairings, alteredProgramsWithInlineAsm, _unhandledAsmFunctionNames) =
         addInlineAssemblySpecs alteredPrograms

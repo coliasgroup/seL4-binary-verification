@@ -44,7 +44,7 @@ prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
         , c = pseudoCompile input.objDumpInfo
         })
 
-    alteredPrograms = fixupProgram <$> (alterProgramByTag <*> input.programs)
+    alteredPrograms = alterProgramByTag <*> (fixupProgram <$> input.programs)
 
     finalPrograms = alteredPrograms
 
