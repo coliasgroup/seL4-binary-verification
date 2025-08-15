@@ -117,18 +117,18 @@ stages input = StagesOutput
         let problem = buildProblem lookupFunction inlineScript namedFuns
         return (pairingId, problem)
 
-    provenProblems = problems & #unwrap %~ (`M.restrictKeys` M.keysSet input.proofScripts.unwrap)
+    provenProblems = M.restrictKeys problems.unwrap (M.keysSet input.proofScripts.unwrap)
 
     lookupOrigVarNameFor problem = problemArgRenames problem $
         lookupFunctionSig <$> withTags (pairingIdOfProblem problem)
 
-    proofChecks = ProofChecks $ flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    proofChecks = ProofChecks $ flip M.mapWithKey provenProblems $ \pairingId problem ->
         let pairing = pairings.unwrap M.! pairingId
             sigs = lookupFunctionSig <$> withTags pairingId
             proofScript = input.proofScripts.unwrap M.! pairingId
          in enumerateProofChecks problem sigs pairing proofScript
 
-    smtProofChecks = SMTProofChecks $ flip M.mapWithKey provenProblems.unwrap $ \pairingId problem ->
+    smtProofChecks = SMTProofChecks $ flip M.mapWithKey provenProblems $ \pairingId problem ->
         let repGraphInput = RepGraphBaseInput
                 { structs = input.programs <&> (.structs)
                 , rodata = input.rodata
