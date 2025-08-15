@@ -405,8 +405,8 @@ assumeSplitLoop splitNode exit = branchRestrs $ do
         assumeHyps =<< getSplitHypsAt (offsetVC i) splitNode
 
 getSplitHypsAt :: forall t m. MonadChecks t m => VisitCount -> SplitProofNode t () -> m [HypWithDesc t]
-getSplitHypsAt visit splitNode = branch $ do
-    visits <- getSplitVisitsAt visit splitNode
+getSplitHypsAt vc splitNode = branch $ do
+    visits <- getSplitVisitsAt vc splitNode
     starts <- getSplitVisitsAt (numberVC 0) splitNode
     let tagDesc tag = ((prettyTag (tag :: t) ++ " ") ++)
         imp = pcImpH `on` PcImpHypSidePc
@@ -415,12 +415,12 @@ getSplitHypsAt visit splitNode = branch $ do
             eqInductH
                 (getLeft splitNode.details).split.unwrap
                 (getRight splitNode.details).split.unwrap
-        inst = instEqAtVisit visit
+        inst = instEqAtVisit vc
         mksub v = walkExprs $ \case
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
             expr -> expr
         zsub = mksub $ machineWordE 0
-        isub = mksub $ case fromJust (simpleVC visit) of
+        isub = mksub $ case fromJust (simpleVC vc) of
             SimpleVisitCountViewNumber n -> machineWordE n
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
     return $
@@ -526,19 +526,19 @@ assumeSingleRevInduct node = branchRestrs $ do
     assume1R $ trueIfAt' node.pred_ visit
 
 getLoopEqHypsAt :: MonadChecks t m => Bool -> VisitCount -> SingleRevInductProofNode t () -> m [HypWithDesc t]
-getLoopEqHypsAt useIfAt visitNum node = do
+getLoopEqHypsAt useIfAt vc node = do
     let details = singleSplitDetails node
-        mksub v = walkExprs $ \case
+    visit <- getSplitVisitAt vc details
+    start <- getSplitVisitAt (numberVC 0) details
+    let mksub v = walkExprs $ \case
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
             expr -> expr
         zsub = mksub (machineWordE 0)
-        isub = mksub $ case fromJust (simpleVC visitNum) of
+        isub = mksub $ case fromJust (simpleVC vc) of
            SimpleVisitCountViewNumber n -> machineWordE n
            SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
-    visit <- getSplitVisitAt visitNum details
-    start <- getSplitVisitAt (numberVC 0) details
     return $
-        [ HypWithDesc (prettyTag node.tag ++ " pc imp") $ pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start)
+        [ HypWithDesc (prettyTag node.tag ++ " pc imp") $ (pcImpH `on` PcImpHypSidePc) visit start
         ] ++
         [ HypWithDesc (prettyTag node.tag ++ " const") $
             eqWithIfAtH useIfAt
@@ -546,7 +546,7 @@ getLoopEqHypsAt useIfAt visitNum node = do
                 (eqSideH (isub expr) visit)
                 (Just (eqInductH node.point.unwrap 0))
         | Lambda { expr } <- node.eqs
-        , instEqAtVisit visitNum expr
+        , instEqAtVisit vc expr
         ]
 
 singleSplitDetails :: SingleRevInductProofNode t () -> WithTag t SplitProofNodeDetails
