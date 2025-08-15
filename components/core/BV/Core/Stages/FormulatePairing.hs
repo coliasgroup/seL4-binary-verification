@@ -12,7 +12,7 @@ import BV.Core.Logic (splitScalarPairs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Data.Function (on)
+import Data.Function (on, applyWhen)
 import Data.Maybe (mapMaybe, maybeToList)
 import Optics
 
@@ -46,26 +46,22 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
             (Just asmMem)
             (maybeFromList (map varFromNameTyE cOutMems))
 
-    firstArgIndex = if multiRet then 1 else 0
-
-    argSeq = take numCArgs $ concat
+    asmArgSeq = take numCArgs $ concat
         [ [ (r i, Nothing)
-          | i <- [firstArgIndex .. 3]
+          | i <- applyWhen multiRet (drop 1) [0..3]
           ]
         , [ (value, Just addr)
           | (value, addr) <- mkStackSequence stack sp
           ]
         ]
 
-    argSeqExprs = map fst argSeq
+    asmArgExprs = map fst asmArgSeq
 
-    argSeqAddrs = mapMaybe snd argSeq
-
-    outerAddrOpt = lastOf folded argSeqAddrs
+    asmArgAddrs = mapMaybe snd asmArgSeq
 
     argEqs =
         [ asmIn asm === cIn (castCToAsmE asm.ty c)
-        | (c, asm) <- zip cArgExprs argSeqExprs
+        | (c, asm) <- zip cArgExprs asmArgExprs
         ]
 
     asmPreconds = concat
@@ -76,7 +72,9 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
           , minStackSize `lessEqE` sp
           ]
         , retInfo.asmPreconds
-        , [ sp `lessEqE` outerAddr | outerAddr <- maybeToList outerAddrOpt ]
+        , [ sp `lessEqE` lastAsmArgAddr
+          | lastAsmArgAddr <- maybeToList (lastOf folded asmArgAddrs)
+          ]
         ]
 
     inEqs = concat
@@ -95,7 +93,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
           | i <- [4..11] ++ [13]
           ]
         , retInfo.asmInvariants
-        , [ ((,) `on` (stackWrapperE sp stack)) argSeqAddrs retInfo.saveAddrs
+        , [ ((,) `on` (stackWrapperE sp stack)) asmArgAddrs retInfo.asmRetAddrs
           ]
         ]
 
@@ -111,18 +109,18 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
             RetInfo
                 { asmPreconds = []
                 , asmInvariants = []
+                , asmRetAddrs = []
                 , eqPairs = zip cRetExprs [r 0]
-                , saveAddrs = []
                 }
         else
-            let (eqPairs, saveAddrs) = unzip
+            let (eqPairs, asmRetAddrs) = unzip
                     [ ((c, castE c.ty asm), asmAddr)
                     | (c, (asm, asmAddr)) <- zip cRetExprs $ mkStackSequence stack r0Input
                     ]
-                initSaveSeq = take numCRets $ mkStackSequence stack (r 0)
-                Just ((_, initSaveSeqHeadAddr), _) = uncons initSaveSeq
-                Just (_, (_, initSaveSeqLastAddr)) = unsnoc initSaveSeq
-                lastArgAddrOpt = case unsnoc argSeq of
+                initAsmRetSeq = take numCRets $ mkStackSequence stack (r 0)
+                Just ((_, initAsmRetSeqHeadAddr), _) = uncons initAsmRetSeq
+                Just (_, (_, initAsmRetSeqLastAddr)) = unsnoc initAsmRetSeq
+                lastArgAddrOpt = case unsnoc asmArgSeq of
                     Just (_, (_, addrOpt)) -> addrOpt
                     -- HACK (this whole branch) to match unnecessary precond in graph-refine
                     Nothing -> Just $ sp `plusE` numE sp.ty 0
@@ -130,23 +128,23 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
                     { asmPreconds = concat
                         [ [ alignedE 2 (r 0)
                           , sp `lessEqE` r 0
-                          , r 0 `lessEqE` initSaveSeqLastAddr
+                          , r 0 `lessEqE` initAsmRetSeqLastAddr
                           ]
-                        , [ lastArgAddr `lessE` initSaveSeqHeadAddr
+                        , [ lastArgAddr `lessE` initAsmRetSeqHeadAddr
                           | lastArgAddr <- maybeToList lastArgAddrOpt
                           ]
                         ]
                     , asmInvariants = [(r0Input, r0Input)]
+                    , asmRetAddrs
                     , eqPairs
-                    , saveAddrs
                     }
 
 data RetInfo
   = RetInfo
       { asmPreconds :: [Expr]
       , asmInvariants :: [(Expr, Expr)]
+      , asmRetAddrs :: [Expr]
       , eqPairs :: [(Expr, Expr)]
-      , saveAddrs :: [Expr]
       }
 
 mkStackSequence :: Expr -> Expr -> [(Expr, Expr)]
