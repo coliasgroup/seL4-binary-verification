@@ -705,7 +705,7 @@ instance Tag t => ParseInLine (EqHyp t) where
 
 instance Tag t => BuildInLine (EqHyp t) where
     buildInLine hyp = put hyp.lhs <> put hyp.rhs <> case hyp.induct of
-        Just induct -> putDec induct.a <> putDec induct.b
+        Just induct -> putDec induct.n1 <> putDec induct.n2
         Nothing -> putWord "None" <> putWord "None"
 
 instance Tag t => ParseInLine (EqHypSide t) where

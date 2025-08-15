@@ -25,6 +25,7 @@ module BV.Core.Types.Tag
     , viewAtTag
     , viewByRefineTag
     , viewWithTag
+    , withByRefineTag
     , withTag
     , withTags
     ) where
@@ -139,8 +140,11 @@ class StaticTag t => RefineTag t where
 byRefineTag :: RefineTag t => a -> a -> ByTag t a
 byRefineTag left right = IsList.fromList [left, right]
 
+withByRefineTag :: RefineTag t => (a -> a -> b) -> ByTag t a -> b
+withByRefineTag f byTag = f (getLeft byTag) (getRight byTag)
+
 viewByRefineTag :: RefineTag t => ByTag t a -> (a, a)
-viewByRefineTag byTag = (getLeft byTag, getRight byTag)
+viewByRefineTag = withByRefineTag (,)
 
 leftTag :: RefineTag t => t
 leftTag = minBound

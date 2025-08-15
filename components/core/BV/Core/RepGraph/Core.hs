@@ -570,7 +570,7 @@ getInductVar :: MonadRepGraph t m => EqHypInduct -> m Expr
 getInductVar induct =
     fmap (smtExprE word32T . NotSplit . nameS) $
         withMapSlot #inductVarEnv induct $
-            addVar (printf "induct_i_%d_%d" induct.a induct.b) word32T
+            addVar (printf "induct_i_%d_%d" induct.n1 induct.n2) word32T
 
 substInduct :: Expr -> Expr -> Expr
 substInduct expr inductVar = varSubst f expr

@@ -411,10 +411,7 @@ getSplitHypsAt vc splitNode = branch $ do
     let tagDesc tag = ((prettyTag (tag :: t) ++ " ") ++)
         imp = pcImpH `on` PcImpHypSidePc
         eq l r = eqH l r induct
-        induct = Just $
-            eqInductH
-                (getLeft splitNode.details).split.unwrap
-                (getRight splitNode.details).split.unwrap
+        induct = Just $ eqInductByTagH ((.split) <$> splitNode.details)
         inst = instEqAtVisit vc
         mksub v = walkExprs $ \case
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
@@ -514,7 +511,7 @@ getLoopCounterEqHyp node = do
         eqH
             (eqSideH (machineWordVarE (Ident "%n")) visit)
             (eqSideH (machineWordE node.nBound) visit)
-            (Just (eqInductH node.point.unwrap 0))
+            (Just (eqInductSingleH node.point))
 
 getSingleLoopRevCErrHyp :: MonadChecks t m => SplitProofNodeDetails -> m (Hyp t)
 getSingleLoopRevCErrHyp = getSplitNodeCErrHypInner 1 1
@@ -544,7 +541,7 @@ getLoopEqHypsAt useIfAt vc node = do
             eqWithIfAtH useIfAt
                 (eqSideH (zsub expr) start)
                 (eqSideH (isub expr) visit)
-                (Just (eqInductH node.point.unwrap 0))
+                (Just (eqInductSingleH node.point))
         | Lambda { expr } <- node.eqs
         , instEqAtVisit vc expr
         ]

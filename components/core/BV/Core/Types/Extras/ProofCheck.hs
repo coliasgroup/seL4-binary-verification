@@ -8,7 +8,8 @@ module BV.Core.Types.Extras.ProofCheck
     , eqH'
     , eqIfAtH
     , eqIfAtH'
-    , eqInductH
+    , eqInductByTagH
+    , eqInductSingleH
     , eqSideH
     , eqWithIfAtH
     , fromMapVC
@@ -174,5 +175,12 @@ pcImpH lhs rhs = HypPcImp (PcImpHyp { lhs, rhs })
 eqSideH :: Expr -> WithTag t Visit -> EqHypSide t
 eqSideH = EqHypSide
 
-eqInductH :: Integer -> Integer -> EqHypInduct
-eqInductH = EqHypInduct
+-- HACK integer representation matches graph-refine
+
+eqInductByTagH :: RefineTag t => ByTag t NodeAddr -> EqHypInduct
+eqInductByTagH addrs = ensure (all (/= 0) rawAddrs) $ withByRefineTag EqHypInduct rawAddrs
+  where
+    rawAddrs = (.unwrap) <$> addrs
+
+eqInductSingleH :: NodeAddr -> EqHypInduct
+eqInductSingleH addr = EqHypInduct addr.unwrap 0

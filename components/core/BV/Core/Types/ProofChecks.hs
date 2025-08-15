@@ -83,8 +83,8 @@ data EqHypSide t
 
 data EqHypInduct
   = EqHypInduct
-      { a :: Integer
-      , b :: Integer
+      { n1 :: Integer
+      , n2 :: Integer
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
