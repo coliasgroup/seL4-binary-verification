@@ -60,6 +60,15 @@ initContext argRenames pairing problem = Context
     , argRenames
     }
 
+askPairing :: MonadReader (Context t) m => m (Pairing t)
+askPairing = gview #pairing
+
+askEntryPoints :: MonadReader (Context t) m => m (ByTag t NodeId)
+askEntryPoints = gview $ #problem % #sides % to (fmap (.entryPoint))
+
+askNodeGraph :: MonadReader (Context t) m => m NodeGraph
+askNodeGraph = gview $ #analysis % #nodeGraph
+
 askLoopHead :: (Tag t, MonadReader (Context t) m) => WithTag t NodeAddr -> m (Maybe (WithTag t NodeAddr))
 askLoopHead n = fmap (WithTag n.tag) . loopHeadOf n.value <$> gview (#analysis % #loopData)
 
@@ -70,17 +79,8 @@ askLoopHeads = do
     let withNodeTag n = WithTag (nodeTag n) n
     return $ map withNodeTag $ loopHeadsOf loopData
 
-askNodeGraph :: MonadReader (Context t) m => m NodeGraph
-askNodeGraph = gview $ #analysis % #nodeGraph
-
 askArgRenames :: MonadReader (Context t) m => m (ArgRenames t)
 askArgRenames = gview #argRenames
-
-askEntryPoints :: MonadReader (Context t) m => m (ByTag t NodeId)
-askEntryPoints = gview $ #problem % #sides % to (fmap (.entryPoint))
-
-askPairing :: MonadReader (Context t) m => m (Pairing t)
-askPairing = gview #pairing
 
 data State t
   = State
@@ -117,6 +117,8 @@ instance MonadChecks t m => MonadChecks t (CheckWriter t m) where
     branch = mapWriterT branch
     branchRestrs = mapWriterT branchRestrs
 
+-- we provide functions for adding hyps and restrs to either side to enable matching the behavior of graph-refine
+
 assumeL :: MonadChecks t m => [Hyp t] -> m ()
 assumeL hyps = #assumptions %= (hyps ++)
 
@@ -128,9 +130,6 @@ assume1L = assumeL . (:[])
 
 assume1R :: MonadChecks t m => Hyp t -> m ()
 assume1R = assumeR . (:[])
-
-getAssumptions :: MonadChecks t m => m [Hyp t]
-getAssumptions = use #assumptions
 
 restrictL :: MonadChecks t m => t -> [Restr] -> m ()
 restrictL tag restrs = #restrs %= (map (WithTag tag) restrs ++)
@@ -144,22 +143,9 @@ restrict1L tag = restrictL tag . (:[])
 restrict1R :: MonadChecks t m => t -> Restr -> m ()
 restrict1R tag = restrictR tag . (:[])
 
-getRestrs :: MonadChecks t m => m [WithTag t Restr]
-getRestrs = use #restrs
-
-getRestrsForTag :: MonadChecks t m => t -> m [Restr]
-getRestrsForTag _t = mapMaybe f <$> use #restrs
-  where
-    -- TODO HACK to match grap-refine
-    -- f x = if x.tag == t then Just x.value else Nothing
-    f x = Just x.value
-
-collect :: MonadChecks t m => CheckWriter t m () -> m (NodeProofChecks t)
-collect = execWriterT
-
 conclude :: MonadChecks t m => ProofCheckDescription -> Hyp t -> CheckWriter t m ()
 conclude meta hyp = do
-    hyps <- getAssumptions
+    hyps <- use #assumptions
     let check = ProofCheck
             { meta
             , hyps
@@ -172,8 +158,21 @@ concludeWith meta hyps hyp = branch $ do
     assumeR hyps
     conclude meta hyp
 
+getRestrs :: MonadChecks t m => m [WithTag t Restr]
+getRestrs = use #restrs
+
+getRestrsForTag :: MonadChecks t m => t -> m [Restr]
+getRestrsForTag _t = mapMaybe f <$> use #restrs
+  where
+    -- TODO HACK to match grap-refine
+    -- f x = if x.tag == t then Just x.value else Nothing
+    f x = Just x.value
+
 getVisitWithTag :: MonadChecks t m => t -> NodeId -> m (WithTag t Visit)
 getVisitWithTag tag n = WithTag tag . Visit n <$> getRestrsForTag tag
+
+collect :: MonadChecks t m => CheckWriter t m () -> m (NodeProofChecks t)
+collect = execWriterT
 
 --
 
@@ -254,6 +253,7 @@ emitLeafNodeChecks :: MonadChecks t m => CheckWriter t m ()
 emitLeafNodeChecks = branch $ do
     assume1L =<< pcFalseH <$> getVisitWithTag rightTag Err
     noAsmErr <- pcFalseH <$> getVisitWithTag leftTag Err
+    -- see note in checks.leaf_condition_checks
     retEq <- eqH'
         <$> (eqSideH trueE <$> getVisitWithTag leftTag Ret)
         <*> (eqSideH trueE <$> getVisitWithTag rightTag Ret)
@@ -278,20 +278,18 @@ emitRestrNodeChecks restrNode = branch $ do
             _ | minPred > 0 -> Just $ numberVC minPred
             _ -> Nothing
     for_ minPredVCOpt $ \minPredVC -> do
-        v <- visit minPredVC
+        pcTrueH <$> visit minPredVC >>=
+            conclude
+                (printf "Check of restr min %d %s for %d"
+                    restrNode.range.x
+                    (prettyRestrProofNodeRangeKind restrNode.range.kind)
+                    restrNode.point)
+    pcFalseH <$> visit (maxVCForRestrNode restrNode.range) >>=
         conclude
-            (printf "Check of restr min %d %s for %d"
-                restrNode.range.x
+            (printf "Check of restr max %d %s for %d"
+                restrNode.range.y
                 (prettyRestrProofNodeRangeKind restrNode.range.kind)
                 restrNode.point)
-            (pcTrueH v)
-    maxVC <- visit $ maxVCForRestrNode restrNode.range
-    conclude
-        (printf "Check of restr max %d %s for %d"
-            restrNode.range.y
-            (prettyRestrProofNodeRangeKind restrNode.range.kind)
-            restrNode.point)
-        (pcFalseH maxVC)
 
 assumeRestrTriv :: MonadChecks t m => RestrProofNode t a -> m ()
 assumeRestrTriv restrNode = branchRestrs $ do
@@ -345,7 +343,8 @@ emitSplitNodeInitStepChecks splitNode = branch $ do
     assume1L =<< getSplitNodeCErrHyp splitNode
     for_ [0 .. splitNode.n - 1] $ \i -> branch $ do
         visits <- getSplitVisitsAt splitNode (numberVC i)
-        assumeR [pcTrueH (getLeft visits), pcTrivH (getRight visits)]
+        assume1R $ pcTrueH (getLeft visits)
+        assume1R $ pcTrivH (getRight visits)
         getSplitHypsAt splitNode (numberVC i)
             >>= concludeManyWith (\desc -> printf "Induct check at visit %d: %s" i desc)
 
@@ -462,13 +461,14 @@ emitSingleLoopInductStepChecks :: MonadChecks t m => SingleRevInductProofNode t 
 emitSingleLoopInductStepChecks node = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
     assume1L =<< pcTrueH <$> getSplitVisitAt (WithTag node.tag details) (offsetVC node.n)
-    for_ [0.. node.n - 1] $ \i ->
+    for_ [0 .. node.n - 1] $ \i ->
         assumeHyps =<< getLoopEqHypsAt node.tag node.point node.eqs (offsetVC i) False
     getLoopEqHypsAt node.tag node.point node.eqs (offsetVC node.n) False
-        >>= concludeManyWith (\desc ->
-            printf "Induct check (%s) at inductive step for %d"
-                desc
-                node.point)
+        >>= concludeManyWith
+            (\desc ->
+                printf "Induct check (%s) at inductive step for %d"
+                    desc
+                    node.point)
 
 emitSingleLoopInductBaseChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleLoopInductBaseChecks node = branch $ do
