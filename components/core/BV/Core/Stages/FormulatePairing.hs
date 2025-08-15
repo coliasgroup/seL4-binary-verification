@@ -21,23 +21,23 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
     (varRetsC, omemC, _globRetsC) = splitScalarPairs sig.output
 
     r i = machineWordVarE (Ident ("r" ++ show (i :: Integer)))
-    stackPointer = r 13
+    sp = r 13
     stack = varE memT "stack"
     r0Input = machineWordVarE "ret_addr_input"
     asmMem = varE memT "mem"
     ret = machineWordVarE "ret"
 
     preconds =
-        [ alignedE 2 stackPointer
+        [ alignedE 2 sp
         , ret `eqE` r 14
         , alignedE 2 ret
         , r0Input `eqE` r 0
-        , minStackSize `lessEqE` stackPointer
+        , minStackSize `lessEqE` sp
         ]
         ++
         retPreconds
         ++
-        maybeToList (lessEqE stackPointer <$> outerAddr)
+        maybeToList (lessEqE sp <$> outerAddr)
 
     postEqs =
         [ (r i, r i)
@@ -46,7 +46,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
         ++
         retPostEqs
         ++
-        [ (stackWrapperE stackPointer stack argSeqAddrs, stackWrapperE stackPointer stack saveAddrs)
+        [ (stackWrapperE sp stack argSeqAddrs, stackWrapperE sp stack saveAddrs)
         ]
 
     multiRet = length varRetsC > 1
@@ -59,7 +59,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
         ]
         ++
         [ (value, Just addr)
-        | (value, addr) <- mkStackSequence stackPointer 4 stack machineWordT (length varArgsC + 1)
+        | (value, addr) <- mkStackSequence sp 4 stack machineWordT (length varArgsC + 1)
         ]
 
     (retPreconds, retPostEqs, retOutEqs, saveAddrs) =
@@ -70,7 +70,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
         else
             let theseRetPreconds =
                     [ alignedE 2 (r 0)
-                    , stackPointer `lessEqE` r 0
+                    , sp `lessEqE` r 0
                     ] ++
                     maybeToList (lastOf folded initSaveSeq <&> \(_, addr) ->
                         r 0 `lessEqE` addr) ++
