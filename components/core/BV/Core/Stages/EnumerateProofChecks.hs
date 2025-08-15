@@ -378,11 +378,10 @@ assumeSplitNoLoop splitNode = branchRestrs $ do
 
 getSplitVisitsAt :: MonadChecks t m => VisitCount -> SplitProofNode t () -> m (ByTag t (WithTag t Visit))
 getSplitVisitsAt visit splitNode =
-    for (withTags splitNode.details) $ \detailsWithTag ->
-        getSplitVisitAt detailsWithTag visit
+    traverse (getSplitVisitAt visit) (withTags splitNode.details)
 
-getSplitVisitAt :: MonadChecks t m => WithTag t SplitProofNodeDetails -> VisitCount -> m (WithTag t Visit)
-getSplitVisitAt (WithTag tag details) visit = branch $ do
+getSplitVisitAt :: MonadChecks t m => VisitCount -> WithTag t SplitProofNodeDetails -> m (WithTag t Visit)
+getSplitVisitAt visit (WithTag tag details) = branch $ do
     restrict1L tag $
         Restr details.split $
             case fromJust (simpleVC visit) of
@@ -460,7 +459,7 @@ emitSingleRevInductNodeChecks node = branch $ do
 emitSingleLoopInductStepChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleLoopInductStepChecks node = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
-    assume1L =<< pcTrueH <$> getSplitVisitAt (WithTag node.tag details) (offsetVC node.n)
+    assume1L =<< pcTrueH <$> getSplitVisitAt (offsetVC node.n) (WithTag node.tag details)
     for_ [0 .. node.n - 1] $ \i ->
         assumeHyps =<< getLoopEqHypsAt node (offsetVC i) False
     getLoopEqHypsAt node (offsetVC node.n) False
@@ -474,7 +473,7 @@ emitSingleLoopInductBaseChecks :: MonadChecks t m => SingleRevInductProofNode t 
 emitSingleLoopInductBaseChecks node = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
     for_ [0 .. node.n] $ \i -> branch $ do
-        assume1R =<< pcTrueH <$> getSplitVisitAt (WithTag node.tag details) (numberVC i)
+        assume1R =<< pcTrueH <$> getSplitVisitAt (numberVC i) (WithTag node.tag details)
         getLoopEqHypsAt node (numberVC i) False
             >>= concludeManyWith
                 (\desc -> printf "Base check (%s, %d) at induct step for %d" desc i node.point)
@@ -482,8 +481,8 @@ emitSingleLoopInductBaseChecks node = branch $ do
 emitSingleLoopRevInductChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleLoopRevInductChecks node = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
-    curr <- getSplitVisitAt (WithTag node.tag details) (offsetVC 1)
-    cont <- getSplitVisitAt (WithTag node.tag details) (offsetVC 2)
+    curr <- getSplitVisitAt (offsetVC 1) (WithTag node.tag details)
+    cont <- getSplitVisitAt (offsetVC 2) (WithTag node.tag details)
     assume1R $ pcTrueH curr
     assume1R $ trueIfAt' node.pred_ cont
     assume1R =<< getSingleLoopRevCErrHyp details
@@ -495,7 +494,7 @@ emitSingleLoopRevInductChecks node = branch $ do
 emitSingleLoopRevInductBaseChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleLoopRevInductBaseChecks node = branch $ do
     let details = SplitProofNodeDetails node.point 0 1 node.eqs
-    cont <- getSplitVisitAt (WithTag node.tag details) (offsetVC 1)
+    cont <- getSplitVisitAt (offsetVC 1) (WithTag node.tag details)
     assume1R =<< getLoopCounterEqHyp node
     assume1R $ pcTrueH cont
     assume1R =<< getSingleLoopRevCErrHyp details
@@ -507,7 +506,7 @@ emitSingleLoopRevInductBaseChecks node = branch $ do
 getLoopCounterEqHyp :: MonadChecks t m => SingleRevInductProofNode t () -> m (Hyp t)
 getLoopCounterEqHyp node = do
     let details = SplitProofNodeDetails node.point 0 1 []
-    visit <- getSplitVisitAt (WithTag node.tag details) (offsetVC 0)
+    visit <- getSplitVisitAt (offsetVC 0) (WithTag node.tag details)
     return $
         eqH
             (eqSideH (machineWordVarE (Ident "%n")) visit)
@@ -540,8 +539,8 @@ getLoopEqHypsAt node visitNum useIfAt = do
         isub = mksub $ case fromJust (simpleVC visitNum) of
            SimpleVisitCountViewNumber n -> machineWordE n
            SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
-    visit <- getSplitVisitAt (WithTag node.tag details) visitNum
-    start <- getSplitVisitAt (WithTag node.tag details) (numberVC 0)
+    visit <- getSplitVisitAt visitNum (WithTag node.tag details)
+    start <- getSplitVisitAt (numberVC 0) (WithTag node.tag details)
     return $
         [ HypWithDesc (prettyTag node.tag ++ " pc imp") $ pcImpH (PcImpHypSidePc visit) (PcImpHypSidePc start)
         ] ++
