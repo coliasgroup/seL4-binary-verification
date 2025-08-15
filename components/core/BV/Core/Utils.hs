@@ -1,6 +1,5 @@
 module BV.Core.Utils
     ( adjacently
-    , optionals
     , whenJustThen
     , whenNothing
     , zipWithTraversable
@@ -22,9 +21,6 @@ liftIso f l r =
 
 adjacently :: Lens' s a -> Lens' s b -> Lens' s (a, b)
 adjacently = liftIso simple
-
-optionals :: Monoid m => Bool -> m -> m
-optionals p m = if p then m else mempty
 
 whenNothing :: Monad m => Maybe a -> m a -> m a
 whenNothing opt m = maybe m return opt

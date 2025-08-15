@@ -26,7 +26,6 @@ import BV.Core.Arch
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils (optionals)
 import BV.Utils (ensure, ensureM)
 
 import Control.DeepSeq (NFData)
@@ -127,7 +126,7 @@ alignValidIneq pvTy p = do
             return (align, size, [sizeReq])
     ensureM $ align `elem` [1, 4, 8]
     let conj =
-            optionals (align > 1) [bitwiseAndE p (machineWordE (align - 1)) `eqE` w0]
+            [ bitwiseAndE p (machineWordE (align - 1)) `eqE` w0 | align > 1 ]
                 ++ sizeReqs
                 ++ [ notE (p `eqE` w0)
                    , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
