@@ -34,7 +34,7 @@ data DiscoverStackBoundsInput
   = DiscoverStackBoundsInput
       { structs :: ByTag' (M.Map Ident Struct)
       , rodata :: ROData
-      , functions :: WithTag' Ident -> Function
+      , lookupFunction :: WithTag' Ident -> Function
       , pairingIds :: S.Set PairingId'
       , includeAsmFrom :: S.Set Ident
       }
@@ -47,13 +47,13 @@ discoverStackBounds
     -> m StackBounds
 discoverStackBounds run input = do
     logInfo ""
-    let asmClosure = callClosure (input.functions . WithTag Asm) input.includeAsmFrom
+    let asmClosure = callClosure (input.lookupFunction . WithTag Asm) input.includeAsmFrom
     -- logInfo $ show ("asm closure", asmClosure ^.. folded % #unwrap)
     let cClosure = S.fromList $ input.pairingIds ^.. folded % filtered ((`S.member` asmClosure) . (.asm)) % atTag C
     -- logInfo $ show ("c closure", cClosure ^.. folded % #unwrap)
     cIdents <- getRecursionIdents
         runRepGraphAsm
-        (M.fromSet (input.functions . WithTag C) cClosure)
+        (M.fromSet (input.lookupFunction . WithTag C) cClosure)
     for_ (M.toList cIdents) $ \(k, v) -> logInfo $ show ("c ident", k.unwrap, v)
     todo
 

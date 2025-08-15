@@ -30,7 +30,7 @@ prepareDiscoverStackBoundsInput
 prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
     { structs = (.structs) <$> input.programs
     , rodata = input.rodata
-    , functions = lookupFunction
+    , lookupFunction
     , pairingIds
     , includeAsmFrom = input.includeAsmFrom
     }

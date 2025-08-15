@@ -56,7 +56,7 @@ prepareAllDiscoverInlineScriptInput input = scripts
     script pairingId = DiscoverInlineScriptInput
         { structs = input.programs <&> (.structs)
         , rodata = input.rodata
-        , functions = lookupFunction
+        , lookupFunction
         , matches
         , pairingId
         }

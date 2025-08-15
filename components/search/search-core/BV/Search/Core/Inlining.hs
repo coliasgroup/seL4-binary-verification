@@ -34,7 +34,7 @@ data DiscoverInlineScriptInput
   = DiscoverInlineScriptInput
       { structs :: ByTag' (Map Ident Struct)
       , rodata :: ROData
-      , functions :: WithTag' Ident -> Function
+      , lookupFunction :: WithTag' Ident -> Function
       , matches :: S.Set PairingId'
       , pairingId :: PairingId'
       }
@@ -50,7 +50,7 @@ discoverInlineScript run input =
         (buildInlineScript composeInliners lookupFun funs)
         [inlineCompletelyUnmatched, inlineReachableUnmatchedC]
   where
-    lookupFun = input.functions
+    lookupFun = input.lookupFunction
     funs = withTags input.pairingId <&> \nameWithTag -> Named nameWithTag.value (lookupFun nameWithTag)
     allMatched = S.fromList $ input.matches ^.. folded % folded
     asmToCMatch = M.fromList $ [ (match.asm, match.c) | match <- S.toList input.matches ]
