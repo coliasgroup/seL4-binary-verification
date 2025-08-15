@@ -16,9 +16,12 @@ import Data.Function (on)
 import Data.Maybe (mapMaybe, maybeToList)
 import Optics
 
+
 formulatePairing :: Expr -> FunctionSignature -> Pairing'
 formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
+
   where
+
     (cArgVars, cInMems, _) = splitScalarPairs sig.input
     (cRetVars, cOutMems, _) = splitScalarPairs sig.output
 
