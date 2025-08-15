@@ -59,7 +59,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
         ]
         ++
         [ (value, Just addr)
-        | (value, addr) <- mkStackSequence sp 4 stack machineWordT (length varArgsC + 1)
+        | (value, addr) <- take (length varArgsC + 1) $ mkStackSequence sp 4 stack machineWordT
         ]
 
     (retPreconds, retPostEqs, retOutEqs, saveAddrs) =
@@ -76,14 +76,12 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
                         r 0 `lessEqE` addr) ++
                     concat (maybeToList (lastArgAddr <&> \lastArgAddr' ->
                         [ lastArgAddr' `lessE` addr | (_, addr) <- take 1 initSaveSeq ]))
-                saveSeq = mkStackSequence r0Input 4 stack machineWordT (length varRetsC)
-                theseSaveAddrs = map snd saveSeq
                 theseRetPostEqs = [(r0Input, r0Input)]
-                theseRetOutEqs =
-                    [ (varFromNameTyE c, castE c.ty a)
-                    | (c, (a, _)) <- zip varRetsC saveSeq
+                (theseRetOutEqs, theseSaveAddrs) = unzip
+                    [ ((varFromNameTyE c, castE c.ty a), addr)
+                    | (c, (a, addr)) <- zip varRetsC $ mkStackSequence r0Input 4 stack machineWordT
                     ]
-                initSaveSeq = mkStackSequence (r 0) 4 stack machineWordT (length varRetsC)
+                initSaveSeq = take (length varRetsC) $ mkStackSequence (r 0) 4 stack machineWordT
                 lastArgAddr = snd $ case length varArgsC of
                     0 -> last argSeq
                     n -> argSeq !! (n - 1)
@@ -120,10 +118,10 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
 
     outEqs = retEqs ++ memOeqs ++ leftInvs
 
-mkStackSequence :: Expr -> Integer -> Expr -> ExprType -> Int -> [(Expr, Expr)]
-mkStackSequence sp offs stack ty n =
+mkStackSequence :: Expr -> Integer -> Expr -> ExprType -> [(Expr, Expr)]
+mkStackSequence sp offs stack ty =
     [ let addr = sp `plusE` numE sp.ty (offs * i)
           expr = memAccE ty addr stack
        in (expr, addr)
-    | i <- take n [0..]
+    | i <- [0..]
     ]
