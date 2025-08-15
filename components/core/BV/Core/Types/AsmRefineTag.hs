@@ -25,6 +25,7 @@ import Data.Binary (Binary)
 import Data.Vector.Binary ()
 import GHC.Generics (Generic)
 import GHC.IsList (fromList)
+import GHC.Records (HasField (getField))
 import Text.Printf (PrintfArg (formatArg))
 
 data AsmRefineTag
@@ -55,6 +56,12 @@ getAsm = getLeft
 
 getC :: ByTag AsmRefineTag a -> a
 getC = getRight
+
+instance HasField "asm" (ByTag AsmRefineTag a) a where
+  getField = getAsm
+
+instance HasField "c" (ByTag AsmRefineTag a) a where
+  getField = getC
 
 -- TODO
 -- {-# LANGUAGE PatternSynonyms #-}

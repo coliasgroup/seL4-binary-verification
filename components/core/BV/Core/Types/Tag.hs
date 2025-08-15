@@ -41,6 +41,7 @@ import qualified Data.Vector as V
 import Data.Vector.Binary ()
 import GHC.Generics (Generic)
 import qualified GHC.IsList as IsList
+import GHC.Records (HasField (getField))
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import Optics
 import Text.Printf (PrintfArg (formatArg))
@@ -162,6 +163,12 @@ getLeft = view (atTag leftTag)
 
 getRight :: RefineTag t => ByTag t a -> a
 getRight = view (atTag rightTag)
+
+instance RefineTag t => HasField "left" (ByTag t a) a where
+  getField = getLeft
+
+instance RefineTag t => HasField "right" (ByTag t a) a where
+  getField = getRight
 
 --
 
