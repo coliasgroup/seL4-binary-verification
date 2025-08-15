@@ -130,7 +130,7 @@ stages input = StagesOutput
 
     smtProofChecks = SMTProofChecks $ flip M.mapWithKey provenProblems $ \pairingId problem ->
         let repGraphInput = RepGraphBaseInput
-                { structs = input.programs <&> (.structs)
+                { structs = (.structs) <$> input.programs
                 , rodata = input.rodata
                 , problem
                 }
