@@ -37,6 +37,7 @@ import Data.Maybe (catMaybes, fromJust)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
+import Optics
 
 sizeOfType :: MonadStructs m => ExprType -> m Integer
 sizeOfType = \case
@@ -299,7 +300,7 @@ strengthenHypInner = go
     go direction expr = case expr.value of
         ExprValueOp op args -> case op of
             _ | op == OpAnd || op == OpOr ->
-                Expr expr.ty (ExprValueOp op (map goWith args))
+                expr & exprOpArgs % mapped %~ goWith
             OpImplies ->
                 let [l, r] = args
                 in goAgainst l `impliesE` goWith r

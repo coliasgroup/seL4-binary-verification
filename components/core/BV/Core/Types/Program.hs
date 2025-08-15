@@ -269,7 +269,10 @@ instance Binary ExprType
 
 data ExprValue
   = ExprValueVar Ident
-  | ExprValueOp Op [Expr]
+  | ExprValueOp
+      { op :: Op
+      , args :: [Expr]
+      }
   | ExprValueNum Integer
   | ExprValueType ExprType
   | ExprValueSymbol Ident

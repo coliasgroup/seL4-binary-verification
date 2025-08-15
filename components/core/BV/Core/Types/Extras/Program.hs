@@ -10,6 +10,7 @@ module BV.Core.Types.Extras.Program
     , TraverseTopLevelExprs (..)
     , VarUpdate (..)
     , applyFunctionFilter
+    , exprOpArgs
     , nodeAddrOf
     , nodeConts
     , programFromFunctions
@@ -153,6 +154,11 @@ nodeConts = castOptic $
     (#_NodeBasic % #next)
         `adjoin`(#_NodeCond % (#left `adjoin` #right))
         `adjoin` (#_NodeCall % #next)
+
+--
+
+exprOpArgs :: Lens' Expr [Expr]
+exprOpArgs = #value % expecting #_ExprValueOp % _2
 
 --
 

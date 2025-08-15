@@ -545,9 +545,8 @@ compatSMTComparisonKey = \case
 convertInnerExpr :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m Expr
 convertInnerExpr expr = case expr.ty of
     ExprTypeRelWrapper -> case expr.value of
-        ExprValueOp op args -> do
-            args' <- traverse convertInnerExpr args
-            return $ Expr expr.ty (ExprValueOp op args')
+        ExprValueOp { } -> do
+            traverseOf (exprOpArgs % traversed) convertInnerExpr expr
     _ -> smtExprE expr.ty <$> convertExpr expr
 
 convertExprNoSplit :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m S
