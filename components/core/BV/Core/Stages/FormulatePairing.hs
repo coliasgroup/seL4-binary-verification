@@ -60,7 +60,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
         ]
         ++
         [ (value, Just addr)
-        | (value, addr) <- take (length varArgsC + 1) $ mkStackSequence sp stack machineWordT
+        | (value, addr) <- take (length varArgsC + 1) $ mkStackSequence sp stack
         ]
 
     (retPreconds, retPostEqs, retOutEqs, saveAddrs) =
@@ -80,9 +80,9 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
                 theseRetPostEqs = [(r0Input, r0Input)]
                 (theseRetOutEqs, theseSaveAddrs) = unzip
                     [ ((varFromNameTyE c, castE c.ty a), addr)
-                    | (c, (a, addr)) <- zip varRetsC $ mkStackSequence r0Input stack machineWordT
+                    | (c, (a, addr)) <- zip varRetsC $ mkStackSequence r0Input stack
                     ]
-                initSaveSeq = take (length varRetsC) $ mkStackSequence (r 0) stack machineWordT
+                initSaveSeq = take (length varRetsC) $ mkStackSequence (r 0) stack
                 lastArgAddr = snd $ case length varArgsC of
                     0 -> last argSeq
                     n -> argSeq !! (n - 1)
@@ -119,10 +119,10 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
 
     outEqs = retEqs ++ memOeqs ++ leftInvs
 
-mkStackSequence :: Expr -> Expr -> ExprType -> [(Expr, Expr)]
-mkStackSequence sp stack ty =
+mkStackSequence :: Expr -> Expr -> [(Expr, Expr)]
+mkStackSequence sp stack =
     [ let addr = sp `plusE` numE sp.ty (archPtrSizeBytes * i)
-          expr = memAccE ty addr stack
+          expr = memAccE machineWordT addr stack
        in (expr, addr)
     | i <- [0..]
     ]
