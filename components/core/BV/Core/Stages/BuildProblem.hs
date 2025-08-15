@@ -116,7 +116,7 @@ insertNode addr node tag nodeSourceOpt = do
             zoom (#nodesBySource % at (tag, nodeSource)) $ do
                 v <- gets (fromMaybe [])
                 let indexInProblem = length v
-                put (Just (v ++ [addr]))
+                put $ Just (v ++ [addr])
                 return indexInProblem
         return (nodeSource, indexInProblem)
     insertNodeWithMeta addr (NodeWithMeta node (NodeMeta tag sourceWithIndexOpt))
