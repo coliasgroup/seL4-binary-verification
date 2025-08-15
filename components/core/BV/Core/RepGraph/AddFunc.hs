@@ -37,7 +37,7 @@ instance MonadTrans (WithAddFunc t) where
 
 data Env t
   = Env
-      { functionSigs :: LookupFunctionSignature t
+      { lookupSig :: LookupFunctionSignature t
       , pairings :: Pairings t
       , pairingsAccess :: ByTag t (M.Map Ident (PairingId t))
       }
@@ -50,14 +50,14 @@ data State t
   deriving (Generic)
 
 runWithAddFunc :: RefineTag t => MonadRepGraph t m => LookupFunctionSignature t -> Pairings t -> WithAddFunc t m a -> m a
-runWithAddFunc functionSigs pairings m =
+runWithAddFunc lookupSig pairings m =
     runReaderT
         (evalStateT m.run initState)
-        (initEnv functionSigs pairings)
+        (initEnv lookupSig pairings)
 
 initEnv :: RefineTag t => LookupFunctionSignature t -> Pairings t -> Env t
-initEnv functionSigs pairings = Env
-    { functionSigs
+initEnv lookupSig pairings = Env
+    { lookupSig
     , pairings
     , pairingsAccess = byTagFrom $ \tag ->
         M.fromList [ (viewAtTag tag p, p) | p <- M.keys pairings.unwrap]
@@ -116,7 +116,7 @@ getFuncAssert :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> PairingId 
 getFuncAssert visits pairingId pairing = do
     ((lin, lout, lsucc), (rin, rout, rsucc)) <- fmap viewByRefineTag $ for (withTags visits) $ \(WithTag tag visit) -> do
         (rawIn, rawOut, succ_) <- runForTag tag $ getFuncRaw visit
-        sigs <- WithAddFunc $ gview #functionSigs
+        sigs <- WithAddFunc $ gview #lookupSig
         let sig = sigs $ viewWithTag tag pairingId
         let in_ = M.fromList $ zip sig.input $ map snd rawIn
         let out = M.fromList $ zip sig.output $ map snd rawOut
@@ -143,8 +143,8 @@ memCallsCompatible byTag = case viewByRefineTag byTag of
         rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toList lcalls) $ \(fname, calls) -> do
             pairingId <- WithAddFunc $ gview $ #pairingsAccess % atTag leftTag % at fname % unwrapped
             let rfname = pairingId.right
-            functionSigs <- WithAddFunc $ gview #functionSigs
-            let rsig = functionSigs $ WithTag rightTag rfname
+            lookupSig <- WithAddFunc $ gview #lookupSig
+            let rsig = lookupSig $ WithTag rightTag rfname
             return $
                 if any (\arg -> arg.ty == memT) rsig.output
                 then Just (rfname, calls)

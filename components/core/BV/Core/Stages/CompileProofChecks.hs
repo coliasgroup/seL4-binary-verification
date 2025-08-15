@@ -21,9 +21,9 @@ compileProofChecks
     -> ArgRenames AsmRefineTag
     -> [ProofCheck AsmRefineTag a]
     -> [(ProofCheckGroupCheckIndices, SMTProofCheckGroup a)]
-compileProofChecks repGraphInput functionSigs pairings argRenames checks =
+compileProofChecks repGraphInput lookupSig pairings argRenames checks =
     over (traversed % _2)
-        (compileProofCheckGroup repGraphInput functionSigs pairings argRenames . pruneGroup)
+        (compileProofCheckGroup repGraphInput lookupSig pairings argRenames . pruneGroup)
         (proofCheckGroups checks)
   where
     pruneCheck = pruneProofCheck (analyzeProblem repGraphInput.problem)
@@ -36,14 +36,14 @@ compileProofCheckGroup
     -> ArgRenames AsmRefineTag
     -> ProofCheckGroup AsmRefineTag a
     -> SMTProofCheckGroup a
-compileProofCheckGroup repGraphInput functionSigs pairings argRenames group =
+compileProofCheckGroup repGraphInput lookupSig pairings argRenames group =
     SMTProofCheckGroup setup imps
   where
     (imps, setup) =
         runWriter
             (runRepGraphBase
                 repGraphInput
-                (runWithAddFunc functionSigs pairings (runWithAsmStackRep argRenames m)))
+                (runWithAddFunc lookupSig pairings (runWithAsmStackRep argRenames m)))
     m = interpretGroup group <* addPValidDomAssertions
 
 interpretGroup :: (RefineTag t, MonadRepGraph t m) => ProofCheckGroup t a -> m [SMTProofCheckImp a]
