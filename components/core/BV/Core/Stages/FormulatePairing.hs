@@ -45,20 +45,18 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
 
     firstArgIndex = if multiRet then 1 else 0
 
-    fullArgSeq = concat
+    argSeq = take numCArgs $ concat
         [ [ (r i, Nothing)
           | i <- [firstArgIndex .. 3]
           ]
         , [ (value, Just addr)
-          | (value, addr) <- take (numCArgs + 1) $ mkStackSequence stack sp
+          | (value, addr) <- mkStackSequence stack sp
           ]
         ]
 
-    argSeq = take numCArgs fullArgSeq
-
     argSeqExprs = map fst argSeq
 
-    argSeqAddrs = mapMaybe snd (take numCArgs argSeq)
+    argSeqAddrs = mapMaybe snd argSeq
 
     outerAddrOpt = lastOf folded argSeqAddrs
 
@@ -121,9 +119,10 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
                 initSaveSeq = take numCRets $ mkStackSequence stack (r 0)
                 Just ((_, initSaveSeqHeadAddr), _) = uncons initSaveSeq
                 Just (_, (_, initSaveSeqLastAddr)) = unsnoc initSaveSeq
-                lastArgAddrOpt = snd $ case numCArgs of
-                    0 -> last fullArgSeq
-                    _ -> last argSeq
+                lastArgAddrOpt = case unsnoc argSeq of
+                    Just (_, (_, addrOpt)) -> addrOpt
+                    -- HACK (this whole branch) to match unnecessary precond in graph-refine
+                    Nothing -> Just $ sp `plusE` numE sp.ty 0
              in RetInfo
                     { asmPreconds = concat
                         [ [ alignedE 2 (r 0)
