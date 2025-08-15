@@ -377,8 +377,9 @@ assumeSplitNoLoop splitNode = branchRestrs $ do
     assume1R $ pcFalseH (getLeft visits)
 
 getSplitVisitsAt :: MonadChecks t m => SplitProofNode t () -> VisitCount -> m (ByTag t (WithTag t Visit))
-getSplitVisitsAt splitNode visit = for (withTags splitNode.details) $ \detailsWithTag ->
-    getSplitVisitAt detailsWithTag visit
+getSplitVisitsAt splitNode visit =
+    for (withTags splitNode.details) $ \detailsWithTag ->
+        getSplitVisitAt detailsWithTag visit
 
 getSplitVisitAt :: MonadChecks t m => WithTag t SplitProofNodeDetails -> VisitCount -> m (WithTag t Visit)
 getSplitVisitAt (WithTag tag details) visit = branch $ do
@@ -405,45 +406,44 @@ getSplitHypsAt :: forall t m. MonadChecks t m => SplitProofNode t () -> VisitCou
 getSplitHypsAt splitNode visit = branch $ do
     visits <- getSplitVisitsAt splitNode visit
     starts <- getSplitVisitsAt splitNode (numberVC 0)
-    let mksub v = walkExprs $ \case
-            Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
-            expr -> expr
-        inst expr = instEqAtVisit expr visit
-        zsub = mksub $ machineWordE 0
-        lsub = mksub $ case fromJust (simpleVC visit) of
-            SimpleVisitCountViewNumber n -> machineWordE n
-            SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
-        imp l r = pcImpH (PcImpHypSidePc l) (PcImpHypSidePc r)
+    let tagDesc tag = ((prettyTag (tag :: t) ++ " ") ++)
+        imp = pcImpH `on` PcImpHypSidePc
+        eq l r = eqH l r induct
         induct = Just $
             eqInductH
                 (getLeft splitNode.details).split.unwrap
                 (getRight splitNode.details).split.unwrap
+        inst = instEqAtVisit visit
+        mksub v = walkExprs $ \case
+            Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
+            expr -> expr
+        zsub = mksub $ machineWordE 0
+        lsub = mksub $ case fromJust (simpleVC visit) of
+            SimpleVisitCountViewNumber n -> machineWordE n
+            SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
     return $
-        [ HypWithDesc "pc imp" $ imp (getLeft visits) (getRight visits)
-        , HypWithDesc (prettyTag (leftTag :: t) ++ " pc imp") $ imp (getLeft visits) (getLeft starts)
-        , HypWithDesc (prettyTag (rightTag :: t) ++ " pc imp") $ imp (getRight visits) (getRight starts)
+        [ HypWithDesc "pc imp" $ getLeft visits `imp` getRight visits
+        , HypWithDesc (tagDesc leftTag "pc imp") $ getLeft visits `imp` getLeft starts
+        , HypWithDesc (tagDesc rightTag "pc imp") $  getRight visits `imp` getRight starts
         ] ++
-        [ HypWithDesc (prettyTag (leftTag :: t) ++ " const") $
-            eqH
+        [ HypWithDesc (tagDesc leftTag "const") $
+            eq
                 (eqSideH (zsub exprL) (getLeft starts))
                 (eqSideH (lsub exprL) (getLeft visits))
-                induct
         | Lambda { expr = exprL } <- (getLeft splitNode.details).eqs
         , inst exprL
         ] ++
-        [ HypWithDesc (prettyTag (rightTag :: t) ++ " const") $
-            eqH
+        [ HypWithDesc (tagDesc rightTag "const") $
+            eq
                 (eqSideH (zsub exprR) (getRight starts))
                 (eqSideH (lsub exprR) (getRight visits))
-                induct
         | Lambda { expr = exprR } <- (getRight splitNode.details).eqs
         , inst exprR
         ] ++
         [ HypWithDesc "eq" $
-            eqH
+            eq
                 (eqSideH (lsub exprL) (getLeft visits))
                 (eqSideH (lsub exprR) (getRight visits))
-                induct
         | (Lambda { expr = exprL }, Lambda { expr = exprR }) <- splitNode.eqs
         , inst exprL && inst exprR
         ]
@@ -551,5 +551,5 @@ getLoopEqHypsAt node visitNum useIfAt = do
                 (eqSideH (isub expr) visit)
                 (Just (eqInductH node.point.unwrap 0))
         | Lambda { expr } <- node.eqs
-        , instEqAtVisit expr visitNum
+        , instEqAtVisit visitNum expr
         ]

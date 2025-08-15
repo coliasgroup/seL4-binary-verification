@@ -279,8 +279,8 @@ applyRelWrapper lhs rhs = if
 
 --
 
-instEqAtVisit :: Expr -> VisitCount -> Bool
-instEqAtVisit expr visit = case expr.value of
+instEqAtVisit :: VisitCount -> Expr -> Bool
+instEqAtVisit visit expr = case expr.value of
     ExprValueOp OpEqSelectiveWrapper [_, xs, ys] -> case fromJust (simpleVC visit) of
         SimpleVisitCountViewNumber n -> n `elem` sumElems xs
         SimpleVisitCountViewOffset n -> n `elem` sumElems ys
