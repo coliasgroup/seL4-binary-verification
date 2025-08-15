@@ -144,7 +144,7 @@ byRefineTag :: RefineTag t => a -> a -> ByTag t a
 byRefineTag left right = IsList.fromList [left, right]
 
 withByRefineTag :: RefineTag t => (a -> a -> b) -> ByTag t a -> b
-withByRefineTag f byTag = f (getLeft byTag) (getRight byTag)
+withByRefineTag f byTag = f byTag.left byTag.right
 
 viewByRefineTag :: RefineTag t => ByTag t a -> (a, a)
 viewByRefineTag = withByRefineTag (,)

@@ -145,7 +145,7 @@ memCallsCompatible byTag = case viewByRefineTag byTag of
     (Just lcalls, Just rcalls) -> do
         rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toList lcalls) $ \(fname, calls) -> do
             pairingId <- WithAddFunc $ gview $ #pairingsAccess % atTag leftTag % at fname % unwrapped
-            let rfname = getRight pairingId
+            let rfname = pairingId.right
             functionSigs <- WithAddFunc $ gview #functionSigs
             let rsig = functionSigs $ WithTag rightTag rfname
             return $

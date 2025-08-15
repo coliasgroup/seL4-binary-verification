@@ -132,7 +132,7 @@ briefNode = \case
     ProofNodeSplit node ->
         let s = withTags node.details <&> \(WithTag tag details) ->
                     printf "%P (%P)" details.split tag :: String
-         in printf "split %P and %P" (getRight s) (getLeft s)
+         in printf "split %P and %P" s.right s.left
     ProofNodeSingleRevInduct node ->
         printf "restr %P (%P)" node.point node.tag
 

@@ -343,8 +343,8 @@ emitSplitNodeInitStepChecks splitNode = branch $ do
     assume1L =<< getSplitNodeCErrHyp splitNode
     for_ [0 .. splitNode.n - 1] $ \i -> branch $ do
         visits <- getSplitVisitsAt (numberVC i) splitNode
-        assume1R $ pcTrueH (getLeft visits)
-        assume1R $ pcTrivH (getRight visits)
+        assume1R $ pcTrueH visits.left
+        assume1R $ pcTrivH visits.right
         getSplitHypsAt (numberVC i) splitNode
             >>= concludeManyWith (\desc -> printf "Induct check at visit %d: %s" i desc)
 
@@ -352,17 +352,17 @@ emitSplitNodeInductStepChecks :: MonadChecks t m => SplitProofNode t () -> Check
 emitSplitNodeInductStepChecks splitNode = branch $ do
     let n = splitNode.n
     conts <- getSplitVisitsAt (offsetVC n) splitNode
-    assumeL [pcTrueH (getLeft conts), pcTrivH (getRight conts)]
+    assumeL [pcTrueH conts.left, pcTrivH conts.right]
     assume1L =<< getSplitNodeCErrHyp splitNode
     assumeSplitLoop splitNode False
     getSplitHypsAt (offsetVC n) splitNode
         >>= concludeManyWith (\desc ->
             printf "Induct check (%s) at inductive step for %P"
                 desc
-                (getLeft splitNode.details).split)
+                splitNode.details.left.split)
 
 getSplitNodeCErrHyp :: MonadChecks t m => SplitProofNode t () -> m (Hyp t)
-getSplitNodeCErrHyp splitNode = getSplitNodeCErrHypInner splitNode.n splitNode.loopRMax (getRight splitNode.details)
+getSplitNodeCErrHyp splitNode = getSplitNodeCErrHypInner splitNode.n splitNode.loopRMax splitNode.details.right
 
 getSplitNodeCErrHypInner :: MonadChecks t m => Integer -> Integer -> SplitProofNodeDetails -> m (Hyp t)
 getSplitNodeCErrHypInner n loopRMax detailsR = branch $ do
@@ -377,7 +377,7 @@ getSplitNodeCErrHypInner n loopRMax detailsR = branch $ do
 assumeSplitNoLoop :: MonadChecks t m => SplitProofNode t () -> m ()
 assumeSplitNoLoop splitNode = branchRestrs $ do
     visits <- getSplitVisitsAt (numberVC splitNode.n) splitNode
-    assume1R $ pcFalseH (getLeft visits)
+    assume1R $ pcFalseH visits.left
 
 getSplitVisitsAt :: MonadChecks t m => VisitCount -> SplitProofNode t () -> m (ByTag t (WithTag t Visit))
 getSplitVisitsAt visit splitNode =
@@ -399,8 +399,8 @@ assumeSplitLoop splitNode exit = branchRestrs $ do
     let n = splitNode.n
     visits <- getSplitVisitsAt (offsetVC (n - 1)) splitNode
     conts <- getSplitVisitsAt (offsetVC n) splitNode
-    assume1R $ pcTrueH (getLeft visits)
-    when exit $ assume1R $ pcFalseH (getLeft conts)
+    assume1R $ pcTrueH visits.left
+    when exit $ assume1R $ pcFalseH conts.left
     for_ [0 .. n - 1] $ \i ->
         assumeHyps =<< getSplitHypsAt (offsetVC i) splitNode
 
@@ -421,28 +421,28 @@ getSplitHypsAt vc splitNode = branch $ do
             SimpleVisitCountViewNumber n -> machineWordE n
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
     return $
-        [ HypWithDesc "pc imp" $ getLeft visits `imp` getRight visits
-        , HypWithDesc (tagDesc leftTag "pc imp") $ getLeft visits `imp` getLeft starts
-        , HypWithDesc (tagDesc rightTag "pc imp") $  getRight visits `imp` getRight starts
+        [ HypWithDesc "pc imp" $ visits.left `imp` visits.right
+        , HypWithDesc (tagDesc leftTag "pc imp") $ visits.left `imp` starts.left
+        , HypWithDesc (tagDesc rightTag "pc imp") $  visits.right `imp` starts.right
         ] ++
         [ HypWithDesc (tagDesc leftTag "const") $
             eq
-                (eqSideH (zsub exprL) (getLeft starts))
-                (eqSideH (isub exprL) (getLeft visits))
-        | Lambda { expr = exprL } <- (getLeft splitNode.details).eqs
+                (eqSideH (zsub exprL) starts.left)
+                (eqSideH (isub exprL) visits.left)
+        | Lambda { expr = exprL } <- splitNode.details.left.eqs
         , inst exprL
         ] ++
         [ HypWithDesc (tagDesc rightTag "const") $
             eq
-                (eqSideH (zsub exprR) (getRight starts))
-                (eqSideH (isub exprR) (getRight visits))
-        | Lambda { expr = exprR } <- (getRight splitNode.details).eqs
+                (eqSideH (zsub exprR) starts.right)
+                (eqSideH (isub exprR) visits.right)
+        | Lambda { expr = exprR } <- splitNode.details.right.eqs
         , inst exprR
         ] ++
         [ HypWithDesc "eq" $
             eq
-                (eqSideH (isub exprL) (getLeft visits))
-                (eqSideH (isub exprR) (getRight visits))
+                (eqSideH (isub exprL) visits.left)
+                (eqSideH (isub exprR) visits.right)
         | (Lambda { expr = exprL }, Lambda { expr = exprR }) <- splitNode.eqs
         , inst exprL && inst exprR
         ]

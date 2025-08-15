@@ -594,8 +594,8 @@ instance RefineTag t => BuildInLine (SplitProofNode t ()) where
     buildInLine node =
            putDec node.n
         <> putDec node.loopRMax
-        <> put (getLeft node.details)
-        <> put (getRight node.details)
+        <> put node.details.left
+        <> put node.details.right
         <> put node.eqs
         <> put node.p1
         <> put node.p2
