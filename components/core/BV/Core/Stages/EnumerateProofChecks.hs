@@ -40,7 +40,8 @@ enumerateProofChecks problem sigs pairing proofScript =
 pruneProofCheck :: RefineTag t => ProblemAnalysis t -> ProofCheck t a -> ProofCheck t a
 pruneProofCheck analysis = over checkVisits pruneVisitWithTag
   where
-    pruneVisitWithTag (WithTag tag (Visit nodeId restrs)) = WithTag tag (Visit nodeId (filter (testRestr tag) restrs))
+    pruneVisitWithTag (WithTag tag (Visit nodeId restrs)) =
+        WithTag tag (Visit nodeId (filter (testRestr tag) restrs))
     testRestr tag (Restr nodeAddr _) = analysis.nodeTag nodeAddr == tag
 
 data Env t
@@ -117,7 +118,8 @@ instance MonadChecks t m => MonadChecks t (CheckWriter t m) where
     branch = mapWriterT branch
     branchRestrs = mapWriterT branchRestrs
 
--- we provide functions for adding hyps and restrs to either side to enable matching the behavior of graph-refine
+-- we provide functions for adding hyps and restrs to either side to enable
+-- matching the behavior of graph-refine
 
 assumeL :: MonadChecks t m => [Hyp t] -> m ()
 assumeL hyps = #assumptions %= (hyps ++)
@@ -211,7 +213,11 @@ instantiatePairingEqs direction = branch $ do
 
 --
 
-enumerateProofChecksInner :: MonadChecks t m => m () -> ProofNodeWith t () -> m (ProofNodeWith t (NodeProofChecks t))
+enumerateProofChecksInner
+    :: MonadChecks t m
+    => m ()
+    -> ProofNodeWith t ()
+    -> m (ProofNodeWith t (NodeProofChecks t))
 enumerateProofChecksInner = go
   where
     go before (ProofNodeWith () node) = branch $ do
@@ -362,7 +368,8 @@ emitSplitNodeInductStepChecks splitNode = branch $ do
                 splitNode.details.left.split)
 
 getSplitNodeCErrHyp :: MonadChecks t m => SplitProofNode t () -> m (Hyp t)
-getSplitNodeCErrHyp splitNode = getSplitNodeCErrHypInner splitNode.n splitNode.loopRMax splitNode.details.right
+getSplitNodeCErrHyp splitNode =
+    getSplitNodeCErrHypInner splitNode.n splitNode.loopRMax splitNode.details.right
 
 getSplitNodeCErrHypInner :: MonadChecks t m => Integer -> Integer -> SplitProofNodeDetails -> m (Hyp t)
 getSplitNodeCErrHypInner n loopRMax detailsR = branch $ do
