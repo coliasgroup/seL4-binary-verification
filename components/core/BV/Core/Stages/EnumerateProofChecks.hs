@@ -30,9 +30,9 @@ type NodeProofChecks t = ProofCheckGroup t ProofCheckDescription
 
 enumerateProofChecks :: RefineTag t => Problem t -> ByTag t FunctionSignature -> Pairing t -> ProofScript t () -> ProofScript t (NodeProofChecks t)
 enumerateProofChecks problem sigs pairing proofScript =
-    ProofScript $ runReader (evalStateT m initState) context
+    ProofScript $ runReader (evalStateT m initState) env
   where
-    context = initContext problem sigs pairing
+    env = initEnv problem sigs pairing
     m = enumerateProofChecksInner
         (assumeR =<< instantiatePairingEqs PairingEqDirectionIn)
         proofScript.root
@@ -43,8 +43,8 @@ pruneProofCheck analysis = over checkVisits pruneVisitWithTag
     pruneVisitWithTag (WithTag tag (Visit nodeId restrs)) = WithTag tag (Visit nodeId (filter (testRestr tag) restrs))
     testRestr tag (Restr nodeAddr _) = analysis.nodeTag nodeAddr == tag
 
-data Context t
-  = Context
+data Env t
+  = Env
       { problem :: Problem t
       , analysis :: ProblemAnalysis t
       , argRenames :: ArgRenames t
@@ -52,34 +52,34 @@ data Context t
       }
   deriving (Generic)
 
-initContext :: RefineTag t => Problem t -> ByTag t FunctionSignature -> Pairing t -> Context t
-initContext problem sigs pairing = Context
+initEnv :: RefineTag t => Problem t -> ByTag t FunctionSignature -> Pairing t -> Env t
+initEnv problem sigs pairing = Env
     { problem
     , analysis = analyzeProblem problem
     , argRenames = problemArgRenames problem sigs
     , pairing
     }
 
-askPairing :: MonadReader (Context t) m => m (Pairing t)
+askPairing :: MonadReader (Env t) m => m (Pairing t)
 askPairing = gview #pairing
 
-askEntryPoints :: MonadReader (Context t) m => m (ByTag t NodeId)
+askEntryPoints :: MonadReader (Env t) m => m (ByTag t NodeId)
 askEntryPoints = gview $ #problem % #sides % to (fmap (.entryPoint))
 
-askNodeGraph :: MonadReader (Context t) m => m NodeGraph
+askNodeGraph :: MonadReader (Env t) m => m NodeGraph
 askNodeGraph = gview $ #analysis % #nodeGraph
 
-askLoopHead :: (Tag t, MonadReader (Context t) m) => WithTag t NodeAddr -> m (Maybe (WithTag t NodeAddr))
+askLoopHead :: (Tag t, MonadReader (Env t) m) => WithTag t NodeAddr -> m (Maybe (WithTag t NodeAddr))
 askLoopHead n = fmap (WithTag n.tag) . loopHeadOf n.value <$> gview (#analysis % #loopData)
 
-askLoopHeads :: (Tag t, MonadReader (Context t) m) => m [WithTag t NodeAddr]
+askLoopHeads :: (Tag t, MonadReader (Env t) m) => m [WithTag t NodeAddr]
 askLoopHeads = do
     loopData <- gview $ #analysis % #loopData
     nodeTag <- gview $ #analysis % #nodeTag
     let withNodeTag n = WithTag (nodeTag n) n
     return $ map withNodeTag $ loopHeadsOf loopData
 
-askArgRenames :: MonadReader (Context t) m => m (ArgRenames t)
+askArgRenames :: MonadReader (Env t) m => m (ArgRenames t)
 askArgRenames = gview #argRenames
 
 data State t
@@ -95,11 +95,11 @@ initState = State
     , assumptions = []
     }
 
-class (RefineTag t, MonadReader (Context t) m, MonadState (State t) m) => MonadChecks t m where
+class (RefineTag t, MonadReader (Env t) m, MonadState (State t) m) => MonadChecks t m where
     branch :: m a -> m a
     branchRestrs :: m a -> m a
 
-instance (RefineTag t, Monad m) => MonadChecks t (StateT (State t) (ReaderT (Context t) m)) where
+instance (RefineTag t, Monad m) => MonadChecks t (StateT (State t) (ReaderT (Env t) m)) where
 
     branch (StateT f) = StateT $ \s -> do
         (a, _) <- f s
