@@ -11,7 +11,7 @@ import BV.Core.Logic (splitScalarPairs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Data.Maybe (fromJust, mapMaybe, maybeToList)
+import Data.Maybe (mapMaybe, maybeToList)
 import Optics
 
 formulatePairing :: Expr -> FunctionSignature -> Pairing'
@@ -58,7 +58,9 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
         | i <- [firstArgIndex..3]
         ]
         ++
-        mkStackSequence stackPointer 4 stack machineWordT (length varArgsC + 1)
+        [ (value, Just addr)
+        | (value, addr) <- mkStackSequence stackPointer 4 stack machineWordT (length varArgsC + 1)
+        ]
 
     (retPreconds, retPostEqs, retOutEqs, saveAddrs) =
         if not multiRet
@@ -71,11 +73,11 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
                     , stackPointer `lessEqE` r 0
                     ] ++
                     maybeToList (lastOf folded initSaveSeq <&> \(_, addr) ->
-                        r 0 `lessEqE` fromJust addr) ++
+                        r 0 `lessEqE` addr) ++
                     concat (maybeToList (lastArgAddr <&> \lastArgAddr' ->
-                        [ lastArgAddr' `lessE` fromJust addr | (_, addr) <- take 1 initSaveSeq ]))
+                        [ lastArgAddr' `lessE` addr | (_, addr) <- take 1 initSaveSeq ]))
                 saveSeq = mkStackSequence r0Input 4 stack machineWordT (length varRetsC)
-                theseSaveAddrs = saveSeq <&> \(_, Just addr) -> addr
+                theseSaveAddrs = map snd saveSeq
                 theseRetPostEqs = [(r0Input, r0Input)]
                 theseRetOutEqs =
                     [ (varFromNameTyE c, castE c.ty a)
@@ -118,10 +120,10 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
 
     outEqs = retEqs ++ memOeqs ++ leftInvs
 
-mkStackSequence :: Expr -> Integer -> Expr -> ExprType -> Int -> [(Expr, Maybe Expr)]
+mkStackSequence :: Expr -> Integer -> Expr -> ExprType -> Int -> [(Expr, Expr)]
 mkStackSequence sp offs stack ty n =
     [ let addr = sp `plusE` numE sp.ty (offs * i)
           expr = memAccE ty addr stack
-       in (expr, Just addr)
+       in (expr, addr)
     | i <- take n [0..]
     ]
