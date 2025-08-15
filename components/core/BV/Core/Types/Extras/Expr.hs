@@ -267,11 +267,11 @@ rodataE :: Expr -> Expr
 rodataE mem = ensureType_ isMemT mem $ boolE (opV OpROData [mem])
 
 stackWrapperE :: Expr -> Expr -> [Expr] -> Expr
-stackWrapperE sp stack except =
+stackWrapperE sp stack excepts =
     ensureType_ isMemT stack .
     ensureType_ (isWordWithSizeT archWordSizeBits) sp .
-    appEndo (foldMap (Endo . ensureType_ (isWordWithSizeT archWordSizeBits)) except) $
-        Expr ExprTypeRelWrapper (opV OpStackWrapper ([sp, stack] ++ except))
+    appEndo (foldMap (Endo . ensureType_ (isWordWithSizeT archWordSizeBits)) excepts) $
+        Expr ExprTypeRelWrapper (opV OpStackWrapper ([sp, stack] ++ excepts))
 
 --
 
