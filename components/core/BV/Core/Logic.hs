@@ -43,7 +43,7 @@ sizeOfType :: MonadStructs m => ExprType -> m Integer
 sizeOfType = \case
     ExprTypeWord { bits } ->
         let (bytes, 0) = bits `divMod` 8
-        in return bytes
+         in return bytes
     ExprTypeArray { ty, len } -> (* len) <$> sizeOfType ty
     ExprTypeStruct name -> (.size) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
