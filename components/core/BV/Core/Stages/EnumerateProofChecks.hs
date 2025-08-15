@@ -345,7 +345,7 @@ emitSplitNodeInitStepChecks splitNode = branch $ do
         visits <- getSplitVisitsAt (numberVC i) splitNode
         assume1R $ pcTrueH (getLeft visits)
         assume1R $ pcTrivH (getRight visits)
-        getSplitHypsAt splitNode (numberVC i)
+        getSplitHypsAt (numberVC i) splitNode
             >>= concludeManyWith (\desc -> printf "Induct check at visit %d: %s" i desc)
 
 emitSplitNodeInductStepChecks :: MonadChecks t m => SplitProofNode t () -> CheckWriter t m ()
@@ -355,7 +355,7 @@ emitSplitNodeInductStepChecks splitNode = branch $ do
     assumeL [pcTrueH (getLeft conts), pcTrivH (getRight conts)]
     assume1L =<< getSplitNodeCErrHyp splitNode
     assumeSplitLoop splitNode False
-    getSplitHypsAt splitNode (offsetVC n)
+    getSplitHypsAt (offsetVC n) splitNode
         >>= concludeManyWith (\desc ->
             printf "Induct check (%s) at inductive step for %d"
                 desc
@@ -399,10 +399,10 @@ assumeSplitLoop splitNode exit = branchRestrs $ do
     assume1R $ pcTrueH (getLeft visits)
     when exit $ assume1R $ pcFalseH (getLeft conts)
     for_ [0 .. n - 1] $ \i ->
-        assumeHyps =<< getSplitHypsAt splitNode (offsetVC i)
+        assumeHyps =<< getSplitHypsAt (offsetVC i) splitNode
 
-getSplitHypsAt :: forall t m. MonadChecks t m => SplitProofNode t () -> VisitCount -> m [HypWithDesc t]
-getSplitHypsAt splitNode visit = branch $ do
+getSplitHypsAt :: forall t m. MonadChecks t m => VisitCount -> SplitProofNode t () -> m [HypWithDesc t]
+getSplitHypsAt visit splitNode = branch $ do
     visits <- getSplitVisitsAt visit splitNode
     starts <- getSplitVisitsAt (numberVC 0) splitNode
     let tagDesc tag = ((prettyTag (tag :: t) ++ " ") ++)
