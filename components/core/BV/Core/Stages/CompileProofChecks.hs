@@ -39,7 +39,11 @@ compileProofCheckGroup
 compileProofCheckGroup repGraphInput functionSigs pairings argRenames group =
     SMTProofCheckGroup setup imps
   where
-    (imps, setup) = runWriter (runRepGraphBase repGraphInput (runWithAddFunc functionSigs pairings (runWithAsmStackRep argRenames m)))
+    (imps, setup) =
+        runWriter
+            (runRepGraphBase
+                repGraphInput
+                (runWithAddFunc functionSigs pairings (runWithAsmStackRep argRenames m)))
     m = interpretGroup group <* addPValidDomAssertions
 
 interpretGroup :: (RefineTag t, MonadRepGraph t m) => ProofCheckGroup t a -> m [SMTProofCheckImp a]
