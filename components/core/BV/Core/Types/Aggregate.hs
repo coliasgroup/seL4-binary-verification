@@ -3,6 +3,8 @@ module BV.Core.Types.Aggregate
     , CompatSMTProofChecks (..)
     , InlineScripts (..)
     , InlineScripts'
+    , Pairings (..)
+    , Pairings'
     , Problems (..)
     , Problems'
     , ProofChecks (..)
@@ -34,6 +36,19 @@ import GHC.Generics (Generic)
 import Optics
 
 -- stages
+
+newtype Pairings t
+  = Pairings { unwrap :: M.Map (PairingId t) (Pairing t) }
+  deriving (Eq, Generic, Ord, Show)
+  deriving newtype (NFData)
+
+type Pairings' = Pairings AsmRefineTag
+
+instance Semigroup (Pairings t) where
+    x <> y = Pairings (x.unwrap <> y.unwrap)
+
+instance Monoid (Pairings t) where
+    mempty = Pairings mempty
 
 newtype Problems t
   = Problems { unwrap :: M.Map (PairingId t) (Problem t) }

@@ -7,7 +7,6 @@ module BV.Core.Types.AsmRefineTag
     , InlineScript'
     , Pairing'
     , PairingId'
-    , Pairings'
     , Problem'
     , WithTag'
     , byAsmRefineTag
@@ -87,8 +86,6 @@ type WithTag' = WithTag AsmRefineTag
 type PairingId' = PairingId AsmRefineTag
 
 type Pairing' = Pairing AsmRefineTag
-
-type Pairings' = Pairings AsmRefineTag
 
 type Problem' = Problem AsmRefineTag
 

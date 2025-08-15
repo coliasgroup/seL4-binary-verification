@@ -7,7 +7,6 @@ module BV.Core.Types.Pairing
     , PairingEqSide (..)
     , PairingEqSideQuadrant (..)
     , PairingId
-    , Pairings (..)
     , prettyPairingEqDirection
     , prettyPairingEqSideQuadrant
     , prettyPairingId
@@ -18,7 +17,6 @@ import BV.Core.Types.Program
 import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
-import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
@@ -57,17 +55,6 @@ data PairingEqDirection
   = PairingEqDirectionIn
   | PairingEqDirectionOut
   deriving (Eq, Generic, NFData, Ord, Show)
-
-newtype Pairings t
-  = Pairings { unwrap :: M.Map (PairingId t) (Pairing t) }
-  deriving (Eq, Generic, Ord, Show)
-  deriving newtype (NFData)
-
-instance Semigroup (Pairings t) where
-    x <> y = Pairings (x.unwrap <> y.unwrap)
-
-instance Monoid (Pairings t) where
-    mempty = Pairings mempty
 
 prettyPairingId :: forall t. RefineTag t => PairingId t -> String
 prettyPairingId pairingId =
