@@ -122,24 +122,25 @@ alignValidIneq pvTy p = do
             align <- alignOfType ty
             elSize <- machineWordE <$> sizeOfType ty
             let size = timesE elSize len
-            sizeReq <- arraySizeIneq ty len p
+            sizeReq <- arraySizeIneq ty len
             return (align, size, [sizeReq])
     ensureM $ align `elem` [1, 4, 8]
-    let conj =
-            [ bitwiseAndE p (machineWordE (align - 1)) `eqE` w0 | align > 1 ]
-                ++ sizeReqs
-                ++ [ notE (p `eqE` w0)
-                   , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
-                   ]
-    return $ foldr1 andE conj
+    return $ foldr1 andE $
+        [ bitwiseAndE p (machineWordE (align - 1)) `eqE` w0 | align > 1 ]
+            ++ sizeReqs
+            ++ [ notE (p `eqE` w0)
+                , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
+                ]
   where
     w0 = machineWordE 0
 
-arraySizeIneq :: MonadStructs m => ExprType -> Expr -> Expr -> m Expr
-arraySizeIneq ty len _p = do
+arraySizeIneq :: MonadStructs m => ExprType -> Expr -> m Expr
+arraySizeIneq ty len = do
     elSize <- sizeOfType ty
-    let limit = (((2 :: Integer) ^ (32 :: Integer)) - 4) `div` elSize
-    return $ lessEqE len (machineWordE limit)
+    let limit = machineWordE $ (memSize - archPtrSizeBytes) `div` elSize
+    return $ lessEqE len limit
+  where
+    memSize = 2 ^ archWordSizeBits
 
 endAddr :: MonadStructs m => Expr -> PValidType -> m Expr
 endAddr p pvTy = do
@@ -150,8 +151,8 @@ endAddr p pvTy = do
         PValidTypeType ty -> machineWordE <$> sizeOfType ty
     return $ p `plusE` (size `minusE` machineWordE 1)
 
-normArrayType :: PValidTypeWithStrength -> PValidTypeWithStrength
-normArrayType = \case
+normalizeArrayType :: PValidTypeWithStrength -> PValidTypeWithStrength
+normalizeArrayType = \case
     PValidTypeWithStrengthType (ExprTypeArray { ty, len }) -> PValidTypeWithStrengthArray
         { ty
         , len = machineWordE len
@@ -187,8 +188,8 @@ getSTypCondition offs innerTy outerTy =
 getSTypConditionInner1 :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
 getSTypConditionInner1 innerTy outerTy =
     getSTypConditionInner2
-        (normArrayType innerTy)
-        (normArrayType outerTy)
+        (normalizeArrayType innerTy)
+        (normalizeArrayType outerTy)
 
 arrayTypeSize :: MonadStructs m => PValidTypeWithStrength -> m Expr
 arrayTypeSize (PValidTypeWithStrengthArray { ty, len }) = do
