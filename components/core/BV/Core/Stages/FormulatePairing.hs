@@ -12,109 +12,144 @@ import BV.Core.Logic (splitScalarPairs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Data.Foldable (toList)
+import Data.Function (on)
 import Data.Maybe (mapMaybe, maybeToList)
 import Optics
 
 formulatePairing :: Expr -> FunctionSignature -> Pairing'
 formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
   where
-    (varArgsC, imemC, _globArgsC) = splitScalarPairs sig.input
-    (varRetsC, omemC, _globRetsC) = splitScalarPairs sig.output
+    (cArgVars, cInMems, _) = splitScalarPairs sig.input
+    (cRetVars, cOutMems, _) = splitScalarPairs sig.output
+
+    numCArgs = length cArgVars
+    numCRets = length cRetVars
+    cArgExprs = map varFromNameTyE cArgVars
+    cRetExprs = map varFromNameTyE cRetVars
+
+    multiRet = numCRets > 1
 
     r i = machineWordVarE (Ident ("r" ++ show (i :: Integer)))
     sp = r 13
     stack = varE memT "stack"
-    r0Input = machineWordVarE "ret_addr_input"
     asmMem = varE memT "mem"
+    r0Input = machineWordVarE "ret_addr_input"
     ret = machineWordVarE "ret"
 
-    preconds =
-        [ alignedE 2 sp
-        , ret `eqE` r 14
-        , alignedE 2 ret
-        , r0Input `eqE` r 0
-        , minStackSize `lessEqE` sp
-        ]
-        ++
-        retPreconds
-        ++
-        maybeToList (lessEqE sp <$> outerAddr)
-
-    postEqs =
-        [ (r i, r i)
-        | i <- [4..11] ++ [13]
-        ]
-        ++
-        retPostEqs
-        ++
-        [ (stackWrapperE sp stack argSeqAddrs, stackWrapperE sp stack saveAddrs)
-        ]
-
-    multiRet = length varRetsC > 1
+    (inMemEqs, outMemEqs) =
+        mkMemEqs
+            asmMem
+            (maybeFromList (map varFromNameTyE cInMems))
+            (Just asmMem)
+            (maybeFromList (map varFromNameTyE cOutMems))
 
     firstArgIndex = if multiRet then 1 else 0
 
-    argSeq =
-        [ (r i, Nothing)
-        | i <- [firstArgIndex..3]
+    fullArgSeq = concat
+        [ [ (r i, Nothing)
+          | i <- [firstArgIndex .. 3]
+          ]
+        , [ (value, Just addr)
+          | (value, addr) <- take (numCArgs + 1) $ mkStackSequence stack sp
+          ]
         ]
-        ++
-        [ (value, Just addr)
-        | (value, addr) <- take (length varArgsC + 1) $ mkStackSequence sp stack
-        ]
 
-    (retPreconds, retPostEqs, retOutEqs, saveAddrs) =
-        if not multiRet
-        then
-            let theseRetOutEqs = zip (map varFromNameTyE varRetsC) [r 0]
-             in ([], [], theseRetOutEqs, [])
-        else
-            let theseRetPreconds =
-                    [ alignedE 2 (r 0)
-                    , sp `lessEqE` r 0
-                    ] ++
-                    maybeToList (lastOf folded initSaveSeq <&> \(_, addr) ->
-                        r 0 `lessEqE` addr) ++
-                    concat (maybeToList (lastArgAddr <&> \lastArgAddr' ->
-                        [ lastArgAddr' `lessE` addr | (_, addr) <- take 1 initSaveSeq ]))
-                theseRetPostEqs = [(r0Input, r0Input)]
-                (theseRetOutEqs, theseSaveAddrs) = unzip
-                    [ ((varFromNameTyE c, castE c.ty a), addr)
-                    | (c, (a, addr)) <- zip varRetsC $ mkStackSequence r0Input stack
-                    ]
-                initSaveSeq = take (length varRetsC) $ mkStackSequence (r 0) stack
-                lastArgAddr = snd $ case length varArgsC of
-                    0 -> last argSeq
-                    n -> argSeq !! (n - 1)
-             in (theseRetPreconds, theseRetPostEqs, theseRetOutEqs, theseSaveAddrs)
+    argSeq = take numCArgs fullArgSeq
 
-    argSeqAddrs = mapMaybe snd (take (length varArgsC) argSeq)
+    argSeqExprs = map fst argSeq
 
-    (memIeqs, memOeqs) =
-        mkMemEqs
-            asmMem
-            (maybeFromList (map varFromNameTyE imemC))
-            (Just asmMem)
-            (maybeFromList (map varFromNameTyE omemC))
+    argSeqAddrs = mapMaybe snd (take numCArgs argSeq)
 
-    outerAddr = lastOf folded (take (length varArgsC) argSeq) >>= snd
+    outerAddrOpt = lastOf folded argSeqAddrs
 
     argEqs =
-        [ asmIn asm === cIn (castCToAsmE asm.ty (varFromNameTyE c))
-        | (c, (asm, _addr)) <- zip varArgsC argSeq
+        [ asmIn asm === cIn (castCToAsmE asm.ty c)
+        | (c, asm) <- zip cArgExprs argSeqExprs
         ]
 
-    inEqs = argEqs ++ memIeqs ++ [ asmIn expr === asmIn trueE | expr <- preconds ]
+    asmPreconds = concat
+        [ [ alignedE 2 sp
+          , ret `eqE` r 14
+          , alignedE 2 ret
+          , r0Input `eqE` r 0
+          , minStackSize `lessEqE` sp
+          ]
+        , retInfo.asmPreconds
+        , [ sp `lessEqE` outerAddr | outerAddr <- maybeToList outerAddrOpt ]
+        ]
 
-    retEqs = [ asmOut asm === cOut (castCToAsmE asm.ty c) | (c, asm) <- retOutEqs ]
+    inEqs = concat
+        [ argEqs
+        , inMemEqs
+        , [ asmIn expr === asmIn trueE | expr <- asmPreconds ]
+        ]
 
-    leftInvs = [ asmIn vin === asmOut vout | (vin, vout) <- postEqs ]
+    retEqs =
+        [ asmOut asm === cOut (castCToAsmE asm.ty c)
+        | (c, asm) <- retInfo.eqPairs
+        ]
 
-    outEqs = retEqs ++ memOeqs ++ leftInvs
+    asmInvariants = concat
+        [ [ (r i, r i)
+          | i <- [4..11] ++ [13]
+          ]
+        , retInfo.asmInvariants
+        , [ ((,) `on` (stackWrapperE sp stack)) argSeqAddrs retInfo.saveAddrs
+          ]
+        ]
+
+    outEqs = concat
+        [ retEqs
+        , outMemEqs
+        , [ asmIn inVal === asmOut outVal | (inVal, outVal) <- asmInvariants ]
+        ]
+
+    retInfo =
+        if not multiRet
+        then
+            RetInfo
+                { asmPreconds = []
+                , asmInvariants = []
+                , eqPairs = zip cRetExprs [r 0]
+                , saveAddrs = []
+                }
+        else
+            let (eqPairs, saveAddrs) = unzip
+                    [ ((c, castE c.ty asm), asmAddr)
+                    | (c, (asm, asmAddr)) <- zip cRetExprs $ mkStackSequence stack r0Input
+                    ]
+                initSaveSeq = take numCRets $ mkStackSequence stack (r 0)
+                lastArgAddr = snd $ case numCArgs of
+                    0 -> last fullArgSeq
+                    _ -> last argSeq
+             in RetInfo
+                    { asmPreconds = concat
+                        [ [ alignedE 2 (r 0)
+                          , sp `lessEqE` r 0
+                          ]
+                        , [ r 0 `lessEqE` addr
+                          | (_, addr) <- maybeToList (lastOf folded initSaveSeq)
+                          ]
+                        , concat
+                            (maybeToList
+                                (lastArgAddr <&> \lastArgAddr' ->
+                                    [ lastArgAddr' `lessE` addr | (_, addr) <- take 1 initSaveSeq ]))
+                        ]
+                    , asmInvariants = [(r0Input, r0Input)]
+                    , eqPairs
+                    , saveAddrs
+                    }
+
+data RetInfo
+  = RetInfo
+      { asmPreconds :: [Expr]
+      , asmInvariants :: [(Expr, Expr)]
+      , eqPairs :: [(Expr, Expr)]
+      , saveAddrs :: [Expr]
+      }
 
 mkStackSequence :: Expr -> Expr -> [(Expr, Expr)]
-mkStackSequence sp stack =
+mkStackSequence stack sp =
     [ let addr = sp `plusE` numE sp.ty (archPtrSizeBytes * i)
           expr = memAccE machineWordT addr stack
        in (expr, addr)
@@ -136,7 +171,7 @@ mkMemEqs asmInMem cInMemOpt asmOutMemOpt cOutMemOpt =
     outEqs = case (asmOutMemOpt, cOutMemOpt) of
         (_, Nothing) ->
             [ asmOut asmOutMem === asmIn asmInMem
-            | asmOutMem <- toList asmOutMemOpt
+            | asmOutMem <- maybeToList asmOutMemOpt
             ]
         (Just asmOutMem, Just cOutMem) ->
             [ asmOut asmOutMem === cOut cOutMem
