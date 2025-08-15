@@ -119,21 +119,20 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
                     | (c, (asm, asmAddr)) <- zip cRetExprs $ mkStackSequence stack r0Input
                     ]
                 initSaveSeq = take numCRets $ mkStackSequence stack (r 0)
-                lastArgAddr = snd $ case numCArgs of
+                Just ((_, initSaveSeqHeadAddr), _) = uncons initSaveSeq
+                Just (_, (_, initSaveSeqLastAddr)) = unsnoc initSaveSeq
+                lastArgAddrOpt = snd $ case numCArgs of
                     0 -> last fullArgSeq
                     _ -> last argSeq
              in RetInfo
                     { asmPreconds = concat
                         [ [ alignedE 2 (r 0)
                           , sp `lessEqE` r 0
+                          , r 0 `lessEqE` initSaveSeqLastAddr
                           ]
-                        , [ r 0 `lessEqE` addr
-                          | (_, addr) <- maybeToList (lastOf folded initSaveSeq)
+                        , [ lastArgAddr `lessE` initSaveSeqHeadAddr
+                          | lastArgAddr <- maybeToList lastArgAddrOpt
                           ]
-                        , concat
-                            (maybeToList
-                                (lastArgAddr <&> \lastArgAddr' ->
-                                    [ lastArgAddr' `lessE` addr | (_, addr) <- take 1 initSaveSeq ]))
                         ]
                     , asmInvariants = [(r0Input, r0Input)]
                     , eqPairs
