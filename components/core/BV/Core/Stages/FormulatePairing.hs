@@ -12,6 +12,7 @@ import BV.Core.Logic (splitScalarPairs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
+import Data.Foldable (toList)
 import Data.Maybe (mapMaybe, maybeToList)
 import Optics
 
@@ -90,19 +91,12 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
 
     argSeqAddrs = mapMaybe snd (take (length varArgsC) argSeq)
 
-    memIeqs = case imemC of
-        [] -> [leftIn (rodataE asmMem) === rightIn trueE]
-        [imemC'] ->
-            [ leftIn asmMem === rightIn (varFromNameTyE imemC')
-            , rightIn (rodataE (varFromNameTyE imemC')) === rightIn trueE
-            ]
-
-    memOeqs = case omemC of
-        [] -> [leftOut asmMem === leftIn asmMem]
-        [omemC'] ->
-            [ leftOut asmMem === rightOut (varFromNameTyE omemC')
-            , rightOut (rodataE (varFromNameTyE omemC')) === rightOut trueE
-            ]
+    (memIeqs, memOeqs) =
+        mkMemEqs
+            asmMem
+            (maybeFromList (map varFromNameTyE imemC))
+            (Just asmMem)
+            (maybeFromList (map varFromNameTyE omemC))
 
     outerAddr = lastOf folded (take (length varArgsC) argSeq) >>= snd
 
@@ -126,3 +120,30 @@ mkStackSequence sp stack =
        in (expr, addr)
     | i <- [0..]
     ]
+
+mkMemEqs :: Expr -> Maybe Expr -> Maybe Expr -> Maybe Expr -> ([PairingEq AsmRefineTag], [PairingEq AsmRefineTag])
+mkMemEqs asmInMem cInMemOpt asmOutMemOpt cOutMemOpt =
+    (inEqs, outEqs)
+  where
+    inEqs = case cInMemOpt of
+        Nothing ->
+            [ leftIn (rodataE asmInMem) === rightIn trueE
+            ]
+        Just cInMem ->
+            [ leftIn asmInMem === rightIn cInMem
+            , rightIn (rodataE cInMem) === rightIn trueE
+            ]
+    outEqs = case (asmOutMemOpt, cOutMemOpt) of
+        (_, Nothing) ->
+            [ leftOut asmOutMem === leftIn asmInMem
+            | asmOutMem <- toList asmOutMemOpt
+            ]
+        (Just asmOutMem, Just cOutMem) ->
+            [ leftOut asmOutMem === rightOut cOutMem
+            , rightOut (rodataE cOutMem) === rightOut trueE
+            ]
+
+maybeFromList :: [a] -> Maybe a
+maybeFromList = \case
+    [] -> Nothing
+    [a] -> Just a

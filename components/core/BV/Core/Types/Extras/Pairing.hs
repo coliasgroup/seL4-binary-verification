@@ -1,5 +1,9 @@
 module BV.Core.Types.Extras.Pairing
-    ( leftIn
+    ( asmIn
+    , asmOut
+    , cIn
+    , cOut
+    , leftIn
     , leftInQ
     , leftOut
     , leftOutQ
@@ -35,6 +39,18 @@ rightIn = PairingEqSide rightInQ
 
 rightOut :: RefineTag t => Expr -> PairingEqSide t
 rightOut = PairingEqSide rightOutQ
+
+asmIn :: Expr -> PairingEqSide AsmRefineTag
+asmIn = leftIn
+
+asmOut :: Expr -> PairingEqSide AsmRefineTag
+asmOut = leftOut
+
+cIn :: Expr -> PairingEqSide AsmRefineTag
+cIn = rightIn
+
+cOut :: Expr -> PairingEqSide AsmRefineTag
+cOut = rightOut
 
 infix 4 ===
 
