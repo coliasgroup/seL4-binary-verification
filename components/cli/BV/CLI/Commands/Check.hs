@@ -198,7 +198,7 @@ makeIncludExcludeFilter include exclude = IncludeExcludeFilter
     , exclude = S.fromList exclude
     }
 
-getEarlyAsmFunctionFilter :: CheckOpts -> AsmFunctionFilter
+getEarlyAsmFunctionFilter :: CheckOpts -> FunctionFilter
 getEarlyAsmFunctionFilter opts = makeIncludExcludeFilter
     opts.includeFunctionsEarly
     opts.ignoreFunctionsEarly

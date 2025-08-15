@@ -1,8 +1,8 @@
 -- TODO clean up
 
 module BV.Core.Prelude
-    ( AsmFunctionFilter
-    , AsmRefineTag (..)
+    ( AsmRefineTag (..)
+    , FunctionFilter
     , Ident (..)
     , IncludeExcludeFilter (..)
     , IntermediateStagesOutput (..)

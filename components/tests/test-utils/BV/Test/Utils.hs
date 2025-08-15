@@ -63,7 +63,7 @@ writeHtml opts fname val = do
 
 --
 
-seL4DefaultEarlyAsmFunctionFilter :: AsmFunctionFilter
+seL4DefaultEarlyAsmFunctionFilter :: FunctionFilter
 seL4DefaultEarlyAsmFunctionFilter = IncludeExcludeFilter
     { include = Nothing
     , exclude = S.fromList

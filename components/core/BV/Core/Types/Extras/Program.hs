@@ -2,11 +2,13 @@
 
 module BV.Core.Types.Extras.Program
     ( FoldExprs (..)
+    , FunctionFilter
     , FunctionSignature (..)
     , HasVarDecls (..)
     , HasVarNames (..)
     , TraverseTopLevelExprs (..)
     , VarUpdate (..)
+    , applyFunctionFilter
     , nodeAddrOf
     , nodeConts
     , programFromFunctions
@@ -20,6 +22,8 @@ module BV.Core.Types.Extras.Program
     ) where
 
 import BV.Core.Types
+import BV.Core.Utils.IncludeExcludeFilter (IncludeExcludeFilter,
+                                           applyIncludeExcludeFilter)
 import BV.Utils (expecting)
 
 import Control.DeepSeq (NFData)
@@ -39,6 +43,12 @@ trivialNode next = NodeBasic (BasicNode { next, varUpdates = [] })
 
 nodeAddrOf :: NodeId -> NodeAddr
 nodeAddrOf = view $ expecting #_Addr
+
+type FunctionFilter = IncludeExcludeFilter Ident
+
+applyFunctionFilter :: FunctionFilter -> Program -> Program
+applyFunctionFilter f =
+    #functions %~ M.filterWithKey (\k _v -> applyIncludeExcludeFilter f k)
 
 --
 

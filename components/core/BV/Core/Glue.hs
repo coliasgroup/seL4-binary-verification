@@ -13,7 +13,6 @@ module BV.Core.Glue
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils.IncludeExcludeFilter
 
 import Control.DeepSeq (NFData)
 import Control.Monad (guard)
@@ -35,7 +34,7 @@ data StagesInput
       , stackBounds :: StackBounds
       , inlineScripts :: InlineScripts'
       , proofScripts :: ProofScripts'
-      , earlyAsmFunctionFilter :: AsmFunctionFilter
+      , earlyAsmFunctionFilter :: FunctionFilter
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -81,8 +80,7 @@ stages input = StagesOutput
   where
 
     alterProgramByTag = byAsmRefineTag (ByAsmRefineTag
-        { asm = #functions %~ M.filterWithKey (\k _v ->
-            applyIncludeExcludeFilter input.earlyAsmFunctionFilter k)
+        { asm = applyFunctionFilter input.earlyAsmFunctionFilter
         , c = pseudoCompile input.objDumpInfo
         })
 

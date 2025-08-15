@@ -127,7 +127,7 @@ writeTargetDirFile :: WriteBVFile c a => TargetDir -> TargetDirFile a -> a -> IO
 writeTargetDirFile targetDir targetDirFile =
     writeBVFile (targetDirFilePath targetDir (eraseTargetDirFileType targetDirFile))
 
-readStagesInputEither :: AsmFunctionFilter -> String -> RODataInputRanges -> TargetDir -> IO (Either ReadTargetDirFileException StagesInput)
+readStagesInputEither :: FunctionFilter -> String -> RODataInputRanges -> TargetDir -> IO (Either ReadTargetDirFileException StagesInput)
 readStagesInputEither earlyAsmFunctionFilter cFunctionPrefix rodataInputRanges targetDir = runExceptT $ do
     asmFunctions <- f targetDirFiles.asmFunctions
     cFunctions <- f targetDirFiles.cFunctions
@@ -154,6 +154,6 @@ readStagesInputEither earlyAsmFunctionFilter cFunctionPrefix rodataInputRanges t
     f :: ReadBVFile c a => TargetDirFile a -> ExceptT ReadTargetDirFileException IO a
     f file = ExceptT $ readTargetDirFileEither targetDir file
 
-readStagesInput :: AsmFunctionFilter -> String -> RODataInputRanges -> TargetDir -> IO StagesInput
+readStagesInput :: FunctionFilter -> String -> RODataInputRanges -> TargetDir -> IO StagesInput
 readStagesInput earlyAsmFunctionFilter cFunctionPrefix rodataInputRanges targetDir =
     readStagesInputEither earlyAsmFunctionFilter cFunctionPrefix rodataInputRanges targetDir >>= either throwIO return

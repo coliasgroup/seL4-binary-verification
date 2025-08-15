@@ -5,7 +5,6 @@ module BV.Search.Core.StackBounds.All
 
 import BV.Core.Stages
 import BV.Core.Types
-import BV.Core.Utils.IncludeExcludeFilter
 import BV.Search.Core.StackBounds
 
 import Control.Monad (guard)
@@ -20,7 +19,7 @@ data FullDiscoverStackBoundsInput
       , objDumpInfo :: ObjDumpInfo
       , rodata :: ROData
       , cFunctionPrefix :: String
-      , earlyAsmFunctionFilter :: AsmFunctionFilter
+      , earlyAsmFunctionFilter :: FunctionFilter
       , includeAsmFrom :: S.Set Ident
       }
   deriving (Generic)
@@ -39,8 +38,7 @@ prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
   where
 
     alterProgramByTag = byAsmRefineTag (ByAsmRefineTag
-        { asm = #functions %~ M.filterWithKey (\k _v ->
-            applyIncludeExcludeFilter input.earlyAsmFunctionFilter k)
+        { asm = applyFunctionFilter input.earlyAsmFunctionFilter
         , c = pseudoCompile input.objDumpInfo
         })
 
