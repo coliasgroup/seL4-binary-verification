@@ -68,7 +68,10 @@ stages input = StagesOutput
     , unhandledInlineAssemblyFunctions = unhandledAsmFunctionNames.c
     , unhandledInstructionFunctions = unhandledAsmFunctionNames.asm
     , intermediate = IntermediateStagesOutput
-        { functions = collectedFunctions
+        { functions = programFromFunctions $
+                M.unionWith undefined
+                    finalPrograms.c.functions
+                    finalPrograms.asm.functions
         , pairings
         , problems
         , proofChecks
@@ -79,24 +82,16 @@ stages input = StagesOutput
 
   where
 
-    alterProgramByTag = byAsmRefineTag (ByAsmRefineTag
-        { asm = applyFunctionFilter input.earlyAsmFunctionFilter
-        , c = pseudoCompile input.objDumpInfo
-        })
-
-    alteredPrograms = alterProgramByTag <*> (fixupProgram <$> input.programs)
-
-    (inlineAsmPairings, alteredProgramsWithInlineAsm, unhandledAsmFunctionNames) =
-        addInlineAssemblySpecs alteredPrograms
-
-    finalPrograms = alteredProgramsWithInlineAsm
+    (inlineAsmPairings, finalPrograms, unhandledAsmFunctionNames) =
+        addInlineAssemblySpecs
+        . over (atTag C) (pseudoCompile input.objDumpInfo)
+        . over (atTag Asm) (applyFunctionFilter input.earlyAsmFunctionFilter)
+        . over mapped fixupProgram
+        $ input.programs
 
     lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions ! funName
 
-    functionSigs = signatureOfFunction . lookupFunction
-
-    collectedFunctions = programFromFunctions $
-        M.unionWith (error "not disjoint") finalPrograms.c.functions finalPrograms.asm.functions
+    lookupFunctionSig = signatureOfFunction . lookupFunction
 
     normalFunctionPairingIds = do
         asm <- M.keys finalPrograms.asm.functions
@@ -107,7 +102,7 @@ stages input = StagesOutput
     normalPairings =
         let f pairingId = formulatePairing
                 (input.stackBounds.unwrap ! pairingId.asm)
-                (functionSigs (viewWithTag C pairingId))
+                (lookupFunctionSig (viewWithTag C pairingId))
          in M.fromSet f (S.fromList normalFunctionPairingIds)
 
     pairings = Pairings $ normalPairings `M.union` inlineAsmPairings.unwrap
@@ -138,5 +133,5 @@ stages input = StagesOutput
                 , rodata = input.rodata
                 , problem
                 }
-         in compileProofChecks repGraphInput functionSigs pairings (lookupOrigVarNameFor problem)
+         in compileProofChecks repGraphInput lookupFunctionSig pairings (lookupOrigVarNameFor problem)
                 <$> (proofChecks.unwrap M.! pairingId)
