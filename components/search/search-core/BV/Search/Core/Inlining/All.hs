@@ -8,6 +8,7 @@ import BV.Core.Types
 import BV.Search.Core.Inlining
 
 import Control.Monad (guard)
+import Data.Map ((!))
 import qualified Data.Map as M
 import qualified Data.Set as S
 import GHC.Generics (Generic)
@@ -31,19 +32,14 @@ prepareAllDiscoverInlineScriptInput input = scripts
 
   where
 
-    alterProgramByTag = byAsmRefineTag (ByAsmRefineTag
-        { asm = applyFunctionFilter input.earlyAsmFunctionFilter
-        , c = pseudoCompile input.objDumpInfo
-        })
+    (inlineAsmPairings, finalPrograms, _unhandledAsmFunctionNames) =
+        addInlineAssemblySpecs
+        . over (atTag C) (pseudoCompile input.objDumpInfo)
+        . over (atTag Asm) (applyFunctionFilter input.earlyAsmFunctionFilter)
+        . over mapped fixupProgram
+        $ input.programs
 
-    alteredPrograms = alterProgramByTag <*> (fixupProgram <$> input.programs)
-
-    (inlineAsmPairings, alteredProgramsWithInlineAsm, _unhandledAsmFunctionNames) =
-        addInlineAssemblySpecs alteredPrograms
-
-    finalPrograms = alteredProgramsWithInlineAsm
-
-    lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions M.! funName
+    lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions ! funName
 
     requestedPairingIds = flip S.map input.asmFunctions $ \asm ->
         let c = asm & #unwrap %~ (input.cFunctionPrefix ++)

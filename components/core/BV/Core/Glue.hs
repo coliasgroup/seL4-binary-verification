@@ -120,9 +120,9 @@ stages input = StagesOutput
     provenProblems = M.restrictKeys problems.unwrap (M.keysSet input.proofScripts.unwrap)
 
     proofChecks = ProofChecks $ flip M.mapWithKey provenProblems $ \pairingId problem ->
-        let pairing = pairings.unwrap M.! pairingId
+        let pairing = pairings.unwrap ! pairingId
             sigs = lookupFunctionSig <$> withTags pairingId
-            proofScript = input.proofScripts.unwrap M.! pairingId
+            proofScript = input.proofScripts.unwrap ! pairingId
          in enumerateProofChecks problem sigs pairing proofScript
 
     smtProofChecks = SMTProofChecks $ flip M.mapWithKey provenProblems $ \pairingId problem ->
@@ -132,4 +132,4 @@ stages input = StagesOutput
                 , problem
                 }
          in compileProofChecks repGraphInput lookupFunctionSig pairings
-                <$> (proofChecks.unwrap M.! pairingId)
+                <$> (proofChecks.unwrap ! pairingId)

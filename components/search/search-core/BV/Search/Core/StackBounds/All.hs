@@ -31,24 +31,21 @@ prepareDiscoverStackBoundsInput input = DiscoverStackBoundsInput
     { structs = (.structs) <$> input.programs
     , rodata = input.rodata
     , functions = lookupFunction
-    , pairings
+    , pairingIds
     , includeAsmFrom = input.includeAsmFrom
     }
 
   where
 
-    alterProgramByTag = byAsmRefineTag (ByAsmRefineTag
-        { asm = applyFunctionFilter input.earlyAsmFunctionFilter
-        , c = pseudoCompile input.objDumpInfo
-        })
-
-    alteredPrograms = alterProgramByTag <*> (fixupProgram <$> input.programs)
-
-    finalPrograms = alteredPrograms
+    finalPrograms =
+          over (atTag C) (pseudoCompile input.objDumpInfo)
+        . over (atTag Asm) (applyFunctionFilter input.earlyAsmFunctionFilter)
+        . over mapped fixupProgram
+        $ input.programs
 
     lookupFunction (WithTag tag funName) = (viewAtTag tag finalPrograms).functions M.! funName
 
-    pairings = S.fromList $ do
+    pairingIds = S.fromList $ do
         asm <- M.keys finalPrograms.asm.functions
         let c = asm & #unwrap %~ (input.cFunctionPrefix ++)
         guard $ c `M.member` finalPrograms.c.functions
