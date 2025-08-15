@@ -420,7 +420,7 @@ getSplitHypsAt visit splitNode = branch $ do
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
             expr -> expr
         zsub = mksub $ machineWordE 0
-        lsub = mksub $ case fromJust (simpleVC visit) of
+        isub = mksub $ case fromJust (simpleVC visit) of
             SimpleVisitCountViewNumber n -> machineWordE n
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
     return $
@@ -431,21 +431,21 @@ getSplitHypsAt visit splitNode = branch $ do
         [ HypWithDesc (tagDesc leftTag "const") $
             eq
                 (eqSideH (zsub exprL) (getLeft starts))
-                (eqSideH (lsub exprL) (getLeft visits))
+                (eqSideH (isub exprL) (getLeft visits))
         | Lambda { expr = exprL } <- (getLeft splitNode.details).eqs
         , inst exprL
         ] ++
         [ HypWithDesc (tagDesc rightTag "const") $
             eq
                 (eqSideH (zsub exprR) (getRight starts))
-                (eqSideH (lsub exprR) (getRight visits))
+                (eqSideH (isub exprR) (getRight visits))
         | Lambda { expr = exprR } <- (getRight splitNode.details).eqs
         , inst exprR
         ] ++
         [ HypWithDesc "eq" $
             eq
-                (eqSideH (lsub exprL) (getLeft visits))
-                (eqSideH (lsub exprR) (getRight visits))
+                (eqSideH (isub exprL) (getLeft visits))
+                (eqSideH (isub exprR) (getRight visits))
         | (Lambda { expr = exprL }, Lambda { expr = exprR }) <- splitNode.eqs
         , inst exprL && inst exprR
         ]
