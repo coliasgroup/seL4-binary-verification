@@ -381,8 +381,8 @@ maybeNoteModelExpr s ty subexprs =
         noteModelExpr s ty
 
 notePtr :: MonadRepGraphSolver m => S -> m Name
-notePtr p_s = withMapSlot #ptrs p_s $
-    withoutEnv $ addDefNotSplit "ptr" (smtExprE machineWordT (NotSplit p_s))
+notePtr p = withMapSlot #ptrs p $
+    withoutEnv $ addDefNotSplit "ptr" (smtExprE machineWordT (NotSplit p))
 
 noteMemDom :: MonadRepGraphSolver m => S -> S -> S -> m ()
 noteMemDom p d md = liftSolver $ #doms %= S.insert (p, d, md)
