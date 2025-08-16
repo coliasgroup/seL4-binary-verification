@@ -421,6 +421,7 @@ addRODataDef = do
     ensureM $ roName.unwrap == "rodata"
     ensureM $ impRoName.unwrap == "implies-rodata"
     rodataPtrs <- askRODataPtrs
+    let memName = "m"
     (roDef, impRoDef) <- case rodataPtrs of
         [] -> do
             return (trueS, trueS)
@@ -433,7 +434,7 @@ addRODataDef = do
             let roWitnessValS = nameS roWitnessVal
             rodata <- liftSolver $ gview #rodata
             let eqs =
-                    [ eqS ["load-word32", "m", p] v
+                    [ eqS ["load-word32", symbolS memName, p] v
                     | (p, v) <-
                         [ (machineWordS p, machineWordS v)
                         | (p, v) <- M.toList rodata.rodata
@@ -453,12 +454,12 @@ addRODataDef = do
             return (andNS eqs, last eqs)
     send $ defineFunS
         roName.unwrap
-        [("m", typeToSMT ExprTypeMem)]
+        [(memName, typeToSMT ExprTypeMem)]
         boolS
         roDef
     send $ defineFunS
         impRoName.unwrap
-        [("m", typeToSMT ExprTypeMem)]
+        [(memName, typeToSMT ExprTypeMem)]
         boolS
         impRoDef
 
