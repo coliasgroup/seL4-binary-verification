@@ -429,6 +429,8 @@ addRODataDef = do
             roWitnessVal <- addVar "rodata-witness-val" word32T
             ensureM $ roWitness.unwrap == "rodata-witness"
             ensureM $ roWitnessVal.unwrap == "rodata-witness-val"
+            let roWitnessS = nameS roWitness
+            let roWitnessValS = nameS roWitnessVal
             rodata <- liftSolver $ gview #rodata
             let eqs =
                     [ eqS ["load-word32", "m", p] v
@@ -436,17 +438,17 @@ addRODataDef = do
                         [ (machineWordS p, machineWordS v)
                         | (p, v) <- M.toList rodata.rodata
                         ] ++
-                        [ (symbolS roWitness.unwrap, symbolS roWitnessVal.unwrap)
+                        [ (roWitnessS, roWitnessValS)
                         ]
                     ]
             assertSMTFact $ orNS
                 [ andS
-                    (bvuleS (machineWordS range.addr) (symbolS roWitness.unwrap))
-                    (bvuleS (symbolS roWitness.unwrap) (machineWordS (range.addr + range.size - 1)))
+                    (bvuleS (machineWordS range.addr) roWitnessS)
+                    (bvuleS roWitnessS (machineWordS (range.addr + range.size - 1)))
                 | range <- rodata.ranges
                 ]
             assertSMTFact $ eqS
-                (symbolS roWitness.unwrap `bvandS` machineWordS 3)
+                (roWitnessS `bvandS` machineWordS 3)
                 (machineWordS 0)
             return (andNS eqs, last eqs)
     send $ defineFunS
