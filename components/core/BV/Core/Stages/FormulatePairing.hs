@@ -93,7 +93,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
           | i <- [4..11] ++ [13]
           ]
         , retInfo.asmInvariants
-        , [ ((,) `on` (stackWrapperE sp stack)) asmArgAddrs retInfo.asmRetAddrs
+        , [ ((,) `on` stackWrapperE sp stack) asmArgAddrs retInfo.asmRetAddrs
           ]
         ]
 
