@@ -3,10 +3,12 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.Logic
     ( PValidKind (..)
+    , PValidTuple (..)
     , PValidType (..)
     , alignOfType
     , alignValidIneq
@@ -30,7 +32,6 @@ import BV.Utils (ensure, ensureM)
 
 import Control.DeepSeq (NFData)
 import Data.Function (applyWhen)
-import Data.Functor ((<&>))
 import Data.List (nub, partition)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust)
@@ -56,14 +57,6 @@ alignOfType ty = case ty of
     ExprTypeStruct name -> (.align) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
     ExprTypeGlobalWrapper ty' -> alignOfType ty'
-
---
-
-splitScalarPairs :: [NameTy] -> ([NameTy], [NameTy], [NameTy])
-splitScalarPairs args = (scalars, mems, others)
-  where
-    (scalars, globals) = span (\arg -> isWordT arg.ty || isBoolT arg.ty) args
-    (mems, others) = partition (\arg -> isMemT arg.ty) globals
 
 --
 
@@ -103,6 +96,11 @@ pvalidKindFromOp = \case
     OpPArrayValid -> PValidKindPArrayValid
     OpPWeakValid -> PValidKindPWeakValid
 
+pvalidTypeWithoutStrength :: PValidTypeWithStrength -> PValidType
+pvalidTypeWithoutStrength = \case
+    PValidTypeWithStrengthType ty -> PValidTypeType ty
+    PValidTypeWithStrengthArray { ty, len } -> PValidTypeArray { ty, len }
+
 pvalidTypeWithUnspecifiedStrength :: PValidType -> PValidTypeWithStrength
 pvalidTypeWithUnspecifiedStrength = \case
     PValidTypeType ty -> PValidTypeWithStrengthType ty
@@ -112,69 +110,79 @@ pvalidTypeWithUnspecifiedStrength = \case
         , strength = Nothing
         }
 
+pvalidTypeSize :: MonadStructs m => PValidType -> m Expr
+pvalidTypeSize = \case
+    PValidTypeType ty -> machineWordE <$> sizeOfType ty
+    PValidTypeArray { ty, len } -> do
+        elSize <- machineWordE <$> sizeOfType ty
+        return $ elSize `timesE` len
+
+pvalidTypeAlign :: MonadStructs m => PValidType -> m Integer
+pvalidTypeAlign = \case
+    PValidTypeType ty -> alignOfType ty
+    PValidTypeArray { ty } -> alignOfType ty
+
 alignValidIneq :: MonadStructs m => PValidType -> Expr -> m Expr
 alignValidIneq pvTy p = do
-    (align, size, sizeReqs) <- case pvTy of
-        PValidTypeType ty -> do
-            align <- alignOfType ty
-            size <- machineWordE <$> sizeOfType ty
-            return (align, size, [])
-        PValidTypeArray { ty, len } -> do
-            align <- alignOfType ty
-            elSize <- machineWordE <$> sizeOfType ty
-            let size = timesE elSize len
-            sizeReq <- arraySizeIneq ty len
-            return (align, size, [sizeReq])
+    align <- pvalidTypeAlign pvTy
+    size <- pvalidTypeSize pvTy
+    sizeReqs <- case pvTy of
+        PValidTypeType _ -> return []
+        PValidTypeArray { ty, len } -> (:[]) <$> arraySizeIneq ty len
     ensureM $ align `elem` [1, 4, 8]
     return $ foldr1 andE $
         [ bitwiseAndE p (machineWordE (align - 1)) `eqE` w0 | align > 1 ]
             ++ sizeReqs
             ++ [ notE (p `eqE` w0)
-                , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
-                ]
+               , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
+               ]
   where
     w0 = machineWordE 0
 
 arraySizeIneq :: MonadStructs m => ExprType -> Expr -> m Expr
 arraySizeIneq ty len = do
     elSize <- sizeOfType ty
-    let limit = machineWordE $ (memSize - archPtrSizeBytes) `div` elSize
-    return $ lessEqE len limit
+    let limit = (memSize - archPtrSizeBytes) `div` elSize
+    return $ len `lessEqE` machineWordE limit
   where
     memSize = 2 ^ archWordSizeBits
 
-endAddr :: MonadStructs m => Expr -> PValidType -> m Expr
-endAddr p pvTy = do
-    size <- case pvTy of
-        PValidTypeArray { ty, len } -> do
-            elSize <- sizeOfType ty
-            return $ machineWordE elSize `timesE` len
-        PValidTypeType ty -> machineWordE <$> sizeOfType ty
-    return $ p `plusE` (size `minusE` machineWordE 1)
+data PValidTuple
+  = PValidTuple
+      { ty :: PValidType
+      , kind :: PValidKind
+      , p :: Expr
+      , pv :: Expr
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
 
-normalizeArrayType :: PValidTypeWithStrength -> PValidTypeWithStrength
-normalizeArrayType = \case
-    PValidTypeWithStrengthType (ExprTypeArray { ty, len }) -> PValidTypeWithStrengthArray
-        { ty
-        , len = machineWordE len
-        , strength = Just PArrayValidStrengthStrong
-        }
-    PValidTypeWithStrengthArray { ty, len, strength = Nothing } -> PValidTypeWithStrengthArray
-        { ty
-        , len
-        , strength = Just PArrayValidStrengthWeak
-        }
-    pvTy -> pvTy
+pvalidAssertion1 :: MonadStructs m => PValidTuple -> PValidTuple -> m Expr
+pvalidAssertion1 a b = do
+    (cond1, out1) <- f a b
+    (cond2, out2) <- f b a
+    return $ (a.pv `andE` b.pv) `impliesE` foldr1 orE [cond1, cond2, out1, out2]
+  where
+    f c d = do
+        let offs = c.p `minusE` d.p
+        cond <- getSTypCondition offs c.ty d.ty
+        size <- pvalidTypeSize c.ty
+        let endAddr = c.p `plusE` (size `minusE` machineWordE 1)
+        let out = endAddr `lessE` d.p
+        return (cond, out)
 
-pvalidAssertion1 :: MonadStructs m => (PValidType, PValidKind, Expr, Expr) -> (PValidType, PValidKind, Expr, Expr) -> m Expr
-pvalidAssertion1 (pvTy1, _pvKind1, p1, pv1) (pvTy2, _pvKind2, p2, pv2) = do
-    let offs1 = p1 `minusE` p2
-    cond1 <- getSTypCondition offs1 pvTy1 pvTy2
-    let offs2 = p2 `minusE` p1
-    cond2 <- getSTypCondition offs2 pvTy2 pvTy1
-    out1 <- lessE <$> endAddr p1 pvTy1 <*> pure p2
-    out2 <- lessE <$> endAddr p2 pvTy2 <*> pure p1
-    return $ (pv1 `andE` pv2) `impliesE` foldr1 orE [cond1, cond2, out1, out2]
+pvalidAssertion2 :: MonadStructs m => PValidTuple -> PValidTuple -> m Expr
+pvalidAssertion2 a b = do
+    case (a.ty, b.ty) of
+        (PValidTypeArray {}, PValidTypeArray {}) -> return trueE
+        _ -> do
+            imp1 <- f a b
+            imp2 <- f b a
+            return $ imp1 `andE` imp2
+          where
+            f c d = do
+                let offs = c.p `minusE` d.p
+                cond <- getSTypCondition offs c.ty d.ty
+                return $ impliesE (andE cond d.pv) c.pv
 
 getSTypCondition :: MonadStructs m =>  Expr -> PValidType -> PValidType -> m Expr
 getSTypCondition offs innerTy outerTy =
@@ -192,86 +200,108 @@ getSTypConditionInner1 innerTy outerTy =
         (normalizeArrayType innerTy)
         (normalizeArrayType outerTy)
 
-arrayTypeSize :: MonadStructs m => PValidTypeWithStrength -> m Expr
-arrayTypeSize (PValidTypeWithStrengthArray { ty, len }) = do
-    size <- sizeOfType ty
-    return $ timesE len (machineWordE size)
+normalizeArrayType :: PValidTypeWithStrength -> PValidTypeWithStrength
+normalizeArrayType = \case
+    PValidTypeWithStrengthType (ExprTypeArray { ty, len }) -> PValidTypeWithStrengthArray
+        { ty
+        , len = machineWordE len
+        , strength = Just PArrayValidStrengthStrong
+        }
+    PValidTypeWithStrengthArray { ty, len, strength = Nothing } -> PValidTypeWithStrengthArray
+        { ty
+        , len
+        , strength = Just PArrayValidStrengthWeak
+        }
+    pvTy -> pvTy
 
 getSTypConditionInner2 :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
 getSTypConditionInner2 innerPvTy outerPvTy = case (innerPvTy, outerPvTy) of
     (PValidTypeWithStrengthArray { ty = innerElTy }, PValidTypeWithStrengthArray { strength = outerBound }) -> do
             condOpt <- getSTypConditionInner1 (PValidTypeWithStrengthType innerElTy) outerPvTy
-            innerSize <- arrayTypeSize innerPvTy
-            outerSize <- arrayTypeSize outerPvTy
+            innerSize <- pvTySizeCompat innerPvTy
+            outerSize <- pvTySizeCompat outerPvTy
             return $ case (outerBound, condOpt) of
                 (Just PArrayValidStrengthStrong, Just cond) ->
-                    Just $ \offs -> andE (cond offs) (lessEqE (plusE innerSize offs) outerSize)
+                    Just $ \offs -> cond offs `andE` ((innerSize `plusE` offs) `lessEqE` outerSize)
                 _ -> condOpt
-    _ | innerPvTy == outerPvTy -> return $ Just $ \offs -> eqE offs (machineWordE 0)
+    _ | innerPvTy == outerPvTy -> do
+            return $ Just $ \offs -> offs `eqE` machineWordE 0
     (_, PValidTypeWithStrengthType (ExprTypeStruct outerStructName)) -> do
-        outerStruct <- askStruct outerStructName
+            askStruct outerStructName >>= doOuterStruct
+    (_, PValidTypeWithStrengthType (ExprTypeGlobalWrapper inner)) -> do
+            dummyGlobalWrapperStruct inner >>= doOuterStruct
+    (_, PValidTypeWithStrengthArray { ty = outerElTy, strength = outerBound }) -> do
+            condOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType outerElTy)
+            outerSize <- pvTySizeCompat outerPvTy
+            outerElSize <- machineWordE <$> sizeOfType outerElTy
+            return $ condOpt <&> \cond -> case outerBound of
+                Just PArrayValidStrengthStrong ->
+                    \offs -> (offs `lessE` outerSize) `andE` cond (offs `modulusE` outerElSize)
+                _ ->
+                    \offs -> cond (offs `modulusE` outerElSize)
+    _ -> return Nothing
+  where
+    doOuterStruct outerStruct = do
         conds <- fmap catMaybes $ for (M.elems outerStruct.fields) $ \field -> do
-            fOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType field.ty)
-            return $ (, machineWordE field.offset) <$> fOpt
+            condOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType field.ty)
+            return $ condOpt <&> (, machineWordE field.offset)
         return $ case conds of
             [] -> Nothing
             _ -> Just $ \offs -> foldr1 orE
-                [ c (minusE offs offs')
+                [ c (offs `minusE` offs')
                 | (c, offs') <- conds
                 ]
-    (_, PValidTypeWithStrengthArray { ty = outerElTy, len = outerLen, strength = outerBound }) -> do
-            condOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType outerElTy)
-            outerElSize <- machineWordE <$> sizeOfType outerElTy
-            let outerSize = timesE outerLen outerElSize
-            return $ condOpt <&> \cond -> case outerBound of
-                Just PArrayValidStrengthStrong -> \offs -> andE (lessE offs outerSize) (cond (modulusE offs outerElSize))
-                _ -> \offs -> cond (modulusE offs outerElSize)
-    (_, PValidTypeWithStrengthType (ExprTypeGlobalWrapper inner)) -> do
-        fOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType inner)
-        return $ fOpt <&> \f offs -> f (minusE offs (machineWordE 0)) -- HACK `- 0` to match graph-refine
-    _ -> return Nothing
+    -- HACK don't use pvalidTypeSize, instead match op order of graph-refine
+    pvTySizeCompat = \case
+        PValidTypeWithStrengthType ty -> machineWordE <$> sizeOfType ty
+        PValidTypeWithStrengthArray { ty, len } -> do
+            elSize <- machineWordE <$> sizeOfType ty
+            return $ len `timesE` elSize
 
-pvalidAssertion2 :: MonadStructs m => (PValidType, PValidKind, Expr, Expr) -> (PValidType, PValidKind, Expr, Expr) -> m Expr
-pvalidAssertion2 (pvTy1, _pvKind1, p1, pv1) (pvTy2, _pvKind2, p2, pv2) = do
-    case (pvTy1, pvTy2) of
-        (PValidTypeArray {}, PValidTypeArray {}) -> return trueE
-        _ -> do
-            let offs1 = p1 `minusE` p2
-            cond1 <- getSTypCondition offs1 pvTy1 pvTy2
-            let imp1 = impliesE (andE cond1 pv2) pv1
-            let offs2 = p2 `minusE` p1
-            cond2 <- getSTypCondition offs2 pvTy2 pvTy1
-            let imp2 = impliesE (andE cond2 pv1) pv2
-            return $ imp1 `andE` imp2
+dummyGlobalWrapperStruct :: MonadStructs m => ExprType -> m Struct
+dummyGlobalWrapperStruct ty = do
+    size <- sizeOfType ty
+    align <- alignOfType ty
+    return $ Struct
+        { size
+        , align
+        , fields = M.fromList
+            [ ( Ident "v"
+              , StructField
+                    { ty
+                    , offset = 0
+                    }
+              )
+            ]
+        }
 
 --
 
 applyRelWrapper :: Expr -> Expr -> Expr
 applyRelWrapper lhs rhs = if
     | ops == S.fromList [OpStackWrapper] ->
-        let sp1:st1:rest1 = argsL
-            sp2:st2:rest2 = argsR
-            excepts = nub $ rest1 ++ rest2
-            f st0 = foldl (\st p -> memUpdE p st (word32E 0)) st0 excepts
-         in boolE $ ExprValueOp OpStackEquals [sp1, f st1, sp2, f st2]
+        let spL:stackL:exceptsL = argsL
+            spR:stackR:exceptsR = argsR
+            excepts = nub $ exceptsL ++ exceptsR
+            f stack0 = foldl (\stack p -> memUpdE p stack (word32E 0)) stack0 excepts
+         in boolE $ ExprValueOp OpStackEquals [spL, f stackL, spR, f stackR]
     | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
         let [[addr, val]] =
                 [ args
                 | Expr { value = ExprValueOp OpMemAccWrapper args } <- [lhs, rhs]
                 ]
-            [[m]] =
+            [[mem]] =
                 [ args
                 | Expr { value = ExprValueOp OpMemWrapper args } <- [lhs, rhs]
                 ]
-         in ensure (addr.ty == word32T && m.ty == memT) $
-                eqE (memAccE val.ty addr m) val
+         in ensure (addr.ty == word32T && mem.ty == memT) $
+                eqE (memAccE val.ty addr mem) val
     | ops == S.fromList [OpEqSelectiveWrapper] ->
-        let [lhsV, _, _] = argsL
-            [rhsV, _, _] = argsR
-         in if lhsV.ty == ExprTypeRelWrapper
-            then applyRelWrapper lhsV rhsV
+        let [valL, _, _] = argsL
+            [valR, _, _] = argsR
+         in if valL.ty == ExprTypeRelWrapper
+            then applyRelWrapper valL valR
             else eqE lhs rhs
-    | otherwise -> error ""
   where
     ops = S.fromList [opL, opR]
     destructOp (Expr { ty = ExprTypeRelWrapper, value = ExprValueOp op args}) = (op, args)
@@ -280,19 +310,36 @@ applyRelWrapper lhs rhs = if
 
 --
 
+splitScalarPairs :: [NameTy] -> ([NameTy], [NameTy], [NameTy])
+splitScalarPairs args = (scalars, mems, others)
+  where
+    (scalars, globals) = span (\arg -> isWordT arg.ty || isBoolT arg.ty) args
+    (mems, others) = partition (\arg -> isMemT arg.ty) globals
+
+--
+
 instEqAtVisit :: VisitCount -> Expr -> Bool
 instEqAtVisit visit expr = case expr.value of
     ExprValueOp OpEqSelectiveWrapper [_, xs, ys] -> case fromJust (simpleVC visit) of
-        SimpleVisitCountViewNumber n -> n `elem` sumElems xs
-        SimpleVisitCountViewOffset n -> n `elem` sumElems ys
+        SimpleVisitCountViewNumber n -> n `elem` numListFromSum xs
+        SimpleVisitCountViewOffset n -> n `elem` numListFromSum ys
     _ -> True
+
+numListFromSum :: Expr -> [Integer]
+numListFromSum = go
   where
-    sumElems expr' = case expr'.value of
+    go expr = case expr.value of
+        ExprValueOp OpPlus [Expr _ (ExprValueNum n), rhs] -> n : go rhs
         ExprValueNum n -> [n]
-        ExprValueOp OpPlus [Expr _ (ExprValueNum n), rhs] -> n : sumElems rhs
         _ -> []
 
 --
+
+strengthenHyp :: Expr -> Expr
+strengthenHyp = strengthenHypInner True
+
+weakenAssert :: Expr -> Expr
+weakenAssert = strengthenHypInner False
 
 strengthenHypInner :: Bool -> Expr -> Expr
 strengthenHypInner = go
@@ -303,31 +350,24 @@ strengthenHypInner = go
                 expr & exprOpArgs % mapped %~ goWith
             OpImplies ->
                 let [l, r] = args
-                in goAgainst l `impliesE` goWith r
+                 in goAgainst l `impliesE` goWith r
             OpNot ->
                 let [x] = args
-                in notE (goAgainst x)
+                 in notE (goAgainst x)
             OpStackEquals -> boolE $
                 ExprValueOp (if direction then OpImpliesStackEquals else OpStackEqualsImplies) args
             OpROData -> if direction then boolE (ExprValueOp OpImpliesROData args) else expr
             OpEquals | isBoolT (head args).ty ->
                 let [_, r] = args
                     [l', r'] = applyWhen (r `elem` [trueE, falseE]) reverse args
-                in if
-                    | l' == trueE -> goWith r'
-                    | l' == falseE -> goWith (notE r')
-                    | otherwise -> expr
+                 in if | l' == trueE -> goWith r'
+                       | l' == falseE -> goWith (notE r')
+                       | otherwise -> expr
             _ -> expr
         _ -> expr
       where
         goWith = go direction
         goAgainst = go (not direction)
-
-strengthenHyp :: Expr -> Expr
-strengthenHyp = strengthenHypInner True
-
-weakenAssert :: Expr -> Expr
-weakenAssert = strengthenHypInner False
 
 --
 

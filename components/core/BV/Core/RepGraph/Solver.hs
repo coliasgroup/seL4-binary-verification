@@ -845,10 +845,9 @@ addPValids = go False
                     others <- liftSolver $
                         #pvalids % at htd % unwrapped <<%= M.insert (pvTy, ptrName, pvKind) (nameS var)
                     let pdata = smtify (pvTy, ptrName, pvKind) (nameS var)
-                    let (_, pdataPvKind, pdataPtr, pdataPv) = pdata
-                    withoutEnv . assertFact . impliesE pdataPv =<< alignValidIneq pvTy pdataPtr
+                    withoutEnv . assertFact . impliesE pdata.pv =<< alignValidIneq pvTy pdata.p
                     for_ (sortOn snd (M.toList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
-                        let kinds :: [PValidKind] = [valPvKind, pdataPvKind]
+                        let kinds :: [PValidKind] = [valPvKind, pdata.kind]
                         unless (PValidKindPWeakValid `elem` kinds && PValidKindPGlobalValid `notElem` kinds) $ do
                             let applyAssertion f =
                                     f pdata (uncurry smtify val)
@@ -857,4 +856,9 @@ addPValids = go False
                             applyAssertion pvalidAssertion1
                             applyAssertion pvalidAssertion2
                     return $ nameS var
-    smtify (ty, p, kind) var = (ty, kind, smtExprE machineWordT (NotSplit (nameS p)), smtExprE boolT (NotSplit var))
+    smtify (ty, p, kind) var = PValidTuple
+        { ty
+        , kind
+        , p = smtExprE machineWordT (NotSplit (nameS p))
+        , pv = smtExprE boolT (NotSplit var)
+        }
