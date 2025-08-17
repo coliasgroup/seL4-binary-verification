@@ -137,7 +137,7 @@ data SolverState
       , modelExprs :: Map SExprWithPlaceholders (Name, ExprType)
       , stackEqsStackEqImpliesCheck :: Map S (Maybe S)
       , stackEqsImpliesStackEq :: Map (Expr, Expr, Expr) Name
-      , tokenTokens :: Map Ident Name
+      , tokens :: Map Ident Name
       , tokenVals :: Map S Ident
       , smtDerivedOps :: Map (Op, Integer) String
       }
@@ -164,7 +164,7 @@ initSolverState = SolverState
     , modelExprs = M.empty
     , stackEqsStackEqImpliesCheck = M.empty
     , stackEqsImpliesStackEq = M.empty
-    , tokenTokens = M.empty
+    , tokens = M.empty
     , tokenVals = M.empty
     , smtDerivedOps = M.empty
     }
@@ -403,9 +403,9 @@ cacheLargeExpr s nameHint ty = do
                 return $ nameS name
 
 getToken :: MonadRepGraphSolver m => Ident -> m MaybeSplit
-getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokenTokens ident $ do
+getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokens ident $ do
     n <- liftSolver $ (+)
-        <$> use (#tokenTokens % to M.size)
+        <$> use (#tokens % to M.size)
         <*> use (#tokenVals % to M.size)
     k <- withoutEnv $
         addDefNotSplit
