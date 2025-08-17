@@ -71,8 +71,6 @@ import Optics
 import Optics.State.Operators ((%=), (<<%=))
 import Text.Printf (printf)
 
---
-
 -- TODO
 cheatMemDoms :: Bool
 cheatMemDoms = True
@@ -124,8 +122,6 @@ data SolverEnv
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-type SolverOutput = [SExprWithPlaceholders]
-
 data SolverState
   = SolverState
       { namesUsed :: Set Name
@@ -145,6 +141,8 @@ data SolverState
       , smtDerivedOps :: Map (Op, Integer) String
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+type SolverOutput = [SExprWithPlaceholders]
 
 initSolverEnv :: ROData -> SolverEnv
 initSolverEnv rodata = SolverEnv
@@ -313,8 +311,8 @@ addDefInner nameHint expr = convertExpr expr >>= \case
                 liftSolver $ #modelVars %= S.insert name
         return name
     Split splitMem -> Right <$> do
-        let add suffix ty' s = nameS <$>
-                addDefNotSplit (nameHint ++ "_" ++ suffix) (smtExprE ty' (NotSplit s))
+        let add suffix ty' s =
+                nameS <$> addDefNotSplit (nameHint ++ "_" ++ suffix) (smtExprE ty' (NotSplit s))
         split <- add "split" machineWordT splitMem.split
         top <- add "top" ty splitMem.top
         bottom <- add "bot" ty splitMem.bottom
@@ -371,7 +369,7 @@ assertFact = convertExprNoSplit >=> assertSMTFact
 
 noteModelExpr :: MonadRepGraphSolver m => S -> ExprType -> m ()
 noteModelExpr s ty = void $ withMapSlot #modelExprs s $ do
-    let sanitized = take 20 $ filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders s)
+    let sanitized = take 20 (filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders s))
     v <- withoutEnv $ addDefNotSplit ("query_" ++ sanitized) (smtExprE ty (NotSplit s))
     return (v, ty)
 
@@ -388,8 +386,9 @@ noteMemDom :: MonadRepGraphSolver m => S -> S -> S -> m ()
 noteMemDom p d md = liftSolver $ #doms %= S.insert (p, d, md)
 
 cacheLargeExpr :: MonadRepGraphSolver m => S -> NameHint -> ExprType -> m S
-cacheLargeExpr s nameHint ty =
-    liftSolver (use (#cachedExprs % at s)) >>= \case
+cacheLargeExpr s nameHint ty = do
+    nameOpt <- liftSolver $ use $ #cachedExprs % at s
+    case nameOpt of
         Just name -> return $ nameS name
         Nothing ->
             if length (showSExprWithPlaceholders s) < 80
@@ -407,7 +406,10 @@ getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokenTokens ident $ do
     n <- liftSolver $ (+)
         <$> use (#tokenTokens % to M.size)
         <*> use (#tokenVals % to M.size)
-    k <- withoutEnv $ addDefNotSplit ("token_" ++ ident.unwrap) (numE compiledTokenType (toInteger (n + 1)))
+    k <- withoutEnv $
+        addDefNotSplit
+            ("token_" ++ ident.unwrap)
+            (numE compiledTokenType (toInteger (n + 1)))
     v <- getDef k
     liftSolver $ #tokenVals %= M.insert v ident
     return k
@@ -418,8 +420,8 @@ addRODataDef :: MonadRepGraphSolver m => m ()
 addRODataDef = do
     roName <- takeFreshName "rodata"
     impRoName <- takeFreshName "implies-rodata"
-    ensureM $ roName.unwrap == "rodata"
-    ensureM $ impRoName.unwrap == "implies-rodata"
+    ensureM $ roName == "rodata"
+    ensureM $ impRoName == "implies-rodata"
     rodataPtrs <- askRODataPtrs
     let memParamName = "m"
     (roDef, impRoDef) <- case rodataPtrs of
@@ -428,8 +430,8 @@ addRODataDef = do
         _ -> do
             roWitness <- addVar "rodata-witness" word32T
             roWitnessVal <- addVar "rodata-witness-val" word32T
-            ensureM $ roWitness.unwrap == "rodata-witness"
-            ensureM $ roWitnessVal.unwrap == "rodata-witness-val"
+            ensureM $ roWitness == "rodata-witness"
+            ensureM $ roWitnessVal == "rodata-witness-val"
             let roWitnessS = nameS roWitness
             let roWitnessValS = nameS roWitnessVal
             rodata <- liftSolver $ gview #rodata
@@ -444,8 +446,8 @@ addRODataDef = do
                     ]
             assertSMTFact $ orNS
                 [ andS
-                    (bvuleS (machineWordS range.addr) roWitnessS)
-                    (bvuleS roWitnessS (machineWordS (range.addr + range.size - 1)))
+                    (machineWordS range.addr `bvuleS` roWitnessS)
+                    (roWitnessS `bvuleS` machineWordS (range.addr + range.size - 1))
                 | range <- rodata.ranges
                 ]
             assertSMTFact $ eqS
@@ -505,23 +507,30 @@ foldAssocBalanced f = go
   where
     go xs =
         let n = length xs
-          in if n >= 4
-                then
-                    let (lhs, rhs) = splitAt (n `div` 2) xs
-                     in f (go lhs) (go rhs)
-                else
-                    foldr1 f xs
+         in if n >= 4
+            then
+                let (lhs, rhs) = splitAt (n `div` 2) xs
+                 in f (go lhs) (go rhs)
+            else
+                foldr1 f xs
 
 mergeEnvs :: MonadRepGraphSolver m => [PcEnv] -> m ExprEnv
 mergeEnvs envs = do
-    varEnvs <-
-        fmap (foldr (M.unionWith (M.unionWith (<>))) M.empty) $
-            for envs $ \(PcEnv pc env) -> do
-                pc' <- withEnv env $ convertExprNoSplit pc
-                return $ fmap (\val -> M.singleton val [pc']) env
-    return $ flattenCompat . sortOn (compatSMTComparisonKey . fst) . M.toList <$> varEnvs
+    varValPcList <- fmap concat $ for envs $ \(PcEnv pc env) -> do
+            pc' <- withEnv env $ convertExprNoSplit pc
+            return
+                [ (var, val, pc')
+                | (var, val) <- M.toList env
+                ]
+    let varValPcMap = foldr (M.unionWith (M.unionWith (<>))) M.empty $
+            [ M.singleton var (M.singleton val [pc'])
+            | (var, val, pc') <- varValPcList
+            ]
+    return $ mergeValPcMapCompat <$> varValPcMap
   where
-    flattenCompat valsByPc =
+    -- HACK impl compatible with graph-refine
+    mergeValPcMapCompat = mergeValPcListCompat . sortOn (compatSMTComparisonKey . fst) . M.toList
+    mergeValPcListCompat valsByPc =
         let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
             f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
          in foldl f lastVal valsByPcInit
@@ -530,14 +539,15 @@ mergeEnvs envs = do
         xs -> orNS xs
 
 data CompatSMTComparisonKey
-  = SMTComparisonKeySMT String
-  | SMTComparisonKeySplitMem String String String
+  = SMTComparisonKeyNotSplit String
+  | SMTComparisonKeySplit String String String
   deriving (Eq, Generic, Ord, Show)
 
 compatSMTComparisonKey :: MaybeSplit -> CompatSMTComparisonKey
 compatSMTComparisonKey = \case
-    NotSplit s -> SMTComparisonKeySMT $ showSExprWithPlaceholders s
-    Split s -> SMTComparisonKeySplitMem
+    NotSplit s -> SMTComparisonKeyNotSplit
+        (showSExprWithPlaceholders s)
+    Split s -> SMTComparisonKeySplit
         (showSExprWithPlaceholders s.split)
         (showSExprWithPlaceholders s.top)
         (showSExprWithPlaceholders s.bottom)
@@ -548,8 +558,7 @@ compatSMTComparisonKey = \case
 convertInnerExpr :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m Expr
 convertInnerExpr expr = case expr.ty of
     ExprTypeRelWrapper -> case expr.value of
-        ExprValueOp { } -> do
-            traverseOf (exprOpArgs % traversed) convertInnerExpr expr
+        ExprValueOp { } -> traverseOf (exprOpArgs % traversed) convertInnerExpr expr
     _ -> smtExprE expr.ty <$> convertExpr expr
 
 convertExprNoSplit :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m S
