@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module BV.Core.Types.Extras.Expr
     ( MemOp (..)
     , MemOpKind (..)
@@ -32,6 +34,7 @@ module BV.Core.Types.Extras.Expr
     , minusE
     , modulusE
     , nImpliesE
+    , nameTyFromVarE
     , negE
     , notE
     , numE
@@ -248,6 +251,9 @@ varE ty = Expr ty . ExprValueVar
 
 varFromNameTyE :: NameTy -> Expr
 varFromNameTyE arg = varE arg.ty arg.name
+
+nameTyFromVarE :: Expr -> NameTy
+nameTyFromVarE (Expr ty (ExprValueVar name)) = NameTy name ty
 
 memAccE :: ExprType -> Expr -> Expr -> Expr
 memAccE ty addr mem =

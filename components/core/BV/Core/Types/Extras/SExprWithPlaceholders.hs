@@ -126,7 +126,7 @@ assertS :: S -> S
 assertS fact = ["assert", fact]
 
 bitVecS :: Integer -> S
-bitVecS n = ["_", "BitVec", intS n]
+bitVecS n = ixS "BitVec" [intS n]
 
 boolS :: S
 boolS = "Bool"

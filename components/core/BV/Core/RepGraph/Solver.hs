@@ -57,11 +57,12 @@ import Control.Monad.State (StateT, get)
 import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Writer (WriterT, execWriterT)
 import Data.Foldable (for_)
+import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.List (nub, sortOn)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromJust)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
@@ -569,19 +570,18 @@ convertExpr expr = case expr.value of
     ExprValueOp op args -> case op of
         _ | op == OpWordCast || op == OpWordCastSigned -> do
                 let [v] = args
-                let ExprTypeWord bitsExpr = expr.ty
-                let ExprTypeWord bitsV = v.ty
-                ex <- convertExprNoSplit v
+                let ExprTypeWord exprBits = expr.ty
+                let ExprTypeWord vBits = v.ty
+                v' <- convertExprNoSplit v
                 return $ NotSplit $ if
-                    | bitsExpr == bitsV -> ex
-                    | bitsExpr < bitsV -> [["_", "extract", intS (bitsExpr - 1), intS 0], ex]
-                    | otherwise ->
-                        case op of
-                            OpWordCast -> [["_", "zero_extend", intS (bitsExpr - bitsV)], ex]
-                            OpWordCastSigned -> [["_", "sign_extend", intS (bitsExpr - bitsV)], ex]
+                    | exprBits == vBits -> v'
+                    | exprBits < vBits -> [ixS "extract" [intS (exprBits - 1), intS 0], v']
+                    | otherwise -> case op of
+                        OpWordCast -> [ixS "zero_extend" [intS (exprBits - vBits)], v']
+                        OpWordCastSigned -> [ixS "sign_extend" [intS (exprBits - vBits)], v']
         _ | op == OpToFloatingPoint || op == OpToFloatingPointSigned
             || op == OpToFloatingPointUnsigned || op == OpFloatingPointCast -> do
-                error "unsupported"
+                unimplemented
         _ | op == OpCountLeadingZeroes || op == OpWordReverse -> do
                 let [v] = args
                 let ExprTypeWord bits = expr.ty
@@ -592,96 +592,94 @@ convertExpr expr = case expr.value of
                 let [v] = args
                 convertExpr $ clzE (wordReverseE v)
         _ | op `elem` ([OpPValid, OpPGlobalValid, OpPWeakValid, OpPArrayValid] :: [Op]) -> do
-                (htd, tyExpr, p, f) <- case op of
+                (htdExpr, tyExpr, p, f) <- case op of
                     OpPArrayValid -> do
-                        let [htd, tyExpr, p, num] = args
-                        len <- convertInnerExpr num
-                        let f ty = PValidTypeArray { ty, len }
+                        let [htd, tyExpr, p, len] = args
+                        len' <- convertInnerExpr len
+                        let f ty = PValidTypeArray { ty, len = len' }
                         return (htd, tyExpr, p, f)
                     _ -> do
                         let [htd, tyExpr, p] = args
                         let f = PValidTypeType
                         return (htd, tyExpr, p, f)
                 let ExprValueType ty = tyExpr.value
-                let pvTy = f $ case op of
-                        OpPGlobalValid -> globalWrapperT ty
-                        _ -> ty
-                let ExprValueVar htdName = htd.value
-                htd' <- gview $ at (NameTy htdName htd.ty) % unwrapped % expecting #_NotSplit
+                let pvTy = f (applyWhen (op == OpPGlobalValid) globalWrapperT ty)
+                let htdVar = nameTyFromVarE htdExpr
+                htd' <- gview $ expectingAt htdVar % expecting #_NotSplit
                 p' <- convertExprNoSplit p
                 NotSplit <$> addPValids htd' pvTy p' (pvalidKindFromOp op)
         OpMemDom -> do
-            let [p, dom] = args
-            p' <- convertExprNoSplit p
-            dom' <- convertExprNoSplit dom
-            let md = [opS op, p', dom']
-            noteMemDom p' dom' md
-            return $ NotSplit $ if cheatMemDoms then trueS else md
+                let [p, dom] = args
+                p' <- convertExprNoSplit p
+                dom' <- convertExprNoSplit dom
+                let md = [opS op, p', dom']
+                noteMemDom p' dom' md
+                return $ NotSplit $ if cheatMemDoms then trueS else md
         OpMemUpdate -> do
-            let [m, p, v] = args;
-            ensureM $ isWordT v.ty
-            m' <- convertExpr m
-            p' <- convertExprNoSplit p
-            v' <- convertExprNoSplit v
-            convertMemUpdate m' p' v' v.ty
+                let [m, p, v] = args;
+                ensureM $ isWordT v.ty
+                m' <- convertExpr m
+                p' <- convertExprNoSplit p
+                v' <- convertExprNoSplit v
+                convertMemUpdate m' p' v' v.ty
         OpMemAcc -> do
-            let [m, p] = args;
-            ensureM $ isWordT expr.ty
-            m' <- convertExpr m
-            p' <- convertExprNoSplit p
-            NotSplit <$> convertMemAccess m' p' expr.ty
+                let [m, p] = args;
+                ensureM $ isWordT expr.ty
+                m' <- convertExpr m
+                p' <- convertExprNoSplit p
+                NotSplit <$> convertMemAccess m' p' expr.ty
         OpStackEqualsImplies -> do
-            args' <- traverse convertExpr args
-            let [NotSplit sp1, st1, NotSplit sp2, st2] = args'
-            if sp1 == sp2 && st1 == st2
-                then return $ NotSplit trueS
-                else do
-                    let Split st2SplitMem = st2
-                    eq <- getStackEqImplies st2SplitMem.split st2SplitMem.top st1
-                    return $ NotSplit $ andS (eqS sp1 sp2) eq
+                args' <- traverse convertExpr args
+                let [NotSplit sp1, stack1, NotSplit sp2, stack2] = args'
+                if sp1 == sp2 && stack1 == stack2
+                    then return $ NotSplit trueS
+                    else do
+                        let Split (SplitMem { split, top }) = stack2
+                        eq <- getStackEqImplies split top stack1
+                        return $ NotSplit $ (sp1 `eqS` sp2) `andS` eq
         OpImpliesStackEquals -> do
-            let [sp1, st1, sp2, st2] = args
-            eq <- addImpliesStackEq sp1 st1 st2
-            sp1' <- convertExprNoSplit sp1
-            sp2' <- convertExprNoSplit sp2
-            return $ NotSplit $ andS (eqS sp1' sp2') eq
+                let [sp1, stack1, sp2, stack2] = args
+                eq <- addImpliesStackEq sp1 stack1 stack2
+                sp1' <- convertExprNoSplit sp1
+                sp2' <- convertExprNoSplit sp2
+                return $ NotSplit $ (sp1' `eqS` sp2') `andS` eq
         OpIfThenElse -> do
-            let [cond, x, y] = args
-            convertThenElse
-                <$> convertExprNoSplit cond
-                <*> convertExpr x
-                <*> convertExpr y
+                let [cond, x, y] = args
+                convertThenElse
+                    <$> convertExprNoSplit cond
+                    <*> convertExpr x
+                    <*> convertExpr y
         OpHTDUpdate -> do
-            NotSplit . nameS <$> addVar "update_htd" expr.ty
+                NotSplit . nameS <$> addVar "update_htd" expr.ty
         OpEquals | (head args).ty == ExprTypeMem -> do
-            args' <- traverse convertExprNoSplit args
-            let [x, y] = args'
-            let s = ["mem-eq", x, y]
-            noteModelExpr s boolT
-            return $ NotSplit s
+                args' <- traverse convertExprNoSplit args
+                let [x, y] = args'
+                let s = ["mem-eq", x, y]
+                noteModelExpr s boolT
+                return $ NotSplit s
         OpEquals | (head args).ty == word32T -> do
-            args' <- traverse convertExprNoSplit args
-            let [x, y] = args'
-            let s = ["word32-eq", x, y]
-            return $ NotSplit s
+                args' <- traverse convertExprNoSplit args
+                let [x, y] = args'
+                let s = ["word32-eq", x, y]
+                return $ NotSplit s
         _ -> do
-            args' <- traverse convertExprNoSplit args
-            let op' = opS op
-            let s = case args' of
-                    [] -> op'
-                    _ -> List $ [op'] ++ args'
-            maybeNoteModelExpr s expr.ty args
-            return $ NotSplit s
+                args' <- traverse convertExprNoSplit args
+                let op' = opS op
+                let s = case args' of
+                        [] -> op'
+                        _ -> List $ [op'] ++ args'
+                maybeNoteModelExpr s expr.ty args
+                return $ NotSplit s
     ExprValueNum n -> do
         return $ NotSplit $ intWithWidthS (wordTBits expr.ty) n
     ExprValueVar var -> do
-        let envKey = NameTy var expr.ty
-        let err = error $ "env miss: " ++ show envKey
-        asks $ fromMaybe err . M.lookup envKey
-    ExprValueSMTExpr s -> do
-        return s
+        let key = NameTy var expr.ty
+        let err = error $ "env miss: " ++ show key
+        asks $ M.findWithDefault err key
     ExprValueToken tok -> do
         getToken tok
+    ExprValueSMTExpr s -> do
+        return s
 
 convertThenElse :: S -> MaybeSplit -> MaybeSplit -> MaybeSplit
 convertThenElse cond x y =
