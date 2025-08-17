@@ -782,13 +782,13 @@ convertMemAccess memMaybeSplit p ty@(ExprTypeWord bits) = case memMaybeSplit of
         return v
 
 addImpliesStackEq :: MonadRepGraphSolver m => Expr -> Expr -> Expr -> ReaderT ExprEnv m S
-addImpliesStackEq sp s1 s2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (sp, s1, s2) $ do
-    addr <- addVar "stack-eq-witness" word32T
-    assertSMTFact $ eqS (bvandS (nameS addr) (hexS "00000003")) (hexS "00000000")
+addImpliesStackEq sp stack1 stack2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (sp, stack1, stack2) $ do
+    addr <- nameS <$> addVar "stack-eq-witness" word32T
+    assertSMTFact $ (addr `bvandS` hexS "00000003") `eqS` hexS "00000000"
     sp' <- convertExprNoSplit sp
-    assertSMTFact $ bvuleS sp' (nameS addr)
-    let f = memAccE word32T (smtExprE word32T (NotSplit (nameS addr)))
-    addDefNotSplit "stack-eq" $ eqE (f s1) (f s2)
+    assertSMTFact $ sp' `bvuleS` addr
+    let f = memAccE word32T (smtExprE word32T (NotSplit addr))
+    addDefNotSplit "stack-eq" $ f stack1 `eqE` f stack2
 
 getStackEqImplies :: MonadRepGraphSolver m => S -> S -> MaybeSplit -> ReaderT ExprEnv m S
 getStackEqImplies split stTop other = do
