@@ -847,7 +847,7 @@ addPValids = go False
                 let pdata = smtify key var
                 withoutEnv . assertFact . impliesE pdata.pv =<< alignValidIneq pvTy pdata.p
                 for_ (sortOn snd (M.toList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
-                    let kinds :: [PValidKind] = [valPvKind, pdata.kind]
+                    let kinds :: [PValidKind] = [valPvKind, pdata.pvKind]
                     unless (PValidKindPWeakValid `elem` kinds && PValidKindPGlobalValid `notElem` kinds) $ do
                         let applyAssertion f =
                                 f pdata (uncurry smtify val)
@@ -856,9 +856,9 @@ addPValids = go False
                         applyAssertion pvalidAssertion1
                         applyAssertion pvalidAssertion2
                 return var
-    smtify (ty, p, kind) var = PValidTuple
-        { ty
-        , kind
+    smtify (pvTy, p, pvKind) var = PValidTuple
+        { pvTy
+        , pvKind
         , p = smtExprE machineWordT (NotSplit (nameS p))
         , pv = smtExprE boolT (NotSplit var)
         }

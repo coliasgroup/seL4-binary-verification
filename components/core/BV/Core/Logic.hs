@@ -149,8 +149,8 @@ arraySizeIneq ty len = do
 
 data PValidTuple
   = PValidTuple
-      { ty :: PValidType
-      , kind :: PValidKind
+      { pvTy :: PValidType
+      , pvKind :: PValidKind
       , p :: Expr
       , pv :: Expr
       }
@@ -164,15 +164,15 @@ pvalidAssertion1 a b = do
   where
     f c d = do
         let offs = c.p `minusE` d.p
-        cond <- getSTypCondition offs c.ty d.ty
-        size <- pvalidTypeSize c.ty
+        cond <- getSTypCondition offs c.pvTy d.pvTy
+        size <- pvalidTypeSize c.pvTy
         let endAddr = c.p `plusE` (size `minusE` machineWordE 1)
         let out = endAddr `lessE` d.p
         return (cond, out)
 
 pvalidAssertion2 :: MonadStructs m => PValidTuple -> PValidTuple -> m Expr
 pvalidAssertion2 a b = do
-    case (a.ty, b.ty) of
+    case (a.pvTy, b.pvTy) of
         (PValidTypeArray {}, PValidTypeArray {}) -> return trueE
         _ -> do
             imp1 <- f a b
@@ -181,7 +181,7 @@ pvalidAssertion2 a b = do
           where
             f c d = do
                 let offs = c.p `minusE` d.p
-                cond <- getSTypCondition offs c.ty d.ty
+                cond <- getSTypCondition offs c.pvTy d.pvTy
                 return $ impliesE (andE cond d.pv) c.pv
 
 getSTypCondition :: MonadStructs m =>  Expr -> PValidType -> PValidType -> m Expr
