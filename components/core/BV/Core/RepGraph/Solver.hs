@@ -135,8 +135,8 @@ data SolverState
       , doms :: Set (S, S, S)
       , modelVars :: Set Name
       , modelExprs :: Map SExprWithPlaceholders (Name, ExprType)
-      , stackEqsStackEqImpliesCheck :: Map S (Maybe S)
-      , stackEqsImpliesStackEq :: Map (Expr, Expr, Expr) Name
+      , stackEqImpliesCheckMap :: Map S (Maybe S)
+      , impliesStackEqMap :: Map (Expr, Expr, Expr) Name
       , tokens :: Map Ident Name
       , tokenVals :: Map S Ident
       , smtDerivedOps :: Map (Op, Integer) String
@@ -162,8 +162,8 @@ initSolverState = SolverState
     , doms = S.empty
     , modelVars = S.empty
     , modelExprs = M.empty
-    , stackEqsStackEqImpliesCheck = M.empty
-    , stackEqsImpliesStackEq = M.empty
+    , stackEqImpliesCheckMap = M.empty
+    , impliesStackEqMap = M.empty
     , tokens = M.empty
     , tokenVals = M.empty
     , smtDerivedOps = M.empty
@@ -478,7 +478,7 @@ addSplitMemVar :: MonadRepGraphSolver m => S -> NameHint -> ExprType -> m SplitM
 addSplitMemVar split nameHint ty@ExprTypeMem = do
     bottom <- nameS <$> addVar (nameHint ++ "_bot") ty
     top <- nameS <$> addVar (nameHint ++ "_top") ty
-    liftSolver $ #stackEqsStackEqImpliesCheck %= M.insert top Nothing
+    liftSolver $ #stackEqImpliesCheckMap %= M.insert top Nothing
     return $ SplitMem
         { split
         , top
@@ -781,7 +781,7 @@ convertMemAccess memMaybeSplit p ty@(ExprTypeWord bits) = case memMaybeSplit of
         return v
 
 addImpliesStackEq :: MonadRepGraphSolver m => Expr -> Expr -> Expr -> ReaderT ExprEnv m S
-addImpliesStackEq sp stack1 stack2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (sp, stack1, stack2) $ do
+addImpliesStackEq sp stack1 stack2 = fmap nameS $ withMapSlot #impliesStackEqMap (sp, stack1, stack2) $ do
     addr <- nameS <$> addVar "stack-eq-witness" word32T
     assertSMTFact $ (addr `bvandS` hexS "00000003") `eqS` hexS "00000000"
     sp' <- convertExprNoSplit sp
@@ -797,9 +797,9 @@ getStackEqImplies stack1 stack2 = do
     noteModelExpr (eqS stack1.top rhs) boolT
     mems <- getImmBasisMems stack1.top
     let [k] = S.toList mems
-    oldOpt <- liftSolver $ use $ #stackEqsStackEqImpliesCheck % expectingAt k
+    oldOpt <- liftSolver $ use $ #stackEqImpliesCheckMap % expectingAt k
     case oldOpt of
-        Nothing -> liftSolver $ #stackEqsStackEqImpliesCheck %= M.insert k (Just rhs)
+        Nothing -> liftSolver $ #stackEqImpliesCheckMap %= M.insert k (Just rhs)
         Just old -> ensureM $ old == rhs
     return $ cond `impliesS` (stack1.top `eqS` rhs)
 
