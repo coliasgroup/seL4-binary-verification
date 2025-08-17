@@ -737,35 +737,34 @@ getDerivedOp op bits = fmap symbolS $ withMapSlot #smtDerivedOps (op, bits) $ do
     return fname
 
 convertMemUpdate :: MonadRepGraphSolver m => MaybeSplit -> S -> S -> ExprType -> m MaybeSplit
-convertMemUpdate memMaybeSplit p v ty@(ExprTypeWord bits) = do
-    case memMaybeSplit of
-        Split mem -> do
+convertMemUpdate memMaybeSplit p v ty@(ExprTypeWord bits) = case memMaybeSplit of
+    Split mem -> do
+        p' <- cacheLargeExpr p "memupd_pointer" word32T
+        v' <- cacheLargeExpr v "memupd_val" ty
+        top <- cacheLargeExpr mem.top "split_mem_top" memT
+        topUpd <- fromNotSplit <$> convertMemUpdate (NotSplit top) p' v' ty
+        bottom <- cacheLargeExpr mem.bottom "split_mem_bot" memT
+        bottomUpd <- fromNotSplit <$> convertMemUpdate (NotSplit bottom) p' v' ty
+        let f = iteS (mem.split `bvuleS` p')
+        return $ Split $ SplitMem
+            { split = mem.split
+            , top = f topUpd top
+            , bottom = f bottom bottomUpd
+            }
+    NotSplit mem -> case bits of
+        8 -> do
             p' <- cacheLargeExpr p "memupd_pointer" word32T
-            v' <- cacheLargeExpr v "memupd_val" ty
-            top <- cacheLargeExpr mem.top "split_mem_top" memT
-            topUpd <- fromNotSplit <$> convertMemUpdate (NotSplit top) p' v' ty
-            bottom <- cacheLargeExpr mem.bottom "split_mem_bot" memT
-            bottomUpd <- fromNotSplit <$> convertMemUpdate (NotSplit bottom) p' v' ty
-            let f = iteS (mem.split `bvuleS` p')
-            return $ Split $ SplitMem
-                { split = mem.split
-                , top = f topUpd top
-                , bottom = f bottom bottomUpd
-                }
-        NotSplit mem -> case bits of
-            8 -> do
-                p' <- cacheLargeExpr p "memupd_pointer" word32T
-                let align = p' `bvandS` hexS "fffffffd"
-                noteModelExpr align word32T
-                noteModelExpr (loadWord32S mem align) word32T
-                return $ NotSplit $ storeWord8S mem p' v
-            _ -> do
-                let (load, store) = case bits of
-                        32 -> (loadWord32S, storeWord32S)
-                        64 -> (loadWord64S, storeWord64S)
-                noteModelExpr (load mem p) ty
-                noteModelExpr p word32T
-                return $ NotSplit $ store mem p v
+            let align = p' `bvandS` hexS "fffffffd"
+            noteModelExpr align word32T
+            noteModelExpr (loadWord32S mem align) word32T
+            return $ NotSplit $ storeWord8S mem p' v
+        _ -> do
+            let (load, store) = case bits of
+                    32 -> (loadWord32S, storeWord32S)
+                    64 -> (loadWord64S, storeWord64S)
+            noteModelExpr (load mem p) ty
+            noteModelExpr p word32T
+            return $ NotSplit $ store mem p v
 
 convertMemAccess :: MonadRepGraphSolver m => MaybeSplit -> S -> ExprType -> m S
 convertMemAccess mMaybeSplit p ty@(ExprTypeWord bits) = do
