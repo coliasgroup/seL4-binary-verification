@@ -682,20 +682,19 @@ convertExpr expr = case expr.value of
         return s
 
 convertIfThenElse :: S -> MaybeSplit -> MaybeSplit -> MaybeSplit
-convertIfThenElse cond x y =
-    case (x, y) of
-        (NotSplit xns, NotSplit yns) -> NotSplit $ iteS cond xns yns
-        _ ->
-            let xs = trivSplit x
-                ys = trivSplit y
-             in Split $ SplitMem
-                    { split =
-                        if xs.split == ys.split
-                        then xs.split
-                        else iteS cond xs.split ys.split
-                    , top = iteS cond xs.top ys.top
-                    , bottom = iteS cond xs.bottom ys.bottom
-                    }
+convertIfThenElse cond x y = case (x, y) of
+    (NotSplit xns, NotSplit yns) -> NotSplit $ iteS cond xns yns
+    _ ->
+        let xs = trivSplit x
+            ys = trivSplit y
+            in Split $ SplitMem
+                { split =
+                    if xs.split == ys.split
+                    then xs.split
+                    else iteS cond xs.split ys.split
+                , top = iteS cond xs.top ys.top
+                , bottom = iteS cond xs.bottom ys.bottom
+                }
   where
     trivSplit = \case
         Split splitMem -> splitMem
