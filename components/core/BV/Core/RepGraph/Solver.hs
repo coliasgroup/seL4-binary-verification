@@ -766,22 +766,20 @@ convertMemUpdate memMaybeSplit p v ty@(ExprTypeWord bits) = case memMaybeSplit o
             return $ NotSplit $ store mem p v
 
 convertMemAccess :: MonadRepGraphSolver m => MaybeSplit -> S -> ExprType -> m S
-convertMemAccess mMaybeSplit p ty@(ExprTypeWord bits) = do
-    case mMaybeSplit of
-        Split splitMem -> do
-            p' <- cacheLargeExpr p "memacc_pointer" word32T
-            topAcc <- convertMemAccess (NotSplit splitMem.top) p' ty
-            botAcc <- convertMemAccess (NotSplit splitMem.bottom) p' ty
-            return $ iteS (bvuleS splitMem.split p') topAcc botAcc
-        NotSplit m -> do
-            let f = case bits of
-                    8 -> loadWord8S
-                    32 -> loadWord32S
-                    64 -> loadWord64S
-            let s = f m p
-            noteModelExpr p word32T
-            noteModelExpr s ty
-            return s
+convertMemAccess memMaybeSplit p ty@(ExprTypeWord bits) = case memMaybeSplit of
+    Split mem -> do
+        p' <- cacheLargeExpr p "memacc_pointer" word32T
+        let f side = convertMemAccess (NotSplit (side mem)) p' ty
+        iteS (bvuleS mem.split p') <$> f (.top) <*> f (.bottom)
+    NotSplit mem -> do
+        let load = case bits of
+                8 -> loadWord8S
+                32 -> loadWord32S
+                64 -> loadWord64S
+        let v = load mem p
+        noteModelExpr p word32T
+        noteModelExpr v ty
+        return v
 
 addImpliesStackEq :: MonadRepGraphSolver m => Expr -> Expr -> Expr -> ReaderT ExprEnv m S
 addImpliesStackEq sp s1 s2 = fmap nameS $ withMapSlot #stackEqsImpliesStackEq (sp, s1, s2) $ do
