@@ -706,37 +706,35 @@ convertIfThenElse cond x y =
             }
 
 getDerivedOp :: MonadRepGraphSolver m => Op -> Integer -> m S
-getDerivedOp op bits = do
-    fname <- withMapSlot #smtDerivedOps (op, bits) $ do
-        let fname = case op of
-                OpCountLeadingZeroes -> printf "bvclz_%d" bits
-                OpWordReverse -> printf "bvrev_%d" bits
-        body <- case bits of
-                1 -> return $ case op of
-                    OpCountLeadingZeroes -> iteS ("x" `eqS` binS "0") (binS "1") (binS "0")
-                    OpWordReverse -> "x"
-                _ -> do
-                    let botBits = bits `div` 2
-                    let topBits = bits - botBits
-                    topOp <- getDerivedOp op topBits
-                    botOp <- getDerivedOp op botBits
-                    let top = [ixS "extract" [intS (bits - 1), intS botBits], "x"]
-                        bot = [ixS "extract" [intS (botBits - 1), intS 0], "x"]
-                        topApp = [topOp, top]
-                        botApp = [botOp, bot]
-                        topAppExtended = [ixS "zero_extend" [intS botBits], topApp]
-                        botAppExtended = [ixS "zero_extend" [intS topBits], botApp]
-                    return $ case op of
-                        OpCountLeadingZeroes ->
-                            iteS
-                                (top `eqS` intWithWidthS topBits 0)
-                                (bvaddS botAppExtended (intWithWidthS bits botBits))
-                                topAppExtended
-                        OpWordReverse ->
-                            concatS botApp topApp
-        send $ defineFunS fname [("x", bitVecS bits)] (bitVecS bits) body
-        return fname
-    return $ symbolS fname
+getDerivedOp op bits = fmap symbolS $ withMapSlot #smtDerivedOps (op, bits) $ do
+    let fname = case op of
+            OpCountLeadingZeroes -> printf "bvclz_%d" bits
+            OpWordReverse -> printf "bvrev_%d" bits
+    body <- case bits of
+        1 -> return $ case op of
+            OpCountLeadingZeroes -> iteS ("x" `eqS` binS "0") (binS "1") (binS "0")
+            OpWordReverse -> "x"
+        _ -> do
+            let botBits = bits `div` 2
+            let topBits = bits - botBits
+            topOp <- getDerivedOp op topBits
+            botOp <- getDerivedOp op botBits
+            let top = [ixS "extract" [intS (bits - 1), intS botBits], "x"]
+                bot = [ixS "extract" [intS (botBits - 1), intS 0], "x"]
+                topApp = [topOp, top]
+                botApp = [botOp, bot]
+                topAppExtended = [ixS "zero_extend" [intS botBits], topApp]
+                botAppExtended = [ixS "zero_extend" [intS topBits], botApp]
+            return $ case op of
+                OpCountLeadingZeroes ->
+                    iteS
+                        (top `eqS` intWithWidthS topBits 0)
+                        (bvaddS botAppExtended (intWithWidthS bits botBits))
+                        topAppExtended
+                OpWordReverse ->
+                    concatS botApp topApp
+    send $ defineFunS fname [("x", bitVecS bits)] (bitVecS bits) body
+    return fname
 
 convertMemUpdate :: MonadRepGraphSolver m => MaybeSplit -> S -> S -> ExprType -> m MaybeSplit
 convertMemUpdate mMaybeSplit p v ty@(ExprTypeWord bits) = do
