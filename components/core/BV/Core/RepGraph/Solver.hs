@@ -634,8 +634,7 @@ convertExpr expr = case expr.value of
                 if sp1 == sp2 && stack1 == stack2
                     then return $ NotSplit trueS
                     else do
-                        let Split (SplitMem { split, top }) = stack2
-                        eq <- getStackEqImplies split top stack1
+                        eq <- getStackEqImplies (view (expecting #_Split) stack2) stack1
                         return $ NotSplit $ (sp1 `eqS` sp2) `andS` eq
         OpImpliesStackEquals -> do
                 let [sp1, stack1, sp2, stack2] = args
@@ -790,19 +789,19 @@ addImpliesStackEq sp stack1 stack2 = fmap nameS $ withMapSlot #stackEqsImpliesSt
     let f = memAccE word32T (smtExprE word32T (NotSplit addr))
     addDefNotSplit "stack-eq" $ f stack1 `eqE` f stack2
 
-getStackEqImplies :: MonadRepGraphSolver m => S -> S -> MaybeSplit -> ReaderT ExprEnv m S
-getStackEqImplies split stTop other = do
-    let (rhs, cond) = case other of
-            Split splitMem -> (splitMem.top, bvuleS splitMem.split split)
-            NotSplit otherNotSplit -> (otherNotSplit, trueS)
-    noteModelExpr (eqS stTop rhs) boolT
-    mems <- getImmBasisMems stTop
+getStackEqImplies :: MonadRepGraphSolver m => SplitMem -> MaybeSplit -> ReaderT ExprEnv m S
+getStackEqImplies stack1 stack2 = do
+    let (rhs, cond) = case stack2 of
+            Split (SplitMem { split, top }) -> (top, split `bvuleS` stack1.split)
+            NotSplit s -> (s, trueS)
+    noteModelExpr (eqS stack1.top rhs) boolT
+    mems <- getImmBasisMems stack1.top
     let [k] = S.toList mems
-    old <- liftSolver $ use $ #stackEqsStackEqImpliesCheck % expectingAt k
-    case old of
+    oldOpt <- liftSolver $ use $ #stackEqsStackEqImpliesCheck % expectingAt k
+    case oldOpt of
         Nothing -> liftSolver $ #stackEqsStackEqImpliesCheck %= M.insert k (Just rhs)
-        Just oldVal -> ensureM $ oldVal == rhs
-    return $ impliesS cond (eqS stTop rhs)
+        Just old -> ensureM $ old == rhs
+    return $ cond `impliesS` (stack1.top `eqS` rhs)
 
 getImmBasisMems :: MonadRepGraphSolver m => S -> m (Set S)
 getImmBasisMems = execWriterT . go
