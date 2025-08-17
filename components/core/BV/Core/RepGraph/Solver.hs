@@ -533,7 +533,7 @@ mergeEnvs envs = do
     mergeValPcMapCompat = mergeValPcListCompat . sortOn (compatSMTComparisonKey . fst) . M.toList
     mergeValPcListCompat valsByPc =
         let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
-            f accVal (val, pcs) = convertThenElse (orCompat pcs) val accVal
+            f accVal (val, pcs) = convertIfThenElse (orCompat pcs) val accVal
          in foldl f lastVal valsByPcInit
     orCompat = \case
         [x] -> x
@@ -645,7 +645,7 @@ convertExpr expr = case expr.value of
                 return $ NotSplit $ (sp1' `eqS` sp2') `andS` eq
         OpIfThenElse -> do
                 let [cond, x, y] = args
-                convertThenElse
+                convertIfThenElse
                     <$> convertExprNoSplit cond
                     <*> convertExpr x
                     <*> convertExpr y
@@ -681,20 +681,20 @@ convertExpr expr = case expr.value of
     ExprValueSMTExpr s -> do
         return s
 
-convertThenElse :: S -> MaybeSplit -> MaybeSplit -> MaybeSplit
-convertThenElse cond x y =
+convertIfThenElse :: S -> MaybeSplit -> MaybeSplit -> MaybeSplit
+convertIfThenElse cond x y =
     case (x, y) of
-        (NotSplit x', NotSplit y') -> NotSplit $ iteS cond x' y'
+        (NotSplit xns, NotSplit yns) -> NotSplit $ iteS cond xns yns
         _ ->
-            let xSplit = trivSplit x
-                ySplit = trivSplit y
+            let xs = trivSplit x
+                ys = trivSplit y
              in Split $ SplitMem
                     { split =
-                        if xSplit.split == ySplit.split
-                        then xSplit.split
-                        else iteS cond xSplit.split ySplit.split
-                    , top = iteS cond xSplit.top ySplit.top
-                    , bottom = iteS cond xSplit.bottom ySplit.bottom
+                        if xs.split == ys.split
+                        then xs.split
+                        else iteS cond xs.split ys.split
+                    , top = iteS cond xs.top ys.top
+                    , bottom = iteS cond xs.bottom ys.bottom
                     }
   where
     trivSplit = \case
