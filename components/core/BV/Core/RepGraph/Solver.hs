@@ -127,7 +127,7 @@ data SolverState
   = SolverState
       { namesUsed :: Set Name
       , externalNames :: Set Name
-      , pvalids :: Map S (Map (PValidType, Name, PValidKind) S)
+      , pvalids :: Map S (Map PValidKey S)
       , ptrs :: Map S Name
       , cachedExprs :: Map S Name
       , cachedExprNames :: Set Name
@@ -822,6 +822,14 @@ getImmBasisMems = execWriterT . go
                 then lift (getDef (Name sym)) >>= go
                 else tell $ S.singleton m
 
+data PValidKey
+  = PValidKey
+      { pvTy :: PValidType
+      , ptrName :: Name
+      , pvKind :: PValidKind
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
 addPValids :: MonadRepGraphSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValids = go False
   where
@@ -838,7 +846,11 @@ addPValids = go False
                     rAddr' <- withoutEnv $ convertExprNoSplit rAddr
                     assertSMTFact =<< go True htd (PValidTypeType rTy) rAddr' PValidKindPGlobalValid
             ptrName <- notePtr ptr
-            let key = (pvTy, ptrName, pvKind)
+            let key = PValidKey
+                    { pvTy
+                    , ptrName
+                    , pvKind
+                    }
             opt <- liftSolver $ preuse $ #pvalids % at htd % #_Just % at key % #_Just
             whenNothing opt $ do
                 var <- nameS <$> addVar "pvalid" boolT
@@ -846,19 +858,19 @@ addPValids = go False
                 others <- liftSolver $ #pvalids % expectingAt htd <<%= M.insert key var
                 let pdata = smtify key var
                 withoutEnv . assertFact . impliesE pdata.pv =<< alignValidIneq pvTy pdata.p
-                for_ (sortOn snd (M.toList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
-                    let kinds :: [PValidKind] = [valPvKind, pdata.pvKind]
+                for_ (sortOn snd (M.toList others)) $ \(otherKey, otherVar) -> do
+                    let kinds :: [PValidKind] = [otherKey.pvKind, pdata.pvKind]
                     unless (PValidKindPWeakValid `elem` kinds && PValidKindPGlobalValid `notElem` kinds) $ do
                         let applyAssertion f =
-                                f pdata (uncurry smtify val)
+                                f pdata (smtify otherKey otherVar)
                                     >>= withoutEnv . convertExprNoSplit
                                     >>= assertSMTFact
                         applyAssertion pvalidAssertion1
                         applyAssertion pvalidAssertion2
                 return var
-    smtify (pvTy, p, pvKind) var = PValidTuple
+    smtify (PValidKey { pvTy, ptrName, pvKind }) var = PValidTuple
         { pvTy
         , pvKind
-        , p = smtExprE machineWordT (NotSplit (nameS p))
+        , p = smtExprE machineWordT (NotSplit (nameS ptrName))
         , pv = smtExprE boolT (NotSplit var)
         }

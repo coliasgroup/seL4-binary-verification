@@ -147,6 +147,7 @@ arraySizeIneq ty len = do
   where
     memSize = 2 ^ archWordSizeBits
 
+-- TODO improve name
 data PValidTuple
   = PValidTuple
       { pvTy :: PValidType
