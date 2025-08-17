@@ -836,16 +836,15 @@ addPValids = go False
                 rodataPtrs <- askRODataPtrs
                 for_ rodataPtrs $ \(rAddr, rTy) -> do
                     rAddr' <- withoutEnv $ convertExprNoSplit rAddr
-                    var <- go True htd (PValidTypeType rTy) rAddr' PValidKindPGlobalValid
-                    assertSMTFact var
+                    assertSMTFact =<< go True htd (PValidTypeType rTy) rAddr' PValidKindPGlobalValid
             ptrName <- notePtr ptr
-            opt <- liftSolver $ preuse $ #pvalids % at htd % #_Just % at (pvTy, ptrName, pvKind) % #_Just
+            let key = (pvTy, ptrName, pvKind)
+            opt <- liftSolver $ preuse $ #pvalids % at htd % #_Just % at key % #_Just
             whenNothing opt $ do
-                var <- addVar "pvalid" boolT
+                var <- nameS <$> addVar "pvalid" boolT
                 liftSolver $ #pvalids %= M.insertWith (<>) htd mempty
-                others <- liftSolver $
-                    #pvalids % expectingAt htd <<%= M.insert (pvTy, ptrName, pvKind) (nameS var)
-                let pdata = smtify (pvTy, ptrName, pvKind) (nameS var)
+                others <- liftSolver $ #pvalids % expectingAt htd <<%= M.insert key var
+                let pdata = smtify key var
                 withoutEnv . assertFact . impliesE pdata.pv =<< alignValidIneq pvTy pdata.p
                 for_ (sortOn snd (M.toList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
                     let kinds :: [PValidKind] = [valPvKind, pdata.kind]
@@ -856,7 +855,7 @@ addPValids = go False
                                     >>= assertSMTFact
                         applyAssertion pvalidAssertion1
                         applyAssertion pvalidAssertion2
-                return $ nameS var
+                return var
     smtify (ty, p, kind) var = PValidTuple
         { ty
         , kind
