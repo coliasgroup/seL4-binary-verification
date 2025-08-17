@@ -131,7 +131,7 @@ addRecursionIdent runRepGraph functions f group = do
                 tag <- mostRecentTag
                 resOpt <- lift $ lift $ findUnknownRecursion runRepGraph functions pa.problem group idents tag assns
                 for_ resOpt $ \res -> do
-                    fname <- zoom _1 $ use $ to extractProblem % #nodes % at res % unwrapped % expecting #_NodeCall % #functionName
+                    fname <- zoom _1 $ use $ to extractProblem % #nodes % expectingAt res % expecting #_NodeCall % #functionName
                     zoom _2 $ modify (++ [fname])
                     len <- zoom _2 $ gets length
                     let nextTag = FunTag len

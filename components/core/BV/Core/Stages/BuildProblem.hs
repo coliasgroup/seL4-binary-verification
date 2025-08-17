@@ -17,7 +17,7 @@ import BV.Core.GenerateFreshName
 import BV.Core.Logic
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Utils (ensureM, expecting, expectingIx, unwrapped)
+import BV.Utils (ensureM, expecting, expectingAt, expectingIx, unwrapped)
 
 import Control.Monad (unless)
 import Control.Monad.Identity (runIdentity)
@@ -94,7 +94,7 @@ nodeAt :: NodeAddr -> Lens' (ProblemBuilder t) Node
 nodeAt nodeAddr = nodeWithMetaAt nodeAddr % #node
 
 nodeWithMetaAt :: NodeAddr -> Lens' (ProblemBuilder t) (NodeWithMeta t)
-nodeWithMetaAt nodeAddr = #nodes % at nodeAddr % unwrapped % unwrapped
+nodeWithMetaAt nodeAddr = #nodes % expectingAt nodeAddr % unwrapped
 
 reserveNodeAddr :: (Tag t, Monad m) => StateT (ProblemBuilder t) m NodeAddr
 reserveNodeAddr = do
@@ -244,7 +244,7 @@ inline lookupFun entry = do
 inlineAtPoint
     :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
 inlineAtPoint lookupFun nodeAddr = do
-    meta <- use $ #nodes % at nodeAddr % unwrapped % unwrapped % #meta
+    meta <- use $ #nodes % expectingAt nodeAddr % unwrapped % #meta
     inlinedFunctionName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
     let Just (nodeSource, indexInProblem) = meta.sourceWithIndex
     let entry = InlineScriptEntry

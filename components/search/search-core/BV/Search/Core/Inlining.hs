@@ -12,7 +12,7 @@ import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
 import BV.Search.Core.Solver
-import BV.Utils (expecting, is, unwrapped)
+import BV.Utils (expecting, expectingAt, is, unwrapped)
 
 import Control.Monad (unless, when)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
@@ -161,7 +161,7 @@ instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m)
         tag <- askTag
         p <- askProblem
         let nodeAddr = nodeAddrOf visit.nodeId
-        let fname = p ^. #nodes % at nodeAddr % unwrapped % expecting #_NodeCall % #functionName
+        let fname = p ^. #nodes % expectingAt nodeAddr % expecting #_NodeCall % #functionName
         matchedC <- lift $ InlineM $ gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do
             hyp <- withEnv env $ convertExprNoSplit $ notE pc

@@ -9,7 +9,7 @@ import BV.Core.RepGraph.Solver
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Utils (expecting, unwrapped)
+import BV.Utils (expecting, expectingAt, unwrapped)
 
 import Control.Monad (when)
 import Control.Monad.Reader (ReaderT (runReaderT))
@@ -141,7 +141,7 @@ memCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t (Maybe MemCall
 memCallsCompatible byTag = case viewByRefineTag byTag of
     (Just lcalls, Just rcalls) -> do
         rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toList lcalls) $ \(fname, calls) -> do
-            pairingId <- WithAddFunc $ gview $ #pairingsAccess % atTag leftTag % at fname % unwrapped
+            pairingId <- WithAddFunc $ gview $ #pairingsAccess % atTag leftTag % expectingAt fname
             let rfname = pairingId.right
             lookupSig <- WithAddFunc $ gview #lookupSig
             let rsig = lookupSig $ WithTag rightTag rfname

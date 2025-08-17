@@ -804,7 +804,7 @@ getStackEqImplies split stTop other = do
     noteModelExpr (eqS stTop rhs) boolT
     mems <- getImmBasisMems stTop
     let [k] = S.toList mems
-    old <- liftSolver $ use $ #stackEqsStackEqImpliesCheck % at k % unwrapped
+    old <- liftSolver $ use $ #stackEqsStackEqImpliesCheck % expectingAt k
     case old of
         Nothing -> liftSolver $ #stackEqsStackEqImpliesCheck %= M.insert k (Just rhs)
         Just oldVal -> ensureM $ oldVal == rhs
@@ -852,7 +852,7 @@ addPValids = go False
                     var <- addVar "pvalid" boolT
                     liftSolver $ #pvalids %= M.insertWith (<>) htd mempty
                     others <- liftSolver $
-                        #pvalids % at htd % unwrapped <<%= M.insert (pvTy, ptrName, pvKind) (nameS var)
+                        #pvalids % expectingAt htd <<%= M.insert (pvTy, ptrName, pvKind) (nameS var)
                     let pdata = smtify (pvTy, ptrName, pvKind) (nameS var)
                     withoutEnv . assertFact . impliesE pdata.pv =<< alignValidIneq pvTy pdata.p
                     for_ (sortOn snd (M.toList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do

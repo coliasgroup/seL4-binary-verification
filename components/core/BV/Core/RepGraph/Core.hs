@@ -261,7 +261,7 @@ askProblem :: MonadRepGraph t m => m (Problem t)
 askProblem = liftRepGraph $ gview #problem
 
 askNode :: MonadRepGraph t m => NodeAddr -> m Node
-askNode addr = liftRepGraph $ gview $ #problem % #nodes % at addr % unwrapped
+askNode addr = liftRepGraph $ gview $ #problem % #nodes % expectingAt addr
 
 askNodeGraph :: MonadRepGraph t m => m NodeGraph
 askNodeGraph = liftRepGraph $ gview $ #analysis % #nodeGraph
@@ -820,7 +820,7 @@ isSyntacticConstant var split = do
 getFuncRaw :: MonadRepGraphForTag t m => Visit -> m ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
 getFuncRaw visit = do
     key <- askWithTag visit
-    liftRepGraph $ use $ #funcs % at key % unwrapped
+    liftRepGraph $ use $ #funcs % expectingAt key
 
 getFunc :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
 getFunc unprunedVisit = do
