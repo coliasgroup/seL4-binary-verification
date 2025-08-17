@@ -825,39 +825,38 @@ getImmBasisMems = execWriterT . go
 addPValids :: MonadRepGraphSolver m => S -> PValidType -> S -> PValidKind -> m S
 addPValids = go False
   where
-    go recursion htd pvTy ptr pvKind = do
-        case htd of
-            List [op, cond, l, r] | op == symbolS "ite" -> do
-                iteS cond
-                    <$> addPValids l pvTy ptr pvKind
-                    <*> addPValids r pvTy ptr pvKind
-            _ -> do
-                present <- liftSolver $ use $ #pvalids % to (M.member htd)
-                when (not present && not recursion) $ do
-                    rodataPtrs <- askRODataPtrs
-                    for_ rodataPtrs $ \(rAddr, rTy) -> do
-                        rAddr' <- withoutEnv $ convertExprNoSplit rAddr
-                        var <- go True htd (PValidTypeType rTy) rAddr' PValidKindPGlobalValid
-                        assertSMTFact var
-                ptrName <- notePtr ptr
-                opt <- liftSolver $ preuse $ #pvalids % at htd % #_Just % at (pvTy, ptrName, pvKind) % #_Just
-                whenNothing opt $ do
-                    var <- addVar "pvalid" boolT
-                    liftSolver $ #pvalids %= M.insertWith (<>) htd mempty
-                    others <- liftSolver $
-                        #pvalids % expectingAt htd <<%= M.insert (pvTy, ptrName, pvKind) (nameS var)
-                    let pdata = smtify (pvTy, ptrName, pvKind) (nameS var)
-                    withoutEnv . assertFact . impliesE pdata.pv =<< alignValidIneq pvTy pdata.p
-                    for_ (sortOn snd (M.toList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
-                        let kinds :: [PValidKind] = [valPvKind, pdata.kind]
-                        unless (PValidKindPWeakValid `elem` kinds && PValidKindPGlobalValid `notElem` kinds) $ do
-                            let applyAssertion f =
-                                    f pdata (uncurry smtify val)
-                                        >>= withoutEnv . convertExprNoSplit
-                                        >>= assertSMTFact
-                            applyAssertion pvalidAssertion1
-                            applyAssertion pvalidAssertion2
-                    return $ nameS var
+    go recursion htd pvTy ptr pvKind = case htd of
+        List [op, cond, l, r] | op == symbolS "ite" ->
+            iteS cond
+                <$> go False l pvTy ptr pvKind
+                <*> go False r pvTy ptr pvKind
+        _ -> do
+            present <- liftSolver $ use $ #pvalids % to (M.member htd)
+            when (not present && not recursion) $ do
+                rodataPtrs <- askRODataPtrs
+                for_ rodataPtrs $ \(rAddr, rTy) -> do
+                    rAddr' <- withoutEnv $ convertExprNoSplit rAddr
+                    var <- go True htd (PValidTypeType rTy) rAddr' PValidKindPGlobalValid
+                    assertSMTFact var
+            ptrName <- notePtr ptr
+            opt <- liftSolver $ preuse $ #pvalids % at htd % #_Just % at (pvTy, ptrName, pvKind) % #_Just
+            whenNothing opt $ do
+                var <- addVar "pvalid" boolT
+                liftSolver $ #pvalids %= M.insertWith (<>) htd mempty
+                others <- liftSolver $
+                    #pvalids % expectingAt htd <<%= M.insert (pvTy, ptrName, pvKind) (nameS var)
+                let pdata = smtify (pvTy, ptrName, pvKind) (nameS var)
+                withoutEnv . assertFact . impliesE pdata.pv =<< alignValidIneq pvTy pdata.p
+                for_ (sortOn snd (M.toList others)) $ \val@((_valPvTy, _valName, valPvKind), _valS) -> do
+                    let kinds :: [PValidKind] = [valPvKind, pdata.kind]
+                    unless (PValidKindPWeakValid `elem` kinds && PValidKindPGlobalValid `notElem` kinds) $ do
+                        let applyAssertion f =
+                                f pdata (uncurry smtify val)
+                                    >>= withoutEnv . convertExprNoSplit
+                                    >>= assertSMTFact
+                        applyAssertion pvalidAssertion1
+                        applyAssertion pvalidAssertion2
+                return $ nameS var
     smtify (ty, p, kind) var = PValidTuple
         { ty
         , kind
