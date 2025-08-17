@@ -9,7 +9,7 @@ import BV.Core.RepGraph.Solver
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Utils (expecting, expectingAt, unwrapped)
+import BV.Utils (expecting, expectingAt, unimplemented, unwrapped)
 
 import Control.Monad (when)
 import Control.Monad.Reader (ReaderT (runReaderT))
@@ -160,7 +160,7 @@ memCallsCompatible byTag = case viewByRefineTag byTag of
                             _ -> False
                     in x || y
         let incompat = any isIncompat $ S.toList $ M.keysSet rcastcalls <> M.keysSet rcalls
-        return $ if incompat then (False, error "unimplemented") else (True, Nothing)
+        return $ if incompat then (False, unimplemented) else (True, Nothing)
     _ -> return (True, Nothing)
 
 --
