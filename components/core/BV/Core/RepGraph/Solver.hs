@@ -347,9 +347,6 @@ typeToSMT = \case
     ExprTypeDom -> memDomSortS
     ExprTypeToken -> typeToSMT compiledTokenType
 
-compiledTokenType :: ExprType
-compiledTokenType = wordT 64
-
 addVar :: MonadRepGraphSolver m => NameHint -> ExprType -> m Name
 addVar nameHint ty = do
     name <- takeFreshName nameHint
@@ -414,6 +411,9 @@ getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokens ident $ do
     v <- getDef k
     liftSolver $ #tokenVals %= M.insert v ident
     return k
+
+compiledTokenType :: ExprType
+compiledTokenType = wordT 64
 
 --
 
@@ -592,20 +592,19 @@ convertExpr expr = case expr.value of
                 let [v] = args
                 convertExpr $ clzE (wordReverseE v)
         _ | op `elem` ([OpPValid, OpPGlobalValid, OpPWeakValid, OpPArrayValid] :: [Op]) -> do
-                (htdExpr, tyExpr, p, f) <- case op of
+                (htd, tyExpr, p, mkPvTy) <- case op of
                     OpPArrayValid -> do
                         let [htd, tyExpr, p, len] = args
                         len' <- convertInnerExpr len
-                        let f ty = PValidTypeArray { ty, len = len' }
-                        return (htd, tyExpr, p, f)
+                        let mkPvTy ty = PValidTypeArray { ty, len = len' }
+                        return (htd, tyExpr, p, mkPvTy)
                     _ -> do
                         let [htd, tyExpr, p] = args
-                        let f = PValidTypeType
-                        return (htd, tyExpr, p, f)
+                        let mkPvTy = PValidTypeType
+                        return (htd, tyExpr, p, mkPvTy)
                 let ExprValueType ty = tyExpr.value
-                let pvTy = f (applyWhen (op == OpPGlobalValid) globalWrapperT ty)
-                let htdVar = nameTyFromVarE htdExpr
-                htd' <- gview $ expectingAt htdVar % expecting #_NotSplit
+                let pvTy = mkPvTy (applyWhen (op == OpPGlobalValid) globalWrapperT ty)
+                htd' <- gview $ expectingAt (nameTyFromVarE htd) % expecting #_NotSplit
                 p' <- convertExprNoSplit p
                 NotSplit <$> addPValids htd' pvTy p' (pvalidKindFromOp op)
         OpMemDom -> do
@@ -825,8 +824,8 @@ getImmBasisMems = execWriterT . go
 data PValidKey
   = PValidKey
       { pvTy :: PValidType
-      , ptrName :: Name
       , pvKind :: PValidKind
+      , ptrName :: Name
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -848,29 +847,33 @@ addPValids = go False
             ptrName <- notePtr ptr
             let key = PValidKey
                     { pvTy
-                    , ptrName
                     , pvKind
+                    , ptrName
                     }
             opt <- liftSolver $ preuse $ #pvalids % at htd % #_Just % at key % #_Just
             whenNothing opt $ do
                 var <- nameS <$> addVar "pvalid" boolT
                 liftSolver $ #pvalids %= M.insertWith (<>) htd mempty
                 others <- liftSolver $ #pvalids % expectingAt htd <<%= M.insert key var
-                let pdata = smtify key var
-                withoutEnv . assertFact . impliesE pdata.pv =<< alignValidIneq pvTy pdata.p
-                for_ (sortOn snd (M.toList others)) $ \(otherKey, otherVar) -> do
-                    let kinds :: [PValidKind] = [otherKey.pvKind, pdata.pvKind]
-                    unless (PValidKindPWeakValid `elem` kinds && PValidKindPGlobalValid `notElem` kinds) $ do
-                        let applyAssertion f =
-                                f pdata (smtify otherKey otherVar)
-                                    >>= withoutEnv . convertExprNoSplit
-                                    >>= assertSMTFact
+                let pvInfo = mkPvInfo key var
+                do
+                    fact <- alignValidIneq pvTy pvInfo.p
+                    withoutEnv $ assertFact $ pvInfo.pv `impliesE` fact
+                for_ (sortOthersCompat others) $ \(otherKey, otherVar) -> do
+                    let otherPVInfo = mkPvInfo otherKey otherVar
+                    let pvKinds :: [PValidKind] = [otherPVInfo.pvKind, pvInfo.pvKind]
+                    unless (PValidKindPWeakValid `elem` pvKinds && PValidKindPGlobalValid `notElem` pvKinds) $ do
+                        let applyAssertion f = do
+                                fact <- f pvInfo otherPVInfo
+                                withoutEnv $ assertFact fact
                         applyAssertion pvalidAssertion1
                         applyAssertion pvalidAssertion2
                 return var
-    smtify (PValidKey { pvTy, ptrName, pvKind }) var = PValidTuple
+    mkPvInfo (PValidKey { pvTy, pvKind, ptrName }) var = PValidTuple
         { pvTy
         , pvKind
         , p = smtExprE machineWordT (NotSplit (nameS ptrName))
         , pv = smtExprE boolT (NotSplit var)
         }
+    -- HACK matches graph-refine
+    sortOthersCompat = sortOn snd . M.toList

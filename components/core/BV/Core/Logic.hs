@@ -183,7 +183,7 @@ pvalidAssertion2 a b = do
             f c d = do
                 let offs = c.p `minusE` d.p
                 cond <- getSTypCondition offs c.pvTy d.pvTy
-                return $ impliesE (andE cond d.pv) c.pv
+                return $ (cond `andE` d.pv) `impliesE` c.pv
 
 getSTypCondition :: MonadStructs m =>  Expr -> PValidType -> PValidType -> m Expr
 getSTypCondition offs innerTy outerTy =
