@@ -27,7 +27,7 @@ module BV.Core.RepGraph.Solver
     , askModelVars
     , assertFact
     , convertExpr
-    , convertExprNoSplit
+    , convertExprNotSplit
     , convertInnerExpr
     , initSolver
     , initSolverEnv
@@ -363,7 +363,7 @@ assertSMTFact :: MonadRepGraphSolver m => S -> m ()
 assertSMTFact = send . assertS
 
 assertFact :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m ()
-assertFact = convertExprNoSplit >=> assertSMTFact
+assertFact = convertExprNotSplit >=> assertSMTFact
 
 noteModelExpr :: MonadRepGraphSolver m => S -> ExprType -> m ()
 noteModelExpr s ty = void $ withMapSlot #modelExprs s $ do
@@ -518,7 +518,7 @@ foldAssocBalanced f = go
 mergeEnvs :: MonadRepGraphSolver m => [PcEnv] -> m ExprEnv
 mergeEnvs envs = do
     varValPcList <- fmap concat $ for envs $ \(PcEnv pc env) -> do
-            pc' <- withEnv env $ convertExprNoSplit pc
+            pc' <- withEnv env $ convertExprNotSplit pc
             return
                 [ (var, val, pc')
                 | (var, val) <- M.toList env
@@ -562,8 +562,8 @@ convertInnerExpr expr = case expr.ty of
         ExprValueOp { } -> traverseOf (exprOpArgs % traversed) convertInnerExpr expr
     _ -> smtExprE expr.ty <$> convertExpr expr
 
-convertExprNoSplit :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m S
-convertExprNoSplit expr = view (expecting #_NotSplit) <$> convertExpr expr
+convertExprNotSplit :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m S
+convertExprNotSplit expr = view (expecting #_NotSplit) <$> convertExpr expr
 
 convertExpr :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m MaybeSplit
 convertExpr expr = case expr.value of
@@ -572,7 +572,7 @@ convertExpr expr = case expr.value of
                 let [v] = args
                 let ExprTypeWord exprBits = expr.ty
                 let ExprTypeWord vBits = v.ty
-                v' <- convertExprNoSplit v
+                v' <- convertExprNotSplit v
                 return $ NotSplit $ if
                     | exprBits == vBits -> v'
                     | exprBits < vBits -> [ixS "extract" [intS (exprBits - 1), intS 0], v']
@@ -585,7 +585,7 @@ convertExpr expr = case expr.value of
         _ | op == OpCountLeadingZeroes || op == OpWordReverse -> do
                 let [v] = args
                 let ExprTypeWord bits = expr.ty
-                v' <- convertExprNoSplit v
+                v' <- convertExprNotSplit v
                 op' <- getDerivedOp op bits
                 return $ NotSplit [op', v']
         OpCountTrailingZeroes -> do
@@ -605,12 +605,12 @@ convertExpr expr = case expr.value of
                 let ExprValueType ty = tyExpr.value
                 let pvTy = mkPvTy (applyWhen (op == OpPGlobalValid) globalWrapperT ty)
                 htd' <- gview $ expectingAt (nameTyFromVarE htd) % expecting #_NotSplit
-                p' <- convertExprNoSplit p
+                p' <- convertExprNotSplit p
                 NotSplit <$> addPValids htd' (pvalidKindFromOp op) pvTy p'
         OpMemDom -> do
                 let [p, dom] = args
-                p' <- convertExprNoSplit p
-                dom' <- convertExprNoSplit dom
+                p' <- convertExprNotSplit p
+                dom' <- convertExprNotSplit dom
                 let md = [opS op, p', dom']
                 noteMemDom p' dom' md
                 return $ NotSplit $ if cheatMemDoms then trueS else md
@@ -618,14 +618,14 @@ convertExpr expr = case expr.value of
                 let [m, p, v] = args;
                 ensureM $ isWordT v.ty
                 m' <- convertExpr m
-                p' <- convertExprNoSplit p
-                v' <- convertExprNoSplit v
+                p' <- convertExprNotSplit p
+                v' <- convertExprNotSplit v
                 convertMemUpdate m' p' v' v.ty
         OpMemAcc -> do
                 let [m, p] = args;
                 ensureM $ isWordT expr.ty
                 m' <- convertExpr m
-                p' <- convertExprNoSplit p
+                p' <- convertExprNotSplit p
                 NotSplit <$> convertMemAccess m' p' expr.ty
         OpStackEqualsImplies -> do
                 args' <- traverse convertExpr args
@@ -638,30 +638,30 @@ convertExpr expr = case expr.value of
         OpImpliesStackEquals -> do
                 let [sp1, stack1, sp2, stack2] = args
                 eq <- addImpliesStackEq sp1 stack1 stack2
-                sp1' <- convertExprNoSplit sp1
-                sp2' <- convertExprNoSplit sp2
+                sp1' <- convertExprNotSplit sp1
+                sp2' <- convertExprNotSplit sp2
                 return $ NotSplit $ (sp1' `eqS` sp2') `andS` eq
         OpIfThenElse -> do
                 let [cond, x, y] = args
                 convertIfThenElse
-                    <$> convertExprNoSplit cond
+                    <$> convertExprNotSplit cond
                     <*> convertExpr x
                     <*> convertExpr y
         OpHTDUpdate -> do
                 NotSplit . nameS <$> addVar "update_htd" expr.ty
         OpEquals | (head args).ty == ExprTypeMem -> do
-                args' <- traverse convertExprNoSplit args
+                args' <- traverse convertExprNotSplit args
                 let [x, y] = args'
                 let s = ["mem-eq", x, y]
                 noteModelExpr s boolT
                 return $ NotSplit s
         OpEquals | (head args).ty == word32T -> do
-                args' <- traverse convertExprNoSplit args
+                args' <- traverse convertExprNotSplit args
                 let [x, y] = args'
                 let s = ["word32-eq", x, y]
                 return $ NotSplit s
         _ -> do
-                args' <- traverse convertExprNoSplit args
+                args' <- traverse convertExprNotSplit args
                 let op' = opS op
                 let s = case args' of
                         [] -> op'
@@ -783,7 +783,7 @@ addImpliesStackEq :: MonadRepGraphSolver m => Expr -> Expr -> Expr -> ReaderT Ex
 addImpliesStackEq sp stack1 stack2 = fmap nameS $ withMapSlot #impliesStackEqMap (sp, stack1, stack2) $ do
     addr <- nameS <$> addVar "stack-eq-witness" word32T
     assertSMTFact $ (addr `bvandS` hexS "00000003") `eqS` hexS "00000000"
-    sp' <- convertExprNoSplit sp
+    sp' <- convertExprNotSplit sp
     assertSMTFact $ sp' `bvuleS` addr
     let f = memAccE word32T (smtExprE word32T (NotSplit addr))
     addDefNotSplit "stack-eq" $ f stack1 `eqE` f stack2
@@ -843,7 +843,7 @@ addPValids = go
             when new $ do
                 rodataPtrs <- askRODataPtrs
                 for_ rodataPtrs $ \(roAddr, roTy) -> do
-                    roAddr' <- withoutEnv $ convertExprNoSplit roAddr
+                    roAddr' <- withoutEnv $ convertExprNotSplit roAddr
                     assertSMTFact =<<
                         goAssumingAlreadyExists htd PValidKindPGlobalValid (PValidTypeType roTy) roAddr'
             goAssumingAlreadyExists htd pvKind pvTy ptr

@@ -19,7 +19,7 @@ module BV.Core.RepGraph
     , askModelVars
     , askNodeGraph
     , askProblem
-    , convertExprNoSplit
+    , convertExprNotSplit
     , convertInnerExprWithPcEnv -- TODO
     , getFunc
     , getInductVar

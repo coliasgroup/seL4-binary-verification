@@ -132,7 +132,7 @@ smtToVal sexpr = case viewSExpr sexpr of
 
 evalModelExpr :: MonadRepGraph t m => Expr -> StateT Model m Expr
 evalModelExpr expr = do
-    sexpr <- withoutEnv $ convertExprNoSplit expr
+    sexpr <- withoutEnv $ convertExprNotSplit expr
     evalModel sexpr
 
 evalModel :: Monad m => SExprWithPlaceholders -> StateT Model m Expr
@@ -191,7 +191,7 @@ testHypWhypsCommon
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
     => Bool -> Bool -> Expr -> [Hyp t] -> StateT (Maybe Cache) m (Maybe (TestResultWith (Maybe Model)))
 testHypWhypsCommon fast wantModel hyp hyps = do
-    sexpr <- lift $ interpretHypImps hyps hyp >>= withoutEnv . convertExprNoSplit
+    sexpr <- lift $ interpretHypImps hyps hyp >>= withoutEnv . convertExprNotSplit
     cacheEntry <- preuse $ #_Just % #unwrap % at sexpr % #_Just
     case (cacheEntry, fast) of
         (Just v, _) -> do

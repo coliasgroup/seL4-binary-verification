@@ -164,7 +164,7 @@ instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m)
         let fname = p ^. #nodes % expectingAt nodeAddr % expecting #_NodeCall % #functionName
         matchedC <- lift $ InlineM $ gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do
-            hyp <- withEnv env $ convertExprNoSplit $ notE pc
+            hyp <- withEnv env $ convertExprNotSplit $ notE pc
             res <- testHyp hyp
             unless res $ lift $ InlineM $ throwError $ InliningEvent
                 { nodeAddr

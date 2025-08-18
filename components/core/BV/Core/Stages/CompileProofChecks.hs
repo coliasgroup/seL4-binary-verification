@@ -55,5 +55,5 @@ interpretGroup group = do
         expr <- interpretHypImps check.hyps concl
         return (check, expr)
     for hyps $ \(check, expr) -> do
-        sexpr <- withoutEnv $ convertExprNoSplit expr
+        sexpr <- withoutEnv $ convertExprNotSplit expr
         return $ SMTProofCheckImp check.meta sexpr
