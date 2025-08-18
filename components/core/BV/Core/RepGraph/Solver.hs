@@ -62,14 +62,14 @@ import Data.Functor (void)
 import Data.List (nub, sortOn)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromJust, isNothing, fromMaybe)
+import Data.Maybe (fromJust, fromMaybe, isNothing)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((%=), (<<%=), (%%=))
+import Optics.State.Operators ((%%=), (%=), (<<%=))
 import Text.Printf (printf)
 
 -- TODO

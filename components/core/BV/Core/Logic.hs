@@ -7,8 +7,8 @@
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.Logic
-    ( PValidKind (..)
-    , PValidInfo (..)
+    ( PValidInfo (..)
+    , PValidKind (..)
     , PValidType (..)
     , alignOfType
     , alignValidIneq
@@ -355,9 +355,11 @@ strengthenHypInner = go
             OpNot ->
                 let [x] = args
                  in notE (goAgainst x)
-            OpStackEquals -> boolE $
-                ExprValueOp (if direction then OpImpliesStackEquals else OpStackEqualsImplies) args
-            OpROData -> if direction then boolE (ExprValueOp OpImpliesROData args) else expr
+            OpStackEquals ->
+                let op' = if direction then OpImpliesStackEquals else OpStackEqualsImplies
+                 in expr & exprOp .~ op'
+            OpROData ->
+                applyWhen direction (exprOp .~ OpImpliesROData) expr
             OpEquals | isBoolT (head args).ty ->
                 let [_, r] = args
                     [l', r'] = applyWhen (r `elem` [trueE, falseE]) reverse args
