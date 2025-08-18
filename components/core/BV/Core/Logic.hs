@@ -150,8 +150,8 @@ arraySizeIneq ty len = do
 -- TODO improve name
 data PValidInfo
   = PValidInfo
-      { pvTy :: PValidType
-      , pvKind :: PValidKind
+      { pvKind :: PValidKind
+      , pvTy :: PValidType
       , p :: Expr
       , pv :: Expr
       }

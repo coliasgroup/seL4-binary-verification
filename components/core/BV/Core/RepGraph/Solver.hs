@@ -62,14 +62,14 @@ import Data.Functor (void)
 import Data.List (nub, sortOn)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isNothing, fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((%=), (<<%=))
+import Optics.State.Operators ((%=), (<<%=), (%%=))
 import Text.Printf (printf)
 
 -- TODO
@@ -606,7 +606,7 @@ convertExpr expr = case expr.value of
                 let pvTy = mkPvTy (applyWhen (op == OpPGlobalValid) globalWrapperT ty)
                 htd' <- gview $ expectingAt (nameTyFromVarE htd) % expecting #_NotSplit
                 p' <- convertExprNoSplit p
-                NotSplit <$> addPValids htd' pvTy p' (pvalidKindFromOp op)
+                NotSplit <$> addPValids htd' (pvalidKindFromOp op) pvTy p'
         OpMemDom -> do
                 let [p, dom] = args
                 p' <- convertExprNoSplit p
@@ -823,55 +823,54 @@ getImmBasisMems = execWriterT . go
 
 data PValidKey
   = PValidKey
-      { pvTy :: PValidType
-      , pvKind :: PValidKind
+      { pvKind :: PValidKind
+      , pvTy :: PValidType
       , ptrName :: Name
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-addPValids :: MonadRepGraphSolver m => S -> PValidType -> S -> PValidKind -> m S
-addPValids = go False
+addPValids :: MonadRepGraphSolver m => S -> PValidKind -> PValidType -> S -> m S
+addPValids = go
   where
-    go recursion htd pvTy ptr pvKind = case htd of
+    go htd pvKind pvTy ptr = case htd of
         List [op, cond, l, r] | op == symbolS "ite" ->
             iteS cond
-                <$> go False l pvTy ptr pvKind
-                <*> go False r pvTy ptr pvKind
+                <$> go l pvKind pvTy ptr
+                <*> go r pvKind pvTy ptr
         _ -> do
-            present <- liftSolver $ use $ #pvalids % to (M.member htd)
-            when (not present && not recursion) $ do
+            new <- liftSolver $ (#pvalids % at htd) %%= \slot ->
+                (isNothing slot, Just (fromMaybe M.empty slot))
+            when new $ do
                 rodataPtrs <- askRODataPtrs
-                for_ rodataPtrs $ \(rAddr, rTy) -> do
-                    rAddr' <- withoutEnv $ convertExprNoSplit rAddr
-                    assertSMTFact =<< go True htd (PValidTypeType rTy) rAddr' PValidKindPGlobalValid
-            ptrName <- notePtr ptr
-            let key = PValidKey
-                    { pvTy
-                    , pvKind
-                    , ptrName
-                    }
-            opt <- liftSolver $ preuse $ #pvalids % at htd % #_Just % at key % #_Just
-            whenNothing opt $ do
-                var <- nameS <$> addVar "pvalid" boolT
-                liftSolver $ #pvalids %= M.insertWith (<>) htd mempty
-                others <- liftSolver $ #pvalids % expectingAt htd <<%= M.insert key var
-                let pvInfo = mkPvInfo key var
-                do
-                    fact <- alignValidIneq pvTy pvInfo.p
-                    withoutEnv $ assertFact $ pvInfo.pv `impliesE` fact
-                for_ (sortOthersCompat others) $ \(otherKey, otherVar) -> do
-                    let otherPVInfo = mkPvInfo otherKey otherVar
-                    let pvKinds :: [PValidKind] = [otherPVInfo.pvKind, pvInfo.pvKind]
-                    unless (PValidKindPWeakValid `elem` pvKinds && PValidKindPGlobalValid `notElem` pvKinds) $ do
-                        let applyAssertion f = do
-                                fact <- f pvInfo otherPVInfo
-                                withoutEnv $ assertFact fact
-                        applyAssertion pvalidAssertion1
-                        applyAssertion pvalidAssertion2
-                return var
-    mkPvInfo (PValidKey { pvTy, pvKind, ptrName }) var = PValidInfo
-        { pvTy
-        , pvKind
+                for_ rodataPtrs $ \(roAddr, roTy) -> do
+                    roAddr' <- withoutEnv $ convertExprNoSplit roAddr
+                    assertSMTFact =<<
+                        goAssumingAlreadyExists htd PValidKindPGlobalValid (PValidTypeType roTy) roAddr'
+            goAssumingAlreadyExists htd pvKind pvTy ptr
+    goAssumingAlreadyExists htd pvKind pvTy ptr = do
+        ptrName <- notePtr ptr
+        let key = PValidKey { pvKind, pvTy, ptrName }
+        opt <- liftSolver $ use $ #pvalids % expectingAt htd % at key
+        whenNothing opt $ do
+            var <- nameS <$> addVar "pvalid" boolT
+            let info = mkPvInfo key var
+            do
+                fact <- alignValidIneq info.pvTy info.p
+                withoutEnv $ assertFact $ info.pv `impliesE` fact
+            others <- liftSolver $ #pvalids % expectingAt htd <<%= M.insert key var
+            for_ (sortOthersCompat others) $ \(otherKey, otherVar) -> do
+                let otherInfo = mkPvInfo otherKey otherVar
+                let pvKinds :: [PValidKind] = [otherInfo.pvKind, info.pvKind]
+                unless (PValidKindPWeakValid `elem` pvKinds && PValidKindPGlobalValid `notElem` pvKinds) $ do
+                    let applyAssertion f = do
+                            fact <- f info otherInfo
+                            withoutEnv $ assertFact fact
+                    applyAssertion pvalidAssertion1
+                    applyAssertion pvalidAssertion2
+            return var
+    mkPvInfo (PValidKey { pvKind, pvTy, ptrName }) var = PValidInfo
+        { pvKind
+        , pvTy
         , p = smtExprE machineWordT (NotSplit (nameS ptrName))
         , pv = smtExprE boolT (NotSplit var)
         }
