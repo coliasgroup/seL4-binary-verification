@@ -8,7 +8,7 @@
 
 module BV.Core.Logic
     ( PValidKind (..)
-    , PValidTuple (..)
+    , PValidInfo (..)
     , PValidType (..)
     , alignOfType
     , alignValidIneq
@@ -148,8 +148,8 @@ arraySizeIneq ty len = do
     memSize = 2 ^ archWordSizeBits
 
 -- TODO improve name
-data PValidTuple
-  = PValidTuple
+data PValidInfo
+  = PValidInfo
       { pvTy :: PValidType
       , pvKind :: PValidKind
       , p :: Expr
@@ -157,7 +157,7 @@ data PValidTuple
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-pvalidAssertion1 :: MonadStructs m => PValidTuple -> PValidTuple -> m Expr
+pvalidAssertion1 :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
 pvalidAssertion1 a b = do
     (cond1, out1) <- f a b
     (cond2, out2) <- f b a
@@ -171,7 +171,7 @@ pvalidAssertion1 a b = do
         let out = endAddr `lessE` d.p
         return (cond, out)
 
-pvalidAssertion2 :: MonadStructs m => PValidTuple -> PValidTuple -> m Expr
+pvalidAssertion2 :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
 pvalidAssertion2 a b = do
     case (a.pvTy, b.pvTy) of
         (PValidTypeArray {}, PValidTypeArray {}) -> return trueE

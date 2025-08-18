@@ -869,7 +869,7 @@ addPValids = go False
                         applyAssertion pvalidAssertion1
                         applyAssertion pvalidAssertion2
                 return var
-    mkPvInfo (PValidKey { pvTy, pvKind, ptrName }) var = PValidTuple
+    mkPvInfo (PValidKey { pvTy, pvKind, ptrName }) var = PValidInfo
         { pvTy
         , pvKind
         , p = smtExprE machineWordT (NotSplit (nameS ptrName))
