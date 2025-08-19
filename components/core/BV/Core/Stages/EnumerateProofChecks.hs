@@ -276,22 +276,19 @@ emitRestrNodeChecks restrNode = branch $ do
         applyRestrNodeRange restrNode
         applyRestrOthers
         assume1L =<< pcFalseH <$> getVisitWithTag rightTag Err
-    let visit vc = branchRestrs $ do
-            restrict1L restrNode.tag $ Restr restrNode.point vc
-            getVisitWithTag restrNode.tag $ Addr restrNode.point
     let minPred = restrNode.range.x - 1
     let minPredVCOpt = case restrNode.range.kind of
             RestrProofNodeRangeKindOffset -> Just $ offsetVC (max 0 minPred)
             _ | minPred > 0 -> Just $ numberVC minPred
             _ -> Nothing
     for_ minPredVCOpt $ \minPredVC -> do
-        pcTrueH <$> visit minPredVC >>=
+        pcTrueH <$> getVisitToRestrPointAfter restrNode minPredVC >>=
             conclude
                 (printf "Check of restr min %d %P for %P"
                     restrNode.range.x
                     restrNode.range.kind
                     restrNode.point)
-    pcFalseH <$> visit (maxVCForRestrNode restrNode.range) >>=
+    pcFalseH <$> getVisitToRestrPointAfter restrNode (maxVCForRestrNode restrNode) >>=
         conclude
             (printf "Check of restr max %d %P for %P"
                 restrNode.range.y
@@ -299,9 +296,8 @@ emitRestrNodeChecks restrNode = branch $ do
                 restrNode.point)
 
 assumeRestrTriv :: MonadChecks t m => RestrProofNode t a -> m ()
-assumeRestrTriv restrNode = branchRestrs $ do
-    applyRestrNodeMax restrNode
-    assume1R =<< pcTrivH <$> getVisitWithTag restrNode.tag (Addr restrNode.point)
+assumeRestrTriv restrNode =
+    assume1R =<< pcTrivH <$> getVisitToRestrPointAfter restrNode (maxVCForRestrNode restrNode)
 
 applyRestrNodeRange :: MonadChecks t m => RestrProofNode t a -> m ()
 applyRestrNodeRange restrNode = restrict1L restrNode.tag $
@@ -311,32 +307,33 @@ applyRestrNodeRange restrNode = restrict1L restrNode.tag $
             (fromRestrKindVC restrNode.range.kind)
             [restrNode.range.x .. restrNode.range.y - 1])
 
-applyRestrOthers :: forall t m. MonadChecks t m => m ()
-applyRestrOthers = do
-    restrs <- getRestrs
-    loopsToSplit <- askLoopsToSplit restrs
-    for_ loopsToSplit $ \(WithTag tag addr) -> restrict1R tag (Restr addr (numbersVC [0, 1]))
+applyRestrOthers :: MonadChecks t m => m ()
+applyRestrOthers = getLoopsToSplit >>= traverse_ splitLoop
   where
-    askLoopsToSplit :: [WithTag t Restr] -> m [WithTag t NodeAddr]
-    askLoopsToSplit restrs = do
-        loopHeadsWithSplit <- fmap catMaybes $ for restrs $ \restr -> askLoopHead (fmap (.nodeAddr) restr)
-        loopHeads <- askLoopHeads
-        let loopHeadsWithoutSplit = (S.difference `on` S.fromList) loopHeads loopHeadsWithSplit
-        g <- askNodeGraph
-        let f :: WithTag t Restr -> S.Set (WithTag t NodeAddr) -> S.Set (WithTag t NodeAddr)
-            f restr = applyWhen (not (hasZeroVC restr.value.visitCount)) $ S.filter $ \loopHeadWithoutSplit ->
-                isReachableFrom g (Addr restr.value.nodeAddr) (Addr loopHeadWithoutSplit.value)
-                    || restr.tag /= loopHeadWithoutSplit.tag
-        return $ S.toList $ foldr f loopHeadsWithoutSplit (reverse restrs)
+    splitLoop (WithTag tag addr) = restrict1R tag (Restr addr (numbersVC [0, 1]))
 
-applyRestrNodeMax :: MonadChecks t m => RestrProofNode t a -> m ()
-applyRestrNodeMax restrNode = restrict1L restrNode.tag $
-    Restr
-        restrNode.point
-        (maxVCForRestrNode restrNode.range)
+getLoopsToSplit :: MonadChecks t m => m [WithTag t NodeAddr]
+getLoopsToSplit = do
+    restrs <- getRestrs
+    loopHeadsWithSplit <- fmap catMaybes $ for restrs $ \restr -> askLoopHead (fmap (.nodeAddr) restr)
+    loopHeads <- askLoopHeads
+    let loopHeadsWithoutSplit = (S.difference `on` S.fromList) loopHeads loopHeadsWithSplit
+    g <- askNodeGraph
+    let pruneWith restr = applyWhen (not (hasZeroVC restr.value.visitCount)) $
+            -- restr node must be visited, so loop heads must be
+            -- reachable from restr (or on another tag)
+            S.filter $ \loopHeadWithoutSplit ->
+                loopHeadWithoutSplit.tag /= restr.tag
+                    || isReachableFrom g (Addr restr.value.nodeAddr) (Addr loopHeadWithoutSplit.value)
+    return $ S.toList $ foldr pruneWith loopHeadsWithoutSplit restrs
 
-maxVCForRestrNode :: RestrProofNodeRange -> VisitCount
-maxVCForRestrNode range = fromRestrKindVC range.kind (range.y - 1)
+getVisitToRestrPointAfter :: MonadChecks t m => RestrProofNode t a -> VisitCount -> m (WithTag t Visit)
+getVisitToRestrPointAfter restrNode vc = branchRestrs $ do
+    restrict1L restrNode.tag $ Restr restrNode.point vc
+    getVisitWithTag restrNode.tag (Addr restrNode.point)
+
+maxVCForRestrNode :: RestrProofNode t a -> VisitCount
+maxVCForRestrNode restrNode = fromRestrKindVC restrNode.range.kind (restrNode.range.y - 1)
 
 --
 
