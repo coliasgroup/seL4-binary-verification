@@ -168,9 +168,9 @@ pvalidAssertion1 x y = do
     let conj = foldr1 orE [p4, p3, p1, p2]
     return $ (x.pv `andE` y.pv) `impliesE` conj
   where
-    completelyPrecedes a b = do
-        aSize <- pvalidTypeSize a.pvTy
-        return $ (a.p `plusE` (aSize `minusE` machineWordE 1)) `lessE` b.p
+    completelyPrecedes lo hi = do
+        loSize <- pvalidTypeSize lo.pvTy
+        return $ (lo.p `plusE` (loSize `minusE` machineWordE 1)) `lessE` hi.p
 
 -- Second pointer validity assertion: implication.
 -- pvalid1 & strictly-contained --> pvalid2
@@ -186,12 +186,12 @@ pvalidAssertion2 x y = do
             -- NOTE order matches graph-refine
             return $ p2 `andE` p1
           where
-            wouldImply a b = do
-                cond <- a `pvalidContains` b
-                return $ (cond `andE` a.pv) `impliesE` b.pv
+            wouldImply outer inner = do
+                contained <- outer `pvalidContains` inner
+                return $ (contained `andE` outer.pv) `impliesE` inner.pv
 
 pvalidContains :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
-pvalidContains x y = getSTypCondition (y.p `minusE` x.p) y.pvTy x.pvTy
+pvalidContains outer inner = getSTypCondition (inner.p `minusE` outer.p) inner.pvTy outer.pvTy
 
 getSTypCondition :: MonadStructs m =>  Expr -> PValidType -> PValidType -> m Expr
 getSTypCondition offs innerTy outerTy =
