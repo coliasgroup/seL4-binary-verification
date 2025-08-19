@@ -2,7 +2,6 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.ConcreteSyntax.ObjDump
     ( readROData

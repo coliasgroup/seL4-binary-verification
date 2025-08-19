@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
-
 module BV.Core.Types.Extras.Problem
     ( ArgRenames
     , Loop (..)
