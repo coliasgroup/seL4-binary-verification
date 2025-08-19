@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
@@ -37,7 +36,7 @@ type SymtabLine = (String, Symbol)
 parseSymtabLines :: Parser [SymtabLine]
 parseSymtabLines = do
     _ <- skipManyTill anySingle (string "SYMBOL TABLE:" *> eol)
-    lines <- many $ do
+    lines_ <- many $ do
         addr <- L.hexadecimal
         _ <- char ' ' *> skipCount 7 anySingle *> char ' '
         section <- ident
@@ -53,18 +52,18 @@ parseSymtabLines = do
                 }
         return (name, symbol)
     _ <- skipSome eol
-    return lines
+    return lines_
   where
     ident = some (satisfy (not . isSpace))
 
 makeObjDumpInfo :: [SymtabLine] -> ObjDumpInfo
-makeObjDumpInfo lines =
+makeObjDumpInfo lines_ =
     ObjDumpInfo
         { symbols
         , sections
         }
   where
-    symbols = M.fromList lines
+    symbols = M.fromList lines_
     sections = appEndo (foldMap (Endo . f) (M.elems symbols)) M.empty
     f symbol = flip M.alter symbol.section $ \entry -> Just $ case entry of
         Just section ->
@@ -103,10 +102,10 @@ parseRODataFile = do
     let wordSize = case formatName of
             "elf32-littlearm" -> 4
             _ -> error $ "unrecognized format: " ++ formatName
-    map <- catMaybes <$> many (optional (try assocP) <* skipManyTill anySingle eol)
+    map_ <- catMaybes <$> many (optional (try assocP) <* skipManyTill anySingle eol)
     return $ RODataFile
         { wordSize
-        , map
+        , map = map_
         }
   where
     assocP = (,) <$> (L.hexadecimal <* ":\t") <*> L.hexadecimal

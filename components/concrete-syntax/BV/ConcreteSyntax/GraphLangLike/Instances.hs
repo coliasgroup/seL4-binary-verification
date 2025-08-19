@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module BV.ConcreteSyntax.GraphLangLike.Instances

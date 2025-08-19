@@ -5,7 +5,6 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-{-# OPTIONS_GHC -Wno-type-defaults #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.RepGraph.Solver
@@ -575,7 +574,7 @@ convertExpr expr = case expr.value of
                 v' <- convertExprNotSplit v
                 return $ NotSplit $ if
                     | exprBits == vBits -> v'
-                    | exprBits < vBits -> [ixS "extract" [intS (exprBits - 1), intS 0], v']
+                    | exprBits < vBits -> [ixS "extract" [intS (exprBits - 1), intS (0 :: Integer)], v']
                     | otherwise -> case op of
                         OpWordCast -> [ixS "zero_extend" [intS (exprBits - vBits)], v']
                         OpWordCastSigned -> [ixS "sign_extend" [intS (exprBits - vBits)], v']
@@ -717,7 +716,7 @@ getDerivedOp op bits = fmap symbolS $ withMapSlot #smtDerivedOps (op, bits) $ do
             topOp <- getDerivedOp op topBits
             botOp <- getDerivedOp op botBits
             let top = [ixS "extract" [intS (bits - 1), intS botBits], "x"]
-                bot = [ixS "extract" [intS (botBits - 1), intS 0], "x"]
+                bot = [ixS "extract" [intS (botBits - 1), intS (0 :: Integer)], "x"]
                 topApp = [topOp, top]
                 botApp = [botOp, bot]
                 topAppExtended = [ixS "zero_extend" [intS botBits], topApp]

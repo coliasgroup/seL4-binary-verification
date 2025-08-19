@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{-# OPTIONS_GHC -Wno-type-defaults #-}
-
 module BV.SMTLIB2.Process
     ( SolverContext (..)
     , SolverProcessException (..)
@@ -159,7 +157,7 @@ readTChanWithTimeout maybeMicroseconds chan = case maybeMicroseconds of
     Nothing -> Just <$> atomically (readTChan chan)
 
 solverTimeoutToMicroseconds :: SolverTimeout -> Int
-solverTimeoutToMicroseconds timeout = fromIntegerChecked (solverTimeoutToSeconds timeout * 10^6)
+solverTimeoutToMicroseconds timeout = fromIntegerChecked (solverTimeoutToSeconds timeout * 10^(6 :: Integer))
 
 fromIntegerChecked :: forall a. HasCallStack => (Num a, Integral a, Bounded a) => Integer -> a
 fromIntegerChecked x = if lo <= x && x <= hi then fromInteger x else error "out of bounds"
