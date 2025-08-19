@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Types.ProofChecks
+module BV.Core.Types.ProofCheck
     ( EqHyp (..)
     , EqHypInduct (..)
     , EqHypSide (..)

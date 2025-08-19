@@ -22,7 +22,7 @@ import BV.Core.Types.AsmRefineTag
 import BV.Core.Types.Pairing
 import BV.Core.Types.Problem
 import BV.Core.Types.Program
-import BV.Core.Types.ProofChecks
+import BV.Core.Types.ProofCheck
 import BV.Core.Types.ProofScript
 import BV.Core.Types.SMTProofChecks
 import BV.Core.Types.Tag

@@ -114,7 +114,7 @@ library core
       BV.Core.Types.Pairing
       BV.Core.Types.Problem
       BV.Core.Types.Program
-      BV.Core.Types.ProofChecks
+      BV.Core.Types.ProofCheck
       BV.Core.Types.ProofScript
       BV.Core.Types.SExprWithPlaceholders
       BV.Core.Types.SMTProofChecks
