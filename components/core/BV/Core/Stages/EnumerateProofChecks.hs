@@ -402,10 +402,10 @@ getSplitVisitAt visit (WithTag tag details) = branch $ do
     restrict1L tag $
         Restr details.split $
             case fromJust (simpleVC visit) of
-                SimpleVisitCountViewOffset n ->
-                    offsetVC $ n * details.step
                 SimpleVisitCountViewNumber n ->
                     numberVC $ details.seqStart + (n * details.step)
+                SimpleVisitCountViewOffset n ->
+                    offsetVC $ n * details.step
     getVisitWithTag tag (Addr details.split)
 
 getSplitHypsAt :: forall t m. MonadChecks t m => VisitCount -> SplitProofNode t () -> m [HypWithDesc t]
