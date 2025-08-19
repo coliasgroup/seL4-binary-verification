@@ -147,7 +147,6 @@ arraySizeIneq ty len = do
   where
     memSize = 2 ^ archWordSizeBits
 
--- TODO improve name
 data PValidInfo
   = PValidInfo
       { pvKind :: PValidKind
@@ -157,33 +156,42 @@ data PValidInfo
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
+-- First pointer validity assertion: incompatibility.
+-- pvalid1 & pvalid2 --> non-overlapping OR somehow-contained.
 pvalidAssertion1 :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
-pvalidAssertion1 a b = do
-    (cond1, out1) <- f a b
-    (cond2, out2) <- f b a
-    return $ (a.pv `andE` b.pv) `impliesE` foldr1 orE [cond1, cond2, out1, out2]
+pvalidAssertion1 x y = do
+    p1 <- x `completelyPrecedes` y
+    p2 <- y `completelyPrecedes` x
+    p3 <- x `pvalidContains` y
+    p4 <- y `pvalidContains` x
+    -- NOTE order matches graph-refine
+    let conj = foldr1 orE [p4, p3, p1, p2]
+    return $ (x.pv `andE` y.pv) `impliesE` conj
   where
-    f c d = do
-        let offs = c.p `minusE` d.p
-        cond <- getSTypCondition offs c.pvTy d.pvTy
-        size <- pvalidTypeSize c.pvTy
-        let endAddr = c.p `plusE` (size `minusE` machineWordE 1)
-        let out = endAddr `lessE` d.p
-        return (cond, out)
+    completelyPrecedes a b = do
+        aSize <- pvalidTypeSize a.pvTy
+        return $ (a.p `plusE` (aSize `minusE` machineWordE 1)) `lessE` b.p
 
+-- Second pointer validity assertion: implication.
+-- pvalid1 & strictly-contained --> pvalid2
 pvalidAssertion2 :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
-pvalidAssertion2 a b = do
-    case (a.pvTy, b.pvTy) of
-        (PValidTypeArray {}, PValidTypeArray {}) -> return trueE
+pvalidAssertion2 x y = do
+    case (x.pvTy, y.pvTy) of
+        (PValidTypeArray {}, PValidTypeArray {}) ->
+            -- Ignore this case. See note in graph-refine
+            return trueE
         _ -> do
-            imp1 <- f a b
-            imp2 <- f b a
-            return $ imp1 `andE` imp2
+            p1 <- x `wouldImply` y
+            p2 <- y `wouldImply` x
+            -- NOTE order matches graph-refine
+            return $ p2 `andE` p1
           where
-            f c d = do
-                let offs = c.p `minusE` d.p
-                cond <- getSTypCondition offs c.pvTy d.pvTy
-                return $ (cond `andE` d.pv) `impliesE` c.pv
+            wouldImply a b = do
+                cond <- a `pvalidContains` b
+                return $ (cond `andE` a.pv) `impliesE` b.pv
+
+pvalidContains :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
+pvalidContains x y = getSTypCondition (y.p `minusE` x.p) y.pvTy x.pvTy
 
 getSTypCondition :: MonadStructs m =>  Expr -> PValidType -> PValidType -> m Expr
 getSTypCondition offs innerTy outerTy =
