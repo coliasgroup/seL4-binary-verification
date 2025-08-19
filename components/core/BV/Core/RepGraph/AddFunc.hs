@@ -102,16 +102,6 @@ addFunc visit = do
                     withoutEnv $ assertFact imp
         liftWithAddFunc $ #funcsByName %= M.insertWith (flip (<>)) (viewAtTag tag (withTags pairingId)) [visit]
 
-areCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithAddFunc t m Bool
-areCompatible visits = do
-    calls <- for (withTags visits) $ \(WithTag tag visit) -> do
-        (in_, _, _) <- runForTag tag $ getFuncRaw visit
-        scanMemCalls in_
-    (compatible, _s) <- memCallsCompatible calls
-    -- unless compatible $ do
-    --     warn _s
-    return compatible
-
 getFuncAssert :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> PairingId t -> Pairing t -> WithAddFunc t m Expr
 getFuncAssert visits pairingId pairing = do
     ((lin, lout, lsucc), (rin, rout, rsucc)) <- fmap viewByRefineTag $ for (withTags visits) $ \(WithTag tag visit) -> do
@@ -136,6 +126,16 @@ getFuncAssert visits pairingId pairing = do
   where
     instEqs eqs envs = for eqs $ \eq ->
         instEqWithEnvs (eq.lhs.expr, envs eq.lhs.quadrant) (eq.rhs.expr, envs eq.rhs.quadrant)
+
+areCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithAddFunc t m Bool
+areCompatible visits = do
+    calls <- for (withTags visits) $ \(WithTag tag visit) -> do
+        (in_, _, _) <- runForTag tag $ getFuncRaw visit
+        scanMemCalls in_
+    (compatible, _s) <- memCallsCompatible calls
+    -- unless compatible $ do
+    --     warn _s
+    return compatible
 
 memCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t (Maybe MemCalls) -> WithAddFunc t m (Bool, Maybe String)
 memCallsCompatible byTag = case viewByRefineTag byTag of
