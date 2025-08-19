@@ -155,8 +155,14 @@ data RepGraphState t
       , extraProblemNames :: S.Set Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , funcs :: M.Map (WithTag t Visit) ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
+      , pcEnvRequests :: [PcEnvRequest t]
       }
   deriving (Eq, Generic, NFData)
+
+data PcEnvRequest t
+  = PcEnvRequest (WithTag t Visit)
+  | PcEnvRequestInductVar EqHypInduct
+  deriving (Eq, Generic, NFData, Ord, Show)
 
 data TooGeneral
   = TooGeneral
@@ -181,6 +187,7 @@ initRepGraphState = RepGraphState
     , extraProblemNames = S.empty
     , hasInnerLoop = M.empty
     , funcs = M.empty
+    , pcEnvRequests = []
     }
 
 initRepGraph :: MonadRepGraph t m => m ()
@@ -599,16 +606,22 @@ getNodePcEnvWithTag :: MonadRepGraph t m => WithTag t Visit -> m (Maybe PcEnv)
 getNodePcEnvWithTag (WithTag tag visit) = runForTag tag $ getNodePcEnv visit
 
 getNodePcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
-getNodePcEnv = getNodePcEnvInner (const (return ()))
+getNodePcEnv = getNodePcEnvInner True (const (return ()))
+
+getNodePcEnvNoRequest :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
+getNodePcEnvNoRequest = getNodePcEnvInner False (const (return ()))
 
 tryGetNodePcEnv :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m (Maybe PcEnv)
-tryGetNodePcEnv = getNodePcEnvInner checkGenerality
+tryGetNodePcEnv = getNodePcEnvInner True checkGenerality
 
-getNodePcEnvInner :: MonadRepGraphForTag t m => (Visit -> m ()) -> Visit -> m (Maybe PcEnv)
-getNodePcEnvInner check unprunedVisit = runMaybeT $ do
+getNodePcEnvInner :: MonadRepGraphForTag t m => Bool -> (Visit -> m ()) -> Visit -> m (Maybe PcEnv)
+getNodePcEnvInner request check unprunedVisit = runMaybeT $ do
     visit <- MaybeT $ pruneVisit unprunedVisit
     lift $ check visit
     MaybeT $ withMapSlotForTag #nodePcEnvs visit $ do
+        when request $ do
+            req <- PcEnvRequest <$> askWithTag visit
+            liftRepGraph $ #pcEnvRequests %= (++ [req])
         warmPcEnvCache visit
         getNodePcEnvRaw visit
 
@@ -681,7 +694,7 @@ getArcPcEnv :: MonadRepGraphForTag t m => Visit -> Visit -> m (Maybe PcEnv)
 getArcPcEnv prev visit = runMaybeT $ do
     key <- askWithTag prev
     pcEnvs <- withMapSlot #arcPcEnvs key $ do
-        MaybeT $ getNodePcEnv prev
+        MaybeT $ getNodePcEnvNoRequest prev
         emitNode prev
     hoistMaybe $ pcEnvs !? visit.nodeId
 
@@ -706,7 +719,7 @@ checkGenerality visit = void $ runMaybeT $ do
             throwError $ TooGeneral { split = restr.nodeAddr }
 
 warmPcEnvCache :: MonadRepGraphForTag t m => Visit -> m ()
-warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
+warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnvNoRequest
   where
     go 0 prevChain _ = return prevChain
     go i prevChain curVisit = do
@@ -722,7 +735,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
 
 emitNode :: MonadRepGraphForTag t m => Visit -> m (M.Map NodeId PcEnv)
 emitNode visit = do
-    pcEnv@(PcEnv pc env) <- fromJust <$> getNodePcEnv visit
+    pcEnv@(PcEnv pc env) <- fromJust <$> getNodePcEnvNoRequest visit
     let nodeAddr = nodeAddrOf visit.nodeId
     node <- askNode nodeAddr
     arcs <- M.fromList <$>
