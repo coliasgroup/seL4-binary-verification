@@ -13,6 +13,8 @@ import BV.Core.Types.Extras
 import Control.Monad.Writer (runWriter)
 import Data.Traversable (for)
 import Optics
+import Debug.Trace (traceShowM)
+import Data.Foldable (for_)
 
 compileProofChecks
     :: RepGraphBaseInput AsmRefineTag
@@ -46,7 +48,14 @@ compileProofCheckGroup repGraphInput lookupSig pairings group =
         problemArgRenames repGraphInput.problem $
             lookupSig <$>
                 withTags (pairingIdOfProblem repGraphInput.problem)
-    m = interpretGroup group <* addPValidDomAssertions
+    m = do
+        r <- interpretGroup group <* addPValidDomAssertions
+        reqs <- getPcEnvRequests
+        traceShowM "...start"
+        for_ reqs $ \req -> do
+            traceShowM req
+        traceShowM "...end"
+        return r
 
 interpretGroup :: (RefineTag t, MonadRepGraph t m) => ProofCheckGroup t a -> m [SMTProofCheckImp a]
 interpretGroup group = do

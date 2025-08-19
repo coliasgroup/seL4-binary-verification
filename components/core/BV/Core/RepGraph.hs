@@ -26,6 +26,7 @@ module BV.Core.RepGraph
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc
+    , getPcEnvRequests
     , getPcWithTag
     , instEqWithEnvs
     , runForTag

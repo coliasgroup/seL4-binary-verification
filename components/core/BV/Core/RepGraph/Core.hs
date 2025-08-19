@@ -16,6 +16,7 @@ module BV.Core.RepGraph.Core
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphForTag (..)
+    , PcEnvRequest (..)
     , RepGraphEnv
     , RepGraphState
     , TooGeneral (..)
@@ -32,6 +33,7 @@ module BV.Core.RepGraph.Core
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc
+    , getPcEnvRequests
     , getPcWithTag
     , initRepGraph
     , initRepGraphEnv
@@ -261,6 +263,11 @@ withMapSlotForTag :: (MonadRepGraphForTag t m, Ord k) => Lens' (RepGraphState t)
 withMapSlotForTag l k m = do
     k' <- askWithTag k
     withMapSlot l k' m
+
+--
+
+getPcEnvRequests :: MonadRepGraph t m => m [PcEnvRequest t]
+getPcEnvRequests = liftRepGraph $ use #pcEnvRequests
 
 --
 
