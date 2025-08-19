@@ -11,10 +11,10 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 
 import Control.Monad.Writer (runWriter)
-import Data.Traversable (for)
-import Optics
-import Debug.Trace (traceShowM)
 import Data.Foldable (for_)
+import Data.Traversable (for)
+import Debug.Trace (traceShowM)
+import Optics
 
 compileProofChecks
     :: RepGraphBaseInput AsmRefineTag
