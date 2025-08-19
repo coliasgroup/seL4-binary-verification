@@ -196,20 +196,21 @@ assumeHyps = assumeR . map (.hyp)
 instantiatePairingEqs :: MonadChecks t m => PairingEqDirection -> m [Hyp t]
 instantiatePairingEqs direction = branch $ do
     pairing <- askPairing
+    renames <- askArgRenames
     let eqs = case direction of
             PairingEqDirectionIn -> pairing.inEqs
             PairingEqDirectionOut -> pairing.outEqs
-    let visitFor quadrant = WithTag quadrant.tag <$> case quadrant.direction of
-            PairingEqDirectionIn -> do
-                entryPoint <- viewAtTag quadrant.tag <$> askEntryPoints
-                return $ Visit entryPoint []
-            PairingEqDirectionOut -> do
-                Visit Ret <$> getRestrsForTag quadrant.tag
-    renames <- askArgRenames
-    let eqSideFor side =
-            eqSideH (renameVars (renames side.quadrant) side.expr)
-                <$> visitFor side.quadrant
-    for eqs $ \PairingEq { lhs, rhs } -> eqH <$> eqSideFor lhs <*> eqSideFor rhs
+    let eqSide side = do
+            let tag = side.quadrant.tag
+            visit <- case side.quadrant.direction of
+                PairingEqDirectionIn -> do
+                    entryPoint <- viewAtTag tag <$> askEntryPoints
+                    return $ Visit entryPoint []
+                PairingEqDirectionOut -> do
+                    Visit Ret <$> getRestrsForTag tag
+            let renamedExpr = renameVars (renames side.quadrant) side.expr
+            return $ eqSideH renamedExpr (WithTag tag visit)
+    for eqs $ \PairingEq { lhs, rhs } -> eqH <$> eqSide lhs <*> eqSide rhs
 
 --
 
