@@ -209,7 +209,7 @@ instantiatePairingEqs direction = branch $ do
     let eqSideFor side =
             eqSideH (renameVars (renames side.quadrant) side.expr)
                 <$> visitFor side.quadrant
-    for eqs $ \PairingEq { lhs, rhs } -> eqH' <$> eqSideFor lhs <*> eqSideFor rhs
+    for eqs $ \PairingEq { lhs, rhs } -> eqH <$> eqSideFor lhs <*> eqSideFor rhs
 
 --
 
@@ -260,7 +260,7 @@ emitLeafNodeChecks = branch $ do
     assume1L =<< pcFalseH <$> getVisitWithTag rightTag Err
     noAsmErr <- pcFalseH <$> getVisitWithTag leftTag Err
     -- see note in checks.leaf_condition_checks
-    retEq <- eqH'
+    retEq <- eqH
         <$> (eqSideH trueE <$> getVisitWithTag leftTag Ret)
         <*> (eqSideH trueE <$> getVisitWithTag rightTag Ret)
     outEqs <- instantiatePairingEqs PairingEqDirectionOut
@@ -417,8 +417,7 @@ getSplitHypsAt vc splitNode = branch $ do
     starts <- getSplitVisitsAt (numberVC 0) splitNode
     let tagDesc tag = ((prettyTag (tag :: t) ++ " ") ++)
         imp = pcImpH `on` PcImpHypSidePc
-        eq l r = eqH l r induct
-        induct = Just $ eqInductByTagH ((.split) <$> splitNode.details)
+        eq = eqInductH $ eqInductByTagH ((.split) <$> splitNode.details)
         inst = instEqAtVisit vc
         mksub v = walkExprs $ \case
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
@@ -491,12 +490,12 @@ emitSingleLoopRevInductChecks node = branch $ do
     curr <- getSplitVisitAt (offsetVC 1) details
     cont <- getSplitVisitAt (offsetVC 2) details
     assume1R $ pcTrueH curr
-    assume1R $ trueIfAt' node.pred_ cont
+    assume1R $ trueIfAt node.pred_ cont
     assume1R =<< getSingleLoopRevCErrHyp details.value
     assumeHyps =<< getLoopEqHypsAt True (offsetVC 1) node
     conclude
         "Pred reverse step."
-        (trueIfAt' node.pred_ curr)
+        (trueIfAt node.pred_ curr)
 
 emitSingleLoopRevInductBaseChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleLoopRevInductBaseChecks node = branch $ do
@@ -508,23 +507,23 @@ emitSingleLoopRevInductBaseChecks node = branch $ do
     assumeHyps =<< getLoopEqHypsAt False (offsetVC 0) node
     conclude
         (printf "Pred true at %d check." node.nBound)
-        (trueIfAt' node.pred_ cont)
+        (trueIfAt node.pred_ cont)
 
 assumeSingleRevInduct :: MonadChecks t m => SingleRevInductProofNode t () -> m ()
 assumeSingleRevInduct node = branchRestrs $ do
     restrict1R node.tag $ Restr node.point (numberVC 0)
     visit <- getVisitWithTag node.tag (Addr node.point)
-    assume1R $ trueIfAt' node.pred_ visit
+    assume1R $ trueIfAt node.pred_ visit
 
 getLoopCounterEqHyp :: MonadChecks t m => SingleRevInductProofNode t () -> m (Hyp t)
 getLoopCounterEqHyp node = do
     let details = WithTag node.tag $ SplitProofNodeDetails node.point 0 1 []
     visit <- getSplitVisitAt (offsetVC 0) details
     return $
-        eqH
+        eqInductH
+            (eqInductSingleH node.point)
             (eqSideH (machineWordVarE (Ident "%n")) visit)
             (eqSideH (machineWordE node.nBound) visit)
-            (Just (eqInductSingleH node.point))
 
 getSingleLoopRevCErrHyp :: MonadChecks t m => SplitProofNodeDetails -> m (Hyp t)
 getSingleLoopRevCErrHyp = getSplitNodeCErrHypInner 1 1
@@ -545,10 +544,10 @@ getLoopEqHypsAt useIfAt vc node = do
         [ HypWithDesc (prettyTag node.tag ++ " pc imp") $ (pcImpH `on` PcImpHypSidePc) visit start
         ] ++
         [ HypWithDesc (prettyTag node.tag ++ " const") $
-            eqWithIfAtH useIfAt
+            (if useIfAt then eqIfAtInductH else eqInductH)
+                (eqInductSingleH node.point)
                 (eqSideH (zsub expr) start)
                 (eqSideH (isub expr) visit)
-                (Just (eqInductSingleH node.point))
         | Lambda { expr } <- node.eqs
         , instEqAtVisit vc expr
         ]

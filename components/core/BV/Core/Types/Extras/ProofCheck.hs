@@ -5,10 +5,10 @@ module BV.Core.Types.Extras.ProofCheck
     , doubleRangeVC
     , enumerateSimpleVC
     , eqH
-    , eqH'
     , eqIfAtH
-    , eqIfAtH'
+    , eqIfAtInductH
     , eqInductByTagH
+    , eqInductH
     , eqInductSingleH
     , eqSideH
     , eqWithIfAtH
@@ -30,7 +30,6 @@ module BV.Core.Types.Extras.ProofCheck
     , simpleVC
     , toMapVC
     , trueIfAt
-    , trueIfAt'
     , upToVC
     , withMapVC
     , withMapVCF
@@ -127,29 +126,58 @@ fromMapVC = map f . M.toList
 
 --
 
-eqH :: EqHypSide t -> EqHypSide t -> Maybe EqHypInduct -> Hyp t
-eqH = eqWithIfAtH False
+eqH :: EqHypSide t -> EqHypSide t -> Hyp t
+eqH lhs rhs = HypEq
+    { ifAt = False
+    , eq = EqHyp
+        { lhs
+        , rhs
+        , induct = Nothing
+        }
+    }
 
-eqH' :: EqHypSide t -> EqHypSide t -> Hyp t
-eqH' lhs rhs = eqH lhs rhs Nothing
+eqInductH :: EqHypInduct -> EqHypSide t -> EqHypSide t -> Hyp t
+eqInductH induct lhs rhs = HypEq
+    { ifAt = False
+    , eq = EqHyp
+        { lhs
+        , rhs
+        , induct = Just induct
+        }
+    }
 
-eqIfAtH :: EqHypSide t -> EqHypSide t -> Maybe EqHypInduct -> Hyp t
-eqIfAtH = eqWithIfAtH True
+eqIfAtInductH :: EqHypInduct -> EqHypSide t -> EqHypSide t -> Hyp t
+eqIfAtInductH induct lhs rhs = HypEq
+    { ifAt = True
+    , eq = EqHyp
+        { lhs
+        , rhs
+        , induct = Just induct
+        }
+    }
 
-eqIfAtH' :: EqHypSide t -> EqHypSide t -> Hyp t
-eqIfAtH' lhs rhs = eqIfAtH lhs rhs Nothing
+eqIfAtH :: EqHypSide t -> EqHypSide t -> Hyp t
+eqIfAtH lhs rhs = HypEq
+    { ifAt = True
+    , eq = EqHyp
+        { lhs
+        , rhs
+        , induct = Nothing
+        }
+    }
 
 eqWithIfAtH :: Bool -> EqHypSide t -> EqHypSide t -> Maybe EqHypInduct -> Hyp t
 eqWithIfAtH ifAt lhs rhs induct = HypEq
     { ifAt
-    , eq = EqHyp { lhs, rhs, induct }
+    , eq = EqHyp
+        { lhs
+        , rhs
+        , induct
+        }
     }
 
-trueIfAt :: Expr -> WithTag t Visit -> Maybe EqHypInduct -> Hyp t
+trueIfAt :: Expr -> WithTag t Visit -> Hyp t
 trueIfAt expr visit = eqIfAtH (eqSideH expr visit) (eqSideH trueE visit)
-
-trueIfAt' :: Expr -> WithTag t Visit -> Hyp t
-trueIfAt' expr visit = trueIfAt expr visit Nothing
 
 pcTrueH :: WithTag t Visit -> Hyp t
 pcTrueH visit = HypPcImp (PcImpHyp
