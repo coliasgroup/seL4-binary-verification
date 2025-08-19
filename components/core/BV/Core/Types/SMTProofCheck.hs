@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Types.SMTProofChecks
+module BV.Core.Types.SMTProofCheck
     ( AtomOrPlaceholder
     , SExprPlaceholder (..)
     , SExprWithPlaceholders

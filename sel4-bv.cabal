@@ -117,7 +117,7 @@ library core
       BV.Core.Types.ProofCheck
       BV.Core.Types.ProofScript
       BV.Core.Types.SExprWithPlaceholders
-      BV.Core.Types.SMTProofChecks
+      BV.Core.Types.SMTProofCheck
       BV.Core.Types.Tag
       BV.Core.Utils
   hs-source-dirs:

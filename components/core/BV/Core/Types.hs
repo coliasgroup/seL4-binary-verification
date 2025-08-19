@@ -8,7 +8,7 @@ module BV.Core.Types
     , module BV.Core.Types.ProofCheck
     , module BV.Core.Types.ProofScript
     , module BV.Core.Types.SExprWithPlaceholders
-    , module BV.Core.Types.SMTProofChecks
+    , module BV.Core.Types.SMTProofCheck
     , module BV.Core.Types.Tag
     ) where
 
@@ -21,5 +21,5 @@ import BV.Core.Types.Program
 import BV.Core.Types.ProofCheck
 import BV.Core.Types.ProofScript
 import BV.Core.Types.SExprWithPlaceholders
-import BV.Core.Types.SMTProofChecks
+import BV.Core.Types.SMTProofCheck
 import BV.Core.Types.Tag
