@@ -51,10 +51,10 @@ compileProofCheckGroup repGraphInput lookupSig pairings group =
     m = do
         r <- interpretGroup group <* addPValidDomAssertions
         reqs <- getPcEnvRequests
-        traceShowM "...start"
-        for_ reqs $ \req -> do
-            traceShowM req
-        traceShowM "...end"
+        -- traceShowM "...start"
+        -- for_ reqs $ \req -> do
+        --     traceShowM req
+        -- traceShowM "...end"
         return r
 
 interpretGroup :: (RefineTag t, MonadRepGraph t m) => ProofCheckGroup t a -> m [SMTProofCheckImp a]
