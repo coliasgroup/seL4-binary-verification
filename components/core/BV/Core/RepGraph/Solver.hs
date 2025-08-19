@@ -517,11 +517,11 @@ foldAssocBalanced f = go
 mergeEnvs :: MonadRepGraphSolver m => [PcEnv] -> m ExprEnv
 mergeEnvs envs = do
     varValPcList <- fmap concat $ for envs $ \(PcEnv pc env) -> do
-            pc' <- withEnv env $ convertExprNotSplit pc
-            return
-                [ (var, val, pc')
-                | (var, val) <- M.toList env
-                ]
+        pc' <- withEnv env $ convertExprNotSplit pc
+        return
+            [ (var, val, pc')
+            | (var, val) <- M.toList env
+            ]
     let varValPcMap = foldr (M.unionWith (M.unionWith (<>))) M.empty $
             [ M.singleton var (M.singleton val [pc'])
             | (var, val, pc') <- varValPcList
@@ -684,7 +684,7 @@ convertIfThenElse cond x y = case (x, y) of
     _ ->
         let xs = trivSplit x
             ys = trivSplit y
-            in Split $ SplitMem
+         in Split $ SplitMem
                 { split =
                     if xs.split == ys.split
                     then xs.split
