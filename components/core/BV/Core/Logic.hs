@@ -31,7 +31,7 @@ import BV.Core.Types.Extras
 import BV.Utils (ensure, ensureM)
 
 import Control.DeepSeq (NFData)
-import Data.Function (applyWhen)
+import Data.Function (applyWhen, on)
 import Data.List (nub, partition)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust)
@@ -79,7 +79,7 @@ data PValidTypeWithStrength
   = PValidTypeWithStrengthArray
       { ty :: ExprType
       , len :: Expr
-      , strength :: Maybe PArrayValidStrength
+      , strength :: PArrayValidStrength
       }
   | PValidTypeWithStrengthType ExprType
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -96,18 +96,13 @@ pvalidKindFromOp = \case
     OpPArrayValid -> PValidKindPArrayValid
     OpPWeakValid -> PValidKindPWeakValid
 
-pvalidTypeWithoutStrength :: PValidTypeWithStrength -> PValidType
-pvalidTypeWithoutStrength = \case
-    PValidTypeWithStrengthType ty -> PValidTypeType ty
-    PValidTypeWithStrengthArray { ty, len } -> PValidTypeArray { ty, len }
-
-pvalidTypeWithUnspecifiedStrength :: PValidType -> PValidTypeWithStrength
-pvalidTypeWithUnspecifiedStrength = \case
+augmentPValidTypeWithStrength :: PArrayValidStrength -> PValidType -> PValidTypeWithStrength
+augmentPValidTypeWithStrength strength = \case
     PValidTypeType ty -> PValidTypeWithStrengthType ty
     PValidTypeArray { ty, len } -> PValidTypeWithStrengthArray
         { ty
         , len
-        , strength = Nothing
+        , strength
         }
 
 pvalidTypeSize :: MonadStructs m => PValidType -> m Expr
@@ -131,7 +126,7 @@ alignValidIneq pvTy p = do
         PValidTypeArray { ty, len } -> (:[]) <$> arraySizeIneq ty len
     ensureM $ align `elem` [1, 4, 8]
     return $ foldr1 andE $
-        [ bitwiseAndE p (machineWordE (align - 1)) `eqE` w0 | align > 1 ]
+        [ p `bitwiseAndE` (machineWordE (align - 1)) `eqE` w0 | align > 1 ]
             ++ sizeReqs
             ++ [ notE (p `eqE` w0)
                , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
@@ -191,75 +186,66 @@ pvalidAssertion2 x y = do
                 return $ (contained `andE` outer.pv) `impliesE` inner.pv
 
 pvalidContains :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
-pvalidContains outer inner = getSTypCondition (inner.p `minusE` outer.p) inner.pvTy outer.pvTy
-
-getSTypCondition :: MonadStructs m =>  Expr -> PValidType -> PValidType -> m Expr
-getSTypCondition offs innerTy outerTy =
-    getSTypConditionInner1
-        (pvalidTypeWithUnspecifiedStrength innerTy)
-        (pvalidTypeWithUnspecifiedStrength outerTy)
+pvalidContains outer inner =
+    (getSubtypeCondition `on` augmentPValidTypeWithStrength PArrayValidStrengthWeak)
+        inner.pvTy
+        outer.pvTy
             <&> \case
                 Nothing -> falseE
-                Just f -> f offs
+                Just cond -> cond (inner.p `minusE` outer.p)
 
--- TODO evaluate performance loss from not caching (see graph-refine)
-getSTypConditionInner1 :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
-getSTypConditionInner1 innerTy outerTy =
-    getSTypConditionInner2
-        (normalizeArrayType innerTy)
-        (normalizeArrayType outerTy)
+getSubtypeCondition :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
+getSubtypeCondition = go
 
-normalizeArrayType :: PValidTypeWithStrength -> PValidTypeWithStrength
-normalizeArrayType = \case
-    PValidTypeWithStrengthType (ExprTypeArray { ty, len }) -> PValidTypeWithStrengthArray
-        { ty
-        , len = machineWordE len
-        , strength = Just PArrayValidStrengthStrong
-        }
-    PValidTypeWithStrengthArray { ty, len, strength = Nothing } -> PValidTypeWithStrengthArray
-        { ty
-        , len
-        , strength = Just PArrayValidStrengthWeak
-        }
-    pvTy -> pvTy
-
-getSTypConditionInner2 :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
-getSTypConditionInner2 innerPvTy outerPvTy = case (innerPvTy, outerPvTy) of
-    (PValidTypeWithStrengthArray { ty = innerElTy }, PValidTypeWithStrengthArray { strength = outerBound }) -> do
-            condOpt <- getSTypConditionInner1 (PValidTypeWithStrengthType innerElTy) outerPvTy
-            innerSize <- pvTySizeCompat innerPvTy
-            outerSize <- pvTySizeCompat outerPvTy
-            return $ case (outerBound, condOpt) of
-                (Just PArrayValidStrengthStrong, Just cond) ->
-                    Just $ \offs -> cond offs `andE` ((innerSize `plusE` offs) `lessEqE` outerSize)
-                _ -> condOpt
-    _ | innerPvTy == outerPvTy -> do
-            return $ Just $ \offs -> offs `eqE` machineWordE 0
-    (_, PValidTypeWithStrengthType (ExprTypeStruct outerStructName)) -> do
-            askStruct outerStructName >>= doOuterStruct
-    (_, PValidTypeWithStrengthType (ExprTypeGlobalWrapper inner)) -> do
-            dummyGlobalWrapperStruct inner >>= doOuterStruct
-    (_, PValidTypeWithStrengthArray { ty = outerElTy, strength = outerBound }) -> do
-            condOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType outerElTy)
-            outerSize <- pvTySizeCompat outerPvTy
-            outerElSize <- machineWordE <$> sizeOfType outerElTy
-            return $ condOpt <&> \cond -> case outerBound of
-                Just PArrayValidStrengthStrong ->
-                    \offs -> (offs `lessE` outerSize) `andE` cond (offs `modulusE` outerElSize)
-                _ ->
-                    \offs -> cond (offs `modulusE` outerElSize)
-    _ -> return Nothing
   where
-    doOuterStruct outerStruct = do
+
+    go = goNorm `on` normalizeArrayType
+
+    goNorm innerPvTy outerPvTy = case (innerPvTy, outerPvTy) of
+        ( PValidTypeWithStrengthArray { ty = innerElTy }
+            , PValidTypeWithStrengthArray { strength = outerBound }
+            ) -> do
+                condOpt <- go (PValidTypeWithStrengthType innerElTy) outerPvTy
+                case (outerBound, condOpt) of
+                    (PArrayValidStrengthStrong, Just cond) -> do
+                        innerSize <- pvTySizeCompat innerPvTy
+                        outerSize <- pvTySizeCompat outerPvTy
+                        return $ Just $
+                            \offs -> cond offs `andE` ((innerSize `plusE` offs) `lessEqE` outerSize)
+                    _ -> return condOpt
+        _ | innerPvTy == outerPvTy -> do
+                return $ Just $ \offs -> offs `eqE` machineWordE 0
+        (_, PValidTypeWithStrengthType (ExprTypeStruct outerStructName)) -> do
+                askStruct outerStructName >>= goNormStruct innerPvTy
+        (_, PValidTypeWithStrengthType (ExprTypeGlobalWrapper inner)) -> do
+                dummyGlobalWrapperStruct inner >>= goNormStruct innerPvTy
+        (_, PValidTypeWithStrengthArray { ty = outerElTy, strength = outerBound }) -> do
+                condOpt <- go innerPvTy (PValidTypeWithStrengthType outerElTy)
+                outerSize <- pvTySizeCompat outerPvTy
+                outerElSize <- machineWordE <$> sizeOfType outerElTy
+                return $ condOpt <&> \cond -> case outerBound of
+                    PArrayValidStrengthStrong ->
+                        \offs -> (offs `lessE` outerSize) `andE` cond (offs `modulusE` outerElSize)
+                    _ ->
+                        \offs -> cond (offs `modulusE` outerElSize)
+        _ -> return Nothing
+
+    goNormStruct innerPvTy outerStruct = do
         conds <- fmap catMaybes $ for (M.elems outerStruct.fields) $ \field -> do
-            condOpt <- getSTypConditionInner1 innerPvTy (PValidTypeWithStrengthType field.ty)
-            return $ condOpt <&> (, machineWordE field.offset)
+            let contextualize cond offs = cond (offs `minusE` machineWordE field.offset)
+            over _Just contextualize <$> go innerPvTy (PValidTypeWithStrengthType field.ty)
         return $ case conds of
             [] -> Nothing
-            _ -> Just $ \offs -> foldr1 orE
-                [ c (offs `minusE` offs')
-                | (c, offs') <- conds
-                ]
+            _ -> Just $ \offs -> foldr1 orE [ cond offs | cond <- conds]
+
+    normalizeArrayType = \case
+        PValidTypeWithStrengthType (ExprTypeArray { ty, len }) -> PValidTypeWithStrengthArray
+            { ty
+            , len = machineWordE len
+            , strength = PArrayValidStrengthStrong
+            }
+        pvTy -> pvTy
+
     -- HACK don't use pvalidTypeSize, instead match op order of graph-refine
     pvTySizeCompat = \case
         PValidTypeWithStrengthType ty -> machineWordE <$> sizeOfType ty
