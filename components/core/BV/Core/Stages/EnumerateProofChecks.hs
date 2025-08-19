@@ -320,8 +320,7 @@ getLoopsToSplit = do
     let loopHeadsWithoutSplit = (S.difference `on` S.fromList) loopHeads loopHeadsWithSplit
     g <- askNodeGraph
     let pruneWith restr = applyWhen (not (hasZeroVC restr.value.visitCount)) $
-            -- restr node must be visited, so loop heads must be
-            -- reachable from restr (or on another tag)
+            -- restr node must be visited, so loop heads must be  from restr (or on another tag)
             S.filter $ \loopHeadWithoutSplit ->
                 loopHeadWithoutSplit.tag /= restr.tag
                     || isReachableFrom g (Addr restr.value.nodeAddr) (Addr loopHeadWithoutSplit.value)
