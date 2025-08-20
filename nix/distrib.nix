@@ -12,7 +12,7 @@ let
     name = "worker";
     runtimeInputs = [ sel4-bv ] ++ workerSolvers;
     text = ''
-      logfile=log.$(date +%s).$RANDOM.txt
+      logfile=sel4-bv-worker-log.$(date +%s).$RANDOM.txt
       sel4-bv-cli "$@" 2> >(tee "$logfile" >&2)
     '';
   };

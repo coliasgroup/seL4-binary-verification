@@ -191,7 +191,7 @@ parseOpts = customExecParser
 --
 
 commonInfo :: InfoMod a
-commonInfo = header "sel4-bv: seL4 Binary Verification"
+commonInfo = header "seL4 Binary Verification"
 
 optsParserInfo :: ParserInfo Opts
 optsParserInfo =
@@ -244,14 +244,14 @@ logOptsParser defaultLogFormat logName prefix = do
         [ long (prefix ++ "log-level")
         , metavar "LEVEL"
         , value defaultLogLevel
-        , help (printf "Log level for %s log" logName)
+        , help (printf "Log level for %s log (error|warn|info|debug|trace)" logName)
         , completeWith logLevelValues
         ]
     format <- option' logFormatReader
         [ long (prefix ++ "log-format")
         , metavar "FORMAT"
         , value defaultLogFormat
-        , help "Log format for file log"
+        , help "Log format for file log (human|text|json)"
         , completeWith logFormatValues
         ]
     pure $ LogOpts { level, format }
@@ -299,19 +299,24 @@ defaultLogFormatForFile = LogFormatText
 
 commandOptsParser :: Parser CommandOpts
 commandOptsParser =
-    subparser (mconcat
+    hsubparser (mconcat
         [ command "check"
-            (info (notWorker CommandOptsCheck checkOptsParser)
+            (info
+                (notWorker CommandOptsCheck checkOptsParser)
                 (commonInfo <> progDesc "Check proof scripts"))
-        , command "extract-smt"
-            (info (notWorker CommandOptsExtractSMT extractSMTOptsParser)
-                (commonInfo <> progDesc "Extract SMT from a 'check' log"))
         , command "format-smt"
-            (info (notWorker CommandOptsFormatSMT formatSMTOptsParser)
-                (commonInfo <> progDesc "Format SMT s-expressions"))
-        , command "worker"
-            (info (CommandOptsWorker <$> workerOptsParser)
-                (commonInfo <> progDesc "Spawn worker"))
+            (info
+                (notWorker CommandOptsFormatSMT formatSMTOptsParser)
+                (commonInfo <> progDesc "Format SMT-LIB 2.0 S-expressions"))
+
+        , command "extract-smt"
+            (info
+                (notWorker CommandOptsExtractSMT extractSMTOptsParser)
+                (commonInfo <> progDesc "Extract solver input or output from a 'check' log"))
+        , command "_worker"
+            (info
+                (CommandOptsWorker <$> workerOptsParser)
+                (commonInfo <> progDesc "(internal) Spawn worker"))
         ])
   where
     notWorker constr p = do
@@ -323,23 +328,21 @@ checkOptsParser :: Parser CheckOpts
 checkOptsParser = do
     solvers <- option' str
         [ long "solvers"
-        , short 's'
         , metavar "FILE"
-        , help "Solvers config file"
         , action "file"
+        , help "Solvers config file"
         ]
     workers <- optional $ option' str
         [ long "workers"
-        , short 'w'
         , metavar "FILE"
-        , help "Workers config file"
         , action "file"
+        , help "Workers config file, for external workers mode"
         ]
     onlineSolverTimeout <- option' (solverTimeoutFromSeconds <$> auto)
         [ long "online-solver-timeout"
         , metavar "SECONDS"
         , value defaultOnlineSolverTimeout
-        , help "Timeout for online solvers"
+        , help "Timeout for online solver"
         ]
     offlineSolverTimeout <- option' (solverTimeoutFromSeconds <$> auto)
         [ long "offline-solver-timeout"
@@ -350,13 +353,13 @@ checkOptsParser = do
     numCoresOpts <- do
         numEvalCores <- optional $ option' auto
             [ long "num-eval-cores"
-            , metavar "NUM_EVAL_CORES"
-            , help "Number of Haskell cores for evaluating proof check groups"
+            , metavar "N"
+            , help "Number of cores to use for Haskell evaluation"
             ]
         numSolverCores <- optional $ option' auto
             [ long "num-solver-cores"
-            , metavar "NUM_SMT_CORES"
-            , help "Number of SMT solver cores"
+            , metavar "N"
+            , help "Number cores to use for SMT solvers, for embedded worker mode"
             ]
         pure $ CheckNumCoresOpts
             { numEvalCores
@@ -375,74 +378,85 @@ checkOptsParser = do
     cFunctionPrefix <- option' str
         [ long "c-function-prefix"
         , metavar "C_FUNCTION_PREFIX"
+        , help "Prefix used for deriving C function name from ASM function name"
         ]
     rodataSections <- many $ option' str
         [ long "rodata-section"
         , metavar "SECTION"
+        , help "Declare ELF section as rodata"
         ]
     rodataSymbols <- many $ option' str
         [ long "rodata-symbol"
         , metavar "SYMBOL"
+        , help "Declare ELF symbol as rodata"
         ]
     inputTargetDir <- option' str
         [ long "target-dir"
-        , short 'd'
         , metavar "DIRECTORY"
-        , help "Input target directory"
         , action "directory"
+        , help "Input target directory"
         ]
     includeFunctions <- many $ option' (Ident <$> str)
         [ long "include-function"
         , metavar "SYMBOL"
+        , help "Only check ASM functions specified by this option"
         ]
     ignoreFunctions <- many $ option' (Ident <$> str)
         [ long "ignore-function"
         , metavar "SYMBOL"
+        , help "Don't check this ASM function"
         ]
     includeFunctionsEarly <- many $ option' (Ident <$> str)
         [ long "include-function-early"
         , metavar "SYMBOL"
+        , help "Only acknowledge ASM functions specified by this option"
         ]
     ignoreFunctionsEarly <- many $ option' (Ident <$> str)
         [ long "ignore-function-early"
         , metavar "SYMBOL"
+        , help "Don't acknowledge this ASM function"
         ]
     includeGroups <- many $ over _2 CheckGroupFingerprintPattern <$> option' (eitherReader parseIncludeFingerprintPattern)
         [ long "include-group"
-        , metavar "FINGERPRINT"
+        , metavar "FUNCTION:GROUP_FINGERPRINT"
+        , help "Only check check groups specified by this option"
         ]
     includeChecks <- many $ over _2 CheckFingerprintPattern <$> option' (eitherReader parseIncludeFingerprintPattern)
         [ long "include-check"
-        , metavar "FINGERPRINT"
+        , metavar "FUNCTION:CHECK_FINGERPRINT"
+        , help "Only check checks specified by this option"
         ]
     reportFile <- optional $ option' str
         [ long "report-file"
         , metavar "FILE"
-        , help "Output file for report"
         , action "file"
-        ]
-    forceEvalStages <- switch'
-        [ long "force-eval-stages"
-        , help "Force evaluation of stages"
+        , help "Output file for report"
         ]
     dumpTargetDir <- optional $ option' str
         [ long "dump-target-dir"
         , metavar "DIRECTORY"
         , action "directory"
+        , help "Dump stages into this directory"
         ]
     referenceTargetDir <- optional $ option' str
         [ long "reference-target-dir"
         , metavar "DIRECTORY"
         , action "directory"
+        , help "Check stages against those found in this"
         ]
     mismatchDir <- optional $ option' str
         [ long "mismatch-dir"
         , metavar "DIRECTORY"
         , action "directory"
+        , help "Dump stage mismatches into this directory"
         ]
     justCompareChecks <- switch'
-        [ long "just-compare-checks"
-        , help "Just compare checks to reference"
+        [ long "just-compare-to-reference"
+        , help "Just compare stages to reference, skipping solver invocations"
+        ]
+    forceEvalStages <- switch'
+        [ long "force-eval-all-stages"
+        , help "Force evaluation of all stages"
         ]
     pure $ CheckOpts
         { numCoresOpts
@@ -489,7 +503,7 @@ extractSMTOptsParser = do
         [ long "format"
         , metavar "FORMAT"
         , value defaultLogFormatForFile
-        , help "Log format for input log"
+        , help "Log format for input log (human|text|json)"
         , completeWith logFormatValues
         ]
     lineWrappingOpts <- optional lineWrappingOptsParser
