@@ -474,8 +474,8 @@ mergeMemCalls xcalls ycalls =
 
 --
 
-addVarRestrWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> Maybe MemCalls -> m MaybeSplit
-addVarRestrWithMemCalls nameHint ty memCallsOpt = do
+addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> Maybe MemCalls -> m MaybeSplit
+addVarWithMemCalls nameHint ty memCallsOpt = do
     v <- nameS <$> addVarRestr nameHint ty
     when (isMemT ty) $ do
         liftRepGraph $ #memCalls %= M.insert v (fromJust memCallsOpt)
@@ -506,7 +506,7 @@ addVarsToEnvWithRepRequests
     -> m ExprEnv
 addVarsToEnvWithRepRequests mkName memCalls kind visit vars = execStateT $ do
     for_ vars $ \var -> do
-        v <- addVarRestrWithMemCalls (mkName var.name) var.ty memCalls
+        v <- addVarWithMemCalls (mkName var.name) var.ty memCalls
         modify $ M.insert var v
     intermediateEnv <- get
     for_ vars $ \var -> do
@@ -650,7 +650,7 @@ getLoopPcEnv visit = do
             nonConsts
             prevEnv
         pc <- smtExprE boolT <$>
-            addVarRestrWithMemCalls
+            addVarWithMemCalls
                 (printf "pc_of_loop_at_%P" visit.nodeId)
                 boolT
                 memCalls
