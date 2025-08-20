@@ -506,14 +506,14 @@ varRepRequest var kind visit env = runMaybeT $ do
 -- TODO rename
 addVarsToEnvWithRepRequests
     :: MonadRepGraphForTag t m
-    => (Ident -> NameHint)
+    => VarRepRequestKind
+    -> (Ident -> NameHint)
     -> Maybe MemCalls
-    -> VarRepRequestKind
     -> Visit
     -> [NameTy]
     -> ExprEnv
     -> m ExprEnv
-addVarsToEnvWithRepRequests mkName memCalls kind visit vars = execStateT $ do
+addVarsToEnvWithRepRequests kind mkName memCalls visit vars = execStateT $ do
     for_ vars $ \var -> do
         v <- addVarWithMemCalls (mkName var.name) var.ty memCalls
         modify $ M.insert var v
@@ -558,10 +558,10 @@ addInputEnvs = do
   where
     f (WithTag tag side) = runForTag tag $ do
         env <- addVarsToEnvWithRepRequests
+            VarRepRequestKindInit
             (\name -> name.unwrap ++ "_init")
             (Just M.empty)
-            VarRepRequestKindInit
-            (Visit { nodeId = side.entryPoint, restrs = []})
+            (Visit side.entryPoint [])
             side.input
             M.empty
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
@@ -652,9 +652,9 @@ getLoopPcEnv visit = do
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         nonConsts <- filterM (fmap not . isConstM) (M.keys prevEnv)
         env <- addVarsToEnvWithRepRequests
+            VarRepRequestKindLoop
             (\ident -> printf "%P_after_loop_at_%P" ident visit.nodeId)
             memCalls
-            VarRepRequestKindLoop
             visit
             nonConsts
             prevEnv
@@ -768,9 +768,9 @@ emitNode visit = do
                 ins <- for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr arg)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
                 env' <- addVarsToEnvWithRepRequests
+                    VarRepRequestKindCall
                     (\name -> localName name visit)
                     memCalls
-                    VarRepRequestKindCall
                     visit
                     callNode.output
                     env
