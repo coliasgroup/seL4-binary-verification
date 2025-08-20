@@ -296,7 +296,7 @@ addDef nameHint val =
 
 addDefNotSplit :: MonadRepGraphSolver m => NameHint -> Expr -> ReaderT ExprEnv m Name
 addDefNotSplit nameHint val =
-    view (expecting #_Left) <$> addDefInner nameHint val
+    viewExpecting #_Left <$> addDefInner nameHint val
 
 addDefInner :: MonadRepGraphSolver m => NameHint -> Expr -> ReaderT ExprEnv m (Either Name SplitMem)
 addDefInner nameHint expr = convertExpr expr >>= \case
@@ -562,7 +562,7 @@ convertInnerExpr expr = case expr.ty of
     _ -> smtExprE expr.ty <$> convertExpr expr
 
 convertExprNotSplit :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m S
-convertExprNotSplit expr = view (expecting #_NotSplit) <$> convertExpr expr
+convertExprNotSplit expr = viewExpecting #_NotSplit <$> convertExpr expr
 
 convertExpr :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m MaybeSplit
 convertExpr expr = case expr.value of
@@ -632,7 +632,7 @@ convertExpr expr = case expr.value of
                 if sp1 == sp2 && stack1 == stack2
                     then return $ NotSplit trueS
                     else do
-                        eq <- getStackEqImplies (view (expecting #_Split) stack2) stack1
+                        eq <- getStackEqImplies (viewExpecting #_Split stack2) stack1
                         return $ NotSplit $ (sp1 `eqS` sp2) `andS` eq
         OpImpliesStackEquals -> do
                 let [sp1, stack1, sp2, stack2] = args

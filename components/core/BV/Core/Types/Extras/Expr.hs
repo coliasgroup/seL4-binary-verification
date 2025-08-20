@@ -59,7 +59,7 @@ module BV.Core.Types.Extras.Expr
 
 import BV.Core.Arch (archWordSizeBits)
 import BV.Core.Types
-import BV.Utils (ensure, expecting, fromIntegerChecked, is)
+import BV.Utils (ensure, fromIntegerChecked, is, viewExpecting)
 
 import Control.DeepSeq (NFData)
 import Data.Bits (shiftL)
@@ -108,7 +108,7 @@ isMemT = is #_ExprTypeMem
 --
 
 wordTBits :: ExprType -> Integer
-wordTBits = view (expecting #_ExprTypeWord)
+wordTBits = viewExpecting #_ExprTypeWord
 
 --
 

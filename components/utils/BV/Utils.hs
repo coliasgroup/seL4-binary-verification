@@ -19,6 +19,7 @@ module BV.Utils
     , todo
     , unimplemented
     , unwrapped
+    , viewExpecting
     , whileM
     , (!@)
     ) where
@@ -79,7 +80,10 @@ expecting optic = withAffineTraversal optic $ \match update ->
         update
 
 expecting_ :: HasCallStack => Is k An_AffineFold => Optic' k is s a -> Getter s a
-expecting_ optic = to (fromJust . preview optic)
+expecting_ optic = to (viewExpecting optic)
+
+viewExpecting :: Is k An_AffineFold => Optic' k is s a -> s -> a
+viewExpecting optic = fromJust . preview optic
 
 is :: Is k An_AffineFold => Optic' k is s a -> s -> Bool
 is k s = isJust (preview k s)
