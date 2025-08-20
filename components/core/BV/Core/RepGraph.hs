@@ -13,23 +13,18 @@ module BV.Core.RepGraph
     , PcEnv (..)
     , TooGeneral (..)
     , addPValidDomAssertions
-    , askCont -- TODO
     , askLoopData
     , askModelExprs
     , askModelVars
     , askNodeGraph
     , askProblem
     , convertExprNotSplit
-    , convertInnerExprWithPcEnv -- TODO
     , getFunc
-    , getInductVar
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc
     , getPcWithTag
-    , instEqWithEnvs
     , runForTag
-    , substInduct
     , tryGetNodePcEnv
     , withEnv
     , withoutEnv
