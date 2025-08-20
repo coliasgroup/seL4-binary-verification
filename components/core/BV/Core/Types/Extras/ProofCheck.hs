@@ -206,7 +206,7 @@ eqSideH = EqHypSide
 -- HACK integer representation matches graph-refine
 
 eqInductByTagH :: RefineTag t => ByTag t NodeAddr -> EqHypInduct
-eqInductByTagH addrs = ensure (notElem 0 rawAddrs) $ withByRefineTag EqHypInduct rawAddrs
+eqInductByTagH addrs = ensure (0 `notElem` rawAddrs) $ withByRefineTag EqHypInduct rawAddrs
   where
     rawAddrs = (.unwrap) <$> addrs
 

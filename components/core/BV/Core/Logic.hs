@@ -125,7 +125,7 @@ alignValidIneq pvTy p = do
         PValidTypeArray { ty, len } -> (:[]) <$> arraySizeIneq ty len
     ensureM $ align `elem` [1, 4, 8]
     return $ foldr1 andE $
-        [ p `bitwiseAndE` (machineWordE (align - 1)) `eqE` w0 | align > 1 ]
+        [ (p `bitwiseAndE` machineWordE (align - 1)) `eqE` w0 | align > 1 ]
             ++ sizeReqs
             ++ [ notE (p `eqE` w0)
                , (w0 `lessE` size) `impliesE` (p `lessEqE` negE size)
