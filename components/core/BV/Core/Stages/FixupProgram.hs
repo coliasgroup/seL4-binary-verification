@@ -6,6 +6,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 
 import Control.Monad.State (State, execState, gets, modify)
+import Data.Bits (shiftL)
 import Data.Foldable (find, for_)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
@@ -38,4 +39,8 @@ ensureClosed = do
 -- implementation matches graph_refine.syntax.fresh_node
 freshNodeAddr :: NodeMap -> NodeAddr
 freshNodeAddr nodeMap = fromJust . find (`M.notMember` nodeMap) $
-    iterate (+ 16) 17
+    [ NodeAddr (hint + (i `shiftL` 4))
+    | i <- [1..]
+    ]
+  where
+    hint = 1
