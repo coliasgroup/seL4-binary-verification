@@ -20,6 +20,7 @@ module BV.Core.RepGraph.Core
     , RepGraphState
     , TooGeneral (..)
     , VarRepRequestKind (..)
+    , VarReqRequest (..)
     , askCont
     , askLoopData
     , askNodeGraph
@@ -91,7 +92,7 @@ class MonadRepGraph t n => MonadRepGraphDefaultHelper t n m | m -> t, m -> n whe
 
 class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
     liftRepGraph :: StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
-    runProblemVarRepHook :: NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe Expr)
+    runProblemVarRepHook :: NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe VarReqRequest)
     runPostEmitNodeHook :: Visit -> m ()
     runPreEmitCallNodeHook :: Visit -> Expr -> ExprEnv -> ForTag t m ()
     runPostEmitCallNodeHook :: Visit -> ForTag t m ()
@@ -99,7 +100,7 @@ class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
     default liftRepGraph :: MonadRepGraphDefaultHelper t n m => StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
     liftRepGraph = liftMonadRepGraphDefaultHelper . liftRepGraph
 
-    default runProblemVarRepHook :: MonadRepGraphDefaultHelper t n m => NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe Expr)
+    default runProblemVarRepHook :: MonadRepGraphDefaultHelper t n m => NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe VarReqRequest)
     runProblemVarRepHook = compose3 (mapForTag liftMonadRepGraphDefaultHelper) runProblemVarRepHook
 
     default runPostEmitNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> m ()
@@ -482,17 +483,25 @@ addVarWithMemCalls nameHint ty memCallsOpt = do
     return $ NotSplit v
 
 data VarRepRequestKind
-  = VarRepRequestKindCall
-  | VarRepRequestKindInit
+  = VarRepRequestKindInit
   | VarRepRequestKindLoop
+  | VarRepRequestKindCall
+  deriving (Eq, Generic, Ord, Show)
+
+data VarReqRequest
+  = VarRepRequestSplitMem
+      { addr :: Expr
+      }
   deriving (Eq, Generic, Ord, Show)
 
 varRepRequest :: MonadRepGraphForTag t m => NameTy -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
 varRepRequest var kind visit env = runMaybeT $ do
-    addrExpr <- MaybeT $ joinForTag $ runProblemVarRepHook var kind (nodeAddrOf visit.nodeId)
-    addrSexpr <- withEnv env $ convertExprNotSplit addrExpr
-    let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
-    addSplitMemVar addrSexpr nameHint var.ty
+    req <- MaybeT $ joinForTag $ runProblemVarRepHook var kind (nodeAddrOf visit.nodeId)
+    case req of
+        VarRepRequestSplitMem { addr } -> do
+            addrSexpr <- withEnv env $ convertExprNotSplit addr
+            let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
+            addSplitMemVar addrSexpr nameHint var.ty
 
 -- TODO rename
 addVarsToEnvWithRepRequests

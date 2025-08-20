@@ -37,7 +37,7 @@ instance MonadRepGraph AsmRefineTag m => MonadRepGraphDefaultHelper AsmRefineTag
 instance MonadRepGraph AsmRefineTag m => MonadRepGraph AsmRefineTag (WithAsmStackRep m) where
     runProblemVarRepHook = asmStackRepHook
 
-asmStackRepHook :: MonadRepGraph AsmRefineTag m => NameTy -> VarRepRequestKind -> NodeAddr -> ForTag AsmRefineTag (WithAsmStackRep m) (Maybe Expr)
+asmStackRepHook :: MonadRepGraph AsmRefineTag m => NameTy -> VarRepRequestKind -> NodeAddr -> ForTag AsmRefineTag (WithAsmStackRep m) (Maybe VarReqRequest)
 asmStackRepHook var kind _ = runMaybeT $ do
     tag <- askTag
     guard $ tag == Asm
@@ -45,9 +45,11 @@ asmStackRepHook var kind _ = runMaybeT $ do
     guard $ var.ty == ExprTypeMem
     guard $ kind /= VarRepRequestKindInit
     argRenames <- lift $ lift $ WithAsmStackRep ask
-    return $ varE word32T $ argRenames
-        (PairingEqSideQuadrant
-            { tag
-            , direction = PairingEqDirectionIn
-            })
-        (Ident "r13")
+    return $ VarRepRequestSplitMem
+        { addr = varE word32T $ argRenames
+            (PairingEqSideQuadrant
+                { tag
+                , direction = PairingEqDirectionIn
+                })
+            (Ident "r13")
+        }
