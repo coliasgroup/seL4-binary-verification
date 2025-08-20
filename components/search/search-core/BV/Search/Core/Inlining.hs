@@ -117,7 +117,7 @@ nextReachableUnmatchedCInlinePointInner = runForTag C $ do
     loops <- allInnerLoops p.nodes <$> askLoopData
     let limits = [ Restr loop.head (doubleRangeVC 3 3) | loop <- loops ]
     let reachable = reachableFrom g p.sides.c.entryPoint
-    let f n = void $ runExceptT $ tryGetNodePcEnv $ Visit n limits
+    let f n = void $ tryGetNodePcEnv $ Visit n limits
     -- HACK order matches graph-refine
     traverse_ f $ sort $ filter (is #_Addr) reachable
     f Ret
