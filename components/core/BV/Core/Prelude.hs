@@ -31,7 +31,6 @@ module BV.Core.Prelude
     , executeSMTProofCheckGroupOffline
     , executeSMTProofCheckGroupOnline
     , executeSMTProofCheckOffline
-    , followProofScriptEdgePath
     , prettyMemoryMode
     , prettyModelConfig
     , prettyPairingId
