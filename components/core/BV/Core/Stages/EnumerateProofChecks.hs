@@ -466,10 +466,7 @@ emitSingleLoopInductStepChecks node = branch $ do
         assumeHyps =<< getLoopEqHypsAt False (offsetVC i) node
     getLoopEqHypsAt False (offsetVC node.n) node
         >>= concludeManyWith
-            (\desc ->
-                printf "Induct check (%s) at inductive step for %P"
-                    desc
-                    node.point)
+            (\desc -> printf "Induct check (%s) at inductive step for %P" desc node.point)
 
 emitSingleLoopInductBaseChecks :: MonadChecks t m => SingleRevInductProofNode t () -> CheckWriter t m ()
 emitSingleLoopInductBaseChecks node = branch $ do
