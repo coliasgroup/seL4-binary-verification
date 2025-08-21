@@ -245,7 +245,7 @@ enumerateProofChecksInner = go
                 ProofNodeWith checks . ProofNodeSplit <$>
                     traverseSplitProofNodeChildren
                         (go (assumeSplitNoLoop splitNode))
-                        (go (assumeSplitLoop splitNode True))
+                        (go (assumeSplitLoop True splitNode))
                         splitNode
             ProofNodeSingleRevInduct singleRevInductNode -> do
                 checks <- collect $ branch $ emitSingleRevInductNodeChecks singleRevInductNode
@@ -346,8 +346,7 @@ emitSplitNodeInitStepChecks splitNode = branch $ do
     assume1L =<< getSplitNodeCErrHyp splitNode
     for_ [0 .. splitNode.n - 1] $ \i -> branch $ do
         visits <- getSplitVisitsAt (numberVC i) splitNode
-        assume1R $ pcTrueH visits.left
-        assume1R $ pcTrivH visits.right
+        assumeR [pcTrueH visits.left, pcTrivH visits.right]
         getSplitHypsAt (numberVC i) splitNode
             >>= concludeManyWith (\desc -> printf "Induct check at visit %d: %s" i desc)
 
@@ -357,7 +356,7 @@ emitSplitNodeInductStepChecks splitNode = branch $ do
     conts <- getSplitVisitsAt (offsetVC n) splitNode
     assumeL [pcTrueH conts.left, pcTrivH conts.right]
     assume1L =<< getSplitNodeCErrHyp splitNode
-    assumeSplitLoop splitNode False
+    assumeSplitLoop False splitNode
     getSplitHypsAt (offsetVC n) splitNode
         >>= concludeManyWith (\desc ->
             printf "Induct check (%s) at inductive step for %P"
@@ -369,8 +368,8 @@ assumeSplitNoLoop splitNode = branchRestrs $ do
     visits <- getSplitVisitsAt (numberVC splitNode.n) splitNode
     assume1R $ pcFalseH visits.left
 
-assumeSplitLoop :: MonadChecks t m => SplitProofNode t () -> Bool -> m ()
-assumeSplitLoop splitNode exit = branchRestrs $ do
+assumeSplitLoop :: MonadChecks t m => Bool -> SplitProofNode t () -> m ()
+assumeSplitLoop exit splitNode = branchRestrs $ do
     let n = splitNode.n
     visits <- getSplitVisitsAt (offsetVC (n - 1)) splitNode
     conts <- getSplitVisitsAt (offsetVC n) splitNode
@@ -394,14 +393,14 @@ getSplitNodeCErrHypInner n loopRMax detailsR = branch $ do
     pcFalseH <$> getVisitWithTag rightTag Err
 
 getSplitVisitsAt :: MonadChecks t m => VisitCount -> SplitProofNode t () -> m (ByTag t (WithTag t Visit))
-getSplitVisitsAt visit splitNode =
-    traverse (getSplitVisitAt visit) (withTags splitNode.details)
+getSplitVisitsAt vc splitNode =
+    traverse (getSplitVisitAt vc) (withTags splitNode.details)
 
 getSplitVisitAt :: MonadChecks t m => VisitCount -> WithTag t SplitProofNodeDetails -> m (WithTag t Visit)
-getSplitVisitAt visit (WithTag tag details) = branch $ do
+getSplitVisitAt vc (WithTag tag details) = branch $ do
     restrict1L tag $
         Restr details.split $
-            case fromJust (simpleVC visit) of
+            case fromJust (simpleVC vc) of
                 SimpleVisitCountViewNumber n ->
                     numberVC $ details.seqStart + (n * details.step)
                 SimpleVisitCountViewOffset n ->
@@ -410,11 +409,11 @@ getSplitVisitAt visit (WithTag tag details) = branch $ do
 
 getSplitHypsAt :: forall t m. MonadChecks t m => VisitCount -> SplitProofNode t () -> m [HypWithDesc t]
 getSplitHypsAt vc splitNode = branch $ do
-    visits <- getSplitVisitsAt vc splitNode
     starts <- getSplitVisitsAt (numberVC 0) splitNode
+    visits <- getSplitVisitsAt vc splitNode
     let tagDesc tag = ((prettyTag (tag :: t) ++ " ") ++)
         imp = pcImpH `on` PcImpHypSidePc
-        eq = eqInductH $ eqInductByTagH ((.split) <$> splitNode.details)
+        eq = eqInductH (eqInductByTagH ((.split) <$> splitNode.details))
         inst = instEqAtVisit vc
         mksub v = walkExprs $ \case
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
@@ -423,31 +422,32 @@ getSplitHypsAt vc splitNode = branch $ do
         isub = mksub $ case fromJust (simpleVC vc) of
             SimpleVisitCountViewNumber n -> machineWordE n
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
-    return $
-        [ HypWithDesc "pc imp" $ visits.left `imp` visits.right
-        , HypWithDesc (tagDesc leftTag "pc imp") $ visits.left `imp` starts.left
-        , HypWithDesc (tagDesc rightTag "pc imp") $  visits.right `imp` starts.right
-        ] ++
-        [ HypWithDesc (tagDesc leftTag "const") $
-            eq
+    return $ concat
+        [ [ HypWithDesc "pc imp" $ visits.left `imp` visits.right
+          , HypWithDesc (tagDesc leftTag "pc imp") $ visits.left `imp` starts.left
+          , HypWithDesc (tagDesc rightTag "pc imp") $  visits.right `imp` starts.right
+          ]
+        , [ HypWithDesc (tagDesc leftTag "const") $
+              eq
                 (eqSideH (zsub exprL) starts.left)
                 (eqSideH (isub exprL) visits.left)
-        | Lambda { expr = exprL } <- splitNode.details.left.eqs
-        , inst exprL
-        ] ++
-        [ HypWithDesc (tagDesc rightTag "const") $
-            eq
-                (eqSideH (zsub exprR) starts.right)
-                (eqSideH (isub exprR) visits.right)
-        | Lambda { expr = exprR } <- splitNode.details.right.eqs
-        , inst exprR
-        ] ++
-        [ HypWithDesc "eq" $
-            eq
-                (eqSideH (isub exprL) visits.left)
-                (eqSideH (isub exprR) visits.right)
-        | (Lambda { expr = exprL }, Lambda { expr = exprR }) <- splitNode.eqs
-        , inst exprL && inst exprR
+          | Lambda { expr = exprL } <- splitNode.details.left.eqs
+          , inst exprL
+          ]
+        , [ HypWithDesc (tagDesc rightTag "const") $
+              eq
+                  (eqSideH (zsub exprR) starts.right)
+                  (eqSideH (isub exprR) visits.right)
+          | Lambda { expr = exprR } <- splitNode.details.right.eqs
+          , inst exprR
+          ]
+        , [ HypWithDesc "eq" $
+              eq
+                  (eqSideH (isub exprL) visits.left)
+                  (eqSideH (isub exprR) visits.right)
+          | (Lambda { expr = exprL }, Lambda { expr = exprR }) <- splitNode.eqs
+          , inst exprL && inst exprR
+          ]
         ]
 
 --
