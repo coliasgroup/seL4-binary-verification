@@ -24,7 +24,7 @@ import BV.TargetDir
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import System.Directory (createDirectoryIfMissing)
-import System.FilePath ((<.>), (</>))
+import System.FilePath ((<.>), (</>), takeDirectory)
 import Test.Tasty (TestTree, withResource)
 import qualified Text.Show.Pretty as H
 
@@ -32,7 +32,7 @@ ensureDir :: FilePath -> IO ()
 ensureDir = createDirectoryIfMissing True
 
 ensureParent :: FilePath -> IO ()
-ensureParent path = ensureDir $ path </> ".."
+ensureParent = ensureDir . takeDirectory
 
 --
 
