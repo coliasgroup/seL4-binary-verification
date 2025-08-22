@@ -379,16 +379,13 @@ assumeSplitLoop exit splitNode = branchRestrs $ do
         assumeHyps =<< getSplitHypsAt (offsetVC i) splitNode
 
 getSplitNodeCErrHyp :: MonadChecks t m => SplitProofNode t () -> m (Hyp t)
-getSplitNodeCErrHyp splitNode =
-    getSplitNodeCErrHypInner splitNode.n splitNode.loopRMax splitNode.details.right
-
-getSplitNodeCErrHypInner :: MonadChecks t m => Integer -> Integer -> SplitProofNodeDetails -> m (Hyp t)
-getSplitNodeCErrHypInner n loopRMax detailsR = branch $ do
+getSplitNodeCErrHyp splitNode = branch $ do
+    let detailsR = splitNode.details.right
     restrict1L rightTag $
         Restr detailsR.split $
             doubleRangeVC
-                (detailsR.seqStart + (n * detailsR.step))
-                (loopRMax + 2)
+                (detailsR.seqStart + (splitNode.n * detailsR.step))
+                (splitNode.loopRMax + 2)
     applyRestrOthers
     pcFalseH <$> getVisitWithTag rightTag Err
 
