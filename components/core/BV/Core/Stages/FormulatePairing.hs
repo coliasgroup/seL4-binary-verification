@@ -42,9 +42,9 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
     (inMemEqs, outMemEqs) =
         mkMemEqs
             asmMem
-            (maybeFromList (map varFromNameTyE cInMems))
+            (maybeFromSingletonList (map varFromNameTyE cInMems))
             (Just asmMem)
-            (maybeFromList (map varFromNameTyE cOutMems))
+            (maybeFromSingletonList (map varFromNameTyE cOutMems))
 
     asmArgSeq = take numCArgs $ concat
         [ [ (r i, Nothing)
@@ -177,7 +177,7 @@ mkMemEqs asmInMem cInMemOpt asmOutMemOpt cOutMemOpt =
             , cOut (rodataE cOutMem) === cOut trueE
             ]
 
-maybeFromList :: [a] -> Maybe a
-maybeFromList = \case
+maybeFromSingletonList :: [a] -> Maybe a
+maybeFromSingletonList = \case
     [] -> Nothing
     [a] -> Just a
