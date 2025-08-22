@@ -7,7 +7,6 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.RepGraph.Core
     ( ForTag
@@ -364,13 +363,13 @@ successName :: Ident -> Visit -> NameHint
 successName fname vis =
     printf "%s_success_at_%s" name (nodeCountName vis)
   where
-    name = case reverse names of
-        [] -> "fun"
-        name':_ -> name'
+    name = case unsnoc names of
+        Nothing -> "fun"
+        Just (_, name') -> name'
     names =
-        [ intercalate "_" bits'
-        | bits' <- filter (not . null) $ tails bits
-        , all isAlpha (head bits')
+        [ intercalate "_" suffix
+        | suffix@(bit:_) <- filter (not . null) $ tails bits
+        , all isAlpha bit
         ]
     bits = splitOn "." fname.unwrap
 
