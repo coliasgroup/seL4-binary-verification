@@ -227,7 +227,7 @@ instance ParseInLine Op where
         "PAlignValid" -> Right OpPAlignValid
         "PGlobalValid" -> Right OpPGlobalValid
         "PArrayValid" -> Right OpPArrayValid
-        "HTDUpdate" -> Right OpHTDUpdate
+        "HTDUpdate" -> Right OpHtdUpdate
         "WordArrayAccess" -> Right OpWordArrayAccess
         "WordArrayUpdate" -> Right OpWordArrayUpdate
         "TokenWordsAccess" -> Right OpTokenWordsAccess
@@ -366,7 +366,7 @@ instance BuildInLine Op where
         OpPAlignValid -> "PAlignValid"
         OpPGlobalValid -> "PGlobalValid"
         OpPArrayValid -> "PArrayValid"
-        OpHTDUpdate -> "HTDUpdate"
+        OpHtdUpdate -> "HTDUpdate"
         OpWordArrayAccess -> "WordArrayAccess"
         OpWordArrayUpdate -> "WordArrayUpdate"
         OpTokenWordsAccess -> "TokenWordsAccess"

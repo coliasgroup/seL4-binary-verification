@@ -647,7 +647,7 @@ convertExpr expr = case expr.value of
                     <$> convertExprNotSplit cond
                     <*> convertExpr x
                     <*> convertExpr y
-        OpHTDUpdate -> do
+        OpHtdUpdate -> do
                 NotSplit . nameS <$> addVar "update_htd" expr.ty
         OpEquals | (head args).ty == ExprTypeMem -> do
                 args' <- traverse convertExprNotSplit args

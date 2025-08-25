@@ -323,7 +323,7 @@ data Op
   | OpPAlignValid
   | OpPGlobalValid
   | OpPArrayValid
-  | OpHTDUpdate
+  | OpHtdUpdate
   | OpWordArrayAccess
   | OpWordArrayUpdate
   | OpTokenWordsAccess
