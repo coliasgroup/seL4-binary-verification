@@ -41,7 +41,7 @@ compileProofCheckGroup repGraphInput lookupSig pairings group =
         runWriter
             (runRepGraphBase
                 repGraphInput
-                (runWithAddFunc lookupSig pairings (runWithAsmStackRep argRenames m)))
+                (runWithFunAsserts lookupSig pairings (runWithAsmStackRep argRenames m)))
     argRenames =
         problemArgRenames repGraphInput.problem $
             lookupSig <$>

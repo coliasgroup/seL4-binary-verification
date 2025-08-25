@@ -793,7 +793,7 @@ getStackEqImplies stack1 stack2 = do
     let (rhs, cond) = case stack2 of
             Split (SplitMem { split, top }) -> (top, split `bvuleS` stack1.split)
             NotSplit s -> (s, trueS)
-    noteModelExpr (eqS stack1.top rhs) boolT
+    noteModelExpr (stack1.top `eqS` rhs) boolT
     mems <- getImmBasisMems stack1.top
     let [k] = S.toList mems
     oldOpt <- liftSolver $ use $ #stackEqImpliesCheckMap % expectingAt k

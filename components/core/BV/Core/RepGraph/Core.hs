@@ -10,6 +10,7 @@
 
 module BV.Core.RepGraph.Core
     ( ForTag
+    , FunCallInfo (..)
     , MemCalls
     , MemCallsForFunction (..)
     , MonadRepGraph (..)
@@ -26,8 +27,8 @@ module BV.Core.RepGraph.Core
     , askProblem
     , askWithTag
     , convertInnerExprWithPcEnv
-    , getFunc
-    , getFuncRaw
+    , getFunCallInfo
+    , getFunCallInfoRaw
     , getInductVar
     , getNodePcEnv
     , getNodePcEnvWithTag
@@ -73,7 +74,7 @@ import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, isNothing, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -154,7 +155,7 @@ data RepGraphState t
       , contractions :: Map SExprWithPlaceholders MaybeSplit
       , extraProblemNames :: S.Set Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
-      , funcs :: M.Map (WithTag t Visit) ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
+      , funcs :: M.Map (WithTag t Visit) FunCallInfo
       }
   deriving (Eq, Generic, NFData)
 
@@ -458,18 +459,18 @@ addLoopMemCalls split = traverse $ \memCalls -> do
     return $ M.union newMemCalls memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
-mergeMemCalls xcalls ycalls =
-    if xcalls == ycalls
-    then xcalls
+mergeMemCalls xs ys =
+    if xs == ys
+    then xs
     else
-        let ks = S.union (M.keysSet xcalls) (M.keysSet ycalls)
+        let ks = S.union (M.keysSet xs) (M.keysSet ys)
          in flip M.fromSet ks $ \k -> f
-                (fromMaybe zeroMemCallsForFunction (M.lookup k xcalls))
-                (fromMaybe zeroMemCallsForFunction (M.lookup k ycalls))
+                (fromMaybe zeroMemCallsForFunction (M.lookup k xs))
+                (fromMaybe zeroMemCallsForFunction (M.lookup k ys))
   where
     f x y = MemCallsForFunction
         { min = min x.min y.min
-        , max = liftA2 max x.max y.max
+        , max = max <$> x.max <*> y.max
         }
 
 --
@@ -775,7 +776,8 @@ emitNode visit = do
                     env
                 let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
                 key <- askWithTag visit
-                liftRepGraph $ #funcs %= M.insertWith undefined key (ins, outs, success)
+                let info = FunCallInfo { ins, outs, success }
+                liftRepGraph $ #funcs %= M.insertWith undefined key info
                 joinForTag $ runPostEmitCallNodeHook visit
                 return [(callNode.next, PcEnv pc env')]
     runPostEmitNodeHook visit
@@ -824,23 +826,31 @@ isSyntacticConstant var split = do
 
 --
 
-getFuncRaw :: MonadRepGraphForTag t m => Visit -> m ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
-getFuncRaw visit = do
-    key <- askWithTag visit
-    liftRepGraph $ use $ #funcs % expectingAt key
+data FunCallInfo
+  = FunCallInfo
+      { ins :: [(ExprType, MaybeSplit)]
+      , outs :: [(ExprType, MaybeSplit)]
+      , success :: Expr
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
 
-getFunc :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m ([(ExprType, MaybeSplit)], [(ExprType, MaybeSplit)], Expr)
-getFunc unprunedVisit = do
-    visit <- fromJust <$> pruneVisit unprunedVisit
-    node <- askNode (nodeAddrOf visit.nodeId)
-    ensureM $ is #_NodeCall node
+getFunCallInfoRawOpt :: MonadRepGraphForTag t m => Visit -> m (Maybe FunCallInfo)
+getFunCallInfoRawOpt visit = do
     key <- askWithTag visit
-    opt <- liftRepGraph $ use $ #funcs % at key
-    when (isNothing opt) $ do
-        cont <- askCont visit
-        getNodePcEnv cont
-        return ()
-    getFuncRaw visit
+    liftRepGraph $ use $ #funcs % at key
+
+getFunCallInfoRaw :: MonadRepGraphForTag t m => Visit -> m FunCallInfo
+getFunCallInfoRaw visit = fromJust <$> getFunCallInfoRawOpt visit
+
+getFunCallInfo :: (MonadRepGraphForTag t m, MonadError TooGeneral m) => Visit -> m FunCallInfo
+getFunCallInfo unprunedVisit = do
+    visit <- fromJust <$> pruneVisit unprunedVisit
+    node <- askNode $ nodeAddrOf visit.nodeId
+    ensureM $ is #_NodeCall node
+    infoOpt <- getFunCallInfoRawOpt visit
+    whenNothing infoOpt $ do
+        askCont visit >>= getNodePcEnv
+        getFunCallInfoRaw visit
 
 -- TODO GraphSlice.is_cont
 

@@ -4,6 +4,7 @@ module BV.Core.RepGraph
     , module BV.Core.RepGraph.Base
     , module BV.Core.RepGraph.Interpret
     , ForTag
+    , FunCallInfo (..)
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphForTag (..)
@@ -18,7 +19,8 @@ module BV.Core.RepGraph
     , askNodeGraph
     , askProblem
     , convertExprNotSplit
-    , getFunc
+    , getFunCallInfo
+    , getFunCallInfoRaw
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc
