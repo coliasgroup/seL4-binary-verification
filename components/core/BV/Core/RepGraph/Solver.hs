@@ -355,6 +355,7 @@ addVar nameHint ty = do
             liftSolver $ #modelVars %= S.insert name
     return name
 
+-- TODO
 addVarRestr :: MonadRepGraphSolver m => NameHint -> ExprType -> m Name
 addVarRestr = addVar
 
