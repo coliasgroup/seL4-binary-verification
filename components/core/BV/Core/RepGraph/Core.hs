@@ -478,12 +478,12 @@ mergeMemCalls xs ys =
 
 --
 
-addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> MemCallsIfKnown -> m MaybeSplit
+addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> MemCallsIfKnown -> m Name
 addVarWithMemCalls nameHint ty memCallsOpt = do
     v <- addVar nameHint ty
     when (isMemT ty) $ do
         liftRepGraph $ #memCalls %= M.insert v (fromJust memCallsOpt)
-    return $ NotSplit $ nameS v
+    return v
 
 data VarRepRequestKind
   = VarRepRequestKindInit
@@ -518,7 +518,7 @@ addVarsToEnvWithRepRequests
     -> m ExprEnv
 addVarsToEnvWithRepRequests kind mkName memCalls visit vars = execStateT $ do
     for_ vars $ \var -> do
-        v <- addVarWithMemCalls (mkName var.name) var.ty memCalls
+        v <- NotSplit . nameS <$> addVarWithMemCalls (mkName var.name) var.ty memCalls
         modify $ M.insert var v
     intermediateEnv <- get
     for_ vars $ \var -> do
