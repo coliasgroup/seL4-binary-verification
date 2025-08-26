@@ -525,6 +525,8 @@ addVarReps kind mkName memCalls visit vars = execStateT $ do
         opt <- varRepRequest var kind visit intermediateEnv
         for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
 
+--
+
 -- TODO
 addLocalDef :: MonadRepGraph t m => NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
 addLocalDef = addDef
