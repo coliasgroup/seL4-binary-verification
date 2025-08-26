@@ -392,90 +392,6 @@ visitCountName (VisitCount { numbers, offsets }) =
 
 --
 
-type MemCalls = Map Ident MemCallsRange
-
-type MemCallsIfKnown = Maybe MemCalls
-
-data MemCallsRange
-  = MemCallsRange
-      { min :: Integer
-      , max :: Maybe Integer
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-zeroMemCallsRange :: MemCallsRange
-zeroMemCallsRange = MemCallsRange
-    { min = 0
-    , max = Just 0
-    }
-
-addMemCall :: Ident -> MemCallsIfKnown -> MemCallsIfKnown
-addMemCall fname = fmap $ flip M.alter fname $ Just . incr . fromMaybe zeroMemCallsRange
-  where
-    incr = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
-
-getMemCalls :: MonadRepGraph t m => SExprWithPlaceholders -> m MemCalls
-getMemCalls = go
-  where
-    go = \case
-        List [op, x, _, _] | isStore op ->
-            go x
-        List [op, _, x, y] | op == symbolS "ite" ->
-            mergeMemCalls <$> go x <*> go y
-        sexpr -> do
-            r <- runMaybeT $ do
-                name <- hoistMaybe $ Name <$> parseSymbolS sexpr
-                memCallsOpt <- liftRepGraph $ use $ #memCalls % at name
-                whenNothing memCallsOpt $ do
-                    next <- MaybeT $ tryGetDef name
-                    lift $ go next
-            whenNothing r $ do
-                error $ "getMemCalls fallthrough: " ++ show (showSExprWithPlaceholders sexpr)
-    isStore s = s `elem`
-        ([ symbolS "store-word8"
-         , symbolS "store-word32"
-         , symbolS "store-word64"
-         ] :: [SExprWithPlaceholders])
-
-scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m MemCallsIfKnown
-scanMemCallsEnv env = scanMemCalls
-    [ (var.ty, v)
-    | (var, v) <- M.toList env
-    ]
-
-scanMemCalls :: MonadRepGraph t m => [(ExprType, MaybeSplit)] -> m MemCallsIfKnown
-scanMemCalls tyVals = do
-    memCalls <- traverse getMemCalls [ v | (ty, NotSplit v) <- tyVals, ty == memT ]
-    return $ case memCalls of
-        [] -> Nothing
-        _ -> Just $ foldr1 mergeMemCalls memCalls
-
-addLoopMemCalls :: MonadRepGraphForTag t m => NodeAddr -> MemCallsIfKnown -> m MemCallsIfKnown
-addLoopMemCalls split = traverse $ \memCalls -> do
-    nodeAddrs <- askLoopBody split
-    node <- traverse askNode (toList nodeAddrs)
-    let fnames = S.fromList $ node ^.. folded % #_NodeCall % #functionName
-    let newMemCalls fname = M.findWithDefault zeroMemCallsRange fname memCalls & #max .~ Nothing
-    return $ M.union (M.fromSet newMemCalls fnames) memCalls
-
-mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
-mergeMemCalls xs ys =
-    if xs == ys
-    then xs
-    else
-        let ks = M.keysSet xs <> M.keysSet ys
-         in flip M.fromSet ks $ \k ->
-                (mergeRanges `on` fromMaybe zeroMemCallsRange)
-                    (M.lookup k xs)
-                    (M.lookup k ys)
-  where
-    mergeRanges x y = MemCallsRange
-        { min = min x.min y.min
-        , max = max <$> x.max <*> y.max
-        }
-
---
-
 addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> MemCallsIfKnown -> m Name
 addVarWithMemCalls nameHint ty memCallsOpt = do
     v <- addVar nameHint ty
@@ -833,6 +749,90 @@ getFunCallInfo unprunedVisit = do
     whenNothing infoOpt $ do
         askCont visit >>= getNodePcEnv
         getFunCallInfoRaw visit
+
+--
+
+type MemCalls = Map Ident MemCallsRange
+
+type MemCallsIfKnown = Maybe MemCalls
+
+data MemCallsRange
+  = MemCallsRange
+      { min :: Integer
+      , max :: Maybe Integer
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+zeroMemCallsRange :: MemCallsRange
+zeroMemCallsRange = MemCallsRange
+    { min = 0
+    , max = Just 0
+    }
+
+addMemCall :: Ident -> MemCallsIfKnown -> MemCallsIfKnown
+addMemCall fname = fmap $ flip M.alter fname $ Just . incr . fromMaybe zeroMemCallsRange
+  where
+    incr = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
+
+getMemCalls :: MonadRepGraph t m => SExprWithPlaceholders -> m MemCalls
+getMemCalls = go
+  where
+    go = \case
+        List [op, x, _, _] | isStore op ->
+            go x
+        List [op, _, x, y] | op == symbolS "ite" ->
+            mergeMemCalls <$> go x <*> go y
+        sexpr -> do
+            r <- runMaybeT $ do
+                name <- hoistMaybe $ Name <$> parseSymbolS sexpr
+                memCallsOpt <- liftRepGraph $ use $ #memCalls % at name
+                whenNothing memCallsOpt $ do
+                    next <- MaybeT $ tryGetDef name
+                    lift $ go next
+            whenNothing r $ do
+                error $ "getMemCalls fallthrough: " ++ show (showSExprWithPlaceholders sexpr)
+    isStore s = s `elem`
+        ([ symbolS "store-word8"
+         , symbolS "store-word32"
+         , symbolS "store-word64"
+         ] :: [SExprWithPlaceholders])
+
+scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m MemCallsIfKnown
+scanMemCallsEnv env = scanMemCalls
+    [ (var.ty, v)
+    | (var, v) <- M.toList env
+    ]
+
+scanMemCalls :: MonadRepGraph t m => [(ExprType, MaybeSplit)] -> m MemCallsIfKnown
+scanMemCalls tyVals = do
+    memCalls <- traverse getMemCalls [ v | (ty, NotSplit v) <- tyVals, ty == memT ]
+    return $ case memCalls of
+        [] -> Nothing
+        _ -> Just $ foldr1 mergeMemCalls memCalls
+
+addLoopMemCalls :: MonadRepGraphForTag t m => NodeAddr -> MemCallsIfKnown -> m MemCallsIfKnown
+addLoopMemCalls split = traverse $ \memCalls -> do
+    nodeAddrs <- askLoopBody split
+    node <- traverse askNode (toList nodeAddrs)
+    let fnames = S.fromList $ node ^.. folded % #_NodeCall % #functionName
+    let newMemCalls fname = M.findWithDefault zeroMemCallsRange fname memCalls & #max .~ Nothing
+    return $ M.union (M.fromSet newMemCalls fnames) memCalls
+
+mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
+mergeMemCalls xs ys =
+    if xs == ys
+    then xs
+    else
+        let ks = M.keysSet xs <> M.keysSet ys
+         in flip M.fromSet ks $ \k ->
+                (mergeRanges `on` fromMaybe zeroMemCallsRange)
+                    (M.lookup k xs)
+                    (M.lookup k ys)
+  where
+    mergeRanges x y = MemCallsRange
+        { min = min x.min y.min
+        , max = max <$> x.max <*> y.max
+        }
 
 --
 
