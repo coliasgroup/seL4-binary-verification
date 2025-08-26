@@ -87,6 +87,8 @@ import Text.Printf (printf)
 
 -- TODO cache more accross groups?
 
+-- TODO GraphSlice.is_cont
+
 class MonadRepGraph t n => MonadRepGraphDefaultHelper t n m | m -> t, m -> n where
     liftMonadRepGraphDefaultHelper :: n a -> m a
     default liftMonadRepGraphDefaultHelper :: (m ~ t' n, MonadTrans t') => n a -> m a
@@ -831,8 +833,6 @@ getFunCallInfo unprunedVisit = do
     whenNothing infoOpt $ do
         askCont visit >>= getNodePcEnv
         getFunCallInfoRaw visit
-
--- TODO GraphSlice.is_cont
 
 --
 
