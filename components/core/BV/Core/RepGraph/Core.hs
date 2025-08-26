@@ -500,9 +500,9 @@ varRepRequest kind visit env var = runMaybeT $ do
     req <- MaybeT $ joinForTag $ runProblemVarRepHook var kind (nodeAddrOf visit.nodeId)
     case req of
         VarRepRequestSplitMem { addr } -> do
-            addrSexpr <- withEnv env $ convertExprNotSplit addr
+            addrSExpr <- withEnv env $ convertExprNotSplit addr
             let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
-            addSplitMemVar addrSexpr nameHint var.ty
+            addSplitMemVar addrSExpr nameHint var.ty
 
 -- TODO rename?
 addVarReps
