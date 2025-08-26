@@ -417,9 +417,9 @@ fullMemCallsRange = MemCallsRange
     }
 
 addMemCall :: Ident -> MemCallsIfKnown -> MemCallsIfKnown
-addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
-    let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
-     in f $ fromMaybe zeroMemCallsRange slot
+addMemCall fname = fmap $ flip M.alter fname $ Just . incr . fromMaybe zeroMemCallsRange
+  where
+    incr = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
 
 getMemCalls :: MonadRepGraph t m => SExprWithPlaceholders -> m MemCalls
 getMemCalls = go
