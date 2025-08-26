@@ -1,4 +1,4 @@
-module BV.Core.RepGraph.Interpret
+module BV.Core.RepGraph.InterpretHyp
     ( interpretHyp
     , interpretHypImps
     ) where

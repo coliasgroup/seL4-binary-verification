@@ -2,7 +2,7 @@ module BV.Core.RepGraph
     ( module BV.Core.RepGraph.AsmStackRep
     , module BV.Core.RepGraph.Base
     , module BV.Core.RepGraph.FunAsserts
-    , module BV.Core.RepGraph.Interpret
+    , module BV.Core.RepGraph.InterpretHyp
     , ForTag
     , FunCallInfo (..)
     , MonadRepGraph (..)
@@ -35,5 +35,5 @@ import BV.Core.RepGraph.AsmStackRep
 import BV.Core.RepGraph.Base
 import BV.Core.RepGraph.Core
 import BV.Core.RepGraph.FunAsserts
-import BV.Core.RepGraph.Interpret
+import BV.Core.RepGraph.InterpretHyp
 import BV.Core.RepGraph.Solver

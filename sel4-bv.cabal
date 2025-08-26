@@ -96,7 +96,7 @@ library core
       BV.Core.RepGraph.Base
       BV.Core.RepGraph.Core
       BV.Core.RepGraph.FunAsserts
-      BV.Core.RepGraph.Interpret
+      BV.Core.RepGraph.InterpretHyp
       BV.Core.RepGraph.Solver
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
