@@ -493,8 +493,8 @@ data VarReqRequest
       }
   deriving (Eq, Generic, Ord, Show)
 
-varRepRequest :: MonadRepGraphForTag t m => NameTy -> VarRepRequestKind -> Visit -> ExprEnv -> m (Maybe SplitMem)
-varRepRequest var kind visit env = runMaybeT $ do
+varRepRequest :: MonadRepGraphForTag t m => VarRepRequestKind -> Visit -> ExprEnv -> NameTy -> m (Maybe SplitMem)
+varRepRequest kind visit env var = runMaybeT $ do
     req <- MaybeT $ joinForTag $ runProblemVarRepHook var kind (nodeAddrOf visit.nodeId)
     case req of
         VarRepRequestSplitMem { addr } -> do
@@ -518,7 +518,7 @@ addVarReps kind mkName memCalls visit vars = execStateT $ do
         modify $ M.insert var v
     intermediateEnv <- get
     for_ vars $ \var -> do
-        opt <- varRepRequest var kind visit intermediateEnv
+        opt <- varRepRequest kind visit intermediateEnv var
         for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
 
 --
