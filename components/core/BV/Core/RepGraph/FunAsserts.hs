@@ -1,4 +1,4 @@
-module BV.Core.RepGraph.AddFunc
+module BV.Core.RepGraph.FunAsserts
     ( WithFunAsserts
     , runWithFunAsserts
     ) where

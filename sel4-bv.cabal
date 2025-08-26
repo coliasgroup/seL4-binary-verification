@@ -92,10 +92,10 @@ library core
       BV.Core.Arch
       BV.Core.GenerateFreshName
       BV.Core.Glue
-      BV.Core.RepGraph.AddFunc
       BV.Core.RepGraph.AsmStackRep
       BV.Core.RepGraph.Base
       BV.Core.RepGraph.Core
+      BV.Core.RepGraph.FunAsserts
       BV.Core.RepGraph.Interpret
       BV.Core.RepGraph.Solver
       BV.Core.Stages.BuildProblem
