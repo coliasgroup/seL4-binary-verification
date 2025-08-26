@@ -148,7 +148,7 @@ data RepGraphEnv t
 data RepGraphState t
   = RepGraphState
       { inpEnvs :: Map NodeId ExprEnv
-      , memCalls :: Map SExprWithPlaceholders MemCalls
+      , memCalls :: Map Name MemCalls
       , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
       , inductVarEnv :: Map EqHypInduct Name
@@ -419,22 +419,22 @@ addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
      in f $ fromMaybe zeroMemCallsRange slot
 
 getMemCalls :: MonadRepGraph t m => SExprWithPlaceholders -> m MemCalls
-getMemCalls sexpr = do
-    memCallsOpt <- liftRepGraph $ use $ #memCalls % at sexpr
-    whenNothing memCallsOpt $ do
-        case sexpr of
-            List [op, x, _, _] | isStore op ->
-                getMemCalls x
-            List [op, _, x, y] | op == symbolS "ite" ->
-                mergeMemCalls <$> getMemCalls x <*> getMemCalls y
-            _ -> do
-                r <- runMaybeT $ do
-                    name <- hoistMaybe $ parseSymbolS sexpr
-                    next <- MaybeT $ tryGetDef $ Name name
-                    getMemCalls next
-                whenNothing r $ do
-                    error $ "getMemCalls fallthrough: " ++ show (showSExprWithPlaceholders sexpr)
+getMemCalls = go
   where
+    go = \case
+        List [op, x, _, _] | isStore op ->
+            go x
+        List [op, _, x, y] | op == symbolS "ite" ->
+            mergeMemCalls <$> go x <*> go y
+        sexpr -> do
+            r <- runMaybeT $ do
+                name <- hoistMaybe $ Name <$> parseSymbolS sexpr
+                memCallsOpt <- liftRepGraph $ use $ #memCalls % at name
+                whenNothing memCallsOpt $ do
+                    next <- MaybeT $ tryGetDef name
+                    lift $ go next
+            whenNothing r $ do
+                error $ "getMemCalls fallthrough: " ++ show (showSExprWithPlaceholders sexpr)
     isStore s = s `elem`
         ([ symbolS "store-word8"
          , symbolS "store-word32"
@@ -483,10 +483,10 @@ mergeMemCalls xs ys =
 
 addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> Maybe MemCalls -> m MaybeSplit
 addVarWithMemCalls nameHint ty memCallsOpt = do
-    v <- nameS <$> addVarRestr nameHint ty
+    v <- addVarRestr nameHint ty
     when (isMemT ty) $ do
         liftRepGraph $ #memCalls %= M.insert v (fromJust memCallsOpt)
-    return $ NotSplit v
+    return $ NotSplit $ nameS v
 
 data VarRepRequestKind
   = VarRepRequestKindInit
