@@ -552,6 +552,20 @@ contractPcEnv visit (PcEnv pc env) = do
 
 --
 
+getInductVar :: MonadRepGraph t m => EqHypInduct -> m Expr
+getInductVar induct =
+    fmap (smtExprE word32T . NotSplit . nameS) $
+        withMapSlot #inductVarEnv induct $
+            addVar (printf "induct_i_%d_%d" induct.n1 induct.n2) word32T
+
+substInduct :: Expr -> Expr -> Expr
+substInduct expr inductVar = varSubst f expr
+  where
+    f (NameTy { name = Ident "%n", ty = ExprTypeWord 32 }) = Just inductVar
+    f _ = Nothing
+
+--
+
 addInputEnvs :: MonadRepGraph t m => m ()
 addInputEnvs = do
     p <- askProblem
@@ -574,36 +588,6 @@ getPc :: MonadRepGraphForTag t m => Visit -> m Expr
 getPc visit = getNodePcEnv visit >>= \case
     Nothing -> return falseE
     Just (PcEnv pc env) -> withEnv env $ convertInnerExpr pc
-
-getInductVar :: MonadRepGraph t m => EqHypInduct -> m Expr
-getInductVar induct =
-    fmap (smtExprE word32T . NotSplit . nameS) $
-        withMapSlot #inductVarEnv induct $
-            addVar (printf "induct_i_%d_%d" induct.n1 induct.n2) word32T
-
-substInduct :: Expr -> Expr -> Expr
-substInduct expr inductVar = varSubst f expr
-  where
-    f (NameTy { name = Ident "%n", ty = ExprTypeWord 32 }) = Just inductVar
-    f _ = Nothing
-
-instEqWithEnvs :: MonadRepGraphSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
-instEqWithEnvs (x, xenv) (y, yenv) = do
-    x' <- withEnv xenv $ convertUnderOp x
-    y' <- withEnv yenv $ convertUnderOp y
-    let f = case x'.ty of
-            ExprTypeRelWrapper -> applyRelWrapper
-            _ -> eqE
-    return $ f x' y'
-  where
-    convertUnderOp :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m Expr
-    convertUnderOp expr = case expr.value of
-        ExprValueOp op args -> do
-            args' <- traverse convertInnerExpr args
-            return $ Expr expr.ty $ ExprValueOp op args'
-        _ -> convertInnerExpr expr
-
---
 
 getNodePcEnvWithTag :: MonadRepGraph t m => WithTag t Visit -> m (Maybe PcEnv)
 getNodePcEnvWithTag (WithTag tag visit) = runForTag tag $ getNodePcEnv visit
@@ -851,6 +835,22 @@ getFunCallInfo unprunedVisit = do
 -- TODO GraphSlice.is_cont
 
 --
+
+instEqWithEnvs :: MonadRepGraphSolver m => (Expr, ExprEnv) -> (Expr, ExprEnv) -> m Expr
+instEqWithEnvs (x, xenv) (y, yenv) = do
+    x' <- withEnv xenv $ convertUnderOp x
+    y' <- withEnv yenv $ convertUnderOp y
+    let f = case x'.ty of
+            ExprTypeRelWrapper -> applyRelWrapper
+            _ -> eqE
+    return $ f x' y'
+  where
+    convertUnderOp :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m Expr
+    convertUnderOp expr = case expr.value of
+        ExprValueOp op args -> do
+            args' <- traverse convertInnerExpr args
+            return $ Expr expr.ty $ ExprValueOp op args'
+        _ -> convertInnerExpr expr
 
 convertInnerExprWithPcEnv :: MonadRepGraphForTag t m => Expr -> Visit -> m Expr
 convertInnerExprWithPcEnv expr visit = do
