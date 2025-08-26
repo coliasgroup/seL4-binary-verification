@@ -399,7 +399,7 @@ getSplitVisitAt :: MonadChecks t m => VisitCount -> WithTag t SplitProofNodeDeta
 getSplitVisitAt vc (WithTag tag details) = branch $ do
     restrict1L tag $
         Restr details.split $
-            case fromJust (simpleVC vc) of
+            case fromJust (toSimpleVC vc) of
                 SimpleVisitCountViewNumber n ->
                     numberVC $ details.seqStart + (n * details.step)
                 SimpleVisitCountViewOffset n ->
@@ -418,7 +418,7 @@ getSplitHypsAt vc splitNode = branch $ do
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
             expr -> expr
         zsub = mksub $ machineWordE 0
-        isub = mksub $ case fromJust (simpleVC vc) of
+        isub = mksub $ case fromJust (toSimpleVC vc) of
             SimpleVisitCountViewNumber n -> machineWordE n
             SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
     return $ concat
@@ -537,7 +537,7 @@ getLoopEqHypsAt useIfAt vc node = do
             Expr ty (ExprValueVar (Ident "%i")) | isMachineWordT ty -> v
             expr -> expr
         zsub = mksub (machineWordE 0)
-        isub = mksub $ case fromJust (simpleVC vc) of
+        isub = mksub $ case fromJust (toSimpleVC vc) of
            SimpleVisitCountViewNumber n -> machineWordE n
            SimpleVisitCountViewOffset n -> machineWordVarE (Ident "%n") `plusE` machineWordE n
     return $

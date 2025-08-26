@@ -315,23 +315,23 @@ askCont visit = do
         }
 
 incrVCs :: [Restr] -> NodeAddr -> Integer -> Maybe [Restr]
-incrVCs vcount n incr = if
-    | n `M.notMember` m -> Just vcount
+incrVCs restrs n incr = if
+    | n `M.notMember` restrsMap -> Just restrs
     | isEmptyVC vcNew -> Nothing
-    | otherwise -> Just (fromMapVC (M.insert n vcNew m))
+    | otherwise -> Just (fromMapVC (M.insert n vcNew restrsMap))
   where
-    m = toMapVC vcount
-    vcOld = m ! n
+    restrsMap = toMapVC restrs
+    vcOld = restrsMap ! n
     vcNew = incrVC incr vcOld
 
 specialize :: Visit -> NodeAddr -> [Visit]
-specialize visit split = ensure (isOptionsVC vc)
-    [ visit & #restrs .~ fromMapVC (M.insert split (fromSimpleVC n) m)
-    | n <- enumerateSimpleVC vc
+specialize visit split = ensure (isOptionsVC splitVC)
+    [ visit & #restrs .~ fromMapVC (M.insert split (fromSimpleVC simpleVC) restrsMap)
+    | simpleVC <- enumerateSimpleVCs splitVC
     ]
   where
-    m = toMapVC visit.restrs
-    vc = m ! split
+    restrsMap = toMapVC visit.restrs
+    splitVC = restrsMap ! split
 
 --
 

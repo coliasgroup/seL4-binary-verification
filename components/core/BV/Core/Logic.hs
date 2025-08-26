@@ -314,7 +314,7 @@ splitScalarPairs args = (scalars, mems, others)
 
 instEqAtVisit :: VisitCount -> Expr -> Bool
 instEqAtVisit visit expr = case expr.value of
-    ExprValueOp OpEqSelectiveWrapper [_, xs, ys] -> case fromJust (simpleVC visit) of
+    ExprValueOp OpEqSelectiveWrapper [_, xs, ys] -> case fromJust (toSimpleVC visit) of
         SimpleVisitCountViewNumber n -> n `elem` numListFromSum xs
         SimpleVisitCountViewOffset n -> n `elem` numListFromSum ys
     _ -> True

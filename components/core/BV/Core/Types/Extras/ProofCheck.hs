@@ -3,7 +3,7 @@
 module BV.Core.Types.Extras.ProofCheck
     ( SimpleVisitCountView (..)
     , doubleRangeVC
-    , enumerateSimpleVC
+    , enumerateSimpleVCs
     , eqH
     , eqIfAtH
     , eqIfAtInductH
@@ -27,8 +27,8 @@ module BV.Core.Types.Extras.ProofCheck
     , pcImpH
     , pcTrivH
     , pcTrueH
-    , simpleVC
     , toMapVC
+    , toSimpleVC
     , trueIfAt
     , upToVC
     , withMapVC
@@ -74,14 +74,14 @@ data SimpleVisitCountView
   | SimpleVisitCountViewOffset Integer
   deriving (Eq, Generic, NFData, Ord, Show)
 
-simpleVC :: VisitCount -> Maybe SimpleVisitCountView
-simpleVC = \case
+toSimpleVC :: VisitCount -> Maybe SimpleVisitCountView
+toSimpleVC = \case
     VisitCount { numbers = [n], offsets = [] } -> Just (SimpleVisitCountViewNumber n)
     VisitCount { numbers = [], offsets = [n] } -> Just (SimpleVisitCountViewOffset n)
     _ -> Nothing
 
-enumerateSimpleVC :: VisitCount -> [SimpleVisitCountView]
-enumerateSimpleVC vc = map SimpleVisitCountViewNumber vc.numbers ++ map SimpleVisitCountViewOffset vc.offsets
+enumerateSimpleVCs :: VisitCount -> [SimpleVisitCountView]
+enumerateSimpleVCs vc = map SimpleVisitCountViewNumber vc.numbers ++ map SimpleVisitCountViewOffset vc.offsets
 
 fromSimpleVC :: SimpleVisitCountView -> VisitCount
 fromSimpleVC = \case
