@@ -441,12 +441,6 @@ addVarReps kind mkName memCalls visit vars = execStateT $ do
 
 --
 
--- TODO
-addLocalDef :: MonadRepGraph t m => NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
-addLocalDef = addDef
-
---
-
 contract :: MonadRepGraph t m => Visit -> NameTy -> SExprWithPlaceholders -> m MaybeSplit
 contract visit var sexpr = withMapSlot #contractions sexpr $ do
     let name' = localNameBefore var.name visit
@@ -649,7 +643,7 @@ emitNode visit = do
                             return $ env ! NameTy name update.val.ty
                         _ -> do
                             let name = localName update.var.name visit
-                            withEnv env $ addLocalDef name update.val
+                            withEnv env $ addDef name update.val
                     return (update.var, val)
                 return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
@@ -658,7 +652,7 @@ emitNode visit = do
                 let cond = varE boolT condIdent
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
-                condDef <- withEnv env $ addLocalDef condNameHint condNode.expr
+                condDef <- withEnv env $ addDef condNameHint condNode.expr
                 let env' = M.insert (NameTy condIdent boolT) condDef env
                 return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
