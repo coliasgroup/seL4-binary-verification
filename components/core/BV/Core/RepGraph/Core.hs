@@ -95,7 +95,6 @@ class MonadRepGraph t n => MonadRepGraphDefaultHelper t n m | m -> t, m -> n whe
 class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
     liftRepGraph :: StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
     runProblemVarRepHook :: NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe VarReqRequest)
-    runPostEmitNodeHook :: Visit -> m ()
     runPreEmitCallNodeHook :: Visit -> Expr -> ExprEnv -> ForTag t m ()
     runPostEmitCallNodeHook :: Visit -> ForTag t m ()
 
@@ -104,9 +103,6 @@ class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
 
     default runProblemVarRepHook :: MonadRepGraphDefaultHelper t n m => NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe VarReqRequest)
     runProblemVarRepHook = compose3 (mapForTag liftMonadRepGraphDefaultHelper) runProblemVarRepHook
-
-    default runPostEmitNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> m ()
-    runPostEmitNodeHook = liftMonadRepGraphDefaultHelper . runPostEmitNodeHook
 
     default runPreEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> Expr -> ExprEnv -> ForTag t m ()
     runPreEmitCallNodeHook = compose3 (mapForTag liftMonadRepGraphDefaultHelper) runPreEmitCallNodeHook
@@ -736,7 +732,7 @@ emitNode visit = do
     pcEnv@(PcEnv pc env) <- fromJust <$> getNodePcEnv visit
     let nodeAddr = nodeAddrOf visit.nodeId
     node <- askNode nodeAddr
-    arcs <- M.fromList <$>
+    M.fromList <$>
         if pc == falseE
         then return [ (cont, PcEnv falseE M.empty) | cont <- node ^.. nodeConts ]
         else case node of
@@ -782,8 +778,6 @@ emitNode visit = do
                 liftRepGraph $ #funcs %= M.insertWith undefined key info
                 joinForTag $ runPostEmitCallNodeHook visit
                 return [(callNode.next, PcEnv pc env')]
-    runPostEmitNodeHook visit
-    return arcs
 
 isSyntacticConstant :: MonadRepGraphForTag t m => NameTy -> NodeAddr -> m Bool
 isSyntacticConstant var split = do
