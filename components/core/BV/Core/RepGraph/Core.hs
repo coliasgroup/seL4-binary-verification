@@ -407,6 +407,12 @@ zeroMemCallsRange = MemCallsRange
     , max = Just 0
     }
 
+fullMemCallsRange :: MemCallsRange
+fullMemCallsRange = MemCallsRange
+    { min = 0
+    , max = Nothing
+    }
+
 addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
 addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
     let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
@@ -455,7 +461,7 @@ addLoopMemCalls split = traverse $ \memCalls -> do
         preview (#_NodeCall % #functionName) <$> askNode n
     let newMemCalls = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
             Just x -> x & #max .~ Nothing
-            Nothing -> MemCallsRange 0 Nothing
+            Nothing -> fullMemCallsRange
     return $ M.union newMemCalls memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
