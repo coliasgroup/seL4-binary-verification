@@ -157,14 +157,14 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTa
     liftMonadRepGraphDefaultHelper = InlineM
 
 instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
-    runPreEmitCallNodeHook visit pc env = do
+    runPreEmitCallNodeHook visit pvEnv = do
         tag <- askTag
         p <- askProblem
         let nodeAddr = nodeAddrOf visit.nodeId
         let fname = p ^. #nodes % expectingAt nodeAddr % expecting #_NodeCall % #functionName
         matchedC <- lift $ InlineM $ gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do
-            hyp <- withEnv env $ convertExprNotSplit $ notE pc
+            hyp <- withEnv pvEnv.env $ convertExprNotSplit $ notE pvEnv.pc
             res <- testHyp hyp
             unless res $ lift $ InlineM $ throwError $ InliningEvent
                 { nodeAddr
