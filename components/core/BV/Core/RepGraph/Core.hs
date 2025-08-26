@@ -506,8 +506,8 @@ varRepRequest var kind visit env = runMaybeT $ do
             let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
             addSplitMemVar addrSexpr nameHint var.ty
 
--- TODO rename
-addVarsToEnvWithRepRequests
+-- TODO rename?
+addVarReps
     :: MonadRepGraphForTag t m
     => VarRepRequestKind
     -> (Ident -> NameHint)
@@ -516,7 +516,7 @@ addVarsToEnvWithRepRequests
     -> [NameTy]
     -> ExprEnv
     -> m ExprEnv
-addVarsToEnvWithRepRequests kind mkName memCalls visit vars = execStateT $ do
+addVarReps kind mkName memCalls visit vars = execStateT $ do
     for_ vars $ \var -> do
         v <- NotSplit . nameS <$> addVarWithMemCalls (mkName var.name) var.ty memCalls
         modify $ M.insert var v
@@ -560,7 +560,7 @@ addInputEnvs = do
     traverse_ f (withTags p.sides)
   where
     f (WithTag tag side) = runForTag tag $ do
-        env <- addVarsToEnvWithRepRequests
+        env <- addVarReps
             VarRepRequestKindInit
             (\name -> name.unwrap ++ "_init")
             (Just M.empty)
@@ -654,7 +654,7 @@ getLoopPcEnv visit = do
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         nonConsts <- filterM (fmap not . isConstM) (M.keys prevEnv)
-        env <- addVarsToEnvWithRepRequests
+        env <- addVarReps
             VarRepRequestKindLoop
             (\ident -> printf "%P_after_loop_at_%P" ident visit.nodeId)
             memCalls
@@ -767,7 +767,7 @@ emitNode visit = do
                 success <- smtExprE boolT . NotSplit . nameS <$> addVar nameHint boolT
                 ins <- for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr arg)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
-                env' <- addVarsToEnvWithRepRequests
+                env' <- addVarReps
                     VarRepRequestKindCall
                     (\name -> localName name visit)
                     memCalls
