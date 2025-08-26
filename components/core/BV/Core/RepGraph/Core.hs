@@ -83,6 +83,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import Data.Function (on)
 
 -- TODO cache more accross groups?
 
@@ -472,12 +473,13 @@ mergeMemCalls xs ys =
     if xs == ys
     then xs
     else
-        let ks = S.union (M.keysSet xs) (M.keysSet ys)
-         in flip M.fromSet ks $ \k -> f
-                (fromMaybe zeroMemCallsRange (M.lookup k xs))
-                (fromMaybe zeroMemCallsRange (M.lookup k ys))
+        let ks = M.keysSet xs <> M.keysSet ys
+         in flip M.fromSet ks $ \k ->
+                (mergeRanges `on` fromMaybe zeroMemCallsRange)
+                    (M.lookup k xs)
+                    (M.lookup k ys)
   where
-    f x y = MemCallsRange
+    mergeRanges x y = MemCallsRange
         { min = min x.min y.min
         , max = max <$> x.max <*> y.max
         }
