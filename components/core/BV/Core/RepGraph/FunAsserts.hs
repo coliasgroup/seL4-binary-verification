@@ -105,7 +105,7 @@ areFunCallsCompatible visits = do
     memCalls <- for lowLevelInfoByTag $ \lowLevelInfo -> scanMemCalls lowLevelInfo.ins
     memCallsCompatible memCalls
 
-memCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t (Maybe MemCalls) -> WithFunAsserts t m Bool
+memCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t MemCallsIfKnown -> WithFunAsserts t m Bool
 memCallsCompatible memCalls = case sequenceA memCalls of
     Nothing -> return True
     Just calls -> do

@@ -12,6 +12,7 @@ module BV.Core.RepGraph.Core
     ( ForTag
     , FunCallInfo (..)
     , MemCalls
+    , MemCallsIfKnown
     , MemCallsRange (..)
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
@@ -394,6 +395,8 @@ visitCountName (VisitCount { numbers, offsets }) =
 
 type MemCalls = Map Ident MemCallsRange
 
+type MemCallsIfKnown = Maybe MemCalls
+
 data MemCallsRange
   = MemCallsRange
       { min :: Integer
@@ -413,7 +416,7 @@ fullMemCallsRange = MemCallsRange
     , max = Nothing
     }
 
-addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
+addMemCall :: Ident -> MemCallsIfKnown -> MemCallsIfKnown
 addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
     let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
      in f $ fromMaybe zeroMemCallsRange slot
@@ -441,20 +444,20 @@ getMemCalls = go
          , symbolS "store-word64"
          ] :: [SExprWithPlaceholders])
 
-scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m (Maybe MemCalls)
+scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m MemCallsIfKnown
 scanMemCallsEnv env = scanMemCalls
     [ (var.ty, v)
     | (var, v) <- M.toList env
     ]
 
-scanMemCalls :: MonadRepGraph t m => [(ExprType, MaybeSplit)] -> m (Maybe MemCalls)
+scanMemCalls :: MonadRepGraph t m => [(ExprType, MaybeSplit)] -> m MemCallsIfKnown
 scanMemCalls tyVals = do
     memCalls <- traverse getMemCalls [ v | (ty, NotSplit v) <- tyVals, ty == memT ]
     return $ case memCalls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
 
-addLoopMemCalls :: MonadRepGraphForTag t m => NodeAddr -> Maybe MemCalls -> m (Maybe MemCalls)
+addLoopMemCalls :: MonadRepGraphForTag t m => NodeAddr -> MemCallsIfKnown -> m MemCallsIfKnown
 addLoopMemCalls split = traverse $ \memCalls -> do
     loopBody <- askLoopBody split
     fnames <- fmap (S.fromList . catMaybes) $ for (toList loopBody) $ \n ->
@@ -481,7 +484,7 @@ mergeMemCalls xs ys =
 
 --
 
-addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> Maybe MemCalls -> m MaybeSplit
+addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> MemCallsIfKnown -> m MaybeSplit
 addVarWithMemCalls nameHint ty memCallsOpt = do
     v <- addVarRestr nameHint ty
     when (isMemT ty) $ do
@@ -514,7 +517,7 @@ addVarsToEnvWithRepRequests
     :: MonadRepGraphForTag t m
     => VarRepRequestKind
     -> (Ident -> NameHint)
-    -> Maybe MemCalls
+    -> MemCallsIfKnown
     -> Visit
     -> [NameTy]
     -> ExprEnv
