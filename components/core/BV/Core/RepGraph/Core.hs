@@ -747,8 +747,8 @@ emitNode visit = do
                 return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
                 joinForTag $ runPreEmitCallNodeHook visit pcEnv
-                let nameHint = successName callNode.functionName visit
-                success <- smtExprE boolT . NotSplit . nameS <$> addVar nameHint boolT
+                success <- smtExprE boolT . NotSplit . nameS <$>
+                    addVar (successName callNode.functionName visit) boolT
                 ins <- for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr arg)
                 memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
                 env' <- addVarReps
