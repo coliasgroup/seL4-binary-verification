@@ -347,13 +347,13 @@ getFreshIdent nameHint = do
 --
 
 localNameBefore :: Ident -> Visit -> NameHint
-localNameBefore s vis = printf "%P_v_at_%s" s (nodeCountName vis)
+localNameBefore var visit = printf "%P_v_at_%s" var (nodeCountName visit)
 
 localName :: Ident -> Visit -> NameHint
-localName s vis = printf "%P_after_%s" s (nodeCountName vis)
+localName var visit = printf "%P_after_%s" var (nodeCountName visit)
 
 condName :: Visit -> NameHint
-condName  vis = printf "cond_at_%s" (nodeCountName vis)
+condName visit = printf "cond_at_%s" (nodeCountName visit)
 
 pathCondName :: MonadRepGraphForTag t m => Visit -> m NameHint
 pathCondName visit = do
@@ -361,8 +361,8 @@ pathCondName visit = do
     return $ printf "path_cond_to_%s_%P" (nodeCountName visit) tag
 
 successName :: Ident -> Visit -> NameHint
-successName fname vis =
-    printf "%s_success_at_%s" name (nodeCountName vis)
+successName fname visit =
+    printf "%s_success_at_%s" name (nodeCountName visit)
   where
     name = case unsnoc names of
         Nothing -> "fun"
@@ -375,11 +375,11 @@ successName fname vis =
     bits = splitOn "." fname.unwrap
 
 nodeCountName :: Visit -> NameHint
-nodeCountName vis = intercalate "_" $
-    [ prettyNodeId vis.nodeId
+nodeCountName visit = intercalate "_" $
+    [ prettyNodeId visit.nodeId
     ] ++
     [ printf "%P=%s" restr.nodeAddr (visitCountName restr.visitCount)
-    | restr <- vis.restrs
+    | restr <- visit.restrs
     ]
 
 -- TODO will not match python
