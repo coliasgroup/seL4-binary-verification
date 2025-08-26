@@ -480,7 +480,7 @@ mergeMemCalls xs ys =
 
 addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> MemCallsIfKnown -> m MaybeSplit
 addVarWithMemCalls nameHint ty memCallsOpt = do
-    v <- addVarRestr nameHint ty
+    v <- addVar nameHint ty
     when (isMemT ty) $ do
         liftRepGraph $ #memCalls %= M.insert v (fromJust memCallsOpt)
     return $ NotSplit $ nameS v
@@ -661,11 +661,8 @@ getLoopPcEnv visit = do
             visit
             nonConsts
             prevEnv
-        pc <- smtExprE boolT <$>
-            addVarWithMemCalls
-                (printf "pc_of_loop_at_%P" visit.nodeId)
-                boolT
-                memCalls
+        pc <- smtExprE boolT . NotSplit . nameS <$>
+            addVar (printf "pc_of_loop_at_%P" visit.nodeId) boolT
         return $ PcEnv pc env
   where
     visitAddr = nodeAddrOf visit.nodeId

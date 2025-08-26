@@ -21,7 +21,6 @@ module BV.Core.RepGraph.Solver
     , addPValidDomAssertions
     , addSplitMemVar
     , addVar
-    , addVarRestr
     , askModelExprs
     , askModelVars
     , assertFact
@@ -354,10 +353,6 @@ addVar nameHint ty = do
         when (isTypeRepresentable ty) $ do
             liftSolver $ #modelVars %= S.insert name
     return name
-
--- TODO
-addVarRestr :: MonadRepGraphSolver m => NameHint -> ExprType -> m Name
-addVarRestr = addVar
 
 assertSMTFact :: MonadRepGraphSolver m => S -> m ()
 assertSMTFact = send . assertS
