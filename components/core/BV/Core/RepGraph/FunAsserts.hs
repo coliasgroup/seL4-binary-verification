@@ -119,8 +119,8 @@ memCallsCompatible memCalls = case sequenceA memCalls of
                 then Just (rname, lcallsForFun)
                 else Nothing
         let compat rname =
-                let rcast = fromMaybe zeroMemCallsForFunction $ rcastcalls !? rname
-                    ractual = fromMaybe zeroMemCallsForFunction $ calls.right !? rname
+                let rcast = fromMaybe zeroMemCallsRange $ rcastcalls !? rname
+                    ractual = fromMaybe zeroMemCallsRange $ calls.right !? rname
                  in maybe True (ractual.min <=) rcast.max && maybe True (rcast.min <=) ractual.max
         return $ all compat $ S.toList $ M.keysSet calls.right <> M.keysSet rcastcalls
 

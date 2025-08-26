@@ -12,7 +12,7 @@ module BV.Core.RepGraph.Core
     ( ForTag
     , FunCallInfo (..)
     , MemCalls
-    , MemCallsForFunction (..)
+    , MemCallsRange (..)
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphForTag (..)
@@ -44,7 +44,7 @@ module BV.Core.RepGraph.Core
     , scanMemCallsEnv
     , substInduct
     , tryGetNodePcEnv
-    , zeroMemCallsForFunction
+    , zeroMemCallsRange
     ) where
 
 import BV.Core.GenerateFreshName (generateFreshName)
@@ -392,17 +392,17 @@ visitCountName (VisitCount { numbers, offsets }) =
 
 --
 
-type MemCalls = Map Ident MemCallsForFunction
+type MemCalls = Map Ident MemCallsRange
 
-data MemCallsForFunction
-  = MemCallsForFunction
+data MemCallsRange
+  = MemCallsRange
       { min :: Integer
       , max :: Maybe Integer
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-zeroMemCallsForFunction :: MemCallsForFunction
-zeroMemCallsForFunction = MemCallsForFunction
+zeroMemCallsRange :: MemCallsRange
+zeroMemCallsRange = MemCallsRange
     { min = 0
     , max = Just 0
     }
@@ -410,7 +410,7 @@ zeroMemCallsForFunction = MemCallsForFunction
 addMemCall :: Ident -> Maybe MemCalls -> Maybe MemCalls
 addMemCall fname = fmap $ flip M.alter fname $ \slot -> Just $
     let f = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
-     in f $ fromMaybe zeroMemCallsForFunction slot
+     in f $ fromMaybe zeroMemCallsRange slot
 
 getMemCalls :: MonadRepGraph t m => SExprWithPlaceholders -> m MemCalls
 getMemCalls sexpr = do
@@ -455,7 +455,7 @@ addLoopMemCalls split = traverse $ \memCalls -> do
         preview (#_NodeCall % #functionName) <$> askNode n
     let newMemCalls = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
             Just x -> x & #max .~ Nothing
-            Nothing -> MemCallsForFunction 0 Nothing
+            Nothing -> MemCallsRange 0 Nothing
     return $ M.union newMemCalls memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
@@ -465,10 +465,10 @@ mergeMemCalls xs ys =
     else
         let ks = S.union (M.keysSet xs) (M.keysSet ys)
          in flip M.fromSet ks $ \k -> f
-                (fromMaybe zeroMemCallsForFunction (M.lookup k xs))
-                (fromMaybe zeroMemCallsForFunction (M.lookup k ys))
+                (fromMaybe zeroMemCallsRange (M.lookup k xs))
+                (fromMaybe zeroMemCallsRange (M.lookup k ys))
   where
-    f x y = MemCallsForFunction
+    f x y = MemCallsRange
         { min = min x.min y.min
         , max = max <$> x.max <*> y.max
         }
