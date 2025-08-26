@@ -70,6 +70,7 @@ import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Char (isAlpha)
 import Data.Either (isRight)
 import Data.Foldable (for_, toList, traverse_)
+import Data.Function (on)
 import Data.Functor (void)
 import Data.List (intercalate, sort, tails)
 import Data.List.Split (splitOn)
@@ -83,7 +84,6 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-import Data.Function (on)
 
 -- TODO cache more accross groups?
 
@@ -411,12 +411,6 @@ zeroMemCallsRange = MemCallsRange
     , max = Just 0
     }
 
-fullMemCallsRange :: MemCallsRange
-fullMemCallsRange = MemCallsRange
-    { min = 0
-    , max = Nothing
-    }
-
 addMemCall :: Ident -> MemCallsIfKnown -> MemCallsIfKnown
 addMemCall fname = fmap $ flip M.alter fname $ Just . incr . fromMaybe zeroMemCallsRange
   where
@@ -460,13 +454,11 @@ scanMemCalls tyVals = do
 
 addLoopMemCalls :: MonadRepGraphForTag t m => NodeAddr -> MemCallsIfKnown -> m MemCallsIfKnown
 addLoopMemCalls split = traverse $ \memCalls -> do
-    loopBody <- askLoopBody split
-    fnames <- fmap (S.fromList . catMaybes) $ for (toList loopBody) $ \n ->
-        preview (#_NodeCall % #functionName) <$> askNode n
-    let newMemCalls = flip M.fromSet fnames $ \fname -> case M.lookup fname memCalls of
-            Just x -> x & #max .~ Nothing
-            Nothing -> fullMemCallsRange
-    return $ M.union newMemCalls memCalls
+    nodeAddrs <- askLoopBody split
+    node <- traverse askNode (toList nodeAddrs)
+    let fnames = S.fromList $ node ^.. folded % #_NodeCall % #functionName
+    let newMemCalls fname = M.findWithDefault zeroMemCallsRange fname memCalls & #max .~ Nothing
+    return $ M.union (M.fromSet newMemCalls fnames) memCalls
 
 mergeMemCalls :: MemCalls -> MemCalls -> MemCalls
 mergeMemCalls xs ys =
