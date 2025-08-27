@@ -168,9 +168,11 @@ mkMemEqs asmInMem cInMemOpt asmOutMemOpt cOutMemOpt =
             , cIn (rodataE cInMem) === cIn trueE
             ]
     outEqs = case (asmOutMemOpt, cOutMemOpt) of
-        (_, Nothing) ->
+        (Nothing, Nothing) ->
+            [
+            ]
+        (Just asmOutMem, Nothing) ->
             [ asmOut asmOutMem === asmIn asmInMem
-            | asmOutMem <- maybeToList asmOutMemOpt
             ]
         (Just asmOutMem, Just cOutMem) ->
             [ asmOut asmOutMem === cOut cOutMem
