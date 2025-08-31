@@ -158,7 +158,7 @@ config file using this script.
 
 A worker with `local: true` instead of a command is equivalent to `command: ["/proc/self/exe"]`.
 
-## Examples
+## Example
 
 See [./examples/seL4](./examples/seL4) for an example of how to use this tool to check an seL4 binary.
 
