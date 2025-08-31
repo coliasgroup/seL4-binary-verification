@@ -164,5 +164,5 @@ See [./examples/seL4](./examples/seL4) for an example of how to use this tool to
 
 ## Status
 
-This tool can check proof scripts discovered by the upstream tool. The heuristic proof script search
+This tool can check proof scripts discovered by the upstream tool. The proof script search
 is still in progress.
