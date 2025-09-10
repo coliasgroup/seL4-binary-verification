@@ -327,20 +327,20 @@ data Op
   | OpHtdUpdate
   | OpWordArrayAccess
   | OpWordArrayUpdate
-  | OpExt OpExt
+  | OpExt OpExt -- !
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary Op
 
 data OpExt
-  = OpExtROData -- !
-  | OpExtImpliesROData -- !
-  | OpExtStackEquals -- !
-  | OpExtImpliesStackEquals -- !
-  | OpExtStackEqualsImplies -- !
-  | OpExtStackWrapper -- !
-  | OpExtEqSelectiveWrapper -- !
-  | OpExtSplitMem -- !
+  = OpExtROData
+  | OpExtImpliesROData
+  | OpExtStackEquals
+  | OpExtImpliesStackEquals
+  | OpExtStackEqualsImplies
+  | OpExtStackWrapper
+  | OpExtEqSelectiveWrapper
+  | OpExtSplitMem
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary OpExt
