@@ -27,7 +27,7 @@ import BV.Core.Arch
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Utils (ensure, ensureM)
+import BV.Utils (ensureM)
 
 import Control.DeepSeq (NFData)
 import Data.Function (applyWhen, on)
