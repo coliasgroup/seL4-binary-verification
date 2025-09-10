@@ -216,8 +216,8 @@ getSubtypeCondition = go
                 return $ Just $ \offs -> offs `eqE` machineWordE 0
         (_, PValidTypeWithStrengthType (ExprTypeStruct outerStructName)) -> do
                 askStruct outerStructName >>= goNormStruct innerPvTy
-        (_, PValidTypeWithStrengthType (ExprTypeGlobalWrapper inner)) -> do
-                dummyGlobalWrapperStruct inner >>= goNormStruct innerPvTy
+        (_, PValidTypeWithStrengthType (ExprTypeGlobalWrapper wrapped)) -> do
+                goNormDummyGlobalStruct innerPvTy wrapped
         (_, PValidTypeWithStrengthArray { ty = outerElTy, strength = outerBound }) -> do
                 condOpt <- go innerPvTy (PValidTypeWithStrengthType outerElTy)
                 outerSize <- pvTySizeCompat outerPvTy
@@ -235,7 +235,11 @@ getSubtypeCondition = go
             over _Just contextualize <$> go innerPvTy (PValidTypeWithStrengthType field.ty)
         return $ case conds of
             [] -> Nothing
-            _ -> Just $ \offs -> foldr1 orE [ cond offs | cond <- conds]
+            _ -> Just $ \offs -> foldr1 orE [ cond offs | cond <- conds ]
+
+    goNormDummyGlobalStruct innerPvTy outerTy = do
+        let contextualize cond offs = cond (offs `minusE` machineWordE 0)
+        over _Just contextualize <$> go innerPvTy (PValidTypeWithStrengthType outerTy)
 
     normalizeArrayType = \case
         PValidTypeWithStrengthType (ExprTypeArray { ty, len }) -> PValidTypeWithStrengthArray
@@ -251,23 +255,6 @@ getSubtypeCondition = go
         PValidTypeWithStrengthArray { ty, len } -> do
             elSize <- machineWordE <$> sizeOfType ty
             return $ len `timesE` elSize
-
-dummyGlobalWrapperStruct :: MonadStructs m => ExprType -> m Struct
-dummyGlobalWrapperStruct ty = do
-    size <- sizeOfType ty
-    align <- alignOfType ty
-    return $ Struct
-        { size
-        , align
-        , fields = M.fromList
-            [ ( Ident "v"
-              , StructField
-                    { ty
-                    , offset = 0
-                    }
-              )
-            ]
-        }
 
 --
 
