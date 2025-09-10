@@ -370,8 +370,6 @@ instance BuildInLine Op where
         OpStackEquals -> "StackEquals"
         OpImpliesStackEquals -> "ImpliesStackEquals"
         OpStackEqualsImplies -> "StackEqualsImplies"
-        OpMemAccWrapper -> "MemAccWrapper"
-        OpMemWrapper -> "MemWrapper"
 
 --
 

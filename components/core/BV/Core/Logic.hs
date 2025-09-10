@@ -279,17 +279,6 @@ applyRelWrapper lhs rhs = if
             excepts = nub $ exceptsL ++ exceptsR
             f stack0 = foldl (\stack p -> memUpdE p stack (word32E 0)) stack0 excepts
          in boolE $ ExprValueOp OpStackEquals [spL, f stackL, spR, f stackR]
-    | ops == S.fromList [OpMemAccWrapper, OpMemWrapper] ->
-        let [[addr, val]] =
-                [ args
-                | Expr { value = ExprValueOp OpMemAccWrapper args } <- [lhs, rhs]
-                ]
-            [[mem]] =
-                [ args
-                | Expr { value = ExprValueOp OpMemWrapper args } <- [lhs, rhs]
-                ]
-         in ensure (addr.ty == word32T && mem.ty == memT) $
-                eqE (memAccE val.ty addr mem) val
     | ops == S.fromList [OpEqSelectiveWrapper] ->
         let [valL, _, _] = argsL
             [valR, _, _] = argsR
