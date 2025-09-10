@@ -233,10 +233,6 @@ instance ParseInLine Op where
         "ROData" -> Right OpROData
         "StackWrapper" -> Right OpStackWrapper
         "EqSelectiveWrapper" -> Right OpEqSelectiveWrapper
-        "ToFloatingPoint" -> Right OpToFloatingPoint
-        "ToFloatingPointSigned" -> Right OpToFloatingPointSigned
-        "ToFloatingPointUnsigned" -> Right OpToFloatingPointUnsigned
-        "FloatingPointCast" -> Right OpFloatingPointCast
         "ImpliesROData" -> Right OpImpliesROData
         "ImpliesStackEquals" -> Right OpImpliesStackEquals
         "StackEqualsImplies" -> Right OpStackEqualsImplies
@@ -370,10 +366,6 @@ instance BuildInLine Op where
         OpROData -> "ROData"
         OpStackWrapper -> "StackWrapper"
         OpEqSelectiveWrapper -> "EqSelectiveWrapper"
-        OpToFloatingPoint -> "ToFloatingPoint"
-        OpToFloatingPointSigned -> "ToFloatingPointSigned"
-        OpToFloatingPointUnsigned -> "ToFloatingPointUnsigned"
-        OpFloatingPointCast -> "FloatingPointCast"
         OpImpliesROData -> "ImpliesROData"
         OpStackEquals -> "StackEquals"
         OpImpliesStackEquals -> "ImpliesStackEquals"

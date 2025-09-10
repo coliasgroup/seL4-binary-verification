@@ -572,9 +572,6 @@ convertExpr expr = case expr.value of
                     | otherwise -> case op of
                         OpWordCast -> [ixS "zero_extend" [intS (exprBits - vBits)], v']
                         OpWordCastSigned -> [ixS "sign_extend" [intS (exprBits - vBits)], v']
-        _ | op == OpToFloatingPoint || op == OpToFloatingPointSigned
-            || op == OpToFloatingPointUnsigned || op == OpFloatingPointCast -> do
-                unimplemented
         _ | op == OpCountLeadingZeroes || op == OpWordReverse -> do
                 let [v] = args
                 let ExprTypeWord bits = expr.ty

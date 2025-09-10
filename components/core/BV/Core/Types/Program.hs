@@ -329,10 +329,6 @@ data Op
   | OpROData -- !
   | OpStackWrapper -- !
   | OpEqSelectiveWrapper -- !
-  | OpToFloatingPoint
-  | OpToFloatingPointSigned
-  | OpToFloatingPointUnsigned
-  | OpFloatingPointCast
   | OpImpliesROData -- !
   | OpStackEquals -- !
   | OpImpliesStackEquals -- !
