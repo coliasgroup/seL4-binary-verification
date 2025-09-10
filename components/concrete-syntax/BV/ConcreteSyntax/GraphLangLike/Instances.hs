@@ -230,8 +230,6 @@ instance ParseInLine Op where
         "HTDUpdate" -> Right OpHtdUpdate
         "WordArrayAccess" -> Right OpWordArrayAccess
         "WordArrayUpdate" -> Right OpWordArrayUpdate
-        "TokenWordsAccess" -> Right OpTokenWordsAccess
-        "TokenWordsUpdate" -> Right OpTokenWordsUpdate
         "ROData" -> Right OpROData
         "StackWrapper" -> Right OpStackWrapper
         "EqSelectiveWrapper" -> Right OpEqSelectiveWrapper
@@ -369,8 +367,6 @@ instance BuildInLine Op where
         OpHtdUpdate -> "HTDUpdate"
         OpWordArrayAccess -> "WordArrayAccess"
         OpWordArrayUpdate -> "WordArrayUpdate"
-        OpTokenWordsAccess -> "TokenWordsAccess"
-        OpTokenWordsUpdate -> "TokenWordsUpdate"
         OpROData -> "ROData"
         OpStackWrapper -> "StackWrapper"
         OpEqSelectiveWrapper -> "EqSelectiveWrapper"

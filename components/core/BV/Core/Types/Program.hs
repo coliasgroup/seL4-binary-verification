@@ -326,8 +326,6 @@ data Op
   | OpHtdUpdate
   | OpWordArrayAccess
   | OpWordArrayUpdate
-  | OpTokenWordsAccess -- !
-  | OpTokenWordsUpdate -- !
   | OpROData -- !
   | OpStackWrapper -- !
   | OpEqSelectiveWrapper -- !

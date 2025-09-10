@@ -276,8 +276,6 @@ opS x = case x of
     OpMemDom -> "mem-dom"
     OpROData -> "rodata"
     OpImpliesROData -> "implies-rodata"
-    OpTokenWordsAccess -> "select"
-    OpTokenWordsUpdate -> "store"
     OpWordArrayAccess -> "select"
     OpWordArrayUpdate -> "store"
 
