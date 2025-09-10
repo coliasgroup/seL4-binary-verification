@@ -230,13 +230,13 @@ instance ParseInLine Op where
         "HTDUpdate" -> Right OpHtdUpdate
         "WordArrayAccess" -> Right OpWordArrayAccess
         "WordArrayUpdate" -> Right OpWordArrayUpdate
-        "ROData" -> Right OpROData
-        "StackWrapper" -> Right OpStackWrapper
-        "EqSelectiveWrapper" -> Right OpEqSelectiveWrapper
-        "ImpliesROData" -> Right OpImpliesROData
-        "ImpliesStackEquals" -> Right OpImpliesStackEquals
-        "StackEqualsImplies" -> Right OpStackEqualsImplies
-        "SplitMem" -> Right OpSplitMem
+        "ROData" -> Right (OpExt OpExtROData)
+        "StackWrapper" -> Right (OpExt OpExtStackWrapper)
+        "EqSelectiveWrapper" -> Right (OpExt OpExtEqSelectiveWrapper)
+        "ImpliesROData" -> Right (OpExt OpExtImpliesROData)
+        "ImpliesStackEquals" -> Right (OpExt OpExtImpliesStackEquals)
+        "StackEqualsImplies" -> Right (OpExt OpExtStackEqualsImplies)
+        "SplitMem" -> Right (OpExt OpExtSplitMem)
         w -> Left $ "invalid operation: " ++ w
 
 --
@@ -364,14 +364,14 @@ instance BuildInLine Op where
         OpHtdUpdate -> "HTDUpdate"
         OpWordArrayAccess -> "WordArrayAccess"
         OpWordArrayUpdate -> "WordArrayUpdate"
-        OpROData -> "ROData"
-        OpStackWrapper -> "StackWrapper"
-        OpEqSelectiveWrapper -> "EqSelectiveWrapper"
-        OpImpliesROData -> "ImpliesROData"
-        OpStackEquals -> "StackEquals"
-        OpImpliesStackEquals -> "ImpliesStackEquals"
-        OpStackEqualsImplies -> "StackEqualsImplies"
-        OpSplitMem -> "SplitMem"
+        OpExt OpExtROData -> "ROData"
+        OpExt OpExtStackWrapper -> "StackWrapper"
+        OpExt OpExtEqSelectiveWrapper -> "EqSelectiveWrapper"
+        OpExt OpExtImpliesROData -> "ImpliesROData"
+        OpExt OpExtStackEquals -> "StackEquals"
+        OpExt OpExtImpliesStackEquals -> "ImpliesStackEquals"
+        OpExt OpExtStackEqualsImplies -> "StackEqualsImplies"
+        OpExt OpExtSplitMem -> "SplitMem"
 
 --
 

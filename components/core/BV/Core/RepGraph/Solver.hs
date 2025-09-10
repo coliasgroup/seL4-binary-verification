@@ -274,10 +274,10 @@ opS x = case x of
     OpUnspecifiedPrecond -> "unspecified-precond"
     OpIfThenElse -> "ite"
     OpMemDom -> "mem-dom"
-    OpROData -> "rodata"
-    OpImpliesROData -> "implies-rodata"
     OpWordArrayAccess -> "select"
     OpWordArrayUpdate -> "store"
+    OpExt OpExtROData -> "rodata"
+    OpExt OpExtImpliesROData -> "implies-rodata"
 
 --
 
@@ -617,7 +617,7 @@ convertExpr expr = case expr.value of
                 m' <- convertExpr m
                 p' <- convertExprNotSplit p
                 NotSplit <$> convertMemAccess m' p' expr.ty
-        OpStackEqualsImplies -> do
+        OpExt OpExtStackEqualsImplies -> do
                 args' <- traverse convertExpr args
                 let [NotSplit sp1, stack1, NotSplit sp2, stack2] = args'
                 if sp1 == sp2 && stack1 == stack2
@@ -625,7 +625,7 @@ convertExpr expr = case expr.value of
                     else do
                         eq <- getStackEqImplies (viewExpecting #_Split stack2) stack1
                         return $ NotSplit $ (sp1 `eqS` sp2) `andS` eq
-        OpImpliesStackEquals -> do
+        OpExt OpExtImpliesStackEquals -> do
                 let [sp1, stack1, sp2, stack2] = args
                 eq <- addImpliesStackEq sp1 stack1 stack2
                 sp1' <- convertExprNotSplit sp1

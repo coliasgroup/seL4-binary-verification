@@ -19,6 +19,7 @@ module BV.Core.Types.Program
     , NodeId (..)
     , NodeMap
     , Op (..)
+    , OpExt (..)
     , Program (..)
     , SplitMem (..)
     , Struct (..)
@@ -326,17 +327,23 @@ data Op
   | OpHtdUpdate
   | OpWordArrayAccess
   | OpWordArrayUpdate
-  | OpROData -- !
-  | OpImpliesROData -- !
-  | OpStackEquals -- !
-  | OpImpliesStackEquals -- !
-  | OpStackEqualsImplies -- !
-  | OpStackWrapper -- !
-  | OpEqSelectiveWrapper -- !
-  | OpSplitMem -- !
+  | OpExt OpExt
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary Op
+
+data OpExt
+  = OpExtROData -- !
+  | OpExtImpliesROData -- !
+  | OpExtStackEquals -- !
+  | OpExtImpliesStackEquals -- !
+  | OpExtStackEqualsImplies -- !
+  | OpExtStackWrapper -- !
+  | OpExtEqSelectiveWrapper -- !
+  | OpExtSplitMem -- !
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+instance Binary OpExt
 
 data MaybeSplit
   = NotSplit SExprWithPlaceholders

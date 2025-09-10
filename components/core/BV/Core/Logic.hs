@@ -273,13 +273,13 @@ dummyGlobalWrapperStruct ty = do
 
 applyRelWrapper :: Expr -> Expr -> Expr
 applyRelWrapper lhs rhs = if
-    | ops == S.fromList [OpStackWrapper] ->
+    | ops == S.fromList [OpExt OpExtStackWrapper] ->
         let spL:stackL:exceptsL = argsL
             spR:stackR:exceptsR = argsR
             excepts = nub $ exceptsL ++ exceptsR
             f stack0 = foldl (\stack p -> memUpdE p stack (word32E 0)) stack0 excepts
-         in boolE $ ExprValueOp OpStackEquals [spL, f stackL, spR, f stackR]
-    | ops == S.fromList [OpEqSelectiveWrapper] ->
+         in boolE $ ExprValueOp (OpExt OpExtStackEquals) [spL, f stackL, spR, f stackR]
+    | ops == S.fromList [OpExt OpExtEqSelectiveWrapper] ->
         let [valL, _, _] = argsL
             [valR, _, _] = argsR
          in if valL.ty == ExprTypeRelWrapper
@@ -303,7 +303,7 @@ splitScalarPairs args = (scalars, mems, others)
 
 instEqAtVisit :: VisitCount -> Expr -> Bool
 instEqAtVisit visit expr = case expr.value of
-    ExprValueOp OpEqSelectiveWrapper [_, xs, ys] -> case fromJust (toSimpleVC visit) of
+    ExprValueOp (OpExt OpExtEqSelectiveWrapper) [_, xs, ys] -> case fromJust (toSimpleVC visit) of
         SimpleVisitCountViewNumber n -> n `elem` numListFromSum xs
         SimpleVisitCountViewOffset n -> n `elem` numListFromSum ys
     _ -> True
@@ -337,11 +337,11 @@ strengthenHypInner = go
             OpNot ->
                 let [x] = args
                  in notE (goAgainst x)
-            OpStackEquals ->
-                let op' = if direction then OpImpliesStackEquals else OpStackEqualsImplies
+            OpExt OpExtStackEquals ->
+                let op' = if direction then OpExt OpExtImpliesStackEquals else OpExt OpExtStackEqualsImplies
                  in expr & exprOp .~ op'
-            OpROData ->
-                applyWhen direction (exprOp .~ OpImpliesROData) expr
+            OpExt OpExtROData ->
+                applyWhen direction (exprOp .~ OpExt OpExtImpliesROData) expr
             OpEquals | isBoolT (head args).ty ->
                 let [_, r] = args
                     [l', r'] = applyWhen (r `elem` [trueE, falseE]) reverse args

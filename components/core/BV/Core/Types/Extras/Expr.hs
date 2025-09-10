@@ -270,14 +270,14 @@ memUpdE addr mem v =
         Expr mem.ty (opV OpMemUpdate [mem, addr, v])
 
 rodataE :: Expr -> Expr
-rodataE mem = ensureType_ isMemT mem $ boolE (opV OpROData [mem])
+rodataE mem = ensureType_ isMemT mem $ boolE (opV (OpExt OpExtROData) [mem])
 
 stackWrapperE :: Expr -> Expr -> [Expr] -> Expr
 stackWrapperE sp stack excepts =
     ensureType_ isMemT stack .
     ensureType_ (isWordWithSizeT archWordSizeBits) sp .
     appEndo (foldMap (Endo . ensureType_ (isWordWithSizeT archWordSizeBits)) excepts) $
-        Expr ExprTypeRelWrapper (opV OpStackWrapper ([sp, stack] ++ excepts))
+        Expr ExprTypeRelWrapper (opV (OpExt OpExtStackWrapper) ([sp, stack] ++ excepts))
 
 --
 
