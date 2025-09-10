@@ -248,7 +248,7 @@ data ExprType
   | ExprTypeUnit
   | ExprTypeType
   | ExprTypeToken
-  | ExprTypeRelWrapper
+  | ExprTypeRelWrapper -- !
   | ExprTypeWord
       { bits :: Integer
       }
@@ -262,7 +262,7 @@ data ExprType
       }
   | ExprTypeStruct Ident
   | ExprTypePtr ExprType
-  | ExprTypeGlobalWrapper ExprType
+  | ExprTypeGlobalWrapper ExprType -- !
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary ExprType
@@ -277,7 +277,7 @@ data ExprValue
   | ExprValueType ExprType
   | ExprValueSymbol Ident
   | ExprValueToken Ident
-  | ExprValueSMTExpr MaybeSplit
+  | ExprValueSMTExpr MaybeSplit -- !
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary ExprValue
@@ -326,21 +326,21 @@ data Op
   | OpHtdUpdate
   | OpWordArrayAccess
   | OpWordArrayUpdate
-  | OpTokenWordsAccess
-  | OpTokenWordsUpdate
-  | OpROData
-  | OpStackWrapper
-  | OpEqSelectiveWrapper
+  | OpTokenWordsAccess -- !
+  | OpTokenWordsUpdate -- !
+  | OpROData -- !
+  | OpStackWrapper -- !
+  | OpEqSelectiveWrapper -- !
   | OpToFloatingPoint
   | OpToFloatingPointSigned
   | OpToFloatingPointUnsigned
   | OpFloatingPointCast
-  | OpImpliesROData
-  | OpStackEquals
-  | OpImpliesStackEquals
-  | OpStackEqualsImplies
-  | OpMemAccWrapper
-  | OpMemWrapper
+  | OpImpliesROData -- !
+  | OpStackEquals -- !
+  | OpImpliesStackEquals -- !
+  | OpStackEqualsImplies -- !
+  | OpMemAccWrapper -- !
+  | OpMemWrapper -- !
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary Op
