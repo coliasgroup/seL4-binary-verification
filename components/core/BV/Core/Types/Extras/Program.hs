@@ -30,6 +30,7 @@ import BV.Core.Utils.IncludeExcludeFilter (IncludeExcludeFilter,
 import BV.Utils (expecting)
 
 import Control.DeepSeq (NFData)
+import Control.Monad ((>=>))
 import Control.Monad.Identity (Identity (Identity, runIdentity))
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
@@ -83,9 +84,9 @@ instance FoldExprs Expr where
     foldExprs = simple `summing` (#value % #_ExprValueOp % _2 % folded % foldExprs)
 
 walkExprsM :: Monad m => (Expr -> m Expr) -> Expr -> m Expr
-walkExprsM f expr = do
-    expr' <- f expr
-    flip (traverseOf #value) expr' $ \case
+walkExprsM f = traverseOf #value recurse >=> f
+  where
+    recurse = \case
         ExprValueOp op args -> ExprValueOp op <$> traverse (walkExprsM f) args
         v -> return v
 
