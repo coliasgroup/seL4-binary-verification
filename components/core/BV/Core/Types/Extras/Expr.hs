@@ -42,6 +42,7 @@ module BV.Core.Types.Extras.Expr
     , plusE
     , rodataE
     , smtExprE
+    , splitMemE
     , stackWrapperE
     , structT
     , timesE
@@ -330,3 +331,12 @@ getMemAccess = afolding $ \expr -> case expr.value of
         , mem
         }
     _ -> Nothing
+
+-- experimental
+
+splitMemE :: Expr -> Expr -> Expr -> Expr
+splitMemE addr top bottom =
+    ensureType_ (isWordWithSizeT archWordSizeBits) addr .
+    ensureType_ isMemT top .
+    ensureType_ isMemT bottom $
+        Expr top.ty (opV (OpExt OpExtSplitMem) [addr, top, bottom])
