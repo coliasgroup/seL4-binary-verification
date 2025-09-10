@@ -605,14 +605,14 @@ convertExpr expr = case expr.value of
                 noteMemDom p' dom' md
                 return $ NotSplit $ if cheatMemDoms then trueS else md
         OpMemUpdate -> do
-                let [m, p, v] = args;
+                let [m, p, v] = args
                 ensureM $ isWordT v.ty
                 m' <- convertExpr m
                 p' <- convertExprNotSplit p
                 v' <- convertExprNotSplit v
                 convertMemUpdate m' p' v' v.ty
         OpMemAcc -> do
-                let [m, p] = args;
+                let [m, p] = args
                 ensureM $ isWordT expr.ty
                 m' <- convertExpr m
                 p' <- convertExprNotSplit p
