@@ -185,13 +185,23 @@ pvalidAssertion2 x y = do
                 return $ (contained `andE` outer.pv) `impliesE` inner.pv
 
 pvalidContains :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
-pvalidContains outer inner =
-    (getSubtypeCondition `on` augmentPValidTypeWithStrength PArrayValidStrengthWeak)
-        inner.pvTy
-        outer.pvTy
-            <&> \case
-                Nothing -> falseE
-                Just cond -> cond (inner.p `minusE` outer.p)
+pvalidContains outer inner = do
+    condOpt <- case (outer.pvKind, inner.pvKind) of
+        (PValidKindPGlobalValid, PValidKindPGlobalValid) -> return $
+            if outer.pvTy == inner.pvTy
+            then Just $ \offs -> offs `eqE` machineWordE 0
+            else Nothing
+        (_, PValidKindPGlobalValid) -> return Nothing
+        _ ->
+            applyWhen (outer.pvKind == PValidKindPGlobalValid) (fmap compatNoop) <$>
+                (getSubtypeCondition `on` augmentPValidTypeWithStrength PArrayValidStrengthWeak)
+                    inner.pvTy
+                    outer.pvTy
+    return $ case condOpt of
+        Nothing -> falseE
+        Just cond -> cond (inner.p `minusE` outer.p)
+  where
+    compatNoop cond offs = cond (offs `minusE` machineWordE 0)
 
 getSubtypeCondition :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
 getSubtypeCondition = go
@@ -217,7 +227,7 @@ getSubtypeCondition = go
         (_, PValidTypeWithStrengthType (ExprTypeStruct outerStructName)) -> do
                 askStruct outerStructName >>= goNormStruct innerPvTy
         (_, PValidTypeWithStrengthType (ExprTypeGlobalWrapper wrapped)) -> do
-                goNormDummyGlobalStruct innerPvTy wrapped
+                go innerPvTy (PValidTypeWithStrengthType wrapped)
         (_, PValidTypeWithStrengthArray { ty = outerElTy, strength = outerBound }) -> do
                 condOpt <- go innerPvTy (PValidTypeWithStrengthType outerElTy)
                 outerSize <- pvTySizeCompat outerPvTy
@@ -236,10 +246,6 @@ getSubtypeCondition = go
         return $ case conds of
             [] -> Nothing
             _ -> Just $ \offs -> foldr1 orE [ cond offs | cond <- conds ]
-
-    goNormDummyGlobalStruct innerPvTy outerTy = do
-        let contextualize cond offs = cond (offs `minusE` machineWordE 0)
-        over _Just contextualize <$> go innerPvTy (PValidTypeWithStrengthType outerTy)
 
     normalizeArrayType = \case
         PValidTypeWithStrengthType (ExprTypeArray { ty, len }) -> PValidTypeWithStrengthArray
