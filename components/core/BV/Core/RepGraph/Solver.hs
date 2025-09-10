@@ -55,7 +55,6 @@ import Control.Monad.State (StateT, get)
 import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Writer (WriterT)
 import Data.Foldable (for_)
-import Data.Function (applyWhen)
 import Data.Functor (void)
 import Data.List (nub, sortOn)
 import Data.Map (Map)
@@ -240,7 +239,7 @@ askRODataPtrs :: MonadRepGraphSolver m => m [(Expr, ExprType)]
 askRODataPtrs = do
     rodata <- liftSolver $ gview #rodata
     return
-        [ (machineWordE range.addr, globalWrapperT (structT structName))
+        [ (machineWordE range.addr, structT structName)
         | (structName, range) <- rodataStructNamesOf rodata
         ]
 
@@ -593,10 +592,9 @@ convertExpr expr = case expr.value of
                         let mkPvTy = PValidTypeType
                         return (htd, tyExpr, p, mkPvTy)
                 let ExprValueType ty = tyExpr.value
-                let pvTy = mkPvTy (applyWhen (op == OpPGlobalValid) globalWrapperT ty)
                 htd' <- gview $ expectingAt (nameTyFromVarE htd) % expecting #_NotSplit
                 p' <- convertExprNotSplit p
-                NotSplit <$> addPValids htd' (pvalidKindFromOp op) pvTy p'
+                NotSplit <$> addPValids htd' (pvalidKindFromOp op) (mkPvTy ty) p'
         OpMemDom -> do
                 let [p, dom] = args
                 p' <- convertExprNotSplit p

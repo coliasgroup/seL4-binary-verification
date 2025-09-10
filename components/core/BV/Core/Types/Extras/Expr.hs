@@ -17,7 +17,7 @@ module BV.Core.Types.Extras.Expr
     , falseE
     , fromBoolE
     , getMemAccess
-    , globalWrapperT
+    , ifThenElseE
     , impliesE
     , isBoolT
     , isMachineWordT
@@ -85,9 +85,6 @@ tokenT = ExprTypeToken
 
 structT :: Ident -> ExprType
 structT = ExprTypeStruct
-
-globalWrapperT :: ExprType -> ExprType
-globalWrapperT = ExprTypeGlobalWrapper
 
 --
 

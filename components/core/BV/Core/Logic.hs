@@ -47,7 +47,6 @@ sizeOfType = \case
     ExprTypeArray { ty, len } -> (* len) <$> sizeOfType ty
     ExprTypeStruct name -> (.size) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
-    ExprTypeGlobalWrapper ty' -> sizeOfType ty'
 
 alignOfType :: MonadStructs m => ExprType -> m Integer
 alignOfType ty = case ty of
@@ -55,7 +54,6 @@ alignOfType ty = case ty of
     ExprTypeArray { ty = ty' } -> alignOfType ty'
     ExprTypeStruct name -> (.align) <$> askStruct name
     ExprTypePtr _ -> return archPtrSizeBytes
-    ExprTypeGlobalWrapper ty' -> alignOfType ty'
 
 --
 
@@ -226,8 +224,6 @@ getSubtypeCondition = go
                 return $ Just $ \offs -> offs `eqE` machineWordE 0
         (_, PValidTypeWithStrengthType (ExprTypeStruct outerStructName)) -> do
                 askStruct outerStructName >>= goNormStruct innerPvTy
-        (_, PValidTypeWithStrengthType (ExprTypeGlobalWrapper wrapped)) -> do
-                go innerPvTy (PValidTypeWithStrengthType wrapped)
         (_, PValidTypeWithStrengthArray { ty = outerElTy, strength = outerBound }) -> do
                 condOpt <- go innerPvTy (PValidTypeWithStrengthType outerElTy)
                 outerSize <- pvTySizeCompat outerPvTy

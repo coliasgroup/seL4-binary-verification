@@ -317,7 +317,6 @@ instance BuildInLine ExprType where
         ExprTypeArray { ty, len } -> "Array" <> put ty <> putDec len
         ExprTypeStruct ident -> "Struct" <> put ident
         ExprTypePtr ty -> "Ptr" <> put ty
-        ExprTypeGlobalWrapper _ty -> undefined
 
 instance BuildInLine Op where
     buildInLine a = case a of
