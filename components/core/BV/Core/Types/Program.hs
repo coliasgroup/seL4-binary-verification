@@ -327,12 +327,12 @@ data Op
   | OpWordArrayAccess
   | OpWordArrayUpdate
   | OpROData -- !
-  | OpStackWrapper -- !
-  | OpEqSelectiveWrapper -- !
   | OpImpliesROData -- !
   | OpStackEquals -- !
   | OpImpliesStackEquals -- !
   | OpStackEqualsImplies -- !
+  | OpStackWrapper -- !
+  | OpEqSelectiveWrapper -- !
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary Op
