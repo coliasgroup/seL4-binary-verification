@@ -248,7 +248,6 @@ data ExprType
   | ExprTypeUnit
   | ExprTypeType
   | ExprTypeToken
-  | ExprTypeRelWrapper -- !
   | ExprTypeWord
       { bits :: Integer
       }
@@ -262,6 +261,7 @@ data ExprType
       }
   | ExprTypeStruct Ident
   | ExprTypePtr ExprType
+  | ExprTypeRelWrapper -- !
   | ExprTypeGlobalWrapper ExprType -- !
   deriving (Eq, Generic, NFData, Ord, Show)
 
