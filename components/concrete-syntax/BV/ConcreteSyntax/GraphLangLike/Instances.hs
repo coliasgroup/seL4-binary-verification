@@ -236,6 +236,7 @@ instance ParseInLine Op where
         "ImpliesROData" -> Right OpImpliesROData
         "ImpliesStackEquals" -> Right OpImpliesStackEquals
         "StackEqualsImplies" -> Right OpStackEqualsImplies
+        "SplitMem" -> Right OpSplitMem
         w -> Left $ "invalid operation: " ++ w
 
 --
@@ -370,6 +371,7 @@ instance BuildInLine Op where
         OpStackEquals -> "StackEquals"
         OpImpliesStackEquals -> "ImpliesStackEquals"
         OpStackEqualsImplies -> "StackEqualsImplies"
+        OpSplitMem -> "SplitMem"
 
 --
 

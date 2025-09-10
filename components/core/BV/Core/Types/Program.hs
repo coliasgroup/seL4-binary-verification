@@ -333,6 +333,7 @@ data Op
   | OpStackEqualsImplies -- !
   | OpStackWrapper -- !
   | OpEqSelectiveWrapper -- !
+  | OpSplitMem -- !
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary Op
