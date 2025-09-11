@@ -27,6 +27,7 @@ module BV.Core.RepGraph.Solver
     , convertExpr
     , convertExprNotSplit
     , convertInnerExpr
+    , getImmBasisMems
     , initSolver
     , initSolverEnv
     , initSolverState
@@ -132,7 +133,7 @@ data SolverState
       , doms :: Set (S, S, S)
       , modelVars :: Set Name
       , modelExprs :: Map SExprWithPlaceholders (Name, ExprType)
-      , stackEqImpliesCheckMap :: Map S (Maybe S)
+      , stackEqImpliesCheckMap :: Map Name (Maybe S)
       , impliesStackEqMap :: Map (Expr, Expr, Expr) Name
       , tokens :: Map Ident Name
       , tokenVals :: Map S Ident
@@ -468,13 +469,13 @@ addPValidDomAssertions = do
 
 addSplitMemVar :: MonadRepGraphSolver m => S -> NameHint -> ExprType -> m SplitMem
 addSplitMemVar split nameHint ty@ExprTypeMem = do
-    bottom <- nameS <$> addVar (nameHint ++ "_bot") ty
-    top <- nameS <$> addVar (nameHint ++ "_top") ty
+    bottom <- addVar (nameHint ++ "_bot") ty
+    top <- addVar (nameHint ++ "_top") ty
     liftSolver $ #stackEqImpliesCheckMap %= M.insert top Nothing
     return $ SplitMem
         { split
-        , top
-        , bottom
+        , top = nameS top
+        , bottom = nameS bottom
         }
 
 --
@@ -790,23 +791,24 @@ getStackEqImplies stack1 stack2 = do
         Just old -> ensureM $ old == rhs
     return $ cond `impliesS` (stack1.top `eqS` rhs)
 
-getImmBasisMems :: MonadRepGraphSolver m => S -> m (Set S)
+getImmBasisMems :: MonadRepGraphSolver m => S -> m (Set Name)
 getImmBasisMems = go
   where
     go = \case
-        List (op:args) -> if
-            | op == symbolS "ite" -> do
-                let [_c, l, r] = args
+        List [op, x, _, _] | isStore op ->
+            go x
+        List [op, _, l, r] | op == symbolS "ite" ->
                 (<>) <$> go l <*> go r
-            | op == symbolS "store-word8" || op == symbolS "store-word32" -> do
-                let [m, _p, _v] = args
-                go m
         m -> do
             let Just sym = parseSymbolS m
-            isCached <- liftSolver $ use $ #cachedExprNames % to (S.member (Name sym))
-            if isCached
-                then getDef (Name sym) >>= go
-                else return $ S.singleton m
+            tryGetDef (Name sym) >>= \case
+                Just x -> go x
+                Nothing -> return $ S.singleton (Name sym)
+    isStore s = s `elem`
+        ([ symbolS "store-word8"
+         , symbolS "store-word32"
+         , symbolS "store-word64"
+         ] :: [SExprWithPlaceholders])
 
 data PValidKey
   = PValidKey

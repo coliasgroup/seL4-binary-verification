@@ -55,11 +55,10 @@ import BV.Core.Structs (MonadStructs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils
-import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, guard, unless, when)
+import Control.Monad (filterM, guard, unless, when, (>=>))
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
@@ -769,27 +768,8 @@ addMemCall fname = fmap $ flip M.alter fname $ Just . incr . fromMaybe zeroMemCa
     incr = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
 
 getMemCalls :: MonadRepGraph t m => SExprWithPlaceholders -> m MemCalls
-getMemCalls = go
-  where
-    go = \case
-        List [op, x, _, _] | isStore op ->
-            go x
-        List [op, _, x, y] | op == symbolS "ite" ->
-            mergeMemCalls <$> go x <*> go y
-        sexpr -> do
-            r <- runMaybeT $ do
-                name <- hoistMaybe $ Name <$> parseSymbolS sexpr
-                memCallsOpt <- liftRepGraph $ use $ #memCalls % at name
-                whenNothing memCallsOpt $ do
-                    next <- MaybeT $ tryGetDef name
-                    lift $ go next
-            whenNothing r $ do
-                error $ "getMemCalls fallthrough: " ++ show (showSExprWithPlaceholders sexpr)
-    isStore s = s `elem`
-        ([ symbolS "store-word8"
-         , symbolS "store-word32"
-         , symbolS "store-word64"
-         ] :: [SExprWithPlaceholders])
+getMemCalls = getImmBasisMems >=> \mems -> fmap (foldr1 mergeMemCalls) $ for (S.toList mems) $ \mem ->
+    liftRepGraph $ use $ #memCalls % expectingAt mem
 
 scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m MemCallsIfKnown
 scanMemCallsEnv env = scanMemCalls
