@@ -15,8 +15,9 @@ module BV.Core.RepGraph.Solver
     , NameHint
     , PcEnv (..)
     , SolverEnv
-    , SolverOutput
     , SolverExpr
+    , SolverExprContext (..)
+    , SolverOutput
     , SolverState
     , addDef
     , addPValidDomAssertions
@@ -32,7 +33,6 @@ module BV.Core.RepGraph.Solver
     , initSolver
     , initSolverEnv
     , initSolverState
-    , SolverExprContext (..)
     , mergeEnvsPcs
     , nameS
     , tryGetDef
