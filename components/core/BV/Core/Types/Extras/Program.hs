@@ -162,8 +162,30 @@ nodeConts = castOptic $
 exprOp :: Lens' (Expr c) Op
 exprOp = #value % expecting #_ExprValueOp % _1
 
-exprOpArgs :: Lens' (Expr c) [Expr c]
-exprOpArgs = #value % expecting #_ExprValueOp % _2
+exprOpArgs :: Lens (Expr c) (Expr c') [Expr c] [Expr c']
+exprOpArgs = x1 % expecting x2 % _2
+
+x1 :: Lens (Expr c) (Expr c') (ExprValue c) (ExprValue c')
+x1 = #value
+
+x2 :: Prism (ExprValue c) (ExprValue c') (Op, [Expr c]) (Op, [Expr c'])
+x2 = #_ExprValueOp
+
+data Foo a = Foo
+    { x :: ()
+    , y :: Bar a
+    }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data Bar a = Bar
+    { x :: ()
+    , y :: a
+    }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+y1 :: Lens (Foo c) (Foo c') (Bar c) (Bar c')
+y1 = #y
+
 
 --
 
