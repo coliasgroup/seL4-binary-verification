@@ -16,6 +16,7 @@ module BV.Core.RepGraph.Solver
     , PcEnv (..)
     , SolverEnv
     , SolverOutput
+    , SolverExpr
     , SolverState
     , addDef
     , addPValidDomAssertions
@@ -31,6 +32,7 @@ module BV.Core.RepGraph.Solver
     , initSolver
     , initSolverEnv
     , initSolverState
+    , SolverExprContext (..)
     , mergeEnvsPcs
     , nameS
     , tryGetDef
@@ -69,6 +71,11 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=), (<<%=))
 import Text.Printf (printf)
+
+data SolverExprContext
+  = SolverExprContext !SolverExprContext
+
+type SolverExpr = Expr SolverExprContext
 
 -- TODO
 cheatMemDoms :: Bool
