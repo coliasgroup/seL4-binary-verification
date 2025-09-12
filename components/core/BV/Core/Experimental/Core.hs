@@ -21,7 +21,6 @@ module BV.Core.Experimental.Core
     , PcEnv (..)
     , RepGraphEnv
     , RepGraphState
-    , TooGeneral (..)
     , VarRepRequestKind (..)
     , VarReqRequest (..)
     , addSplitMemVar
