@@ -93,7 +93,7 @@ toCompatSMTProofChecks smtProofChecks = CompatSMTProofChecks $
 -- search outputs
 
 newtype StackBounds
-  = StackBounds { unwrap :: M.Map Ident Expr }
+  = StackBounds { unwrap :: M.Map Ident GraphExpr }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 

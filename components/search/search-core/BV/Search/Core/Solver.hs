@@ -96,7 +96,7 @@ withoutCache (StateT f) = fst <$> f Nothing
 --
 
 newtype Model
-  = Model { unwrap :: M.Map SExprWithPlaceholders Expr }
+  = Model { unwrap :: M.Map SExprWithPlaceholders GraphExpr }
   deriving (Generic, Show)
 
 type LowLevelModelRequest = [Name]
@@ -114,7 +114,7 @@ reconstructModel exprs req vals =
     assocs = M.fromList $ catMaybes $ zipWith (\name val -> (,) name <$> smtToVal val) req vals
     abbrevs = (assocs M.!) <$> M.filter (`M.member` assocs) (fst <$> exprs)
 
-smtToVal :: SExpr -> Maybe Expr
+smtToVal :: SExpr -> Maybe GraphExpr
 smtToVal sexpr = case viewSExpr sexpr of
     Atom (SymbolAtom "true") -> Just trueE
     Atom (SymbolAtom "false") -> Just falseE
@@ -130,12 +130,12 @@ smtToVal sexpr = case viewSExpr sexpr of
         [(a, "")] -> a
         _ -> error "parse failure"
 
-evalModelExpr :: MonadRepGraph t m => Expr -> StateT Model m Expr
+evalModelExpr :: MonadRepGraph t m => GraphExpr -> StateT Model m GraphExpr
 evalModelExpr expr = do
     sexpr <- withoutEnv $ convertExprNotSplit expr
     evalModel sexpr
 
-evalModel :: Monad m => SExprWithPlaceholders -> StateT Model m Expr
+evalModel :: Monad m => SExprWithPlaceholders -> StateT Model m GraphExpr
 evalModel = go
   where
     go sexpr = maybe (complex sexpr) return (trySimple sexpr)
@@ -189,7 +189,7 @@ testHypGetModel hyp = ensureModel <$> testHypCommon True hyp
 
 testHypWhypsCommon
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => Bool -> Bool -> Expr -> [Hyp t] -> StateT (Maybe Cache) m (Maybe (TestResultWith (Maybe Model)))
+    => Bool -> Bool -> GraphExpr -> [Hyp t] -> StateT (Maybe Cache) m (Maybe (TestResultWith (Maybe Model)))
 testHypWhypsCommon fast wantModel hyp hyps = do
     sexpr <- lift $ interpretHypImps hyps hyp >>= withoutEnv . convertExprNotSplit
     cacheEntry <- preuse $ #_Just % #unwrap % at sexpr % #_Just
@@ -207,28 +207,28 @@ testHypWhypsCommon fast wantModel hyp hyps = do
 
 testHypWhyps
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => Expr -> [Hyp t] -> m Bool
+    => GraphExpr -> [Hyp t] -> m Bool
 testHypWhyps hyp hyps =
     isTrueResult . ensureNoModel . fromJust <$>
         withoutCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsGetModel
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => Expr -> [Hyp t] -> m (TestResultWith Model)
+    => GraphExpr -> [Hyp t] -> m (TestResultWith Model)
 testHypWhypsGetModel hyp hyps =
     ensureModel . fromJust <$>
         withoutCache (testHypWhypsCommon False True hyp hyps)
 
 testHypWhypsWithCache
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => Expr -> [Hyp t] -> StateT Cache m Bool
+    => GraphExpr -> [Hyp t] -> StateT Cache m Bool
 testHypWhypsWithCache hyp hyps =
     isTrueResult . ensureNoModel . fromJust <$>
         withCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsWithCacheFast
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => Expr -> [Hyp t] -> StateT Cache m (Maybe Bool)
+    => GraphExpr -> [Hyp t] -> StateT Cache m (Maybe Bool)
 testHypWhypsWithCacheFast hyp hyps =
     fmap (isTrueResult . ensureNoModel) <$>
         withCache (testHypWhypsCommon True False hyp hyps)

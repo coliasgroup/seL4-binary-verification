@@ -78,7 +78,7 @@ getRecursionIdents
     :: forall m n. (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
     => (forall t a. Tag t => Problem t -> RepGraphBase t n a -> m a)
     -> M.Map Ident Function
-    -> m (M.Map Ident [Expr])
+    -> m (M.Map Ident [GraphExpr])
 getRecursionIdents runRepGraph functions =
     mconcat <$> traverse (computeRecursionIdents . S.map fromVertex) scc
   where
@@ -102,7 +102,7 @@ getRecursionIdents runRepGraph functions =
         ]
       where
         comp = S.map toVertex comp'
-    computeRecursionIdents :: S.Set Ident -> m (M.Map Ident [Expr])
+    computeRecursionIdents :: S.Set Ident -> m (M.Map Ident [GraphExpr])
     computeRecursionIdents group = flip execStateT M.empty $ do
         logInfo $ printf "Doing recursion analysis for function group:"
         logInfo $ printf "  %s" $ show $ map (.unwrap) $ S.toList group
@@ -116,7 +116,7 @@ addRecursionIdent
     -> M.Map Ident Function
     -> Ident
     -> S.Set Ident
-    -> StateT (M.Map Ident [Expr]) m Bool
+    -> StateT (M.Map Ident [GraphExpr]) m Bool
 addRecursionIdent runRepGraph functions f group = do
     let initState = (initProblemBuilder, [], [])
     flip execStateT initState $ do
@@ -155,7 +155,7 @@ findUnknownRecursion
     -> M.Map Ident Function
     -> Problem FunTag
     -> S.Set Ident
-    -> M.Map Ident [Expr]
+    -> M.Map Ident [GraphExpr]
     -> FunTag
     -> [Hyp FunTag]
     -> m (Maybe NodeAddr)

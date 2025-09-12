@@ -37,7 +37,7 @@ compilePValidAlignExprs = walkFunctionExprs f
             _ -> error ""
         _ -> expr
 
-walkFunctionExprs :: (Expr -> Expr) -> Program -> Program
+walkFunctionExprs :: (GraphExpr -> GraphExpr) -> Program -> Program
 walkFunctionExprs f =
     #functions % traversed % #body % traversed % #nodes % traversed % traverseTopLevelLevelExprs
         %~ walkExprs f

@@ -116,7 +116,7 @@ instance ParseInLine Node where
 instance ParseInLine VarUpdate where
     parseInLine = VarUpdate <$> parseInLine <*> parseInLine
 
-instance ParseInLine Expr where
+instance ParseInLine (Expr c) where
     parseInLine = do
         w <- word
         case w of
@@ -140,7 +140,7 @@ instance ParseInLine Expr where
                 return $ Expr { ty, value }
             _ -> fail "invalid value"
       where
-        typical :: (ParseInLine a) => (a -> ExprValue) -> Parser Expr
+        typical :: (ParseInLine a) => (a -> ExprValue c) -> Parser (Expr c)
         typical = typicalWith parseInLine
         typicalWith p f = do
             value <- f <$> p
@@ -291,7 +291,7 @@ instance BuildInLine Node where
 instance BuildInLine VarUpdate where
     buildInLine (VarUpdate { var, val }) = put var <> put val
 
-instance BuildInLine Expr where
+instance BuildInLine (Expr c) where
     buildInLine (Expr { ty, value }) = case value of
         ExprValueVar ident -> "Var" <> put ident <> put ty
         ExprValueOp op args -> "Op" <> put op <> put ty <> put args

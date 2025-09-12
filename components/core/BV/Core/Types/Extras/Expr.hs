@@ -110,108 +110,108 @@ wordTBits = viewExpecting #_ExprTypeWord
 
 --
 
-numV :: Integer -> ExprValue
+numV :: Integer -> ExprValue c
 numV = ExprValueNum
 
-opV :: Op -> [Expr] -> ExprValue
+opV :: Op -> [Expr c] -> ExprValue c
 opV = ExprValueOp
 
-boolE :: ExprValue -> Expr
+boolE :: ExprValue c -> Expr c
 boolE = Expr boolT
 
-fromBoolE :: Bool -> Expr
+fromBoolE :: Bool -> Expr c
 fromBoolE v = if v then trueE else falseE
 
-numE :: ExprType -> Integer -> Expr
+numE :: ExprType -> Integer -> Expr c
 numE ty n = ensure (isWordT ty) $ Expr ty (numV n)
 
-smtExprE :: ExprType -> MaybeSplit -> Expr
+smtExprE :: ExprType -> MaybeSplit -> Expr c
 smtExprE ty smt = Expr ty (ExprValueSMTExpr smt)
 
 --
 
-trueE :: Expr
+trueE :: Expr c
 trueE = Expr boolT (opV OpTrue [])
 
-falseE :: Expr
+falseE :: Expr c
 falseE = Expr boolT (opV OpFalse [])
 
-eqE :: Expr -> Expr -> Expr
+eqE :: Expr c -> Expr c -> Expr c
 eqE lhs rhs = ensureTypesEqual_ lhs rhs $ Expr boolT (opV OpEquals [lhs, rhs])
 
-andE :: Expr -> Expr -> Expr
+andE :: Expr c -> Expr c -> Expr c
 andE lhs rhs = Expr (ensureTypesEqualAnd isBoolT lhs rhs) (opV OpAnd [lhs, rhs])
 
-orE :: Expr -> Expr -> Expr
+orE :: Expr c -> Expr c -> Expr c
 orE lhs rhs = Expr (ensureTypesEqualAnd isBoolT lhs rhs) (opV OpOr [lhs, rhs])
 
-notE :: Expr -> Expr
+notE :: Expr c -> Expr c
 notE expr = Expr (ensureType isBoolT expr) (opV OpNot [expr])
 
-impliesE :: Expr -> Expr -> Expr
+impliesE :: Expr c -> Expr c -> Expr c
 impliesE lhs rhs = Expr (ensureTypesEqualAnd isBoolT lhs rhs) (opV OpImplies [lhs, rhs])
 
-ifThenElseE :: Expr -> Expr -> Expr -> Expr
+ifThenElseE :: Expr c -> Expr c -> Expr c -> Expr c
 ifThenElseE cond ifTrue ifFalse = ensureType_ isBoolT cond $
     Expr (ensureTypesEqual ifTrue ifFalse) (opV OpIfThenElse [cond, ifTrue, ifFalse])
 
-word32E :: Integer -> Expr
+word32E :: Integer -> Expr c
 word32E = numE word32T
 
 --
 
-plusE :: Expr -> Expr -> Expr
+plusE :: Expr c -> Expr c -> Expr c
 plusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpPlus [lhs, rhs])
 
-minusE :: Expr -> Expr -> Expr
+minusE :: Expr c -> Expr c -> Expr c
 minusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpMinus [lhs, rhs])
 
-timesE :: Expr -> Expr -> Expr
+timesE :: Expr c -> Expr c -> Expr c
 timesE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpTimes [lhs, rhs])
 
-modulusE :: Expr -> Expr -> Expr
+modulusE :: Expr c -> Expr c -> Expr c
 modulusE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpModulus [lhs, rhs])
 
-negE :: Expr -> Expr
+negE :: Expr c -> Expr c
 negE expr = numE expr.ty 0 `minusE` expr
 
-lessWithSignednessE :: Bool -> Expr -> Expr -> Expr
+lessWithSignednessE :: Bool -> Expr c -> Expr c -> Expr c
 lessWithSignednessE isSigned lhs rhs = ensureTypesEqualAnd_ isWordT lhs rhs $
     boolE (opV (if isSigned then OpSignedLess else OpLess) [lhs, rhs])
 
-lessEqWithSignednessE :: Bool -> Expr -> Expr -> Expr
+lessEqWithSignednessE :: Bool -> Expr c -> Expr c -> Expr c
 lessEqWithSignednessE isSigned lhs rhs = ensureTypesEqualAnd_ isWordT lhs rhs $
     boolE (opV (if isSigned then OpSignedLessEquals else OpLessEquals) [lhs, rhs])
 
-lessE :: Expr -> Expr -> Expr
+lessE :: Expr c -> Expr c -> Expr c
 lessE = lessWithSignednessE False
 
-lessEqE :: Expr -> Expr -> Expr
+lessEqE :: Expr c -> Expr c -> Expr c
 lessEqE = lessEqWithSignednessE False
 
-bitwiseAndE :: Expr -> Expr -> Expr
+bitwiseAndE :: Expr c -> Expr c -> Expr c
 bitwiseAndE lhs rhs = Expr (ensureTypesEqualAnd isWordT lhs rhs) (opV OpBWAnd [lhs, rhs])
 
-wordReverseE :: Expr -> Expr
+wordReverseE :: Expr c -> Expr c
 wordReverseE x = Expr (ensureType isWordT x) (opV OpWordReverse [x])
 
-clzE :: Expr -> Expr
+clzE :: Expr c -> Expr c
 clzE x = Expr (ensureType isWordT x) (opV OpCountLeadingZeroes [x])
 
 --
 
-nImpliesE :: [Expr] -> Expr -> Expr
+nImpliesE :: [Expr c] -> Expr c -> Expr c
 nImpliesE xs y = foldr impliesE y xs
 
 --
 
-alignedE :: Integer -> Expr -> Expr
+alignedE :: Integer -> Expr c -> Expr c
 alignedE n expr = bitwiseAndE expr mask `eqE` numE ty 0
   where
     ty = ensureType isWordT expr
     mask = numE ty ((1 `shiftL` fromIntegerChecked n) - 1)
 
-castE :: ExprType -> Expr -> Expr
+castE :: ExprType -> Expr c -> Expr c
 castE ty expr =
     if ty == expr.ty
     then expr
@@ -220,7 +220,7 @@ castE ty expr =
 --
 
 -- TODO move?
-castCToAsmE :: ExprType -> Expr -> Expr
+castCToAsmE :: ExprType -> Expr c -> Expr c
 castCToAsmE ty expr =
     ensure (isWordT ty) $
         if isBoolT expr.ty
@@ -228,11 +228,11 @@ castCToAsmE ty expr =
         else castE ty expr
 
 -- TODO move
-machineWordE :: Integer -> Expr
+machineWordE :: Integer -> Expr c
 machineWordE = numE machineWordT
 
 -- TODO move
-machineWordVarE :: Ident -> Expr
+machineWordVarE :: Ident -> Expr c
 machineWordVarE = varE machineWordT
 
 -- TODO move
@@ -241,36 +241,36 @@ machineWordT = wordT archWordSizeBits
 
 --
 
-tokenE :: Ident -> Expr
+tokenE :: Ident -> Expr c
 tokenE = Expr tokenT . ExprValueToken
 
-varE :: ExprType -> Ident -> Expr
+varE :: ExprType -> Ident -> Expr c
 varE ty = Expr ty . ExprValueVar
 
-varFromNameTyE :: NameTy -> Expr
+varFromNameTyE :: NameTy -> Expr c
 varFromNameTyE arg = varE arg.ty arg.name
 
-nameTyFromVarE :: Expr -> NameTy
+nameTyFromVarE :: Expr c -> NameTy
 nameTyFromVarE (Expr ty (ExprValueVar name)) = NameTy name ty
 
-memAccE :: ExprType -> Expr -> Expr -> Expr
+memAccE :: ExprType -> Expr c -> Expr c -> Expr c
 memAccE ty addr mem =
     ensureType_ isMemT mem .
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
     ensure (isWordT ty) $
         Expr ty (opV OpMemAcc [mem, addr])
 
-memUpdE :: Expr -> Expr -> Expr -> Expr
+memUpdE :: Expr c -> Expr c -> Expr c -> Expr c
 memUpdE addr mem v =
     ensureType_ isMemT mem .
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
     ensure (isWordT v.ty) $
         Expr mem.ty (opV OpMemUpdate [mem, addr, v])
 
-rodataE :: Expr -> Expr
+rodataE :: Expr c -> Expr c
 rodataE mem = ensureType_ isMemT mem $ boolE (opV (OpExt OpExtROData) [mem])
 
-stackWrapperE :: Expr -> Expr -> [Expr] -> Expr
+stackWrapperE :: Expr c -> Expr c -> [Expr c] -> Expr c
 stackWrapperE sp stack excepts =
     ensureType_ isMemT stack .
     ensureType_ (isWordWithSizeT archWordSizeBits) sp .
@@ -279,22 +279,22 @@ stackWrapperE sp stack excepts =
 
 --
 
-ensureType :: (ExprType -> Bool) -> Expr -> ExprType
+ensureType :: (ExprType -> Bool) -> Expr c -> ExprType
 ensureType p expr = ensureType_ p expr expr.ty
 
-ensureType_ :: (ExprType -> Bool) -> Expr -> a -> a
+ensureType_ :: (ExprType -> Bool) -> Expr c -> a -> a
 ensureType_ p expr = ensure (p expr.ty)
 
-ensureTypesEqual :: Expr -> Expr -> ExprType
+ensureTypesEqual :: Expr c -> Expr c -> ExprType
 ensureTypesEqual lhs rhs = ensureTypesEqual_ lhs rhs lhs.ty
 
-ensureTypesEqual_ :: Expr -> Expr -> a -> a
+ensureTypesEqual_ :: Expr c -> Expr c -> a -> a
 ensureTypesEqual_ lhs rhs = ensure (lhs.ty == rhs.ty)
 
-ensureTypesEqualAnd :: (ExprType -> Bool) -> Expr -> Expr -> ExprType
+ensureTypesEqualAnd :: (ExprType -> Bool) -> Expr c -> Expr c -> ExprType
 ensureTypesEqualAnd p lhs rhs = ensureTypesEqualAnd_ p lhs rhs lhs.ty
 
-ensureTypesEqualAnd_ :: (ExprType -> Bool) -> Expr -> Expr -> a -> a
+ensureTypesEqualAnd_ :: (ExprType -> Bool) -> Expr c -> Expr c -> a -> a
 ensureTypesEqualAnd_ p lhs rhs = ensure (lhs.ty == rhs.ty && p lhs.ty)
 
 --
@@ -304,16 +304,16 @@ data MemOpKind
   | MemOpKindUpdate
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data MemOp
+data MemOp c
   = MemOp
       { kind :: MemOpKind
-      , addr :: Expr
-      , value :: Expr
-      , mem :: Expr
+      , addr :: Expr c
+      , value :: Expr c
+      , mem :: Expr c
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-getMemAccess :: AffineFold Expr MemOp
+getMemAccess :: AffineFold (Expr c) (MemOp c)
 getMemAccess = afolding $ \expr -> case expr.value of
     ExprValueOp OpMemAcc [mem, addr] -> Just $ MemOp
         { kind = MemOpKindAcc
@@ -331,7 +331,7 @@ getMemAccess = afolding $ \expr -> case expr.value of
 
 -- experimental
 
-splitMemE :: Expr -> Expr -> Expr -> Expr
+splitMemE :: Expr c -> Expr c -> Expr c -> Expr c
 splitMemE addr top bottom =
     ensureType_ (isWordWithSizeT archWordSizeBits) addr .
     ensureType_ isMemT top .

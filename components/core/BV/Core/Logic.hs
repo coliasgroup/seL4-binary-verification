@@ -57,10 +57,10 @@ alignOfType ty = case ty of
 
 --
 
-data PValidType
+data PValidType c
   = PValidTypeArray
       { ty :: ExprType
-      , len :: Expr
+      , len :: (Expr c)
       }
   | PValidTypeType ExprType
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -72,10 +72,10 @@ data PValidKind
   | PValidKindPWeakValid
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data PValidTypeWithStrength
+data PValidTypeWithStrength c
   = PValidTypeWithStrengthArray
       { ty :: ExprType
-      , len :: Expr
+      , len :: Expr c
       , strength :: PArrayValidStrength
       }
   | PValidTypeWithStrengthType ExprType
@@ -93,7 +93,7 @@ pvalidKindFromOp = \case
     OpPArrayValid -> PValidKindPArrayValid
     OpPWeakValid -> PValidKindPWeakValid
 
-augmentPValidTypeWithStrength :: PArrayValidStrength -> PValidType -> PValidTypeWithStrength
+augmentPValidTypeWithStrength :: PArrayValidStrength -> PValidType c -> PValidTypeWithStrength c
 augmentPValidTypeWithStrength strength = \case
     PValidTypeType ty -> PValidTypeWithStrengthType ty
     PValidTypeArray { ty, len } -> PValidTypeWithStrengthArray
@@ -102,19 +102,19 @@ augmentPValidTypeWithStrength strength = \case
         , strength
         }
 
-pvalidTypeSize :: MonadStructs m => PValidType -> m Expr
+pvalidTypeSize :: MonadStructs m => PValidType c -> m (Expr c)
 pvalidTypeSize = \case
     PValidTypeType ty -> machineWordE <$> sizeOfType ty
     PValidTypeArray { ty, len } -> do
         elSize <- machineWordE <$> sizeOfType ty
         return $ elSize `timesE` len
 
-pvalidTypeAlign :: MonadStructs m => PValidType -> m Integer
+pvalidTypeAlign :: MonadStructs m => PValidType c -> m Integer
 pvalidTypeAlign = \case
     PValidTypeType ty -> alignOfType ty
     PValidTypeArray { ty } -> alignOfType ty
 
-alignValidIneq :: MonadStructs m => PValidType -> Expr -> m Expr
+alignValidIneq :: MonadStructs m => PValidType c -> Expr c -> m (Expr c)
 alignValidIneq pvTy p = do
     align <- pvalidTypeAlign pvTy
     size <- pvalidTypeSize pvTy
@@ -131,7 +131,7 @@ alignValidIneq pvTy p = do
   where
     w0 = machineWordE 0
 
-arraySizeIneq :: MonadStructs m => ExprType -> Expr -> m Expr
+arraySizeIneq :: MonadStructs m => ExprType -> Expr c -> m (Expr c)
 arraySizeIneq ty len = do
     elSize <- sizeOfType ty
     let limit = (memSize - archPtrSizeBytes) `div` elSize
@@ -139,18 +139,18 @@ arraySizeIneq ty len = do
   where
     memSize = 2 ^ archWordSizeBits
 
-data PValidInfo
+data PValidInfo c
   = PValidInfo
       { pvKind :: PValidKind
-      , pvTy :: PValidType
-      , p :: Expr
-      , pv :: Expr
+      , pvTy :: PValidType c
+      , p :: Expr c
+      , pv :: Expr c
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
 -- First pointer validity assertion: incompatibility.
 -- pvalid1 & pvalid2 --> non-overlapping OR somehow-contained.
-pvalidAssertion1 :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
+pvalidAssertion1 :: MonadStructs m => PValidInfo c -> PValidInfo c -> m (Expr c)
 pvalidAssertion1 x y = do
     p1 <- x `completelyPrecedes` y
     p2 <- y `completelyPrecedes` x
@@ -166,7 +166,7 @@ pvalidAssertion1 x y = do
 
 -- Second pointer validity assertion: implication.
 -- pvalid1 & strictly-contained --> pvalid2
-pvalidAssertion2 :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
+pvalidAssertion2 :: MonadStructs m => PValidInfo c -> PValidInfo c -> m (Expr c)
 pvalidAssertion2 x y = do
     case (x.pvTy, y.pvTy) of
         (PValidTypeArray {}, PValidTypeArray {}) ->
@@ -182,7 +182,7 @@ pvalidAssertion2 x y = do
                 contained <- outer `pvalidContains` inner
                 return $ (contained `andE` outer.pv) `impliesE` inner.pv
 
-pvalidContains :: MonadStructs m => PValidInfo -> PValidInfo -> m Expr
+pvalidContains :: MonadStructs m => PValidInfo c -> PValidInfo c -> m (Expr c)
 pvalidContains outer inner = do
     condOpt <- case (outer.pvKind, inner.pvKind) of
         (PValidKindPGlobalValid, PValidKindPGlobalValid) -> return $
@@ -201,7 +201,7 @@ pvalidContains outer inner = do
   where
     compatNoop cond offs = cond (offs `minusE` machineWordE 0)
 
-getSubtypeCondition :: MonadStructs m => PValidTypeWithStrength -> PValidTypeWithStrength -> m (Maybe (Expr -> Expr))
+getSubtypeCondition :: MonadStructs m => PValidTypeWithStrength c -> PValidTypeWithStrength c -> m (Maybe (Expr c -> Expr c))
 getSubtypeCondition = go
 
   where
@@ -260,7 +260,7 @@ getSubtypeCondition = go
 
 --
 
-applyRelWrapper :: Expr -> Expr -> Expr
+applyRelWrapper :: Expr c -> Expr c -> Expr c
 applyRelWrapper lhs rhs = if
     | ops == S.fromList [OpExt OpExtStackWrapper] ->
         let spL:stackL:exceptsL = argsL
@@ -290,14 +290,14 @@ splitScalarPairs args = (scalars, mems, others)
 
 --
 
-instEqAtVisit :: VisitCount -> Expr -> Bool
+instEqAtVisit :: VisitCount -> Expr c -> Bool
 instEqAtVisit visit expr = case expr.value of
     ExprValueOp (OpExt OpExtEqSelectiveWrapper) [_, xs, ys] -> case fromJust (toSimpleVC visit) of
         SimpleVisitCountViewNumber n -> n `elem` numListFromSum xs
         SimpleVisitCountViewOffset n -> n `elem` numListFromSum ys
     _ -> True
 
-numListFromSum :: Expr -> [Integer]
+numListFromSum :: Expr c -> [Integer]
 numListFromSum = go
   where
     go expr = case expr.value of
@@ -307,13 +307,13 @@ numListFromSum = go
 
 --
 
-strengthenHyp :: Expr -> Expr
+strengthenHyp :: Expr c -> Expr c
 strengthenHyp = strengthenHypInner True
 
-weakenAssert :: Expr -> Expr
+weakenAssert :: Expr c -> Expr c
 weakenAssert = strengthenHypInner False
 
-strengthenHypInner :: Bool -> Expr -> Expr
+strengthenHypInner :: Bool -> Expr c -> Expr c
 strengthenHypInner = go
   where
     go direction expr = case expr.value of

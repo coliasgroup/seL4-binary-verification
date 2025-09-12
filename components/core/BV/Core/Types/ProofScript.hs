@@ -187,7 +187,7 @@ data SingleRevInductProofNode t a
       , tag :: t
       , n :: Integer
       , eqs :: [Lambda]
-      , pred_ :: Expr
+      , pred_ :: GraphExpr
       , nBound :: Integer
       , child :: ProofNodeWith t a
       }
@@ -210,7 +210,7 @@ data Lambda
   = Lambda
       { freeVar :: Ident
       , freeVarTy :: ExprType
-      , expr :: Expr
+      , expr :: GraphExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

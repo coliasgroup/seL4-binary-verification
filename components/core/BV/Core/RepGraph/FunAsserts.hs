@@ -124,7 +124,7 @@ memCallsCompatible memCalls = case sequenceA memCalls of
                  in maybe True (ractual.min <=) rcast.max && maybe True (rcast.min <=) ractual.max
         return $ all compat $ S.toList $ M.keysSet calls.right <> M.keysSet rcastcalls
 
-getFunAssert :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithFunAsserts t m Expr
+getFunAssert :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithFunAsserts t m GraphExpr
 getFunAssert visits = do
     pairingId <- traverse askFunName visits
     pairing <- WithFunAsserts $ gview $ #pairings % #unwrap % expectingAt pairingId
@@ -161,7 +161,7 @@ data FunCallInfoWithNames
   = FunCallInfoWithNames
       { ins :: ExprEnv
       , outs :: ExprEnv
-      , success :: Expr
+      , success :: GraphExpr
       }
   deriving (Eq, Generic, Ord, Show)
 

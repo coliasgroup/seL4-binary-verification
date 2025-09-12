@@ -28,28 +28,28 @@ rightInQ = PairingEqSideQuadrant rightTag PairingEqDirectionIn
 rightOutQ :: RefineTag t => PairingEqSideQuadrant t
 rightOutQ = PairingEqSideQuadrant rightTag PairingEqDirectionOut
 
-leftIn :: RefineTag t => Expr -> PairingEqSide t
+leftIn :: RefineTag t => GraphExpr -> PairingEqSide t
 leftIn = PairingEqSide leftInQ
 
-leftOut :: RefineTag t => Expr -> PairingEqSide t
+leftOut :: RefineTag t => GraphExpr -> PairingEqSide t
 leftOut = PairingEqSide leftOutQ
 
-rightIn :: RefineTag t => Expr -> PairingEqSide t
+rightIn :: RefineTag t => GraphExpr -> PairingEqSide t
 rightIn = PairingEqSide rightInQ
 
-rightOut :: RefineTag t => Expr -> PairingEqSide t
+rightOut :: RefineTag t => GraphExpr -> PairingEqSide t
 rightOut = PairingEqSide rightOutQ
 
-asmIn :: Expr -> PairingEqSide AsmRefineTag
+asmIn :: GraphExpr -> PairingEqSide AsmRefineTag
 asmIn = leftIn
 
-asmOut :: Expr -> PairingEqSide AsmRefineTag
+asmOut :: GraphExpr -> PairingEqSide AsmRefineTag
 asmOut = leftOut
 
-cIn :: Expr -> PairingEqSide AsmRefineTag
+cIn :: GraphExpr -> PairingEqSide AsmRefineTag
 cIn = rightIn
 
-cOut :: Expr -> PairingEqSide AsmRefineTag
+cOut :: GraphExpr -> PairingEqSide AsmRefineTag
 cOut = rightOut
 
 infix 4 ===

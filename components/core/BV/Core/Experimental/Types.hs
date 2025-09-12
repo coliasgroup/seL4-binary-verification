@@ -13,8 +13,8 @@ import GHC.Generics (Generic)
 
 data Command
   = CommandDeclare NameTy
-  | CommandDefine (Maybe InlineHint) NameTy Expr
-  | CommandAssert Expr
+  | CommandDefine (Maybe InlineHint) NameTy GraphExpr
+  | CommandAssert GraphExpr
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary Command

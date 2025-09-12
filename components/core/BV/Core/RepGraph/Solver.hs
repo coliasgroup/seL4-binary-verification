@@ -134,7 +134,7 @@ data SolverState
       , modelVars :: Set Name
       , modelExprs :: Map SExprWithPlaceholders (Name, ExprType)
       , stackEqImpliesCheckMap :: Map Name (Maybe S)
-      , impliesStackEqMap :: Map (Expr, Expr, Expr) Name
+      , impliesStackEqMap :: Map (GraphExpr, GraphExpr, GraphExpr) Name
       , tokens :: Map Ident Name
       , tokenVals :: Map S Ident
       , smtDerivedOps :: Map (Op, Integer) String
@@ -236,7 +236,7 @@ askModelVars = liftSolver $ use #modelVars
 askModelExprs :: MonadRepGraphSolver m => m (Map SExprWithPlaceholders (Name, ExprType))
 askModelExprs = liftSolver $ use #modelExprs
 
-askRODataPtrs :: MonadRepGraphSolver m => m [(Expr, ExprType)]
+askRODataPtrs :: MonadRepGraphSolver m => m [(GraphExpr, ExprType)]
 askRODataPtrs = do
     rodata <- liftSolver $ gview #rodata
     return
@@ -287,15 +287,15 @@ getDef name = fromJust <$> tryGetDef name
 tryGetDef :: MonadRepGraphSolver m => Name -> m (Maybe S)
 tryGetDef name = liftSolver $ use $ #defs % at name
 
-addDef :: MonadRepGraphSolver m => NameHint -> Expr -> ReaderT ExprEnv m MaybeSplit
+addDef :: MonadRepGraphSolver m => NameHint -> GraphExpr -> ReaderT ExprEnv m MaybeSplit
 addDef nameHint val =
     either (NotSplit . nameS) Split <$> addDefInner nameHint val
 
-addDefNotSplit :: MonadRepGraphSolver m => NameHint -> Expr -> ReaderT ExprEnv m Name
+addDefNotSplit :: MonadRepGraphSolver m => NameHint -> GraphExpr -> ReaderT ExprEnv m Name
 addDefNotSplit nameHint val =
     viewExpecting #_Left <$> addDefInner nameHint val
 
-addDefInner :: MonadRepGraphSolver m => NameHint -> Expr -> ReaderT ExprEnv m (Either Name SplitMem)
+addDefInner :: MonadRepGraphSolver m => NameHint -> GraphExpr -> ReaderT ExprEnv m (Either Name SplitMem)
 addDefInner nameHint expr = convertExpr expr >>= \case
     NotSplit s -> Left <$> do
         name <- takeFreshName nameHint
@@ -355,7 +355,7 @@ addVar nameHint ty = do
 assertSMTFact :: MonadRepGraphSolver m => S -> m ()
 assertSMTFact = send . assertS
 
-assertFact :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m ()
+assertFact :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m ()
 assertFact = convertExprNotSplit >=> assertSMTFact
 
 noteModelExpr :: MonadRepGraphSolver m => S -> ExprType -> m ()
@@ -364,7 +364,7 @@ noteModelExpr s ty = void $ withMapSlot #modelExprs s $ do
     v <- withoutEnv $ addDefNotSplit ("query_" ++ sanitized) (smtExprE ty (NotSplit s))
     return (v, ty)
 
-maybeNoteModelExpr :: MonadRepGraphSolver m => S -> ExprType -> [Expr] -> m ()
+maybeNoteModelExpr :: MonadRepGraphSolver m => S -> ExprType -> [GraphExpr] -> m ()
 maybeNoteModelExpr s ty subexprs =
     when (isTypeRepresentable ty && not (all (isTypeRepresentable . (.ty)) subexprs)) $ do
         noteModelExpr s ty
@@ -482,7 +482,7 @@ addSplitMemVar split nameHint ty@ExprTypeMem = do
 
 data PcEnv
   = PcEnv
-      { pc :: Expr
+      { pc :: GraphExpr
       , env :: ExprEnv
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -549,16 +549,16 @@ compatSMTComparisonKey = \case
 --
 
 -- TODO rename
-convertInnerExpr :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m Expr
+convertInnerExpr :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m GraphExpr
 convertInnerExpr expr = case expr.ty of
     ExprTypeRelWrapper -> case expr.value of
         ExprValueOp { } -> traverseOf (exprOpArgs % traversed) convertInnerExpr expr
     _ -> smtExprE expr.ty <$> convertExpr expr
 
-convertExprNotSplit :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m S
+convertExprNotSplit :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m S
 convertExprNotSplit expr = viewExpecting #_NotSplit <$> convertExpr expr
 
-convertExpr :: MonadRepGraphSolver m => Expr -> ReaderT ExprEnv m MaybeSplit
+convertExpr :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m MaybeSplit
 convertExpr expr = case expr.value of
     ExprValueOp op args -> case op of
         _ | op == OpWordCast || op == OpWordCastSigned -> do
@@ -768,7 +768,7 @@ convertMemAccess memMaybeSplit p ty@(ExprTypeWord bits) = case memMaybeSplit of
         noteModelExpr v ty
         return v
 
-addImpliesStackEq :: MonadRepGraphSolver m => Expr -> Expr -> Expr -> ReaderT ExprEnv m S
+addImpliesStackEq :: MonadRepGraphSolver m => GraphExpr -> GraphExpr -> GraphExpr -> ReaderT ExprEnv m S
 addImpliesStackEq sp stack1 stack2 = fmap nameS $ withMapSlot #impliesStackEqMap (sp, stack1, stack2) $ do
     addr <- nameS <$> addVar "stack-eq-witness" word32T
     assertSMTFact $ (addr `bvandS` hexS "00000003") `eqS` hexS "00000000"
@@ -813,12 +813,12 @@ getImmBasisMems = go
 data PValidKey
   = PValidKey
       { pvKind :: PValidKind
-      , pvTy :: PValidType
+      , pvTy :: PValidType GraphExprContext
       , ptrName :: Name
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-addPValids :: MonadRepGraphSolver m => S -> PValidKind -> PValidType -> S -> m S
+addPValids :: MonadRepGraphSolver m => S -> PValidKind -> PValidType GraphExprContext -> S -> m S
 addPValids = go
   where
     go htd pvKind pvTy ptr = case htd of

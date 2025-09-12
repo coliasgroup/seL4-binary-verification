@@ -10,6 +10,8 @@ module BV.Core.Types.Program
     , ExprValue (..)
     , Function (..)
     , FunctionBody (..)
+    , GraphExpr
+    , GraphExprContext (..)
     , Ident (..)
     , MaybeSplit (..)
     , NameTy (..)
@@ -129,7 +131,7 @@ instance Binary StructField
 
 data ConstGlobal
   = ConstGlobal
-      { value :: Expr
+      { value :: GraphExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -205,7 +207,7 @@ data CondNode
   = CondNode
       { left :: NodeId
       , right :: NodeId
-      , expr :: Expr
+      , expr :: GraphExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -215,7 +217,7 @@ data CallNode
   = CallNode
       { next :: NodeId
       , functionName :: Ident
-      , input :: [Expr]
+      , input :: [GraphExpr]
       , output :: [NameTy]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -225,20 +227,25 @@ instance Binary CallNode
 data VarUpdate
   = VarUpdate
       { var :: NameTy
-      , val :: Expr
+      , val :: GraphExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary VarUpdate
 
-data Expr
+data GraphExprContext
+  = GraphExprContext !GraphExprContext
+
+type GraphExpr = Expr GraphExprContext
+
+data Expr c
   = Expr
       { ty :: ExprType
-      , value :: ExprValue
+      , value :: ExprValue c
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary Expr
+instance Binary (Expr c)
 
 data ExprType
   = ExprTypeBool
@@ -267,11 +274,11 @@ data ExprType
 
 instance Binary ExprType
 
-data ExprValue
+data ExprValue c
   = ExprValueVar Ident
   | ExprValueOp
       { op :: Op
-      , args :: [Expr]
+      , args :: [Expr c]
       }
   | ExprValueNum Integer
   | ExprValueType ExprType
@@ -280,7 +287,7 @@ data ExprValue
   | ExprValueSMTExpr MaybeSplit -- !
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary ExprValue
+instance Binary (ExprValue c)
 
 data Op
   = OpPlus

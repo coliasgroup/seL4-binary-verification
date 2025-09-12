@@ -176,7 +176,7 @@ eqWithIfAtH ifAt lhs rhs induct = HypEq
         }
     }
 
-trueIfAt :: Expr -> WithTag t Visit -> Hyp t
+trueIfAt :: GraphExpr -> WithTag t Visit -> Hyp t
 trueIfAt expr visit = eqIfAtH (eqSideH expr visit) (eqSideH trueE visit)
 
 pcTrueH :: WithTag t Visit -> Hyp t
@@ -200,7 +200,7 @@ pcTrivH visit = HypPcImp (PcImpHyp
 pcImpH :: PcImpHypSide t -> PcImpHypSide t -> Hyp t
 pcImpH lhs rhs = HypPcImp (PcImpHyp { lhs, rhs })
 
-eqSideH :: Expr -> WithTag t Visit -> EqHypSide t
+eqSideH :: GraphExpr -> WithTag t Visit -> EqHypSide t
 eqSideH = EqHypSide
 
 -- HACK integer representation matches graph-refine

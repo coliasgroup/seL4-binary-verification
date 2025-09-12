@@ -191,7 +191,7 @@ decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
                 funBody = trivialProxyFunctionBody (instFunctionName instFun).c input output
              in (funBody, instFun)
 
-trivialProxyFunctionBody :: Ident -> [Expr] -> [NameTy] -> FunctionBody
+trivialProxyFunctionBody :: Ident -> [GraphExpr] -> [NameTy] -> FunctionBody
 trivialProxyFunctionBody functionName input output =
     FunctionBody
         { entryPoint = Addr 1

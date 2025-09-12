@@ -40,7 +40,7 @@ data PairingEq t
 data PairingEqSide t
   = PairingEqSide
       { quadrant :: PairingEqSideQuadrant t
-      , expr :: Expr
+      , expr :: GraphExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

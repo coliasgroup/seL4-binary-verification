@@ -17,7 +17,7 @@ import Data.Maybe (mapMaybe, maybeToList)
 import Optics
 
 
-formulatePairing :: Expr -> FunctionSignature -> Pairing'
+formulatePairing :: GraphExpr -> FunctionSignature -> Pairing'
 formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
 
   where
@@ -141,13 +141,13 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
 
 data RetInfo
   = RetInfo
-      { asmPreconds :: [Expr]
-      , asmInvariants :: [(Expr, Expr)]
-      , asmRetAddrs :: [Expr]
-      , eqPairs :: [(Expr, Expr)]
+      { asmPreconds :: [GraphExpr]
+      , asmInvariants :: [(GraphExpr, GraphExpr)]
+      , asmRetAddrs :: [GraphExpr]
+      , eqPairs :: [(GraphExpr, GraphExpr)]
       }
 
-mkStackSequence :: Expr -> Expr -> [(Expr, Expr)]
+mkStackSequence :: GraphExpr -> GraphExpr -> [(GraphExpr, GraphExpr)]
 mkStackSequence stack sp =
     [ let addr = sp `plusE` numE sp.ty (archPtrSizeBytes * i)
           expr = memAccE machineWordT addr stack
@@ -155,7 +155,7 @@ mkStackSequence stack sp =
     | i <- [0..]
     ]
 
-mkMemEqs :: Expr -> Maybe Expr -> Maybe Expr -> Maybe Expr -> ([PairingEq AsmRefineTag], [PairingEq AsmRefineTag])
+mkMemEqs :: GraphExpr -> Maybe GraphExpr -> Maybe GraphExpr -> Maybe GraphExpr -> ([PairingEq AsmRefineTag], [PairingEq AsmRefineTag])
 mkMemEqs asmInMem cInMemOpt asmOutMemOpt cOutMemOpt =
     (inEqs, outEqs)
   where

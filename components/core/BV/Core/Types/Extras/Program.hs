@@ -57,7 +57,7 @@ applyFunctionFilter f =
 --
 
 class TraverseTopLevelExprs a where
-    traverseTopLevelLevelExprs :: Traversal' a Expr
+    traverseTopLevelLevelExprs :: Traversal' a GraphExpr
 
 instance TraverseTopLevelExprs Node where
     traverseTopLevelLevelExprs =
@@ -68,32 +68,32 @@ instance TraverseTopLevelExprs Node where
 instance TraverseTopLevelExprs VarUpdate where
     traverseTopLevelLevelExprs = castOptic #val
 
-instance TraverseTopLevelExprs Expr where
+instance TraverseTopLevelExprs GraphExpr where
     traverseTopLevelLevelExprs = castOptic simple
 
-class FoldExprs a where
-    foldExprs :: Fold a Expr
+class FoldExprs c a where
+    foldExprs :: Fold a (Expr c)
 
-instance FoldExprs Node where
+instance FoldExprs GraphExprContext Node where
     foldExprs = traverseTopLevelLevelExprs % foldExprs
 
-instance FoldExprs VarUpdate where
+instance FoldExprs GraphExprContext VarUpdate where
     foldExprs = traverseTopLevelLevelExprs % foldExprs
 
-instance FoldExprs Expr where
+instance FoldExprs c (Expr c) where
     foldExprs = simple `summing` (#value % #_ExprValueOp % _2 % folded % foldExprs)
 
-walkExprsM :: Monad m => (Expr -> m Expr) -> Expr -> m Expr
+walkExprsM :: Monad m => (Expr c -> m (Expr c)) -> Expr c -> m (Expr c)
 walkExprsM f = traverseOf #value recurse >=> f
   where
     recurse = \case
         ExprValueOp op args -> ExprValueOp op <$> traverse (walkExprsM f) args
         v -> return v
 
-walkExprs :: (Expr -> Expr) -> Expr -> Expr
+walkExprs :: (Expr c -> Expr c) -> Expr c -> Expr c
 walkExprs f = runIdentity . walkExprsM (Identity . f)
 
-varSubst :: (NameTy -> Maybe Expr) -> Expr -> Expr
+varSubst :: (NameTy -> Maybe (Expr c)) -> Expr c -> Expr c
 varSubst f = walkExprs $ \case
         expr@(Expr ty (ExprValueVar ident)) -> fromMaybe expr $ f $ NameTy ident ty
         expr -> expr
@@ -113,10 +113,10 @@ instance HasVarNames Node where
 instance HasVarNames VarUpdate where
     varNamesOf = (#var % #name) `adjoin` #val % varNamesOf
 
-instance HasVarNames Expr where
+instance HasVarNames (Expr c) where
     varNamesOf = #value % (#_ExprValueVar `adjoin` (#_ExprValueOp % _2 % traversed % varNamesOf))
 
-instance HasVarNames ExprValue where
+instance HasVarNames (ExprValue c) where
     varNamesOf = castOptic #_ExprValueVar
 
 renameVarsA :: (HasVarNames a, Applicative f) => (Ident -> f Ident) -> a -> f a
@@ -159,10 +159,10 @@ nodeConts = castOptic $
 
 --
 
-exprOp :: Lens' Expr Op
+exprOp :: Lens' (Expr c) Op
 exprOp = #value % expecting #_ExprValueOp % _1
 
-exprOpArgs :: Lens' Expr [Expr]
+exprOpArgs :: Lens' (Expr c) [Expr c]
 exprOpArgs = #value % expecting #_ExprValueOp % _2
 
 --

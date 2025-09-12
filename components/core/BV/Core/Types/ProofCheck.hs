@@ -76,7 +76,7 @@ data EqHyp t
 
 data EqHypSide t
   = EqHypSide
-      { expr :: Expr
+      { expr :: GraphExpr
       , visit :: WithTag t Visit
       }
   deriving (Eq, Generic, NFData, Ord, Show)
