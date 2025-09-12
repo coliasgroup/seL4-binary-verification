@@ -1,11 +1,12 @@
-module BV.Core.RepGraph.InterpretHyp
+module BV.Core.Experimental.RepGraph.InterpretHyp
     ( interpretHyp
     , interpretHypImps
     ) where
 
+import BV.Core.Experimental.RepGraph.Core
+import BV.Core.Experimental.RepGraph.Types
+
 import BV.Core.Logic
-import BV.Core.RepGraph.Core
-import BV.Core.RepGraph.Solver
 import BV.Core.Types
 import BV.Core.Types.Extras
 
@@ -28,7 +29,7 @@ interpretHyp = \case
             Nothing -> return mempty
             Just induct -> do
                 v <- getInductVar induct
-                return $ M.singleton (NameTy (Ident "%n") machineWordT) v
+                return $ M.singleton (Ident "%n") (varFromNameTyE v)
         xPcEnvOpt <- getNodePcEnvWithTag eq.lhs.visit
         yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of

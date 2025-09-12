@@ -90,10 +90,14 @@ library core
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
       BV.Core.Arch
+      BV.Core.Experimental.RepGraph
       BV.Core.Experimental.RepGraph.AsmStackRep
+      BV.Core.Experimental.RepGraph.Base
       BV.Core.Experimental.RepGraph.Core
       BV.Core.Experimental.RepGraph.Flatten
       BV.Core.Experimental.RepGraph.FunAsserts
+      BV.Core.Experimental.RepGraph.InterpretHyp
+      BV.Core.Experimental.RepGraph.Solver
       BV.Core.Experimental.RepGraph.Types
       BV.Core.GenerateFreshName
       BV.Core.Glue

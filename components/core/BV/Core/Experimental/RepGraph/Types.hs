@@ -26,13 +26,13 @@ newtype IntermediateSolverExprContext
 
 type IntermediateSolverExpr = Expr IntermediateSolverExprContext
 
-data Command c
+data Command
   = CommandDeclare NameTy
-  | CommandDefine (Maybe InlineHint) NameTy (Expr c)
-  | CommandAssert (Expr c)
+  | CommandDefine (Maybe InlineHint) NameTy SolverExpr
+  | CommandAssert SolverExpr
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary (Command c)
+instance Binary Command
 
 data InlineHint
   = InlineHintInline

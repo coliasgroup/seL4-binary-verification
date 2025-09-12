@@ -40,6 +40,7 @@ module BV.Core.Types.Extras.Expr
     , numE
     , orE
     , plusE
+    , pointerE
     , rodataE
     , smtExprE
     , splitMemE
@@ -276,6 +277,11 @@ stackWrapperE sp stack excepts =
     ensureType_ (isWordWithSizeT archWordSizeBits) sp .
     appEndo (foldMap (Endo . ensureType_ (isWordWithSizeT archWordSizeBits)) excepts) $
         Expr ExprTypeRelWrapper (opV (OpExt OpExtStackWrapper) ([sp, stack] ++ excepts))
+
+pointerE :: ExprType -> Expr c -> Expr c
+pointerE ty addr =
+    ensureType_ (isWordWithSizeT archWordSizeBits) addr $
+    Expr (ExprTypePtr ty) addr.value
 
 --
 

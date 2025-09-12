@@ -16,13 +16,13 @@ module BV.Core.RepGraph
     , SolverExprContext (..)
     , addPValidDomAssertions
     , askLoopData
-    , askModelExprs
-    , askModelVars
     , askNodeGraph
     , askProblem
     , convertExprNotSplit
     , getFunCallInfo
     , getFunCallInfoRaw
+    , getModelExprs
+    , getModelVars
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc

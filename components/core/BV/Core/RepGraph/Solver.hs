@@ -23,13 +23,13 @@ module BV.Core.RepGraph.Solver
     , addPValidDomAssertions
     , addSplitMemVar
     , addVar
-    , askModelExprs
-    , askModelVars
     , assertFact
     , convertExpr
     , convertExprNotSplit
     , convertInnerExpr
     , getImmBasisMems
+    , getModelExprs
+    , getModelVars
     , initSolver
     , initSolverEnv
     , initSolverState
@@ -237,11 +237,11 @@ withMapSlot l k m = do
 
 --
 
-askModelVars :: MonadRepGraphSolver m => m (Set Name)
-askModelVars = liftSolver $ use #modelVars
+getModelVars :: MonadRepGraphSolver m => m (Set Name)
+getModelVars = liftSolver $ use #modelVars
 
-askModelExprs :: MonadRepGraphSolver m => m (Map SExprWithPlaceholders (Name, ExprType))
-askModelExprs = liftSolver $ use #modelExprs
+getModelExprs :: MonadRepGraphSolver m => m (Map SExprWithPlaceholders (Name, ExprType))
+getModelExprs = liftSolver $ use #modelExprs
 
 askRODataPtrs :: MonadRepGraphSolver m => m [(Expr c, ExprType)]
 askRODataPtrs = do

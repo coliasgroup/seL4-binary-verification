@@ -43,7 +43,6 @@ module BV.Core.RepGraph.Core
     , runForTag
     , scanMemCalls
     , scanMemCallsEnv
-    , substInduct
     , tryGetNodePcEnv
     , zeroMemCallsRange
     ) where
@@ -464,17 +463,11 @@ contractPcEnv visit (PcEnv pc env) = do
 
 --
 
-getInductVar :: MonadRepGraph t m => EqHypInduct -> m GraphExpr
+getInductVar :: MonadRepGraph t m => EqHypInduct -> m MaybeSplit
 getInductVar induct =
-    fmap (smtExprE word32T . NotSplit . nameS) $
+    fmap (NotSplit . nameS) $
         withMapSlot #inductVarEnv induct $
             addVar (printf "induct_i_%d_%d" induct.n1 induct.n2) word32T
-
-substInduct :: GraphExpr -> GraphExpr -> GraphExpr
-substInduct expr inductVar = varSubst f expr
-  where
-    f (NameTy { name = Ident "%n", ty = ExprTypeWord 32 }) = Just inductVar
-    f _ = Nothing
 
 --
 

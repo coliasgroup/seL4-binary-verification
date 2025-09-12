@@ -5,6 +5,7 @@
 
 module BV.Core.Experimental.RepGraph.Flatten
     ( ExprEnv
+    , FlattenEnv
     , FlattenState
     , MonadRepGraphFlatten (..)
     , MonadRepGraphFlattenSend (..)
@@ -63,9 +64,9 @@ import Optics.State.Operators ((%%=), (%=), (<<%=))
 --
 
 class Monad m => MonadRepGraphFlattenSend m where
-    sendCommand :: Command SolverExprContext -> m ()
+    sendCommand :: Command -> m ()
 
-instance Monad m => MonadRepGraphFlattenSend (WriterT [Command SolverExprContext] m) where
+instance Monad m => MonadRepGraphFlattenSend (WriterT [Command] m) where
     sendCommand s = tell [s]
 
 class (MonadStructs m, MonadRepGraphFlattenSend m) => MonadRepGraphFlatten m where
@@ -155,7 +156,7 @@ initFlattenState = FlattenState
 
 --
 
-send :: MonadRepGraphFlatten m => Command SolverExprContext -> m ()
+send :: MonadRepGraphFlatten m => Command -> m ()
 send = sendCommand
 
 --
@@ -200,17 +201,10 @@ takeFreshName nameHint = liftFlatten $ zoom #names $ do
 
 --
 
-isTypeOmitted :: ExprType -> Bool
-isTypeOmitted = \case
-    ExprTypeHtd -> True
-    ExprTypePms -> True
-    _ -> False
-
 isTypeRepresentable :: ExprType -> Bool
 isTypeRepresentable = \case
     ExprTypeWord _ -> True
     ExprTypeBool -> True
-    ExprTypeToken -> True
     _ -> False
 
 getDef :: MonadRepGraphFlatten m => Ident -> m SolverExpr
@@ -223,11 +217,10 @@ addDefWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> So
 addDefWithInline inline nameHint expr = do
     name <- takeFreshName nameHint
     let var = NameTy name expr.ty
-    unless (isTypeOmitted expr.ty) $ do
-        send $ CommandDefine inline var expr
-        liftFlatten $ #defs %= M.insert name expr
-        when (isTypeRepresentable expr.ty) $ do
-            liftFlatten $ #modelVars %= S.insert name
+    send $ CommandDefine inline var expr
+    liftFlatten $ #defs %= M.insert name expr
+    when (isTypeRepresentable expr.ty) $ do
+        liftFlatten $ #modelVars %= S.insert name
     return var
 
 addDef :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
@@ -237,10 +230,9 @@ addVar :: MonadRepGraphFlatten m => NameHint -> ExprType -> m NameTy
 addVar nameHint ty = do
     name <- takeFreshName nameHint
     let var = NameTy name ty
-    unless (isTypeOmitted ty) $ do
-        send $ CommandDeclare var
-        when (isTypeRepresentable ty) $ do
-            liftFlatten $ #modelVars %= S.insert name
+    send $ CommandDeclare var
+    when (isTypeRepresentable ty) $ do
+        liftFlatten $ #modelVars %= S.insert name
     return var
 
 cacheExprWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> SolverExpr -> m NameTy
