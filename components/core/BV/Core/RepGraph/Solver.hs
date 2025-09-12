@@ -489,7 +489,7 @@ addSplitMemVar split nameHint ty@ExprTypeMem = do
 
 data PcEnv
   = PcEnv
-      { pc :: GraphExpr
+      { pc :: SolverExpr
       , env :: ExprEnv
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -556,7 +556,7 @@ compatSMTComparisonKey = \case
 --
 
 -- TODO rename
-convertInnerExpr :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m GraphExpr
+convertInnerExpr :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m SolverExpr
 convertInnerExpr expr = case expr.ty of
     ExprTypeRelWrapper -> case expr.value of
         ExprValueOp { } -> traverseOf (exprOpArgs % traversed) convertInnerExpr expr
