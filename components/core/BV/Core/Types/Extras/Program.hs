@@ -10,8 +10,10 @@ module BV.Core.Types.Extras.Program
     , TraverseTopLevelExprs (..)
     , VarUpdate (..)
     , applyFunctionFilter
-    , exprOp
-    , exprOpArgs
+    , castExpr
+    , exprArgs
+    , exprOp -- TODO don't export
+    , exprOpArgs -- TODO don't export
     , nodeAddrOf
     , nodeConts
     , programFromFunctions
@@ -20,11 +22,15 @@ module BV.Core.Types.Extras.Program
     , signatureOfFunction
     , trivialNode
     , varSubst
+    , varSubstAll
+    , varSubstAllM
     , walkExprs
+    , walkExprsGM
     , walkExprsM
     ) where
 
 import BV.Core.Types
+import BV.Core.Types.Extras.Expr (varFromNameTyE)
 import BV.Core.Utils.IncludeExcludeFilter (IncludeExcludeFilter,
                                            applyIncludeExcludeFilter)
 import BV.Utils (expecting)
@@ -83,20 +89,29 @@ instance FoldExprs GraphExprContext VarUpdate where
 instance FoldExprs c (Expr c) where
     foldExprs = simple `summing` (#value % #_ExprValueOp % _2 % folded % foldExprs)
 
+-- TODO move to Expr.hs
+
 walkExprsM :: Monad m => (Expr c -> m (Expr c)) -> Expr c -> m (Expr c)
-walkExprsM f = traverseOf #value recurse >=> f
-  where
-    recurse = \case
-        ExprValueOp op args -> ExprValueOp op <$> traverse (walkExprsM f) args
-        v -> return v
+walkExprsM f = traverseOf (exprArgs % traversed) (walkExprsM f) >=> f
 
 walkExprs :: (Expr c -> Expr c) -> Expr c -> Expr c
 walkExprs f = runIdentity . walkExprsM (Identity . f)
 
+walkExprsGM :: forall k (c' :: k) (c :: k) m. Monad m => (forall (c'' :: k). Expr c'' -> m (Expr c)) -> Expr c' -> m (Expr c)
+walkExprsGM f = traverseOf (exprArgs % traversed) (walkExprsGM f) >=> f
+
+varSubstAllM :: Monad m => (NameTy -> m (Expr c')) -> Expr c -> m (Expr c')
+varSubstAllM f expr = case expr.value of
+    ExprValueVar name -> f (NameTy name expr.ty)
+    _ -> traverseOf (exprArgs % traversed) (varSubstAllM f) expr
+
+varSubstAll :: (NameTy -> (Expr c')) -> Expr c -> Expr c'
+varSubstAll f = runIdentity . varSubstAllM (Identity . f)
+
 varSubst :: (NameTy -> Maybe (Expr c)) -> Expr c -> Expr c
-varSubst f = walkExprs $ \case
-        expr@(Expr ty (ExprValueVar ident)) -> fromMaybe expr $ f $ NameTy ident ty
-        expr -> expr
+varSubst f = varSubstAll (\var -> fromMaybe (varFromNameTyE var) (f var))
+
+--
 
 class HasVarNames a where
     varNamesOf :: Traversal' a Ident
@@ -159,11 +174,35 @@ nodeConts = castOptic $
 
 --
 
-exprOp :: Lens' (Expr c) Op
-exprOp = #value % expecting #_ExprValueOp % _1
+-- TODO move to Expr.hs
 
-exprOpArgs :: Lens' (Expr c) [Expr c]
-exprOpArgs = #value % expecting #_ExprValueOp % _2
+castExpr :: Expr c -> Expr c'
+castExpr = over (exprArgs % traversed) castExpr
+
+exprOp :: AffineTraversal' (Expr c) Op
+exprOp = #value % #_ExprValueOp % _1
+
+exprOpArgs :: AffineTraversal (Expr c) (Expr c') (Op, [Expr c]) (Op, [Expr c'])
+exprOpArgs = exprValue % exprValueOpArgs
+
+exprValue :: Lens (Expr c) (Expr c') (ExprValue c) (ExprValue c')
+exprValue = lens (view #value) (\(Expr ty _) -> Expr ty)
+
+exprArgs :: AffineTraversal (Expr c) (Expr c') [Expr c] [Expr c']
+exprArgs = exprValue % exprValueArgs
+
+exprValueArgs :: AffineTraversal (ExprValue c) (ExprValue c') [Expr c] [Expr c']
+exprValueArgs = exprValueOpArgs % _2
+
+exprValueOpArgs :: Prism (ExprValue c) (ExprValue c') (Op, [Expr c]) (Op, [Expr c'])
+exprValueOpArgs = prism (uncurry ExprValueOp) (\case
+    ExprValueOp op args -> Right (op, args)
+    ExprValueVar x -> Left (ExprValueVar x)
+    ExprValueNum x -> Left (ExprValueNum x)
+    ExprValueType x -> Left (ExprValueType x)
+    ExprValueSymbol x -> Left (ExprValueSymbol x)
+    ExprValueToken x -> Left (ExprValueToken x)
+    ExprValueSMTExpr x -> Left (ExprValueSMTExpr x))
 
 --
 

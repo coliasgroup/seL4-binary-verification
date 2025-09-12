@@ -12,6 +12,8 @@ module BV.Core.RepGraph
     , MonadRepGraphSolverSend (..)
     , Name (..)
     , PcEnv (..)
+    , SolverExpr
+    , SolverExprContext (..)
     , addPValidDomAssertions
     , askLoopData
     , askModelExprs

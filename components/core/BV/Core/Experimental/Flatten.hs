@@ -2,23 +2,25 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Core.Experimental.Flatten
-    ( FlattenState
+    ( ExprEnv
+    , FlattenState
     , MonadRepGraphFlatten (..)
     , MonadRepGraphFlattenSend (..)
-    , addSplitMemVar
+    , NameHint
+    , addDef
     , addVar
+    , assertFact
     , flattenAndAddDef
     , flattenAndAssertFact
     , flattenExpr
+    , flattenOpExpr
+    , getDef
     , getModelExprs
     , getModelVars
     , initFlattenEnv
     , initFlattenState
-    , mergeEnvsPcs
-    , tryGetDef
     , withEnv
     , withoutEnv
     ) where
@@ -36,7 +38,7 @@ import BV.Utils
 import Control.DeepSeq (NFData)
 import Control.Monad (unless, when, (>=>))
 import Control.Monad.Except (ExceptT)
-import Control.Monad.Reader (Reader, ReaderT (runReaderT), asks)
+import Control.Monad.Reader (Reader, ReaderT, asks, runReaderT)
 import Control.Monad.RWS (MonadState (get), MonadWriter (..), RWST)
 import Control.Monad.State (StateT, modify)
 import Control.Monad.Trans (lift)
@@ -45,21 +47,21 @@ import Control.Monad.Writer (WriterT)
 import Data.Foldable (for_)
 import Data.Function (on)
 import Data.Functor (void)
-import Data.List (nub, sortOn)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromJust, fromMaybe, isNothing)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.Set (Set)
 import qualified Data.Set as S
-import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=), (<<%=))
 
-class Monad m => MonadRepGraphFlattenSend m where
-    sendCommand :: Command -> m ()
+--
 
-instance Monad m => MonadRepGraphFlattenSend (WriterT [Command] m) where
+class Monad m => MonadRepGraphFlattenSend m where
+    sendCommand :: Command SolverExprContext -> m ()
+
+instance Monad m => MonadRepGraphFlattenSend (WriterT [Command SolverExprContext] m) where
     sendCommand s = tell [s]
 
 class (MonadStructs m, MonadRepGraphFlattenSend m) => MonadRepGraphFlatten m where
@@ -97,32 +99,40 @@ instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (ExceptT e m) wh
 
 data FlattenEnv
   = FlattenEnv
-      { rodataPtrs :: [GraphExpr]
+      { rodataPtrs :: [SolverExpr]
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data FlattenState
   = FlattenState
       { names :: Set Ident
-      , defs :: Map Ident GraphExpr
-      , cachedExprs :: Map GraphExpr Ident
-      , cachedImpliesStackEqs :: Map (GraphExpr, GraphExpr, GraphExpr) Ident
+      , defs :: Map Ident SolverExpr
+      , exprCache :: Map SolverExpr Ident
+      , impliesStackEqCache :: Map ImpliesStackEqCacheKey Ident
       , tokens :: Map Ident Ident
-      , pvalids :: Map Ident (Map PValidKey GraphExpr)
+      , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , modelVars :: Set Ident
-      , modelExprs :: Map GraphExpr Ident
+      , modelExprs :: Map SolverExpr Ident
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data ImpliesStackEqCacheKey
+  = ImpliesStackEqCacheKey
+      { sp :: SolverExpr
+      , stack1 :: SolverExpr
+      , stack2 :: SolverExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data PValidKey
   = PValidKey
       { pvKind :: PValidKind
-      , pvTy :: PValidType GraphExprContext
+      , pvTy :: PValidType SolverExprContext
       , ptr :: NameTy
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-initFlattenEnv :: [GraphExpr] -> FlattenEnv
+initFlattenEnv :: [SolverExpr] -> FlattenEnv
 initFlattenEnv rodataPtrs = FlattenEnv
     { rodataPtrs
     }
@@ -131,8 +141,8 @@ initFlattenState :: FlattenState
 initFlattenState = FlattenState
     { names = S.empty
     , defs = M.empty
-    , cachedExprs = M.empty
-    , cachedImpliesStackEqs = M.empty
+    , exprCache = M.empty
+    , impliesStackEqCache = M.empty
     , tokens = M.empty
     , pvalids = M.empty
     , modelVars = S.empty
@@ -141,18 +151,8 @@ initFlattenState = FlattenState
 
 --
 
-send :: MonadRepGraphFlatten m => Command -> m ()
+send :: MonadRepGraphFlatten m => Command SolverExprContext -> m ()
 send = sendCommand
-
---
-
-type ExprEnv = Map NameTy GraphExpr
-
-withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
-withEnv = flip runReaderT
-
-withoutEnv :: ReaderT ExprEnv m a -> m a
-withoutEnv = flip runReaderT mempty
 
 --
 
@@ -166,7 +166,7 @@ withMapSlot l k m = do
 
 --
 
-askRODataPtrs :: MonadRepGraphFlatten m => m [GraphExpr]
+askRODataPtrs :: MonadRepGraphFlatten m => m [SolverExpr]
 askRODataPtrs = liftFlatten $ gview #rodataPtrs
 
 --
@@ -174,7 +174,7 @@ askRODataPtrs = liftFlatten $ gview #rodataPtrs
 getModelVars :: MonadRepGraphFlatten m => m (Set Ident)
 getModelVars = liftFlatten $ use #modelVars
 
-getModelExprs :: MonadRepGraphFlatten m => m (Map GraphExpr Ident)
+getModelExprs :: MonadRepGraphFlatten m => m (Map SolverExpr Ident)
 getModelExprs = liftFlatten $ use #modelExprs
 
 --
@@ -184,7 +184,7 @@ type NameHint = String
 takeFreshName :: MonadRepGraphFlatten m => NameHint -> m Ident
 takeFreshName nameHint = liftFlatten $ zoom #names $ do
     names <- get
-    let isTaken = flip S.member names . Ident
+    let isTaken = (`S.member` names) . Ident
     let name = Ident (generateFreshName isTaken sanitized)
     modify $ S.insert name
     return name
@@ -209,13 +209,10 @@ isTypeRepresentable = \case
     ExprTypeToken -> True
     _ -> False
 
-getDef :: MonadRepGraphFlatten m => Ident -> m GraphExpr
-getDef name = fromJust <$> tryGetDef name
+getDef :: MonadRepGraphFlatten m => Ident -> m SolverExpr
+getDef name = liftFlatten $ use $ #defs % expectingAt name
 
-tryGetDef :: MonadRepGraphFlatten m => Ident -> m (Maybe GraphExpr)
-tryGetDef name = liftFlatten $ use $ #defs % at name
-
-addDefWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> GraphExpr -> m NameTy
+addDefWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> SolverExpr -> m NameTy
 addDefWithInline inline nameHint expr = do
     name <- takeFreshName nameHint
     let var = NameTy name expr.ty
@@ -226,7 +223,7 @@ addDefWithInline inline nameHint expr = do
             liftFlatten $ #modelVars %= S.insert name
     return var
 
-addDef :: MonadRepGraphFlatten m => NameHint -> GraphExpr -> m NameTy
+addDef :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
 addDef = addDefWithInline (Just InlineHintDontInline)
 
 addVar :: MonadRepGraphFlatten m => NameHint -> ExprType -> m NameTy
@@ -239,26 +236,29 @@ addVar nameHint ty = do
             liftFlatten $ #modelVars %= S.insert name
     return var
 
-cacheExprWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> GraphExpr -> m NameTy
+cacheExprWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> SolverExpr -> m NameTy
 cacheExprWithInline inline nameHint expr = do
-    name <- withMapSlot #cachedExprs expr $ (.name) <$> addDefWithInline inline nameHint expr
+    name <- withMapSlot #exprCache expr $ (.name) <$> addDefWithInline inline nameHint expr
     return $ NameTy name expr.ty
 
-cacheExpr :: MonadRepGraphFlatten m => NameHint -> GraphExpr -> m NameTy
+cacheExpr :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
 cacheExpr = cacheExprWithInline (Just InlineHintDontInline)
 
-cacheExprInline :: MonadRepGraphFlatten m => NameHint -> GraphExpr -> m NameTy
+cacheExprInline :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
 cacheExprInline = cacheExprWithInline (Just InlineHintInline)
 
-noteModelExpr :: MonadRepGraphFlatten m => GraphExpr -> m ()
+cachePtr :: MonadRepGraphFlatten m => SolverExpr -> m NameTy
+cachePtr = cacheExpr "ptr"
+
+noteModelExpr :: MonadRepGraphFlatten m => SolverExpr -> m ()
 noteModelExpr expr = void $ withMapSlot #modelExprs expr $ (.name) <$> addDef "query" expr
 
-maybeNoteModelExpr :: MonadRepGraphFlatten m => GraphExpr -> [GraphExpr] -> m ()
+maybeNoteModelExpr :: MonadRepGraphFlatten m => SolverExpr -> [SolverExpr] -> m ()
 maybeNoteModelExpr expr subexprs =
     when (isTypeRepresentable expr.ty && not (all (isTypeRepresentable . (.ty)) subexprs)) $ do
         noteModelExpr expr
 
-getToken :: MonadRepGraphFlatten m => Ident -> m GraphExpr
+getToken :: MonadRepGraphFlatten m => Ident -> m SolverExpr
 getToken ident = fmap (varE compiledTokenType) $ withMapSlot #tokens ident $ do
     n <- liftFlatten $ use $ #tokens % to M.size
     (.name) <$> addDef
@@ -268,68 +268,18 @@ getToken ident = fmap (varE compiledTokenType) $ withMapSlot #tokens ident $ do
 compiledTokenType :: ExprType
 compiledTokenType = ExprTypeWord 64
 
-assertFact :: MonadRepGraphFlatten m => GraphExpr -> m ()
+assertFact :: MonadRepGraphFlatten m => SolverExpr -> m ()
 assertFact = send . CommandAssert
 
 --
 
-addSplitMemVar :: MonadRepGraphFlatten m => GraphExpr -> NameHint -> m GraphExpr
-addSplitMemVar split nameHint = do
-    top <- varFromNameTyE <$> addVar (nameHint ++ "_top") memT
-    bottom <- varFromNameTyE <$> addVar (nameHint ++ "_bot") memT
-    return $ splitMemE split top bottom
+type ExprEnv = Map Ident SolverExpr
 
---
+withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
+withEnv = flip runReaderT
 
-data PcEnv
-  = PcEnv
-      { pc :: GraphExpr
-      , env :: ExprEnv
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-mergeEnvsPcs :: MonadRepGraphFlatten m => [PcEnv] -> m (PcEnv, Bool)
-mergeEnvsPcs unfilteredPcEnvs = do
-    let pcEnvs = filter (\pcEnv -> pcEnv.pc /= falseE) unfilteredPcEnvs
-    let pc = case pcEnvs of
-            [] -> falseE
-            _ -> foldAssocBalanced orE (nub (pcEnvs ^.. folded % #pc))
-    env <- mergeEnvs pcEnvs
-    return (PcEnv pc env, length pcEnvs > 1)
-
-foldAssocBalanced :: (a -> a -> a) -> [a] -> a
-foldAssocBalanced f = go
-  where
-    go xs =
-        let n = length xs
-         in if n >= 4
-            then
-                let (lhs, rhs) = splitAt (n `div` 2) xs
-                 in f (go lhs) (go rhs)
-            else
-                foldr1 f xs
-
-mergeEnvs :: MonadRepGraphFlatten m => [PcEnv] -> m ExprEnv
-mergeEnvs envs = do
-    varValPcList <- fmap concat $ for envs $ \(PcEnv pc env) -> do
-        return
-            [ (var, val, pc)
-            | (var, val) <- M.toList env
-            ]
-    let varValPcMap = foldr (M.unionWith (M.unionWith (<>))) M.empty $
-            [ M.singleton var (M.singleton val [pc'])
-            | (var, val, pc') <- varValPcList
-            ]
-    return $ mergeValPcMapCompat <$> varValPcMap
-  where
-    mergeValPcMapCompat = mergeValPcListCompat . M.toList
-    mergeValPcListCompat valsByPc =
-        let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
-            f accVal (val, pcs) = flattenIfThenElse (orCompat pcs) val accVal
-         in foldl f lastVal valsByPcInit
-    orCompat = \case
-        [x] -> x
-        x:xs -> foldr orE x xs
+withoutEnv :: ReaderT ExprEnv m a -> m a
+withoutEnv = flip runReaderT mempty
 
 --
 
@@ -341,58 +291,62 @@ flattenAndAssertFact = flattenExpr >=> assertFact
 
 --
 
-flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m GraphExpr
-flattenExpr = walkExprsM $ switchEnv >=> flattenTopLevelExpr
-
-switchEnv :: Monad m => GraphExpr -> ReaderT ExprEnv m GraphExpr
-switchEnv expr = case expr.value of
-    ExprValueVar name -> do
-        let var = NameTy name expr.ty
-        let err = error $ "env miss: " ++ show var
-        asks $ M.findWithDefault err var
-    _ -> return expr
-
-flattenTopLevelExpr :: MonadRepGraphFlatten m => GraphExpr -> m GraphExpr
-flattenTopLevelExpr expr = do
-    case expr.value of
-        ExprValueOp _ args -> do
-            maybeNoteModelExpr expr args
-        _ -> do
-            return ()
-    case expr.value of
+flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m SolverExpr
+flattenExpr expr = case matching exprOpArgs expr of
+    Left expr' -> case expr'.value of
+        ExprValueVar name -> do
+            let err = error $ "env miss: " ++ show name
+            asks $ M.findWithDefault err name
         ExprValueToken tok -> do
             getToken tok
-        ExprValueOp OpIfThenElse [cond, x, y] -> do
+        _ -> return expr'
+    Right (op, args) -> traverse flattenExpr args >>= flattenOpExpr expr.ty op
+
+flattenOpExpr :: MonadRepGraphFlatten m => ExprType -> Op -> [SolverExpr] -> m SolverExpr
+flattenOpExpr exprTy op args = do
+    expr <- case (op, args) of
+        (OpIfThenElse, [cond, x, y]) -> do
             return $ flattenIfThenElse cond x y
-        ExprValueOp OpMemUpdate [m, p, v] -> do
+        (OpMemUpdate, [m, p, v]) -> do
             flattenMemUpdate m p v v.ty
-        ExprValueOp OpMemAcc [m, p] -> do
-            flattenMemAccess m p expr.ty
-        ExprValueOp (OpExt OpExtStackEqualsImplies) [sp1, stack1, sp2, stack2] -> do
+        (OpMemAcc, [m, p]) -> do
+            flattenMemAccess m p exprTy
+        (OpExt OpExtStackEqualsImplies, [sp1, stack1, sp2, stack2]) -> do
             if sp1 == sp2 && stack1 == stack2
             then return trueE
             else do
                 eq <- getStackEqImplies stack2 stack1
                 return $ (sp1 `eqE` sp2) `andE` eq
-        ExprValueOp (OpExt OpExtImpliesStackEquals) [sp1, stack1, sp2, stack2] -> do
-            eq <- addImpliesStackEq sp1 stack1 stack2
+        (OpExt OpExtImpliesStackEquals, [sp1, stack1, sp2, stack2]) -> do
+            eq <- addImpliesStackEq $ ImpliesStackEqCacheKey
+                { sp = sp1
+                , stack1
+                , stack2
+                }
             return $ (sp1 `eqE` sp2) `andE` eq
-        ExprValueOp op args | op `elem` [OpPValid, OpPGlobalValid, OpPWeakValid, OpPArrayValid] -> do
-            (htd, tyExpr, p, mkPvTy) <- case op of
-                OpPArrayValid -> do
-                    let [htd, tyExpr, p, len] = args
-                    let mkPvTy ty = PValidTypeArray { ty, len }
-                    return (htd, tyExpr, p, mkPvTy)
-                _ -> do
-                    let [htd, tyExpr, p] = args
-                    let mkPvTy = PValidTypeType
-                    return (htd, tyExpr, p, mkPvTy)
-            let ExprValueType ty = tyExpr.value
-            addPValids htd (pvalidKindFromOp op) (mkPvTy ty) p
+        (OpPArrayValid, [htd, tyExpr, ptrExpr, len]) -> do
+            let ExprValueType tyVal = tyExpr.value
+            ptr <- cachePtr ptrExpr
+            addPValids htd $ PValidKey
+                { pvKind = pvalidKindFromOp op
+                , pvTy = PValidTypeArray { ty = tyVal, len }
+                , ptr
+                }
+        (_, [htd, tyExpr, ptrExpr]) | op `elem` [OpPValid, OpPGlobalValid, OpPWeakValid] -> do
+            let ExprValueType tyVal = tyExpr.value
+            ptr <- cachePtr ptrExpr
+            addPValids htd $ PValidKey
+                { pvKind = pvalidKindFromOp op
+                , pvTy = PValidTypeType tyVal
+                , ptr
+                }
         _ -> do
-            return expr
+            return $ Expr exprTy (ExprValueOp op args)
+    ensureM $ expr.ty == exprTy
+    maybeNoteModelExpr expr args
+    return expr
 
-flattenIfThenElse :: GraphExpr -> GraphExpr -> GraphExpr -> GraphExpr
+flattenIfThenElse :: SolverExpr -> SolverExpr -> SolverExpr -> SolverExpr
 flattenIfThenElse cond x y = case (tryDestructSplitMem x, tryDestructSplitMem y) of
     (NotSplitMem xns, NotSplitMem yns) -> ite xns yns
     (xms, yms) ->
@@ -415,7 +369,7 @@ flattenIfThenElse cond x y = case (tryDestructSplitMem x, tryDestructSplitMem y)
             , bottom = expr
             }
 
-flattenMemUpdate :: MonadRepGraphFlatten m => GraphExpr -> GraphExpr -> GraphExpr -> ExprType -> m GraphExpr
+flattenMemUpdate :: MonadRepGraphFlatten m => SolverExpr -> SolverExpr -> SolverExpr -> ExprType -> m SolverExpr
 flattenMemUpdate mem p v ty@(ExprTypeWord bits) = case tryDestructSplitMem mem of
     SplitMem splitMem -> do
         p' <- varFromNameTyE <$> cacheExprInline "memupd_pointer" p
@@ -438,7 +392,7 @@ flattenMemUpdate mem p v ty@(ExprTypeWord bits) = case tryDestructSplitMem mem o
             noteModelExpr $ memAccE ty p mem
             return $ memUpdE p mem v
 
-flattenMemAccess :: MonadRepGraphFlatten m => GraphExpr -> GraphExpr -> ExprType -> m GraphExpr
+flattenMemAccess :: MonadRepGraphFlatten m => SolverExpr -> SolverExpr -> ExprType -> m SolverExpr
 flattenMemAccess mem p ty@(ExprTypeWord _) = case tryDestructSplitMem mem of
     SplitMem splitMem -> do
         p' <- varFromNameTyE <$> cacheExprInline "memacc_pointer" p
@@ -450,15 +404,15 @@ flattenMemAccess mem p ty@(ExprTypeWord _) = case tryDestructSplitMem mem of
         noteModelExpr v
         return v
 
-addImpliesStackEq :: MonadRepGraphFlatten m => GraphExpr -> GraphExpr -> GraphExpr -> m GraphExpr
-addImpliesStackEq sp stack1 stack2 = fmap (varE memT) $ withMapSlot #cachedImpliesStackEqs (sp, stack1, stack2) $ do
+addImpliesStackEq :: MonadRepGraphFlatten m => ImpliesStackEqCacheKey -> m SolverExpr
+addImpliesStackEq key = fmap (varE memT) $ withMapSlot #impliesStackEqCache key $ do
     addr <- varFromNameTyE <$> addVar "stack-eq-witness" word32T
     assertFact $ (addr `bitwiseAndE` machineWordE 0x00000003) `eqE` machineWordE 0x00000000
-    assertFact $ sp `lessEqE` addr
+    assertFact $ key.sp `lessEqE` addr
     let f = memAccE word32T addr
-    (.name) <$> addDef "stack-eq" (f stack1 `eqE` f stack2)
+    (.name) <$> addDef "stack-eq" (f key.stack1 `eqE` f key.stack2)
 
-getStackEqImplies :: MonadRepGraphFlatten m => GraphExpr -> GraphExpr -> m GraphExpr
+getStackEqImplies :: MonadRepGraphFlatten m => SolverExpr -> SolverExpr -> m SolverExpr
 getStackEqImplies stack1 stack2 = do
     let SplitMem stack1SplitMem = tryDestructSplitMem stack1
     let (rhs, cond) = case tryDestructSplitMem stack2 of
@@ -467,41 +421,44 @@ getStackEqImplies stack1 stack2 = do
     noteModelExpr $ stack1SplitMem.top `eqE` rhs
     return $ cond `impliesE` (stack1SplitMem.top `eqE` rhs)
 
-addPValids :: MonadRepGraphFlatten m => GraphExpr -> PValidKind -> PValidType GraphExprContext -> GraphExpr -> m GraphExpr
+addPValids :: MonadRepGraphFlatten m => SolverExpr -> PValidKey -> m SolverExpr
 addPValids = go
   where
-    go htd pvKind pvTy ptr = case htd.value of
+    go htd key = case htd.value of
         ExprValueOp OpIfThenElse [cond, l, r] ->
             ifThenElseE cond
-                <$> go l pvKind pvTy ptr
-                <*> go r pvKind pvTy ptr
+                <$> go l key
+                <*> go r key
         ExprValueVar name -> do
             new <- liftFlatten $ (#pvalids % at name) %%= \slot ->
                 (isNothing slot, Just (fromMaybe M.empty slot))
             when new $ do
                 rodataPtrs <- askRODataPtrs
                 for_ rodataPtrs $ \(Expr (ExprTypePtr roTy) (ExprValueNum roAddr)) -> do
+                    ptr <- cachePtr $ machineWordE roAddr
                     assertFact =<<
-                        goAssumingAlreadyExists name PValidKindPGlobalValid (PValidTypeType roTy) (machineWordE roAddr)
-            goAssumingAlreadyExists name pvKind pvTy ptr
-    goAssumingAlreadyExists htd pvKind pvTy ptrExpr = do
-        ptr <- cacheExpr "ptr" ptrExpr
-        let key = PValidKey { pvKind, pvTy, ptr }
+                        goAssumingAlreadyExists name (PValidKey
+                            { pvKind = PValidKindPGlobalValid
+                            , pvTy = PValidTypeType roTy
+                            , ptr
+                            })
+            goAssumingAlreadyExists name key
+    goAssumingAlreadyExists htd key = do
         opt <- liftFlatten $ use $ #pvalids % expectingAt htd % at key
         whenNothing opt $ do
             var <- varFromNameTyE <$> addVar "pvalid" boolT
             let info = mkPvInfo key var
             do
                 fact <- alignValidIneq info.pvTy info.p
-                withoutEnv $ assertFact $ info.pv `impliesE` fact
+                assertFact $ info.pv `impliesE` fact
             others <- liftFlatten $ #pvalids % expectingAt htd <<%= M.insert key var
-            for_ (sortOthersCompat others) $ \(otherKey, otherVar) -> do
+            for_ (M.toList others) $ \(otherKey, otherVar) -> do
                 let otherInfo = mkPvInfo otherKey otherVar
                 let pvKinds :: [PValidKind] = [otherInfo.pvKind, info.pvKind]
                 unless (PValidKindPWeakValid `elem` pvKinds && PValidKindPGlobalValid `notElem` pvKinds) $ do
                     let applyAssertion f = do
                             fact <- f info otherInfo
-                            withoutEnv $ assertFact fact
+                            assertFact fact
                     applyAssertion pvalidAssertion1
                     applyAssertion pvalidAssertion2
             return var
@@ -511,12 +468,10 @@ addPValids = go
         , p = varFromNameTyE ptr
         , pv = var
         }
-    -- HACK matches graph-refine
-    sortOthersCompat = sortOn snd . M.toList
 
 --
 
-tryDestructSplitMem :: GraphExpr -> TryDestructSplitMem
+tryDestructSplitMem :: SolverExpr -> TryDestructSplitMem
 tryDestructSplitMem = \case
     Expr ExprTypeMem (ExprValueOp (OpExt OpExtSplitMem) [split, top, bottom]) ->
         SplitMem $ DestructSplitMem { split, top, bottom }
@@ -524,13 +479,13 @@ tryDestructSplitMem = \case
 
 data TryDestructSplitMem
   = SplitMem DestructSplitMem
-  | NotSplitMem GraphExpr
+  | NotSplitMem SolverExpr
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data DestructSplitMem
   = DestructSplitMem
-      { split :: GraphExpr
-      , top :: GraphExpr
-      , bottom :: GraphExpr
+      { split :: SolverExpr
+      , top :: SolverExpr
+      , bottom :: SolverExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)

@@ -15,6 +15,8 @@ module BV.Core.RepGraph.Solver
     , NameHint
     , PcEnv (..)
     , SolverEnv
+    , SolverExpr
+    , SolverExprContext (..)
     , SolverOutput
     , SolverState
     , addDef
@@ -69,6 +71,11 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=), (<<%=))
 import Text.Printf (printf)
+
+data SolverExprContext
+  = SolverExprContext !SolverExprContext
+
+type SolverExpr = Expr SolverExprContext
 
 -- TODO
 cheatMemDoms :: Bool
@@ -236,7 +243,7 @@ askModelVars = liftSolver $ use #modelVars
 askModelExprs :: MonadRepGraphSolver m => m (Map SExprWithPlaceholders (Name, ExprType))
 askModelExprs = liftSolver $ use #modelExprs
 
-askRODataPtrs :: MonadRepGraphSolver m => m [(GraphExpr, ExprType)]
+askRODataPtrs :: MonadRepGraphSolver m => m [(Expr c, ExprType)]
 askRODataPtrs = do
     rodata <- liftSolver $ gview #rodata
     return
@@ -549,10 +556,10 @@ compatSMTComparisonKey = \case
 --
 
 -- TODO rename
-convertInnerExpr :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m GraphExpr
+convertInnerExpr :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m SolverExpr
 convertInnerExpr expr = case expr.ty of
     ExprTypeRelWrapper -> case expr.value of
-        ExprValueOp { } -> traverseOf (exprOpArgs % traversed) convertInnerExpr expr
+        ExprValueOp { } -> traverseOf (exprArgs % traversed) convertInnerExpr expr
     _ -> smtExprE expr.ty <$> convertExpr expr
 
 convertExprNotSplit :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m S
@@ -813,12 +820,12 @@ getImmBasisMems = go
 data PValidKey
   = PValidKey
       { pvKind :: PValidKind
-      , pvTy :: PValidType GraphExprContext
+      , pvTy :: PValidType SolverExprContext
       , ptrName :: Name
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-addPValids :: MonadRepGraphSolver m => S -> PValidKind -> PValidType GraphExprContext -> S -> m S
+addPValids :: MonadRepGraphSolver m => S -> PValidKind -> PValidType SolverExprContext -> S -> m S
 addPValids = go
   where
     go htd pvKind pvTy ptr = case htd of
@@ -845,7 +852,7 @@ addPValids = go
             let info = mkPvInfo key var
             do
                 fact <- alignValidIneq info.pvTy info.p
-                withoutEnv $ assertFact $ info.pv `impliesE` fact
+                withoutEnv $ assertFact $ castExpr $ info.pv `impliesE` fact
             others <- liftSolver $ #pvalids % expectingAt htd <<%= M.insert key var
             for_ (sortOthersCompat others) $ \(otherKey, otherVar) -> do
                 let otherInfo = mkPvInfo otherKey otherVar
@@ -853,7 +860,7 @@ addPValids = go
                 unless (PValidKindPWeakValid `elem` pvKinds && PValidKindPGlobalValid `notElem` pvKinds) $ do
                     let applyAssertion f = do
                             fact <- f info otherInfo
-                            withoutEnv $ assertFact fact
+                            withoutEnv $ assertFact $ castExpr fact
                     applyAssertion pvalidAssertion1
                     applyAssertion pvalidAssertion2
             return var

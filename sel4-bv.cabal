@@ -90,6 +90,7 @@ library core
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
       BV.Core.Arch
+      BV.Core.Experimental.Core
       BV.Core.Experimental.Flatten
       BV.Core.Experimental.Types
       BV.Core.GenerateFreshName

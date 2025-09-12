@@ -492,10 +492,10 @@ addInputEnvs = do
             M.empty
         liftRepGraph $ #inpEnvs %= M.insert side.entryPoint env
 
-getPcWithTag :: MonadRepGraph t m => WithTag t Visit -> m GraphExpr
+getPcWithTag :: MonadRepGraph t m => WithTag t Visit -> m SolverExpr
 getPcWithTag (WithTag tag visit) = runForTag tag $ getPc visit
 
-getPc :: MonadRepGraphForTag t m => Visit -> m GraphExpr
+getPc :: MonadRepGraphForTag t m => Visit -> m SolverExpr
 getPc visit = getNodePcEnv visit >>= \case
     Nothing -> return falseE
     Just (PcEnv pc env) -> withEnv env $ convertInnerExpr pc
@@ -535,7 +535,7 @@ getNodePcEnvRaw visit = do
                             let optimize = case visit.nodeId of
                                     Err -> traverse $ \(PcEnv pc env) -> do
                                         pc' <- withEnv env $ convertInnerExpr pc
-                                        return $ PcEnv pc' M.empty
+                                        return $ PcEnv (castExpr pc') M.empty
                                     _ -> return
                             optimizedArcPcEnvs <- optimize arcPcEnvs
                             (pcEnv, _large) <- mergeEnvsPcs optimizedArcPcEnvs
@@ -721,7 +721,7 @@ data FunCallInfo
   = FunCallInfo
       { ins :: [(ExprType, MaybeSplit)]
       , outs :: [(ExprType, MaybeSplit)]
-      , success :: GraphExpr
+      , success :: SolverExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -810,7 +810,7 @@ mergeMemCalls xs ys =
 
 --
 
-instEqWithEnvs :: MonadRepGraphSolver m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m GraphExpr
+instEqWithEnvs :: MonadRepGraphSolver m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m SolverExpr
 instEqWithEnvs (x, xenv) (y, yenv) = do
     x' <- withEnv xenv $ convertUnderOp x
     y' <- withEnv yenv $ convertUnderOp y
@@ -819,14 +819,14 @@ instEqWithEnvs (x, xenv) (y, yenv) = do
             _ -> eqE
     return $ f x' y'
   where
-    convertUnderOp :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m GraphExpr
+    convertUnderOp :: MonadRepGraphSolver m => GraphExpr -> ReaderT ExprEnv m SolverExpr
     convertUnderOp expr = case expr.value of
         ExprValueOp op args -> do
             args' <- traverse convertInnerExpr args
             return $ Expr expr.ty $ ExprValueOp op args'
         _ -> convertInnerExpr expr
 
-convertInnerExprWithPcEnv :: MonadRepGraphForTag t m => GraphExpr -> Visit -> m GraphExpr
+convertInnerExprWithPcEnv :: MonadRepGraphForTag t m => GraphExpr -> Visit -> m SolverExpr
 convertInnerExprWithPcEnv expr visit = do
     pcEnvOpt <- getNodePcEnv visit
     let Just (PcEnv _ env) = pcEnvOpt

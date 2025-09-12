@@ -9,12 +9,12 @@ import BV.Core.RepGraph.Solver
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-interpretHypImps :: (RefineTag t, MonadRepGraph t m) => [Hyp t] -> GraphExpr -> m GraphExpr
+interpretHypImps :: (RefineTag t, MonadRepGraph t m) => [Hyp t] -> SolverExpr -> m SolverExpr
 interpretHypImps hyps concl = do
     hyps' <- traverse interpretHyp hyps
     return $ strengthenHyp $ nImpliesE hyps' concl
 
-interpretHyp :: (RefineTag t, MonadRepGraph t m) => Hyp t -> m GraphExpr
+interpretHyp :: (RefineTag t, MonadRepGraph t m) => Hyp t -> m SolverExpr
 interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case

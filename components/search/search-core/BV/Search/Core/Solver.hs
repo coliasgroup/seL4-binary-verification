@@ -27,6 +27,7 @@ import BV.Core.ModelConfig
 import BV.Core.RepGraph
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
+import BV.Core.Types.Extras.Program (castExpr)
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS, symbolS)
 import BV.Logging
 import BV.SMTLIB2.Command
@@ -189,9 +190,9 @@ testHypGetModel hyp = ensureModel <$> testHypCommon True hyp
 
 testHypWhypsCommon
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => Bool -> Bool -> GraphExpr -> [Hyp t] -> StateT (Maybe Cache) m (Maybe (TestResultWith (Maybe Model)))
+    => Bool -> Bool -> SolverExpr -> [Hyp t] -> StateT (Maybe Cache) m (Maybe (TestResultWith (Maybe Model)))
 testHypWhypsCommon fast wantModel hyp hyps = do
-    sexpr <- lift $ interpretHypImps hyps hyp >>= withoutEnv . convertExprNotSplit
+    sexpr <- lift $ interpretHypImps hyps hyp >>= withoutEnv . convertExprNotSplit . castExpr
     cacheEntry <- preuse $ #_Just % #unwrap % at sexpr % #_Just
     case (cacheEntry, fast) of
         (Just v, _) -> do
@@ -207,28 +208,28 @@ testHypWhypsCommon fast wantModel hyp hyps = do
 
 testHypWhyps
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => GraphExpr -> [Hyp t] -> m Bool
+    => SolverExpr -> [Hyp t] -> m Bool
 testHypWhyps hyp hyps =
     isTrueResult . ensureNoModel . fromJust <$>
         withoutCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsGetModel
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => GraphExpr -> [Hyp t] -> m (TestResultWith Model)
+    => SolverExpr -> [Hyp t] -> m (TestResultWith Model)
 testHypWhypsGetModel hyp hyps =
     ensureModel . fromJust <$>
         withoutCache (testHypWhypsCommon False True hyp hyps)
 
 testHypWhypsWithCache
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => GraphExpr -> [Hyp t] -> StateT Cache m Bool
+    => SolverExpr -> [Hyp t] -> StateT Cache m Bool
 testHypWhypsWithCache hyp hyps =
     isTrueResult . ensureNoModel . fromJust <$>
         withCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsWithCacheFast
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => GraphExpr -> [Hyp t] -> StateT Cache m (Maybe Bool)
+    => SolverExpr -> [Hyp t] -> StateT Cache m (Maybe Bool)
 testHypWhypsWithCacheFast hyp hyps =
     fmap (isTrueResult . ensureNoModel) <$>
         withCache (testHypWhypsCommon True False hyp hyps)

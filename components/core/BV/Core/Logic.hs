@@ -319,7 +319,7 @@ strengthenHypInner = go
     go direction expr = case expr.value of
         ExprValueOp op args -> case op of
             _ | op == OpAnd || op == OpOr ->
-                expr & exprOpArgs % mapped %~ goWith
+                expr & exprArgs % mapped %~ goWith
             OpImplies ->
                 let [l, r] = args
                  in goAgainst l `impliesE` goWith r

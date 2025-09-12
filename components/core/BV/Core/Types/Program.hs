@@ -42,6 +42,7 @@ import Data.Binary (Binary)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.String (IsString (..))
+import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics (view)
 import Text.Printf (PrintfArg (..))
@@ -233,8 +234,8 @@ data VarUpdate
 
 instance Binary VarUpdate
 
-data GraphExprContext
-  = GraphExprContext !GraphExprContext
+newtype GraphExprContext
+  = GraphExprContext Void
 
 type GraphExpr = Expr GraphExprContext
 

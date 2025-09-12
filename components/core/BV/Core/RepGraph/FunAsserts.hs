@@ -96,7 +96,7 @@ addFunAsserts (WithTag tag visit) = do
             compat <- areFunCallsCompatible visits
             when compat $ do
                 imp <- getFunAssert visits
-                withoutEnv $ assertFact $ weakenAssert imp
+                withoutEnv $ assertFact $ weakenAssert $ castExpr imp
         WithFunAsserts $ #funcsByName %= M.insertWith (flip (<>)) funName [visit]
 
 areFunCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithFunAsserts t m Bool
@@ -124,7 +124,7 @@ memCallsCompatible memCalls = case sequenceA memCalls of
                  in maybe True (ractual.min <=) rcast.max && maybe True (rcast.min <=) ractual.max
         return $ all compat $ S.toList $ M.keysSet calls.right <> M.keysSet rcastcalls
 
-getFunAssert :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithFunAsserts t m GraphExpr
+getFunAssert :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithFunAsserts t m SolverExpr
 getFunAssert visits = do
     pairingId <- traverse askFunName visits
     pairing <- WithFunAsserts $ gview $ #pairings % #unwrap % expectingAt pairingId
@@ -161,7 +161,7 @@ data FunCallInfoWithNames
   = FunCallInfoWithNames
       { ins :: ExprEnv
       , outs :: ExprEnv
-      , success :: GraphExpr
+      , success :: SolverExpr
       }
   deriving (Eq, Generic, Ord, Show)
 
