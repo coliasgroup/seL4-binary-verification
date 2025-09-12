@@ -188,6 +188,7 @@ initRepGraph = do
     addInputEnvs
 
 --
+
 class MonadRepGraph t m => MonadRepGraphForTag t m where
     askTag :: m t
 
@@ -382,7 +383,7 @@ nodeCountName visit = intercalate "_" $
     ]
 
 -- TODO will not match python
-visitCountName :: VisitCount -> String
+visitCountName :: VisitCount -> NameHint
 visitCountName (VisitCount { numbers, offsets }) =
     intercalate "_" $ map showNumber numbers ++ map showOffset offsets
   where

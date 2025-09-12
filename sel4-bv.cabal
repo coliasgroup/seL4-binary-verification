@@ -90,8 +90,10 @@ library core
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
       BV.Core.Arch
+      BV.Core.Experimental.AsmStackRep
       BV.Core.Experimental.Core
       BV.Core.Experimental.Flatten
+      BV.Core.Experimental.FunAsserts
       BV.Core.Experimental.Types
       BV.Core.GenerateFreshName
       BV.Core.Glue

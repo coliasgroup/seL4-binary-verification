@@ -12,6 +12,9 @@ module BV.Core.Experimental.Flatten
     , addDef
     , addVar
     , assertFact
+    , cacheExpr
+    , cacheExprInline
+    , exprEnvVars
     , flattenAndAddDef
     , flattenAndAssertFact
     , flattenExpr
@@ -21,6 +24,7 @@ module BV.Core.Experimental.Flatten
     , getModelVars
     , initFlattenEnv
     , initFlattenState
+    , lookupDef
     , withEnv
     , withoutEnv
     ) where
@@ -212,6 +216,9 @@ isTypeRepresentable = \case
 getDef :: MonadRepGraphFlatten m => Ident -> m SolverExpr
 getDef name = liftFlatten $ use $ #defs % expectingAt name
 
+lookupDef :: MonadRepGraphFlatten m => Ident -> m (Maybe SolverExpr)
+lookupDef name = liftFlatten $ use $ #defs % at name
+
 addDefWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> SolverExpr -> m NameTy
 addDefWithInline inline nameHint expr = do
     name <- takeFreshName nameHint
@@ -237,9 +244,11 @@ addVar nameHint ty = do
     return var
 
 cacheExprWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> SolverExpr -> m NameTy
-cacheExprWithInline inline nameHint expr = do
-    name <- withMapSlot #exprCache expr $ (.name) <$> addDefWithInline inline nameHint expr
-    return $ NameTy name expr.ty
+cacheExprWithInline inline nameHint expr = case expr.value of
+    ExprValueVar name -> return $ NameTy name expr.ty
+    _ -> do
+        name <- withMapSlot #exprCache expr $ (.name) <$> addDefWithInline inline nameHint expr
+        return $ NameTy name expr.ty
 
 cacheExpr :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
 cacheExpr = cacheExprWithInline (Just InlineHintDontInline)
@@ -280,6 +289,9 @@ withEnv = flip runReaderT
 
 withoutEnv :: ReaderT ExprEnv m a -> m a
 withoutEnv = flip runReaderT mempty
+
+exprEnvVars :: ExprEnv -> Set NameTy
+exprEnvVars = S.fromList . M.elems . M.mapWithKey (\k v -> NameTy k v.ty)
 
 --
 
