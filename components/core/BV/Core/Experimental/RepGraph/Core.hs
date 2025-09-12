@@ -9,7 +9,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module BV.Core.Experimental.Core
+module BV.Core.Experimental.RepGraph.Core
     ( ForTag
     , FunCallInfo (..)
     , MemCalls
@@ -49,8 +49,8 @@ module BV.Core.Experimental.Core
     , zeroMemCallsRange
     ) where
 
-import BV.Core.Experimental.Flatten
-import BV.Core.Experimental.Types
+import BV.Core.Experimental.RepGraph.Flatten
+import BV.Core.Experimental.RepGraph.Types
 
 import BV.Core.Logic
 import BV.Core.Structs (MonadStructs)

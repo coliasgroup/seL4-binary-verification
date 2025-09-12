@@ -1,10 +1,11 @@
-module BV.Core.Experimental.AsmStackRep
+module BV.Core.Experimental.RepGraph.AsmStackRep
     ( WithAsmStackRep
     , runWithAsmStackRep
     ) where
 
-import BV.Core.Experimental.Core
-import BV.Core.Experimental.Flatten
+import BV.Core.Experimental.RepGraph.Core
+import BV.Core.Experimental.RepGraph.Flatten
+
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
