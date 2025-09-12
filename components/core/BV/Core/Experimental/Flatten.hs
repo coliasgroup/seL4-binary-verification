@@ -117,7 +117,7 @@ data FlattenState
 data PValidKey
   = PValidKey
       { pvKind :: PValidKind
-      , pvTy :: PValidType GraphExprContext
+      , pvTy :: PValidType Ident
       , ptr :: NameTy
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -467,7 +467,7 @@ getStackEqImplies stack1 stack2 = do
     noteModelExpr $ stack1SplitMem.top `eqE` rhs
     return $ cond `impliesE` (stack1SplitMem.top `eqE` rhs)
 
-addPValids :: MonadRepGraphFlatten m => GraphExpr -> PValidKind -> PValidType GraphExprContext -> GraphExpr -> m GraphExpr
+addPValids :: MonadRepGraphFlatten m => GraphExpr -> PValidKind -> PValidType Ident -> GraphExpr -> m GraphExpr
 addPValids = go
   where
     go htd pvKind pvTy ptr = case htd.value of

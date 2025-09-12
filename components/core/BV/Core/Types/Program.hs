@@ -11,7 +11,6 @@ module BV.Core.Types.Program
     , Function (..)
     , FunctionBody (..)
     , GraphExpr
-    , GraphExprContext (..)
     , Ident (..)
     , MaybeSplit (..)
     , NameTy (..)
@@ -233,10 +232,7 @@ data VarUpdate
 
 instance Binary VarUpdate
 
-data GraphExprContext
-  = GraphExprContext !GraphExprContext
-
-type GraphExpr = Expr GraphExprContext
+type GraphExpr = Expr Ident
 
 data Expr c
   = Expr
@@ -245,7 +241,7 @@ data Expr c
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary (Expr c)
+instance Binary c => Binary (Expr c)
 
 data ExprType
   = ExprTypeBool
@@ -282,12 +278,12 @@ data ExprValue c
       }
   | ExprValueNum Integer
   | ExprValueType ExprType
-  | ExprValueSymbol Ident
+  | ExprValueSymbol c
   | ExprValueToken Ident
   | ExprValueSMTExpr MaybeSplit -- !
   deriving (Eq, Generic, NFData, Ord, Show)
 
-instance Binary (ExprValue c)
+instance Binary c => Binary (ExprValue c)
 
 data Op
   = OpPlus

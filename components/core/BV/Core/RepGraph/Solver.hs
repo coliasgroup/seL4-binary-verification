@@ -16,7 +16,6 @@ module BV.Core.RepGraph.Solver
     , PcEnv (..)
     , SolverEnv
     , SolverExpr
-    , SolverExprContext (..)
     , SolverOutput
     , SolverState
     , addDef
@@ -72,10 +71,7 @@ import Optics
 import Optics.State.Operators ((%%=), (%=), (<<%=))
 import Text.Printf (printf)
 
-data SolverExprContext
-  = SolverExprContext !SolverExprContext
-
-type SolverExpr = Expr SolverExprContext
+type SolverExpr = Expr Ident
 
 -- TODO
 cheatMemDoms :: Bool
@@ -820,12 +816,12 @@ getImmBasisMems = go
 data PValidKey
   = PValidKey
       { pvKind :: PValidKind
-      , pvTy :: PValidType GraphExprContext
+      , pvTy :: PValidType Ident
       , ptrName :: Name
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-addPValids :: MonadRepGraphSolver m => S -> PValidKind -> PValidType GraphExprContext -> S -> m S
+addPValids :: MonadRepGraphSolver m => S -> PValidKind -> PValidType Ident -> S -> m S
 addPValids = go
   where
     go htd pvKind pvTy ptr = case htd of

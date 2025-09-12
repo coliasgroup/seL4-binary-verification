@@ -150,7 +150,7 @@ data PValidInfo c
 
 -- First pointer validity assertion: incompatibility.
 -- pvalid1 & pvalid2 --> non-overlapping OR somehow-contained.
-pvalidAssertion1 :: MonadStructs m => PValidInfo c -> PValidInfo c -> m (Expr c)
+pvalidAssertion1 :: (Eq c, MonadStructs m) => PValidInfo c -> PValidInfo c -> m (Expr c)
 pvalidAssertion1 x y = do
     p1 <- x `completelyPrecedes` y
     p2 <- y `completelyPrecedes` x
@@ -166,7 +166,7 @@ pvalidAssertion1 x y = do
 
 -- Second pointer validity assertion: implication.
 -- pvalid1 & strictly-contained --> pvalid2
-pvalidAssertion2 :: MonadStructs m => PValidInfo c -> PValidInfo c -> m (Expr c)
+pvalidAssertion2 :: (Eq c, MonadStructs m) => PValidInfo c -> PValidInfo c -> m (Expr c)
 pvalidAssertion2 x y = do
     case (x.pvTy, y.pvTy) of
         (PValidTypeArray {}, PValidTypeArray {}) ->
@@ -182,7 +182,7 @@ pvalidAssertion2 x y = do
                 contained <- outer `pvalidContains` inner
                 return $ (contained `andE` outer.pv) `impliesE` inner.pv
 
-pvalidContains :: MonadStructs m => PValidInfo c -> PValidInfo c -> m (Expr c)
+pvalidContains :: (Eq c, MonadStructs m) => PValidInfo c -> PValidInfo c -> m (Expr c)
 pvalidContains outer inner = do
     condOpt <- case (outer.pvKind, inner.pvKind) of
         (PValidKindPGlobalValid, PValidKindPGlobalValid) -> return $
@@ -201,7 +201,7 @@ pvalidContains outer inner = do
   where
     compatNoop cond offs = cond (offs `minusE` machineWordE 0)
 
-getSubtypeCondition :: MonadStructs m => PValidTypeWithStrength c -> PValidTypeWithStrength c -> m (Maybe (Expr c -> Expr c))
+getSubtypeCondition :: (Eq c, MonadStructs m) => PValidTypeWithStrength c -> PValidTypeWithStrength c -> m (Maybe (Expr c -> Expr c))
 getSubtypeCondition = go
 
   where
@@ -260,7 +260,7 @@ getSubtypeCondition = go
 
 --
 
-applyRelWrapper :: Expr c -> Expr c -> Expr c
+applyRelWrapper :: Eq c => Expr c -> Expr c -> Expr c
 applyRelWrapper lhs rhs = if
     | ops == S.fromList [OpExt OpExtStackWrapper] ->
         let spL:stackL:exceptsL = argsL
@@ -307,13 +307,13 @@ numListFromSum = go
 
 --
 
-strengthenHyp :: Expr c -> Expr c
+strengthenHyp :: Eq c => Expr c -> Expr c
 strengthenHyp = strengthenHypInner True
 
-weakenAssert :: Expr c -> Expr c
+weakenAssert :: Eq c => Expr c -> Expr c
 weakenAssert = strengthenHypInner False
 
-strengthenHypInner :: Bool -> Expr c -> Expr c
+strengthenHypInner :: Eq c => Bool -> Expr c -> Expr c
 strengthenHypInner = go
   where
     go direction expr = case expr.value of

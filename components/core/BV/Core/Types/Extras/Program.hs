@@ -74,10 +74,10 @@ instance TraverseTopLevelExprs GraphExpr where
 class FoldExprs c a where
     foldExprs :: Fold a (Expr c)
 
-instance FoldExprs GraphExprContext Node where
+instance FoldExprs Ident Node where
     foldExprs = traverseTopLevelLevelExprs % foldExprs
 
-instance FoldExprs GraphExprContext VarUpdate where
+instance FoldExprs Ident VarUpdate where
     foldExprs = traverseTopLevelLevelExprs % foldExprs
 
 instance FoldExprs c (Expr c) where
@@ -169,7 +169,8 @@ x1 :: Lens (Expr c) (Expr c') (ExprValue c) (ExprValue c')
 x1 = #value
 
 x2 :: Prism (ExprValue c) (ExprValue c') (Op, [Expr c]) (Op, [Expr c'])
-x2 = #_ExprValueOp
+-- x2 = #_ExprValueOp
+x2 = undefined
 
 data Foo a = Foo
     { x :: ()
