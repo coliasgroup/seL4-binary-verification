@@ -186,7 +186,6 @@ data Bar a = Bar
 y1 :: Lens (Foo c) (Foo c') (Bar c) (Bar c')
 y1 = #y
 
-
 --
 
 data FunctionSignature
