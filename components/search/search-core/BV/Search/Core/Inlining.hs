@@ -127,8 +127,6 @@ type InlineMInner m = ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT 
 
 newtype InlineM m a
   = InlineM { run :: InlineMInner m a }
-  -- , MonadRepGraphFlatten
-  -- , MonadRepGraphFlattenSend
   deriving newtype
     ( Applicative
     , Functor

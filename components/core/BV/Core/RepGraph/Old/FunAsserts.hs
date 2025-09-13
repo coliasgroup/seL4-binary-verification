@@ -13,7 +13,6 @@ import BV.Utils (expecting, expectingAt, unwrapped)
 
 import Control.Monad (when, (>=>))
 import Control.Monad.Reader (ReaderT (runReaderT))
-import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.Trans (MonadTrans, lift)
 import Data.Foldable (for_, toList)
 import Data.Map ((!?))
@@ -23,9 +22,8 @@ import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((%=))
 
-type WithFunAssertsInner t m = StateT (State t) (ReaderT (Env t) m)
+type WithFunAssertsInner t m = ReaderT (Env t) m
 
 newtype WithFunAsserts t m a
   = WithFunAsserts { run :: WithFunAssertsInner t m a }
@@ -33,7 +31,7 @@ newtype WithFunAsserts t m a
   deriving newtype (Applicative, Monad)
 
 instance MonadTrans (WithFunAsserts t) where
-    lift = WithFunAsserts . lift . lift
+    lift = WithFunAsserts . lift
 
 data Env t
   = Env
@@ -43,17 +41,9 @@ data Env t
       }
   deriving (Generic)
 
-data State t
-  = State
-      { funcsByName :: M.Map (WithTag t Ident) [Visit]
-      }
-  deriving (Generic)
-
 runWithFunAsserts :: RefineTag t => MonadRepGraph t m => LookupFunctionSignature t -> Pairings t -> WithFunAsserts t m a -> m a
 runWithFunAsserts lookupSig pairings m =
-    runReaderT
-        (evalStateT m.run initState)
-        (initEnv lookupSig pairings)
+    runReaderT m.run (initEnv lookupSig pairings)
 
 initEnv :: RefineTag t => LookupFunctionSignature t -> Pairings t -> Env t
 initEnv lookupSig pairings = Env
@@ -61,11 +51,6 @@ initEnv lookupSig pairings = Env
     , pairings
     , pairingsAccess = M.fromList $ concatMap toList
         [ (,p) <$> withTags p | p <- M.keys pairings.unwrap]
-    }
-
-initState :: State t
-initState = State
-    { funcsByName = M.empty
     }
 
 instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (WithFunAsserts t m) where
@@ -90,14 +75,13 @@ addFunAsserts (WithTag tag visit) = do
     pairingIdOpt <- WithFunAsserts $ gview $ #pairingsAccess % at funName
     for_ pairingIdOpt $ \pairingId -> do
         let otherFunName = viewAtTag (otherTag tag) (withTags pairingId)
-        group <- WithFunAsserts $ use $ #funcsByName % to (M.findWithDefault [] otherFunName)
+        group <- getFunCallVisits otherFunName
         for_ group $ \otherVisit -> do
             let visits = byTagFrom $ \tag' -> if tag' == tag then visit else otherVisit
             compat <- areFunCallsCompatible visits
             when compat $ do
                 imp <- getFunAssert visits
                 withoutEnv $ assertFact $ weakenAssert $ castExpr imp
-        WithFunAsserts $ #funcsByName %= M.insertWith (flip (<>)) funName [visit]
 
 areFunCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithFunAsserts t m Bool
 areFunCallsCompatible visits = do

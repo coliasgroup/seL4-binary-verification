@@ -30,6 +30,7 @@ module BV.Core.RepGraph.Old.Core
     , convertInnerExprWithPcEnv
     , getFunCallInfo
     , getFunCallInfoRaw
+    , getFunCallVisits
     , getInductVar
     , getNodePcEnv
     , getNodePcEnvWithTag
@@ -154,6 +155,7 @@ data RepGraphState t
       , extraProblemNames :: S.Set Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , funcs :: M.Map (WithTag t Visit) FunCallInfo
+      , funcsByName :: M.Map (WithTag t Ident) [Visit]
       }
   deriving (Eq, Generic, NFData)
 
@@ -180,6 +182,7 @@ initRepGraphState = RepGraphState
     , extraProblemNames = S.empty
     , hasInnerLoop = M.empty
     , funcs = M.empty
+    , funcsByName = M.empty
     }
 
 initRepGraph :: MonadRepGraph t m => m ()
@@ -665,6 +668,8 @@ emitNode visit = do
                 key <- askWithTag visit
                 let info = FunCallInfo { ins, outs, success }
                 liftRepGraph $ #funcs %= M.insertWith undefined key info
+                funName <- askWithTag callNode.functionName
+                liftRepGraph $ #funcsByName %= M.insertWith (flip (<>)) funName [visit]
                 joinForTag $ runPostEmitCallNodeHook visit
                 return [(callNode.next, PcEnv pc env')]
 
@@ -736,6 +741,9 @@ getFunCallInfo unprunedVisit = do
     whenNothing infoOpt $ do
         askCont visit >>= getNodePcEnv
         getFunCallInfoRaw visit
+
+getFunCallVisits :: MonadRepGraph t m => WithTag t Ident -> m [Visit]
+getFunCallVisits funName = liftRepGraph $ use $ #funcsByName % to (M.findWithDefault [] funName)
 
 --
 
