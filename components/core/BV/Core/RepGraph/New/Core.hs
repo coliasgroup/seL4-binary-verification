@@ -753,11 +753,11 @@ emitNode visit = do
                             return $ env ! name
                         _ -> do
                             let name = localName update.var.name visit
-                            withEnv env $ varFromNameTyE <$> flattenAndAddDef name update.val
+                            withEnv env $ flattenExpr update.val >>= addDefSplitMem name
                     return (update.var.name, val)
                 return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
-                cond <- withEnv env $ varFromNameTyE <$> flattenAndAddDef (condName visit) condNode.expr
+                cond <- withEnv env $ flattenExpr condNode.expr >>= addDefSplitMem (condName visit)
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, PcEnv lpc env), (condNode.right, PcEnv rpc env)]
