@@ -16,6 +16,7 @@ module BV.Core.RepGraph.New.Flatten
     , assertFact
     , cacheExpr
     , cacheExprInline
+    , checkSplitMemInvariantId
     , flattenAndAddDef
     , flattenAndAssertFact
     , flattenExpr
@@ -514,3 +515,19 @@ data DestructSplitMem
       , bottom :: SolverExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+--
+
+checkSplitMemInvariantId :: HasCallStack => SolverExpr -> SolverExpr
+checkSplitMemInvariantId expr =
+    if checkSplitMemInvariant expr
+    then expr
+    else error $ "split mem invariant not satisfied: " ++ show expr
+
+checkSplitMemInvariant :: SolverExpr -> Bool
+checkSplitMemInvariant = go True
+  where
+    go isFirst expr = case expr.value of
+        ExprValueOp op args ->
+            (op /= OpExt OpExtSplitMem || isFirst) && all (go False) args
+        _ -> True
