@@ -15,7 +15,7 @@ import qualified Data.Map as M
 interpretHypImps :: (RefineTag t, MonadRepGraph t m) => [Hyp t] -> SolverExpr -> m SolverExpr
 interpretHypImps hyps concl = do
     hyps' <- traverse interpretHyp hyps
-    return $ strengthenHyp $ nImpliesE hyps' concl
+    flattenOpExprs $ strengthenHyp $ nImpliesE hyps' concl
 
 interpretHyp :: (RefineTag t, MonadRepGraph t m) => Hyp t -> m SolverExpr
 interpretHyp = \case

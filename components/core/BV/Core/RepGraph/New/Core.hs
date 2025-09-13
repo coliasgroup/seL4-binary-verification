@@ -29,6 +29,7 @@ module BV.Core.RepGraph.New.Core
     , askNodeGraph
     , askProblem
     , askWithTag
+    , flattenOpExprs
     , getFunCallInfo
     , getFunCallInfoRaw
     , getInductVar

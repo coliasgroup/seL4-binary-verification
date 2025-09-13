@@ -104,7 +104,7 @@ addFunAsserts (WithTag tag visit) = do
             compat <- areFunCallsCompatible visits
             when compat $ do
                 imp <- getFunAssert visits
-                assertFact $ weakenAssert $ castExpr imp
+                assertFact =<< flattenOpExprs (weakenAssert imp)
         WithFunAsserts $ #funcsByName %= M.insertWith (flip (<>)) funName [visit]
 
 areFunCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithFunAsserts t m Bool

@@ -21,6 +21,7 @@ module BV.Core.RepGraph.New
     , askNodeGraph
     , askProblem
     , convertSolverExpr
+    , flattenOpExprs
     , getFunCallInfo
     , getFunCallInfoRaw
     , getModelExprs

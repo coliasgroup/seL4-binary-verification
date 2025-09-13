@@ -19,6 +19,7 @@ module BV.Core.RepGraph.New.Flatten
     , flattenAndAssertFact
     , flattenExpr
     , flattenOpExpr
+    , flattenOpExprs
     , getModelExprs
     , getModelVars
     , initFlattenEnv
@@ -280,6 +281,7 @@ flattenAndAssertFact = flattenExpr >=> assertFact
 
 --
 
+-- TODO split out var replacement?
 flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m SolverExpr
 flattenExpr expr = case matching exprOpArgs expr of
     Left expr' -> case expr'.value of
@@ -288,6 +290,11 @@ flattenExpr expr = case matching exprOpArgs expr of
             asks $ M.findWithDefault err name
         _ -> return expr'
     Right (op, args) -> traverse flattenExpr args >>= flattenOpExpr expr.ty op
+
+flattenOpExprs :: MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
+flattenOpExprs expr = case expr.value of
+    ExprValueOp op args -> traverse flattenOpExprs args >>= flattenOpExpr expr.ty op
+    _ -> return expr
 
 flattenOpExpr :: MonadRepGraphFlatten m => ExprType -> Op -> [SolverExpr] -> m SolverExpr
 flattenOpExpr exprTy op args = do
