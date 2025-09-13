@@ -154,8 +154,8 @@ data RepGraphState t
       , contractions :: Map SExprWithPlaceholders MaybeSplit
       , extraProblemNames :: S.Set Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
-      , funcs :: M.Map (WithTag t Visit) FunCallInfo
-      , funcsByName :: M.Map (WithTag t Ident) [Visit]
+      , funCalls :: M.Map (WithTag t Visit) FunCallInfo
+      , funCallsByName :: M.Map (WithTag t Ident) [Visit]
       }
   deriving (Eq, Generic, NFData)
 
@@ -181,8 +181,8 @@ initRepGraphState = RepGraphState
     , contractions = M.empty
     , extraProblemNames = S.empty
     , hasInnerLoop = M.empty
-    , funcs = M.empty
-    , funcsByName = M.empty
+    , funCalls = M.empty
+    , funCallsByName = M.empty
     }
 
 initRepGraph :: MonadRepGraph t m => m ()
@@ -667,9 +667,9 @@ emitNode visit = do
                 let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
                 key <- askWithTag visit
                 let info = FunCallInfo { ins, outs, success }
-                liftRepGraph $ #funcs %= M.insertWith undefined key info
+                liftRepGraph $ #funCalls %= M.insertWith undefined key info
                 funName <- askWithTag callNode.functionName
-                liftRepGraph $ #funcsByName %= M.insertWith (flip (<>)) funName [visit]
+                liftRepGraph $ #funCallsByName %= M.insertWith (flip (<>)) funName [visit]
                 joinForTag $ runPostEmitCallNodeHook visit
                 return [(callNode.next, PcEnv pc env')]
 
@@ -727,7 +727,7 @@ data FunCallInfo
 getFunCallInfoRawOpt :: MonadRepGraphForTag t m => Visit -> m (Maybe FunCallInfo)
 getFunCallInfoRawOpt visit = do
     key <- askWithTag visit
-    liftRepGraph $ use $ #funcs % at key
+    liftRepGraph $ use $ #funCalls % at key
 
 getFunCallInfoRaw :: MonadRepGraphForTag t m => Visit -> m FunCallInfo
 getFunCallInfoRaw visit = fromJust <$> getFunCallInfoRawOpt visit
@@ -743,7 +743,7 @@ getFunCallInfo unprunedVisit = do
         getFunCallInfoRaw visit
 
 getFunCallVisits :: MonadRepGraph t m => WithTag t Ident -> m [Visit]
-getFunCallVisits funName = liftRepGraph $ use $ #funcsByName % to (M.findWithDefault [] funName)
+getFunCallVisits funName = liftRepGraph $ use $ #funCallsByName % to (M.findWithDefault [] funName)
 
 --
 
