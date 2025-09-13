@@ -485,7 +485,9 @@ mergeEnvs envs = do
   where
     mergeValPcList valsByPc =
         let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
-            f accVal (val, pcs) = flattenOpExpr boolT OpIfThenElse [foldr1 orE pcs, val, accVal]
+            f accVal (val, pcs) = do
+                ensureM $ val.ty == accVal.ty
+                flattenOpExpr val.ty OpIfThenElse [foldr1 orE pcs, val, accVal]
          in foldM f lastVal valsByPcInit
 
 --
