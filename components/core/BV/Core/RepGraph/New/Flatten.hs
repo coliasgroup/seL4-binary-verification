@@ -10,6 +10,7 @@ module BV.Core.RepGraph.New.Flatten
     , MonadRepGraphFlatten (..)
     , MonadRepGraphFlattenSend (..)
     , NameHint
+    , checkSplitMemInvariantM
     , addDef
     , addDefSplitMem
     , addVar
@@ -360,6 +361,7 @@ flattenOpExpr exprTy op args = do
         _ -> do
             return $ Expr exprTy (ExprValueOp op args)
     ensureM $ expr.ty == exprTy
+    checkSplitMemInvariantM expr
     maybeNoteModelExpr expr args
     return expr
 
@@ -522,6 +524,12 @@ checkSplitMemInvariantId :: HasCallStack => SolverExpr -> SolverExpr
 checkSplitMemInvariantId expr =
     if checkSplitMemInvariant expr
     then expr
+    else error $ "split mem invariant not satisfied: " ++ show expr
+
+checkSplitMemInvariantM :: HasCallStack => Monad m => SolverExpr -> m ()
+checkSplitMemInvariantM expr = do
+    if checkSplitMemInvariant expr
+    then pure ()
     else error $ "split mem invariant not satisfied: " ++ show expr
 
 checkSplitMemInvariant :: SolverExpr -> Bool
