@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module BV.Core.Experimental.RepGraph.Types
+module BV.Core.RepGraph.New.Types
     ( Command (..)
     , InlineHint (..)
     , IntermediateSolverExpr

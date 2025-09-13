@@ -7,7 +7,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
-module BV.Core.Experimental.RepGraph.Solver
+module BV.Core.RepGraph.New.Solver
     ( MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)
     , SmtName (..)
@@ -21,7 +21,7 @@ module BV.Core.Experimental.RepGraph.Solver
     , nameS
     ) where
 
-import BV.Core.Experimental.RepGraph.Types
+import BV.Core.RepGraph.New.Types
 
 import BV.Core.GenerateFreshName
 import BV.Core.Structs

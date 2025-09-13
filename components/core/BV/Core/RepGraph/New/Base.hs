@@ -1,14 +1,14 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module BV.Core.Experimental.RepGraph.Base
+module BV.Core.RepGraph.New.Base
     ( RepGraphBase
     , RepGraphBaseInput (..)
     , runRepGraphBase
     ) where
 
-import BV.Core.Experimental.RepGraph.Core
-import BV.Core.Experimental.RepGraph.Flatten
-import BV.Core.Experimental.RepGraph.Solver
+import BV.Core.RepGraph.New.Core
+import BV.Core.RepGraph.New.Flatten
+import BV.Core.RepGraph.New.Solver
 
 import BV.Core.Structs
 import BV.Core.Types

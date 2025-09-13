@@ -1,11 +1,11 @@
-module BV.Core.Experimental.RepGraph.FunAsserts
+module BV.Core.RepGraph.New.FunAsserts
     ( WithFunAsserts
     , runWithFunAsserts
     ) where
 
-import BV.Core.Experimental.RepGraph.Core
-import BV.Core.Experimental.RepGraph.Flatten
-import BV.Core.Experimental.RepGraph.Types
+import BV.Core.RepGraph.New.Core
+import BV.Core.RepGraph.New.Flatten
+import BV.Core.RepGraph.New.Types
 
 import BV.Core.Logic
 import BV.Core.Structs

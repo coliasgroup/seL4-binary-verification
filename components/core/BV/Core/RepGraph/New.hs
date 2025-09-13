@@ -1,8 +1,8 @@
-module BV.Core.Experimental.RepGraph
-    ( module BV.Core.Experimental.RepGraph.AsmStackRep
-    , module BV.Core.Experimental.RepGraph.Base
-    , module BV.Core.Experimental.RepGraph.FunAsserts
-    , module BV.Core.Experimental.RepGraph.InterpretHyp
+module BV.Core.RepGraph.New
+    ( module BV.Core.RepGraph.New.AsmStackRep
+    , module BV.Core.RepGraph.New.Base
+    , module BV.Core.RepGraph.New.FunAsserts
+    , module BV.Core.RepGraph.New.InterpretHyp
     , ForTag
     , FunCallInfo (..)
     , MonadRepGraph (..)
@@ -33,14 +33,14 @@ module BV.Core.Experimental.RepGraph
     , withoutEnv
     ) where
 
-import BV.Core.Experimental.RepGraph.AsmStackRep
-import BV.Core.Experimental.RepGraph.Base
-import BV.Core.Experimental.RepGraph.Core
-import BV.Core.Experimental.RepGraph.Flatten
-import BV.Core.Experimental.RepGraph.FunAsserts
-import BV.Core.Experimental.RepGraph.InterpretHyp
-import BV.Core.Experimental.RepGraph.Solver
-import BV.Core.Experimental.RepGraph.Types
+import BV.Core.RepGraph.New.AsmStackRep
+import BV.Core.RepGraph.New.Base
+import BV.Core.RepGraph.New.Core
+import BV.Core.RepGraph.New.Flatten
+import BV.Core.RepGraph.New.FunAsserts
+import BV.Core.RepGraph.New.InterpretHyp
+import BV.Core.RepGraph.New.Solver
+import BV.Core.RepGraph.New.Types
 
 -- TODO
 addPValidDomAssertions :: MonadRepGraphSolver m => m ()

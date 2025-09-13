@@ -3,7 +3,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.Experimental.RepGraph.Flatten
+module BV.Core.RepGraph.New.Flatten
     ( ExprEnv
     , FlattenEnv
     , FlattenState
@@ -30,7 +30,7 @@ module BV.Core.Experimental.RepGraph.Flatten
     , withoutEnv
     ) where
 
-import BV.Core.Experimental.RepGraph.Types
+import BV.Core.RepGraph.New.Types
 
 import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Logic

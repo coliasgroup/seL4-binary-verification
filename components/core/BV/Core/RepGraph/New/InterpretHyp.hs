@@ -1,10 +1,10 @@
-module BV.Core.Experimental.RepGraph.InterpretHyp
+module BV.Core.RepGraph.New.InterpretHyp
     ( interpretHyp
     , interpretHypImps
     ) where
 
-import BV.Core.Experimental.RepGraph.Core
-import BV.Core.Experimental.RepGraph.Types
+import BV.Core.RepGraph.New.Core
+import BV.Core.RepGraph.New.Types
 
 import BV.Core.Logic
 import BV.Core.Types
