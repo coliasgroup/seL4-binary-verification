@@ -8,7 +8,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.RepGraph.Core
+module BV.Core.RepGraph.Old.Core
     ( ForTag
     , FunCallInfo (..)
     , MemCalls
@@ -49,7 +49,7 @@ module BV.Core.RepGraph.Core
 
 import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Logic
-import BV.Core.RepGraph.Solver
+import BV.Core.RepGraph.Old.Solver
 import BV.Core.Structs (MonadStructs)
 import BV.Core.Types
 import BV.Core.Types.Extras

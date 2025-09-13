@@ -101,12 +101,13 @@ library core
       BV.Core.Experimental.RepGraph.Types
       BV.Core.GenerateFreshName
       BV.Core.Glue
-      BV.Core.RepGraph.AsmStackRep
-      BV.Core.RepGraph.Base
-      BV.Core.RepGraph.Core
-      BV.Core.RepGraph.FunAsserts
-      BV.Core.RepGraph.InterpretHyp
-      BV.Core.RepGraph.Solver
+      BV.Core.RepGraph.Old
+      BV.Core.RepGraph.Old.AsmStackRep
+      BV.Core.RepGraph.Old.Base
+      BV.Core.RepGraph.Old.Core
+      BV.Core.RepGraph.Old.FunAsserts
+      BV.Core.RepGraph.Old.InterpretHyp
+      BV.Core.RepGraph.Old.Solver
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks

@@ -1,11 +1,11 @@
-module BV.Core.RepGraph.InterpretHyp
+module BV.Core.RepGraph.Old.InterpretHyp
     ( interpretHyp
     , interpretHypImps
     ) where
 
 import BV.Core.Logic
-import BV.Core.RepGraph.Core
-import BV.Core.RepGraph.Solver
+import BV.Core.RepGraph.Old.Core
+import BV.Core.RepGraph.Old.Solver
 import BV.Core.Types
 import BV.Core.Types.Extras
 

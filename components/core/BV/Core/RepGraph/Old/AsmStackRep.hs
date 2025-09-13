@@ -1,10 +1,10 @@
-module BV.Core.RepGraph.AsmStackRep
+module BV.Core.RepGraph.Old.AsmStackRep
     ( WithAsmStackRep
     , runWithAsmStackRep
     ) where
 
-import BV.Core.RepGraph.Core
-import BV.Core.RepGraph.Solver
+import BV.Core.RepGraph.Old.Core
+import BV.Core.RepGraph.Old.Solver
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras

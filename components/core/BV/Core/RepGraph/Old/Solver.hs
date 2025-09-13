@@ -7,7 +7,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
-module BV.Core.RepGraph.Solver
+module BV.Core.RepGraph.Old.Solver
     ( ExprEnv
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)
