@@ -50,6 +50,7 @@ module BV.Core.RepGraph.New.Core
     ) where
 
 import BV.Core.RepGraph.New.Flatten
+import BV.Core.RepGraph.New.Solver
 import BV.Core.RepGraph.New.Types
 
 import BV.Core.Logic
@@ -229,6 +230,8 @@ newtype ForTag t m a
     , MonadRepGraph t
     , MonadRepGraphFlatten
     , MonadRepGraphFlattenSend
+    , MonadRepGraphSolver
+    , MonadRepGraphSolverSend
     , MonadStructs
     , MonadTrans
     , MonadWriter w

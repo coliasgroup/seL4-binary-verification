@@ -127,6 +127,8 @@ type InlineMInner m = ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT 
 
 newtype InlineM m a
   = InlineM { run :: InlineMInner m a }
+  -- , MonadRepGraphFlatten
+  -- , MonadRepGraphFlattenSend
   deriving newtype
     ( Applicative
     , Functor
@@ -157,14 +159,15 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTa
     liftMonadRepGraphDefaultHelper = InlineM
 
 instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
-    runPreEmitCallNodeHook visit pvEnv = do
+    runPreEmitCallNodeHook visit pcEnv = do
         tag <- askTag
         p <- askProblem
         let nodeAddr = nodeAddrOf visit.nodeId
         let fname = p ^. #nodes % expectingAt nodeAddr % expecting #_NodeCall % #functionName
         matchedC <- lift $ InlineM $ gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do
-            hyp <- withEnv pvEnv.env $ convertExprNotSplit $ notE pvEnv.pc
+            hyp <- withEnv pcEnv.env $ convertExprNotSplit $ notE pcEnv.pc
+            -- hyp <- convertSolverExpr $ notE pcEnv.pc
             res <- testHyp hyp
             unless res $ lift $ InlineM $ throwError $ InliningEvent
                 { nodeAddr

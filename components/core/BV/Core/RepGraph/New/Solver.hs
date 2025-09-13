@@ -15,6 +15,7 @@ module BV.Core.RepGraph.New.Solver
     , SolverOutput
     , SolverState
     , convertCommand
+    , convertExpr
     , initSolver
     , initSolverEnv
     , initSolverState

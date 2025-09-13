@@ -5,6 +5,7 @@ module BV.Core.RepGraph.New.AsmStackRep
 
 import BV.Core.RepGraph.New.Core
 import BV.Core.RepGraph.New.Flatten
+import BV.Core.RepGraph.New.Solver
 
 import BV.Core.Structs
 import BV.Core.Types
@@ -24,11 +25,17 @@ newtype WithAsmStackRep m a
 runWithAsmStackRep :: MonadRepGraph AsmRefineTag m => ArgRenames AsmRefineTag -> WithAsmStackRep m a -> m a
 runWithAsmStackRep argRenames m = runReaderT m.run argRenames
 
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (WithAsmStackRep m) where
+    sendSExprWithPlaceholders = WithAsmStackRep . sendSExprWithPlaceholders
+
 instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (WithAsmStackRep m) where
     sendCommand = WithAsmStackRep . sendCommand
 
 instance MonadStructs m => MonadStructs (WithAsmStackRep m) where
     askLookupStruct = WithAsmStackRep askLookupStruct
+
+instance MonadRepGraphSolver m => MonadRepGraphSolver (WithAsmStackRep m) where
+    liftSolver = WithAsmStackRep . liftSolver
 
 instance MonadRepGraphFlatten m => MonadRepGraphFlatten (WithAsmStackRep m) where
     liftFlatten = WithAsmStackRep . liftFlatten

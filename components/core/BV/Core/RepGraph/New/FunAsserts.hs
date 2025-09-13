@@ -5,6 +5,7 @@ module BV.Core.RepGraph.New.FunAsserts
 
 import BV.Core.RepGraph.New.Core
 import BV.Core.RepGraph.New.Flatten
+import BV.Core.RepGraph.New.Solver
 import BV.Core.RepGraph.New.Types
 
 import BV.Core.Logic
@@ -70,11 +71,17 @@ initState = State
     { funcsByName = M.empty
     }
 
+instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (WithFunAsserts t m) where
+    sendSExprWithPlaceholders = WithFunAsserts . sendSExprWithPlaceholders
+
 instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (WithFunAsserts t m) where
     sendCommand = WithFunAsserts . sendCommand
 
 instance MonadStructs m => MonadStructs (WithFunAsserts t m) where
     askLookupStruct = WithFunAsserts askLookupStruct
+
+instance MonadRepGraphSolver m => MonadRepGraphSolver (WithFunAsserts t m) where
+    liftSolver = WithFunAsserts . liftSolver
 
 instance MonadRepGraphFlatten m => MonadRepGraphFlatten (WithFunAsserts t m) where
     liftFlatten = WithFunAsserts . liftFlatten

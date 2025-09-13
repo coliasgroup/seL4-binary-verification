@@ -19,6 +19,7 @@ module BV.Core.RepGraph.Old
     , askNodeGraph
     , askProblem
     , convertExprNotSplit
+    , convertSolverExpr
     , getFunCallInfo
     , getFunCallInfoRaw
     , getModelExprs
@@ -39,3 +40,9 @@ import BV.Core.RepGraph.Old.Core
 import BV.Core.RepGraph.Old.FunAsserts
 import BV.Core.RepGraph.Old.InterpretHyp
 import BV.Core.RepGraph.Old.Solver
+
+import BV.Core.Types (SExprWithPlaceholders)
+import BV.Core.Types.Extras (castExpr)
+
+convertSolverExpr :: MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
+convertSolverExpr expr = withoutEnv $ convertExprNotSplit $ castExpr expr

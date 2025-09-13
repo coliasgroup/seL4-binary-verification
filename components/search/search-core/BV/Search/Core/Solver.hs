@@ -27,7 +27,6 @@ import BV.Core.ModelConfig
 import BV.Core.RepGraph
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
-import BV.Core.Types.Extras.Program (castExpr)
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS, symbolS)
 import BV.Logging
 import BV.SMTLIB2.Command
@@ -132,9 +131,9 @@ smtToVal sexpr = case viewSExpr sexpr of
         _ -> error "parse failure"
 
 evalModelExpr :: MonadRepGraph t m => GraphExpr -> StateT Model m GraphExpr
-evalModelExpr expr = do
-    sexpr <- withoutEnv $ convertExprNotSplit expr
-    evalModel sexpr
+evalModelExpr _expr = do
+    -- sexpr <- convertSolverExpr expr
+    evalModel undefined
 
 evalModel :: Monad m => SExprWithPlaceholders -> StateT Model m GraphExpr
 evalModel = go
@@ -192,7 +191,7 @@ testHypWhypsCommon
     :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
     => Bool -> Bool -> SolverExpr -> [Hyp t] -> StateT (Maybe Cache) m (Maybe (TestResultWith (Maybe Model)))
 testHypWhypsCommon fast wantModel hyp hyps = do
-    sexpr <- lift $ interpretHypImps hyps hyp >>= withoutEnv . convertExprNotSplit . castExpr
+    sexpr <- lift $ interpretHypImps hyps hyp >>= convertSolverExpr
     cacheEntry <- preuse $ #_Just % #unwrap % at sexpr % #_Just
     case (cacheEntry, fast) of
         (Just v, _) -> do

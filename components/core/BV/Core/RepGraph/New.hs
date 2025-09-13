@@ -7,6 +7,8 @@ module BV.Core.RepGraph.New
     , FunCallInfo (..)
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
+    , MonadRepGraphFlatten (..)
+    , MonadRepGraphFlattenSend (..)
     , MonadRepGraphForTag (..)
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)
@@ -19,6 +21,7 @@ module BV.Core.RepGraph.New
     , askLoopData
     , askNodeGraph
     , askProblem
+    , convertSolverExpr
     , getFunCallInfo
     , getFunCallInfoRaw
     , getModelExprs
@@ -42,10 +45,15 @@ import BV.Core.RepGraph.New.InterpretHyp
 import BV.Core.RepGraph.New.Solver
 import BV.Core.RepGraph.New.Types
 
+import BV.Core.Types (SExprWithPlaceholders)
+
 -- TODO
-addPValidDomAssertions :: MonadRepGraphSolver m => m ()
+addPValidDomAssertions :: MonadRepGraphFlatten m => m ()
 addPValidDomAssertions = do
     return ()
 
 -- TODO
 type Name = SmtName
+
+convertSolverExpr :: MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
+convertSolverExpr = convertExpr

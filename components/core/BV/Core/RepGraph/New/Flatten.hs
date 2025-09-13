@@ -30,6 +30,7 @@ module BV.Core.RepGraph.New.Flatten
     , withoutEnv
     ) where
 
+import BV.Core.RepGraph.New.Solver
 import BV.Core.RepGraph.New.Types
 
 import BV.Core.GenerateFreshName (generateFreshName)
@@ -69,7 +70,7 @@ class Monad m => MonadRepGraphFlattenSend m where
 instance Monad m => MonadRepGraphFlattenSend (WriterT [Command] m) where
     sendCommand s = tell [s]
 
-class (MonadStructs m, MonadRepGraphFlattenSend m) => MonadRepGraphFlatten m where
+class (MonadStructs m, MonadRepGraphFlattenSend m, MonadRepGraphSolver m) => MonadRepGraphFlatten m where
     liftFlatten :: StateT FlattenState (Reader FlattenEnv) a -> m a
 
 instance (Monoid w, MonadRepGraphFlatten m) => MonadRepGraphFlatten (RWST r w s m) where
