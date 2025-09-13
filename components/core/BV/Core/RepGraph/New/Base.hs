@@ -108,7 +108,6 @@ runRepGraphBase input m = runReaderT (evalStateT m'.run initState) env
   where
     env = initEnv input
     m' = do
-        initSolver
         initRepGraph
         m
 

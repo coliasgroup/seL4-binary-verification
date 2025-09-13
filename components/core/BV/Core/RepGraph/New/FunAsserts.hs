@@ -6,7 +6,6 @@ module BV.Core.RepGraph.New.FunAsserts
 import BV.Core.RepGraph.New.Core
 import BV.Core.RepGraph.New.Flatten
 import BV.Core.RepGraph.New.Solver
-import BV.Core.RepGraph.New.Types
 
 import BV.Core.Logic
 import BV.Core.Structs
@@ -105,7 +104,7 @@ addFunAsserts (WithTag tag visit) = do
             compat <- areFunCallsCompatible visits
             when compat $ do
                 imp <- getFunAssert visits
-                withoutEnv $ assertFact $ weakenAssert $ castExpr imp
+                assertFact $ weakenAssert $ castExpr imp
         WithFunAsserts $ #funcsByName %= M.insertWith (flip (<>)) funName [visit]
 
 areFunCallsCompatible :: (RefineTag t, MonadRepGraph t m) => ByTag t Visit -> WithFunAsserts t m Bool

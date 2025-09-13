@@ -15,23 +15,19 @@ module BV.Core.RepGraph.New.Flatten
     , assertFact
     , cacheExpr
     , cacheExprInline
-    , exprEnvVars
     , flattenAndAddDef
     , flattenAndAssertFact
     , flattenExpr
     , flattenOpExpr
-    , getDef
     , getModelExprs
     , getModelVars
     , initFlattenEnv
     , initFlattenState
     , lookupDef
     , withEnv
-    , withoutEnv
     ) where
 
 import BV.Core.RepGraph.New.Solver
-import BV.Core.RepGraph.New.Types
 
 import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Logic
@@ -65,9 +61,9 @@ import Optics.State.Operators ((%%=), (%=), (<<%=))
 --
 
 class Monad m => MonadRepGraphFlattenSend m where
-    sendCommand :: Command -> m ()
+    sendCommand :: SolverExprCommand -> m ()
 
-instance Monad m => MonadRepGraphFlattenSend (WriterT [Command] m) where
+instance Monad m => MonadRepGraphFlattenSend (WriterT [SolverExprCommand] m) where
     sendCommand s = tell [s]
 
 class (MonadStructs m, MonadRepGraphFlattenSend m, MonadRepGraphSolver m) => MonadRepGraphFlatten m where
@@ -115,7 +111,6 @@ data FlattenState
       , defs :: Map Ident SolverExpr
       , exprCache :: Map SolverExpr Ident
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey Ident
-      , tokens :: Map Ident Ident
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , modelVars :: Set Ident
       , modelExprs :: Map SolverExpr Ident
@@ -149,7 +144,6 @@ initFlattenState = FlattenState
     , defs = M.empty
     , exprCache = M.empty
     , impliesStackEqCache = M.empty
-    , tokens = M.empty
     , pvalids = M.empty
     , modelVars = S.empty
     , modelExprs = M.empty
@@ -157,7 +151,7 @@ initFlattenState = FlattenState
 
 --
 
-send :: MonadRepGraphFlatten m => Command -> m ()
+send :: MonadRepGraphFlatten m => SolverExprCommand -> m ()
 send = sendCommand
 
 --
@@ -202,41 +196,47 @@ takeFreshName nameHint = liftFlatten $ zoom #names $ do
 
 --
 
+isTypeOmitted :: ExprType -> Bool
+isTypeOmitted = \case
+    ExprTypeHtd -> True
+    ExprTypePms -> True
+    _ -> False
+
 isTypeRepresentable :: ExprType -> Bool
 isTypeRepresentable = \case
     ExprTypeWord _ -> True
     ExprTypeBool -> True
+    ExprTypeToken -> True
     _ -> False
-
-getDef :: MonadRepGraphFlatten m => Ident -> m SolverExpr
-getDef name = liftFlatten $ use $ #defs % expectingAt name
 
 lookupDef :: MonadRepGraphFlatten m => Ident -> m (Maybe SolverExpr)
 lookupDef name = liftFlatten $ use $ #defs % at name
 
-addDefWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> SolverExpr -> m NameTy
+addDefWithInline :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
 addDefWithInline inline nameHint expr = do
     name <- takeFreshName nameHint
     let var = NameTy name expr.ty
-    send $ CommandDefine inline var expr
-    liftFlatten $ #defs %= M.insert name expr
-    when (isTypeRepresentable expr.ty) $ do
-        liftFlatten $ #modelVars %= S.insert name
+    unless (isTypeOmitted expr.ty) $ do
+        send $ SolverExprCommandDefine inline var expr
+        liftFlatten $ #defs %= M.insert name expr
+        when (isTypeRepresentable expr.ty) $ do
+            liftFlatten $ #modelVars %= S.insert name
     return var
 
 addDef :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
-addDef = addDefWithInline (Just InlineHintDontInline)
+addDef = addDefWithInline SolverExprCommandInlineHintDontInline
 
 addVar :: MonadRepGraphFlatten m => NameHint -> ExprType -> m NameTy
 addVar nameHint ty = do
     name <- takeFreshName nameHint
     let var = NameTy name ty
-    send $ CommandDeclare var
-    when (isTypeRepresentable ty) $ do
-        liftFlatten $ #modelVars %= S.insert name
+    unless (isTypeOmitted ty) $ do
+        send $ SolverExprCommandDeclare var
+        when (isTypeRepresentable ty) $ do
+            liftFlatten $ #modelVars %= S.insert name
     return var
 
-cacheExprWithInline :: MonadRepGraphFlatten m => Maybe InlineHint -> NameHint -> SolverExpr -> m NameTy
+cacheExprWithInline :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
 cacheExprWithInline inline nameHint expr = case expr.value of
     ExprValueVar name -> return $ NameTy name expr.ty
     _ -> do
@@ -244,10 +244,10 @@ cacheExprWithInline inline nameHint expr = case expr.value of
         return $ NameTy name expr.ty
 
 cacheExpr :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
-cacheExpr = cacheExprWithInline (Just InlineHintDontInline)
+cacheExpr = cacheExprWithInline SolverExprCommandInlineHintDontInline
 
 cacheExprInline :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
-cacheExprInline = cacheExprWithInline (Just InlineHintInline)
+cacheExprInline = cacheExprWithInline SolverExprCommandInlineHintInline
 
 cachePtr :: MonadRepGraphFlatten m => SolverExpr -> m NameTy
 cachePtr = cacheExpr "ptr"
@@ -260,18 +260,8 @@ maybeNoteModelExpr expr subexprs =
     when (isTypeRepresentable expr.ty && not (all (isTypeRepresentable . (.ty)) subexprs)) $ do
         noteModelExpr expr
 
-getToken :: MonadRepGraphFlatten m => Ident -> m SolverExpr
-getToken ident = fmap (varE compiledTokenType) $ withMapSlot #tokens ident $ do
-    n <- liftFlatten $ use $ #tokens % to M.size
-    (.name) <$> addDef
-        ("token_" ++ ident.unwrap)
-        (numE compiledTokenType (toInteger n))
-
-compiledTokenType :: ExprType
-compiledTokenType = ExprTypeWord 64
-
 assertFact :: MonadRepGraphFlatten m => SolverExpr -> m ()
-assertFact = send . CommandAssert
+assertFact = send . SolverExprCommandAssert
 
 --
 
@@ -279,12 +269,6 @@ type ExprEnv = Map Ident SolverExpr
 
 withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
 withEnv = flip runReaderT
-
-withoutEnv :: ReaderT ExprEnv m a -> m a
-withoutEnv = flip runReaderT mempty
-
-exprEnvVars :: ExprEnv -> Set NameTy
-exprEnvVars = S.fromList . M.elems . M.mapWithKey (\k v -> NameTy k v.ty)
 
 --
 
@@ -302,8 +286,6 @@ flattenExpr expr = case matching exprOpArgs expr of
         ExprValueVar name -> do
             let err = error $ "env miss: " ++ show name
             asks $ M.findWithDefault err name
-        ExprValueToken tok -> do
-            getToken tok
         _ -> return expr'
     Right (op, args) -> traverse flattenExpr args >>= flattenOpExpr expr.ty op
 

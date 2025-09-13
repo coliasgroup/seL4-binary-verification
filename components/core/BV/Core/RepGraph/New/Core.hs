@@ -51,7 +51,6 @@ module BV.Core.RepGraph.New.Core
 
 import BV.Core.RepGraph.New.Flatten
 import BV.Core.RepGraph.New.Solver
-import BV.Core.RepGraph.New.Types
 
 import BV.Core.Logic
 import BV.Core.Structs (MonadStructs)
@@ -775,6 +774,9 @@ emitNode visit = do
                 liftRepGraph $ #funcs %= M.insertWith undefined key info
                 joinForTag $ runPostEmitCallNodeHook visit
                 return [(callNode.next, PcEnv pc env')]
+
+exprEnvVars :: ExprEnv -> Set NameTy
+exprEnvVars = S.fromList . M.elems . M.mapWithKey (\k v -> NameTy k v.ty)
 
 isSyntacticConstant :: MonadRepGraphForTag t m => NameTy -> NodeAddr -> m Bool
 isSyntacticConstant var split = do

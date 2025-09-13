@@ -100,7 +100,6 @@ library core
       BV.Core.RepGraph.New.FunAsserts
       BV.Core.RepGraph.New.InterpretHyp
       BV.Core.RepGraph.New.Solver
-      BV.Core.RepGraph.New.Types
       BV.Core.RepGraph.Old
       BV.Core.RepGraph.Old.AsmStackRep
       BV.Core.RepGraph.Old.Base

@@ -4,7 +4,7 @@ module BV.Core.RepGraph.New.InterpretHyp
     ) where
 
 import BV.Core.RepGraph.New.Core
-import BV.Core.RepGraph.New.Types
+import BV.Core.RepGraph.New.Solver
 
 import BV.Core.Logic
 import BV.Core.Types
@@ -28,13 +28,15 @@ interpretHyp = \case
         envExt <- case eq.induct of
             Nothing -> return mempty
             Just induct -> do
-                v <- getInductVar induct
-                return $ M.singleton (Ident "%n") (varFromNameTyE v)
+                val <- varFromNameTyE <$> getInductVar induct
+                return $ M.singleton (Ident "%n") val
         xPcEnvOpt <- getNodePcEnvWithTag eq.lhs.visit
         yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
             (Just xPcEnv, Just yPcEnv) -> do
-                eq' <- instEqWithEnvs (eq.lhs.expr, xPcEnv.env <> envExt) (eq.rhs.expr, yPcEnv.env <> envExt)
+                eq' <- instEqWithEnvs
+                    (eq.lhs.expr, envExt <> xPcEnv.env)
+                    (eq.rhs.expr, envExt <> yPcEnv.env)
                 if ifAt
                     then do
                         xPc <- getPcWithTag eq.lhs.visit
