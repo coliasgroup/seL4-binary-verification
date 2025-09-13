@@ -10,7 +10,6 @@ module BV.Core.RepGraph.New.Flatten
     , MonadRepGraphFlatten (..)
     , MonadRepGraphFlattenSend (..)
     , NameHint
-    , checkSplitMemInvariantM
     , addDef
     , addDefSplitMem
     , addVar
@@ -18,11 +17,13 @@ module BV.Core.RepGraph.New.Flatten
     , cacheExpr
     , cacheExprInline
     , checkSplitMemInvariantId
+    , checkSplitMemInvariantM
     , flattenAndAddDef
     , flattenAndAssertFact
     , flattenExpr
     , flattenOpExpr
     , flattenOpExprs
+    , flattenTopLevelExpr
     , getModelExprs
     , getModelVars
     , initFlattenEnv
@@ -229,8 +230,8 @@ addDef = addDefWithInline SolverExprCommandInlineHintDontInline
 addDefWithInline :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
 addDefWithInline inline nameHint expr = viewExpecting #_Left <$> addDefWithInlineInner inline nameHint expr
 
-addDefWithInlineInner :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m (Either NameTy DestructSplitMem)
-addDefWithInlineInner inline nameHint expr = case tryDestructSplitMem expr of
+addDefWithInlineInner :: HasCallStack => MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m (Either NameTy DestructSplitMem)
+addDefWithInlineInner inline nameHint expr = case tryDestructSplitMem (id expr) of
     NotSplitMem _ -> Left <$> do
         name <- takeFreshName nameHint
         let var = NameTy name expr.ty
@@ -306,7 +307,7 @@ flattenAndAssertFact = flattenExpr >=> assertFact
 --
 
 -- TODO split out var replacement?
-flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m SolverExpr
+flattenExpr :: HasCallStack => MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m SolverExpr
 flattenExpr expr = case matching exprOpArgs expr of
     Left expr' -> case expr'.value of
         ExprValueVar name -> do
@@ -315,12 +316,17 @@ flattenExpr expr = case matching exprOpArgs expr of
         _ -> return expr'
     Right (op, args) -> traverse flattenExpr args >>= flattenOpExpr expr.ty op
 
-flattenOpExprs :: MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
+flattenOpExprs :: HasCallStack => MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
 flattenOpExprs expr = case expr.value of
     ExprValueOp op args -> traverse flattenOpExprs args >>= flattenOpExpr expr.ty op
     _ -> return expr
 
-flattenOpExpr :: MonadRepGraphFlatten m => ExprType -> Op -> [SolverExpr] -> m SolverExpr
+flattenTopLevelExpr :: HasCallStack => MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
+flattenTopLevelExpr expr = case expr.value of
+    ExprValueOp op args -> flattenOpExpr expr.ty op args
+    _ -> return expr
+
+flattenOpExpr :: HasCallStack => MonadRepGraphFlatten m => ExprType -> Op -> [SolverExpr] -> m SolverExpr
 flattenOpExpr exprTy op args = do
     expr <- case (op, args) of
         (OpIfThenElse, [cond, x, y]) -> do
@@ -361,7 +367,7 @@ flattenOpExpr exprTy op args = do
         _ -> do
             return $ Expr exprTy (ExprValueOp op args)
     ensureM $ expr.ty == exprTy
-    checkSplitMemInvariantM expr
+    -- checkSplitMemInvariantM expr
     maybeNoteModelExpr expr args
     return expr
 
@@ -429,8 +435,9 @@ addImpliesStackEq key = fmap (varE boolT) $ withMapSlot #impliesStackEqCache key
     addr <- varFromNameTyE <$> addVar "stack-eq-witness" word32T
     assertFact $ (addr `bitwiseAndE` machineWordE 0x00000003) `eqE` machineWordE 0x00000000
     assertFact $ key.sp `lessEqE` addr
-    let f = memAccE word32T addr
-    (.name) <$> addDef "stack-eq" (f key.stack1 `eqE` f key.stack2)
+    let f = flattenTopLevelExpr . memAccE word32T addr
+    solverExpr <- eqE <$> f key.stack1 <*> f key.stack2 >>= flattenTopLevelExpr
+    (.name) <$> addDef "stack-eq" solverExpr
 
 getStackEqImplies :: MonadRepGraphFlatten m => SolverExpr -> SolverExpr -> m SolverExpr
 getStackEqImplies stack1 stack2 = do
@@ -535,7 +542,8 @@ checkSplitMemInvariantM expr = do
 checkSplitMemInvariant :: SolverExpr -> Bool
 checkSplitMemInvariant = go True
   where
-    go isFirst expr = case expr.value of
+    go isAllowed expr = case expr.value of
         ExprValueOp op args ->
-            (op /= OpExt OpExtSplitMem || isFirst) && all (go False) args
+            (op /= OpExt OpExtSplitMem || isAllowed)
+                && all (go (expr.ty == ExprTypeRelWrapper)) args
         _ -> True

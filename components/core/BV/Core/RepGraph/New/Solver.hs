@@ -47,6 +47,7 @@ import Data.String (IsString (..))
 import Data.Void (Void)
 import Debug.Trace (traceShowM)
 import GHC.Generics (Generic)
+import GHC.Stack (HasCallStack)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
@@ -256,7 +257,7 @@ convertCommand' = \case
         s <- convertExpr expr
         send $ assertS s
 
-convertExpr :: MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
+convertExpr :: HasCallStack => MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
 convertExpr expr = case expr.value of
     ExprValueVar var -> do
         sOpt <- runMaybeT $
