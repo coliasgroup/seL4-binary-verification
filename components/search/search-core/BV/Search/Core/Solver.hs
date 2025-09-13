@@ -175,11 +175,12 @@ testHypCommon :: (MonadRepGraphSolver m, MonadRepGraphSolverInteract m) => Bool 
 testHypCommon wantModel sexpr = case wantModel of
     False -> ensureNothing <$> checkHyp Nothing sexpr
     True -> do
-        vars <- getModelVars
-        exprs <- getModelExprs
-        let req = S.toList vars ++ map fst (toList exprs)
-        r <- checkHyp (Just req) sexpr
-        return $ over (#_TestResultWithFalse % _Just) (reconstructModel exprs req) r
+        undefined
+        -- vars <- getModelVars
+        -- exprs <- getModelExprs
+        -- let req = S.toList vars ++ map fst (toList exprs)
+        -- r <- checkHyp (Just req) sexpr
+        -- return $ over (#_TestResultWithFalse % _Just) (reconstructModel exprs req) r
 
 testHyp :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m Bool
 testHyp hyp = isTrueResult . ensureNoModel <$> testHypCommon False hyp

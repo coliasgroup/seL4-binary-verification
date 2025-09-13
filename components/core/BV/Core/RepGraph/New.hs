@@ -30,6 +30,7 @@ module BV.Core.RepGraph.New
     , getNodePcEnvWithTag
     , getPc
     , getPcWithTag
+    , isUnreachable
     , runForTag
     , tryGetNodePcEnv
     , withEnv
@@ -45,7 +46,10 @@ import BV.Core.RepGraph.New.InterpretHyp
 import BV.Core.RepGraph.New.Solver
 import BV.Core.RepGraph.New.Types
 
-import BV.Core.Types (SExprWithPlaceholders)
+import BV.Core.Types (SExprWithPlaceholders, Visit)
+import BV.Core.Types.Extras
+
+import Data.Maybe (fromJust)
 
 -- TODO
 addPValidDomAssertions :: MonadRepGraphFlatten m => m ()
@@ -57,3 +61,8 @@ type Name = SmtName
 
 convertSolverExpr :: MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
 convertSolverExpr = convertExpr
+
+isUnreachable :: MonadRepGraph t m => Visit -> ForTag t m SExprWithPlaceholders
+isUnreachable visit = do
+    pcEnv <- fromJust <$> getNodePcEnv visit
+    convertSolverExpr $ notE pcEnv.pc

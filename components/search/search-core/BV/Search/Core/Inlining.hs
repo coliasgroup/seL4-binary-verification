@@ -7,7 +7,6 @@ import BV.Core.RepGraph
 import BV.Core.Stages
 import BV.Core.Structs
 import BV.Core.Types
-import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
@@ -25,7 +24,6 @@ import Data.Functor (void)
 import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
@@ -132,6 +130,8 @@ newtype InlineM m a
     ( Applicative
     , Functor
     , Monad
+    , MonadRepGraphFlatten
+    , MonadRepGraphFlattenSend
     , MonadRepGraphSolver
     , MonadRepGraphSolverInteract
     , MonadRepGraphSolverSend
@@ -159,15 +159,13 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTa
 
 instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
     runPreEmitCallNodeHook visit = do
-        pcEnv <- fromJust <$> getNodePcEnv visit
         tag <- askTag
         p <- askProblem
         let nodeAddr = nodeAddrOf visit.nodeId
         let fname = p ^. #nodes % expectingAt nodeAddr % expecting #_NodeCall % #functionName
         matchedC <- lift $ InlineM $ gview #matchedC
         when (tag == C && S.notMember fname matchedC) $ do
-            hyp <- withEnv pcEnv.env $ convertExprNotSplit $ notE pcEnv.pc
-            -- hyp <- convertSolverExpr $ notE pcEnv.pc
+            hyp <- isUnreachable visit
             res <- testHyp hyp
             unless res $ lift $ InlineM $ throwError $ InliningEvent
                 { nodeAddr

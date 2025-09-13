@@ -3,8 +3,8 @@ module BV.Core.RepGraph
     ) where
 
 -- module BV.Core.RepGraph
---     ( module BV.Core.RepGraph.New
---     ) where
+    -- ( module BV.Core.RepGraph.New
+    -- ) where
 
 import BV.Core.RepGraph.Old
 -- import BV.Core.RepGraph.New

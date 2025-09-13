@@ -7,6 +7,8 @@ module BV.Core.RepGraph.Old
     , FunCallInfo (..)
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
+    , MonadRepGraphFlatten
+    , MonadRepGraphFlattenSend
     , MonadRepGraphForTag (..)
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)
@@ -28,6 +30,7 @@ module BV.Core.RepGraph.Old
     , getNodePcEnvWithTag
     , getPc
     , getPcWithTag
+    , isUnreachable
     , runForTag
     , tryGetNodePcEnv
     , withEnv
@@ -41,8 +44,19 @@ import BV.Core.RepGraph.Old.FunAsserts
 import BV.Core.RepGraph.Old.InterpretHyp
 import BV.Core.RepGraph.Old.Solver
 
-import BV.Core.Types (SExprWithPlaceholders)
-import BV.Core.Types.Extras (castExpr)
+import BV.Core.Types (SExprWithPlaceholders, Visit)
+import BV.Core.Types.Extras
+
+import Data.Maybe (fromJust)
 
 convertSolverExpr :: MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
 convertSolverExpr expr = withoutEnv $ convertExprNotSplit $ castExpr expr
+
+isUnreachable :: MonadRepGraph t m => Visit -> ForTag t m SExprWithPlaceholders
+isUnreachable visit = do
+    pcEnv <- fromJust <$> getNodePcEnv visit
+    withEnv pcEnv.env $ convertExprNotSplit $ notE pcEnv.pc
+
+class MonadRepGraphFlattenSend m
+
+class MonadRepGraphFlatten m
