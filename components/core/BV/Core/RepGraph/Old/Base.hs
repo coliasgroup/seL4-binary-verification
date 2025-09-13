@@ -81,7 +81,7 @@ instance (Tag t, MonadRepGraphSolverSend m) => MonadRepGraph t (RepGraphBase t m
         . mapStateT (mapReaderT (return . runIdentity))
         $ m
 
-    runProblemVarRepHook _ _ _ = return Nothing
+    runProblemVarRepHook _ _ = return Nothing
     runPreEmitCallNodeHook _ = return ()
     runPostEmitCallNodeHook _ = return ()
 

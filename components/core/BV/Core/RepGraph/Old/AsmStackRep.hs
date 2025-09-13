@@ -35,14 +35,14 @@ instance MonadRepGraphSolver m => MonadRepGraphSolver (WithAsmStackRep m) where
 instance MonadRepGraph AsmRefineTag m => MonadRepGraphDefaultHelper AsmRefineTag m (WithAsmStackRep m)
 
 instance MonadRepGraph AsmRefineTag m => MonadRepGraph AsmRefineTag (WithAsmStackRep m) where
-    runProblemVarRepHook var kind _ = runMaybeT $ do
-        tag <- askTag
-        guard $ tag == Asm
-        guard $ "stack" `isPrefixOf` var.name.unwrap
-        guard $ var.ty == ExprTypeMem
+    runProblemVarRepHook kind var = runMaybeT $ do
+        argRenames <- lift $ WithAsmStackRep ask
+        let quadrant = PairingEqSideQuadrant Asm PairingEqDirectionIn
+        let spName = argRenames quadrant (Ident "r13")
+        guard $ var.tag == Asm
+        guard $ var.value.ty == ExprTypeMem
+        guard $ "stack" `isPrefixOf` var.value.name.unwrap
         guard $ kind /= VarRepRequestKindInit
-        argRenames <- lift $ lift $ WithAsmStackRep ask
-        let quadrant = PairingEqSideQuadrant tag PairingEqDirectionIn
         return $ VarRepRequestSplitMem
-            { addr = varE word32T (argRenames quadrant (Ident "r13"))
+            { addr = varE word32T spName
             }

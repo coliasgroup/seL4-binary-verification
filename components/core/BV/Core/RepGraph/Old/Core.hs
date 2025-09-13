@@ -95,15 +95,15 @@ class MonadRepGraph t n => MonadRepGraphDefaultHelper t n m | m -> t, m -> n whe
 
 class (Tag t, MonadRepGraphSolver m) => MonadRepGraph t m | m -> t where
     liftRepGraph :: StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
-    runProblemVarRepHook :: NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe VarReqRequest)
+    runProblemVarRepHook :: VarRepRequestKind -> WithTag t NameTy -> m (Maybe VarReqRequest)
     runPreEmitCallNodeHook :: Visit -> ForTag t m ()
     runPostEmitCallNodeHook :: Visit -> ForTag t m ()
 
     default liftRepGraph :: MonadRepGraphDefaultHelper t n m => StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
     liftRepGraph = liftMonadRepGraphDefaultHelper . liftRepGraph
 
-    default runProblemVarRepHook :: MonadRepGraphDefaultHelper t n m => NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe VarReqRequest)
-    runProblemVarRepHook = compose3 (mapForTag liftMonadRepGraphDefaultHelper) runProblemVarRepHook
+    default runProblemVarRepHook :: MonadRepGraphDefaultHelper t n m => VarRepRequestKind -> WithTag t NameTy -> m (Maybe VarReqRequest)
+    runProblemVarRepHook = compose2 liftMonadRepGraphDefaultHelper runProblemVarRepHook
 
     default runPreEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> ForTag t m ()
     runPreEmitCallNodeHook = mapForTag liftMonadRepGraphDefaultHelper . runPreEmitCallNodeHook
@@ -414,9 +414,9 @@ data VarReqRequest
   deriving (Eq, Generic, Ord, Show)
 
 varRepRequest :: MonadRepGraphForTag t m => VarRepRequestKind -> Visit -> ExprEnv -> NameTy -> m (Maybe SplitMem)
-varRepRequest kind visit env var = runMaybeT $ do
-    req <- MaybeT $ joinForTag $ runProblemVarRepHook var kind (nodeAddrOf visit.nodeId)
-    case req of
+varRepRequest kind visit env var = do
+    reqOpt <- askWithTag var >>= runProblemVarRepHook kind
+    for reqOpt $ \req -> case req of
         VarRepRequestSplitMem { addr } -> do
             addrSExpr <- withEnv env $ convertExprNotSplit addr
             let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
