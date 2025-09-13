@@ -11,6 +11,7 @@ module BV.Core.RepGraph.New.Flatten
     , MonadRepGraphFlattenSend (..)
     , NameHint
     , addDef
+    , addDefSplitMem
     , addVar
     , assertFact
     , cacheExpr
@@ -24,6 +25,7 @@ module BV.Core.RepGraph.New.Flatten
     , getModelVars
     , initFlattenEnv
     , initFlattenState
+    , isSplitMem
     , lookupDef
     , withEnv
     ) where
@@ -58,6 +60,7 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=), (<<%=))
+import Debug.Trace (traceShowM)
 
 --
 
@@ -213,19 +216,38 @@ isTypeRepresentable = \case
 lookupDef :: MonadRepGraphFlatten m => Ident -> m (Maybe SolverExpr)
 lookupDef name = liftFlatten $ use $ #defs % at name
 
-addDefWithInline :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
-addDefWithInline inline nameHint expr = do
-    name <- takeFreshName nameHint
-    let var = NameTy name expr.ty
-    unless (isTypeOmitted expr.ty) $ do
-        send $ SolverExprCommandDefine inline var expr
-        liftFlatten $ #defs %= M.insert name expr
-        when (isTypeRepresentable expr.ty) $ do
-            liftFlatten $ #modelVars %= S.insert name
-    return var
+addDefSplitMem :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m SolverExpr
+addDefSplitMem nameHint expr =
+    either varFromNameTyE reconstructSplitMem
+        <$> addDefWithInlineInner SolverExprCommandInlineHintInline nameHint expr
 
 addDef :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
 addDef = addDefWithInline SolverExprCommandInlineHintDontInline
+
+addDefWithInline :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
+addDefWithInline inline nameHint expr = viewExpecting #_Left <$> addDefWithInlineInner inline nameHint expr
+
+addDefWithInlineInner :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m (Either NameTy DestructSplitMem)
+addDefWithInlineInner inline nameHint expr = case tryDestructSplitMem expr of
+    NotSplitMem _ -> Left <$> do
+        name <- takeFreshName nameHint
+        let var = NameTy name expr.ty
+        unless (isTypeOmitted expr.ty) $ do
+            send $ SolverExprCommandDefine inline var expr
+            liftFlatten $ #defs %= M.insert name expr
+            when (isTypeRepresentable expr.ty) $ do
+                liftFlatten $ #modelVars %= S.insert name
+        return var
+    SplitMem splitMem -> Right <$> do
+        let add suffix = fmap varFromNameTyE <$> addDef (nameHint ++ "_" ++ suffix)
+        split <- add "split" splitMem.split
+        top <- add "top" splitMem.top
+        bottom <- add "bot" splitMem.bottom
+        return $ DestructSplitMem
+            { split
+            , top
+            , bottom
+            }
 
 addVar :: MonadRepGraphFlatten m => NameHint -> ExprType -> m NameTy
 addVar nameHint ty = do
@@ -466,11 +488,19 @@ addPValids = go
 
 --
 
+isSplitMem :: SolverExpr -> Bool
+isSplitMem = \case
+    Expr _ (ExprValueOp _ _) -> True
+    _ -> False
+
 tryDestructSplitMem :: SolverExpr -> TryDestructSplitMem
 tryDestructSplitMem = \case
     Expr ExprTypeMem (ExprValueOp (OpExt OpExtSplitMem) [split, top, bottom]) ->
         SplitMem $ DestructSplitMem { split, top, bottom }
     expr -> NotSplitMem expr
+
+reconstructSplitMem :: DestructSplitMem -> SolverExpr
+reconstructSplitMem splitMem = splitMemE splitMem.split splitMem.top splitMem.bottom
 
 data TryDestructSplitMem
   = SplitMem DestructSplitMem

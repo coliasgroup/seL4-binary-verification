@@ -164,7 +164,7 @@ initNamesUsed = S.fromList $ map SmtName $
 
 send :: MonadRepGraphSolver m => SExprWithPlaceholders -> m ()
 send s = do
-    traceShowM $ showSExprWithPlaceholders s
+    -- traceShowM $ showSExprWithPlaceholders s
     sendSExprWithPlaceholders s
 
 --
@@ -236,7 +236,7 @@ addSmtDef nameHint val = do
 
 convertCommand :: MonadRepGraphSolver m => SolverExprCommand -> m ()
 convertCommand cmd = do
-    traceShowM cmd
+    -- traceShowM cmd
     convertCommand' cmd
 
 convertCommand' :: MonadRepGraphSolver m => SolverExprCommand -> m ()

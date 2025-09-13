@@ -500,7 +500,10 @@ contractPcEnv visit (PcEnv pc env) = do
     env' <- M.traverseWithKey f env
     return $ PcEnv pc' env'
   where
-    f name val = varFromNameTyE <$> cacheExprInline (localNameBefore name visit) val
+    f name val =
+        if isSplitMem val
+        then return val
+        else varFromNameTyE <$> cacheExprInline (localNameBefore name visit) val
 
 --
 
