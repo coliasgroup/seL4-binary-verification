@@ -490,7 +490,7 @@ addPValids = go
 
 isSplitMem :: SolverExpr -> Bool
 isSplitMem = \case
-    Expr _ (ExprValueOp _ _) -> True
+    Expr _ (ExprValueOp (OpExt OpExtSplitMem) _) -> True
     _ -> False
 
 tryDestructSplitMem :: SolverExpr -> TryDestructSplitMem

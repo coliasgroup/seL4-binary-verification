@@ -562,7 +562,7 @@ scanMemCallsEnv = scanMemCalls . toList
 
 scanMemCalls :: MonadRepGraph t m => [SolverExpr] -> m MemCallsIfKnown
 scanMemCalls exprs = do
-    memCalls <- traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT ]
+    memCalls <- traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT && not (isSplitMem expr)]
     return $ case memCalls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
