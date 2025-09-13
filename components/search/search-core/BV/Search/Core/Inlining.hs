@@ -25,6 +25,7 @@ import Data.Functor (void)
 import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
@@ -157,7 +158,8 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTa
     liftMonadRepGraphDefaultHelper = InlineM
 
 instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
-    runPreEmitCallNodeHook visit pcEnv = do
+    runPreEmitCallNodeHook visit = do
+        pcEnv <- fromJust <$> getNodePcEnv visit
         tag <- askTag
         p <- askProblem
         let nodeAddr = nodeAddrOf visit.nodeId

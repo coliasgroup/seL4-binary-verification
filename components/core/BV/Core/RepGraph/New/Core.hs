@@ -99,7 +99,7 @@ class MonadRepGraph t n => MonadRepGraphDefaultHelper t n m | m -> t, m -> n whe
 class (Tag t, MonadRepGraphFlatten m) => MonadRepGraph t m | m -> t where
     liftRepGraph :: StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
     runProblemVarRepHook :: NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe VarReqRequest)
-    runPreEmitCallNodeHook :: Visit -> PcEnv -> ForTag t m ()
+    runPreEmitCallNodeHook :: Visit -> ForTag t m ()
     runPostEmitCallNodeHook :: Visit -> ForTag t m ()
 
     default liftRepGraph :: MonadRepGraphDefaultHelper t n m => StateT (RepGraphState t) (Reader (RepGraphEnv t)) a -> m a
@@ -108,8 +108,8 @@ class (Tag t, MonadRepGraphFlatten m) => MonadRepGraph t m | m -> t where
     default runProblemVarRepHook :: MonadRepGraphDefaultHelper t n m => NameTy -> VarRepRequestKind -> NodeAddr -> ForTag t m (Maybe VarReqRequest)
     runProblemVarRepHook = compose3 (mapForTag liftMonadRepGraphDefaultHelper) runProblemVarRepHook
 
-    default runPreEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> PcEnv -> ForTag t m ()
-    runPreEmitCallNodeHook = compose2 (mapForTag liftMonadRepGraphDefaultHelper) runPreEmitCallNodeHook
+    default runPreEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> ForTag t m ()
+    runPreEmitCallNodeHook = mapForTag liftMonadRepGraphDefaultHelper . runPreEmitCallNodeHook
 
     default runPostEmitCallNodeHook :: MonadRepGraphDefaultHelper t n m => Visit -> ForTag t m ()
     runPostEmitCallNodeHook = mapForTag liftMonadRepGraphDefaultHelper . runPostEmitCallNodeHook
@@ -757,7 +757,7 @@ emitNode visit = do
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, PcEnv lpc env), (condNode.right, PcEnv rpc env)]
             NodeCall callNode -> do
-                joinForTag $ runPreEmitCallNodeHook visit pcEnv
+                joinForTag $ runPreEmitCallNodeHook visit
                 success <- varFromNameTyE <$>
                     addVar (successName callNode.functionName visit) boolT
                 ins <- for callNode.input $ withEnv env . flattenExpr
