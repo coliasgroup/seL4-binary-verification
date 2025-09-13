@@ -398,8 +398,9 @@ flattenMemAccess mem p ty@(ExprTypeWord _) = case tryDestructSplitMem mem of
         noteModelExpr v
         return v
 
+-- TODO pass type through withMapSlot
 addImpliesStackEq :: MonadRepGraphFlatten m => ImpliesStackEqCacheKey -> m SolverExpr
-addImpliesStackEq key = fmap (varE memT) $ withMapSlot #impliesStackEqCache key $ do
+addImpliesStackEq key = fmap (varE boolT) $ withMapSlot #impliesStackEqCache key $ do
     addr <- varFromNameTyE <$> addVar "stack-eq-witness" word32T
     assertFact $ (addr `bitwiseAndE` machineWordE 0x00000003) `eqE` machineWordE 0x00000000
     assertFact $ key.sp `lessEqE` addr
