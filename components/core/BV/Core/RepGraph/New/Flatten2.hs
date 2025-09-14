@@ -265,7 +265,21 @@ sendFlatCommand cmd = do
     sendFlatCommand' cmd
 
 sendFlatCommand' :: MonadRepGraphFlatten m => FlatExprCommand -> m ()
-sendFlatCommand' = undefined
+sendFlatCommand' = \case
+    -- ExprCommandDeclare var -> do
+    --     name <- addVar var.name.unwrap var.ty
+    --     liftFlatten $ #nameMap %= M.insertWith undefined var.name name
+    -- ExprCommandDefine inlineHint var val -> do
+    --     s <- convertSolverExpr val
+    --     if inlineHint == ExprCommandInlineHintSometimes && length (showSExprWithPlaceholders s) < 80
+    --         then do
+    --             liftSolver $ #inline %= M.insertWith undefined var.name s
+    --         else do
+    --             name <- addSmtDef var.name.unwrap val
+    --             liftSolver $ #nameMap %= M.insertWith undefined var.name name
+    -- ExprCommandAssert expr -> do
+    --     s <- convertSolverExpr expr
+    --     send $ assertS s
 
 convertFlatExpr :: MonadRepGraphSolver m => FlatExpr -> m SolverExpr
 convertFlatExpr = undefined
