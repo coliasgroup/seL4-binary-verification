@@ -8,7 +8,39 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Core.RepGraph.New.FlattenGraph
-    (
+    ( ExprEnv
+    , FunCallInfo (..)
+    , MemCalls
+    , MemCallsIfKnown
+    , MemCallsRange (..)
+    , PcEnv (..)
+    , RepGraphFlattenGraphTaggedT
+    , RepGraphSendFlatExprCommandT
+    , VarRepRequestKind (..)
+    , VarReqRequest (..)
+    , addSplitMemVar
+    , askCont
+    , askLoopData
+    , askNodeGraph
+    , askProblem
+    , askWithTag
+    , assertFact
+    , getFunCallInfo
+    , getFunCallInfoRaw
+    , getInductVar
+    , getNodePcEnv
+    , getNodePcEnvWithTag
+    , getPc
+    , getPcWithTag
+    , initRepGraph
+    , instEqWithEnvs
+    , mergeEnvsPcs
+    , runTagged
+    , scanMemCalls
+    , scanMemCallsEnv
+    , tryGetNodePcEnv
+    , withEnv
+    , zeroMemCallsRange
     ) where
 
 import BV.Core.RepGraph.New.ExprCommand
@@ -57,7 +89,9 @@ type C t n m = (Tag t, Monad m, MonadStructs n, MonadRepGraphSendSExpr n, MonadT
 
 type TaggedC t n m = (C t n m, m ~ TaggedT t n)
 
-type T t = RepGraphFlattenGraphT t
+type T = RepGraphFlattenGraphT
+
+type TaggedT = RepGraphFlattenGraphTaggedT
 
 type InnerT = RepGraphSendFlatExprCommandT
 
@@ -87,7 +121,7 @@ instance (Monad n, MonadT t n (T t n)) => MonadT t n (TaggedT t n) where
     liftStructs = liftUntagged . liftStructs
     liftPure = liftUntagged . liftPure
     liftInner = liftUntagged . liftInner
-    liftUntagged = TaggedT . lift
+    liftUntagged = RepGraphFlattenGraphTaggedT . lift
 
 instance MonadT t n m => MonadT t n (ExceptT e m) where
     liftStructs = lift . liftStructs
@@ -193,16 +227,16 @@ initRepGraph = do
 
 --
 
-newtype TaggedT t m a
-  = TaggedT { run :: ReaderT t (T t m) a }
+newtype RepGraphFlattenGraphTaggedT t m a
+  = RepGraphFlattenGraphTaggedT { run :: ReaderT t (T t m) a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
 instance MonadTrans (TaggedT t) where
-    lift = TaggedT . lift . lift
+    lift = RepGraphFlattenGraphTaggedT . lift . lift
 
 askTag :: Monad m => TaggedT t m t
-askTag = TaggedT ask
+askTag = RepGraphFlattenGraphTaggedT ask
 
 askWithTag :: Monad m => a -> TaggedT t m (WithTag t a)
 askWithTag a = do
