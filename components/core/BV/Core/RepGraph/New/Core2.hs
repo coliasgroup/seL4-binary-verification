@@ -413,7 +413,6 @@ nodeCountName visit = intercalate "_" $
     | restr <- visit.restrs
     ]
 
--- TODO will not match python
 visitCountName :: VisitCount -> String
 visitCountName (VisitCount { numbers, offsets }) =
     intercalate "_" $ map showNumber numbers ++ map showOffset offsets
