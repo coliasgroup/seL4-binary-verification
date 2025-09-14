@@ -88,6 +88,7 @@ data FlattenEnv
 data FlattenState
   = FlattenState
       { names :: Set Ident
+      , exprMap :: Map Ident SolverExpr
       , defs :: Map Ident SolverExpr
       , exprCache :: Map SolverExpr Ident
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey Ident
@@ -121,6 +122,7 @@ initFlattenEnv rodataPtrs = FlattenEnv
 initFlattenState :: FlattenState
 initFlattenState = FlattenState
     { names = S.empty
+    , exprMap = M.empty
     , defs = M.empty
     , exprCache = M.empty
     , impliesStackEqCache = M.empty
@@ -198,6 +200,11 @@ addDef = addDefWithInline ExprCommandInlineHintNever
 addDefWithInline :: MonadRepGraphFlatten m => ExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
 addDefWithInline inline nameHint expr = viewExpecting #_Left <$> addDefWithInlineInner inline nameHint expr
 
+addDefWithInlineSplitMem :: MonadRepGraphFlatten m => ExprCommandInlineHint -> NameHint -> SolverExpr -> m SolverExpr
+addDefWithInlineSplitMem inline nameHint expr = addDefWithInlineInner inline nameHint expr <&> \case
+    Left var' -> varFromNameTyE var'
+    Right splitMem -> reconstructSplitMem splitMem
+
 addDefWithInlineInner :: MonadRepGraphFlatten m => ExprCommandInlineHint -> NameHint -> SolverExpr -> m (Either NameTy DestructSplitMem)
 addDefWithInlineInner inline nameHint expr = case tryDestructSplitMem (id expr) of
     NotSplitMem _ -> Left <$> do
@@ -266,20 +273,14 @@ sendFlatCommand cmd = do
 
 sendFlatCommand' :: MonadRepGraphFlatten m => FlatExprCommand -> m ()
 sendFlatCommand' = \case
-    -- ExprCommandDeclare var -> do
-    --     name <- addVar var.name.unwrap var.ty
-    --     liftFlatten $ #nameMap %= M.insertWith undefined var.name name
-    -- ExprCommandDefine inlineHint var val -> do
-    --     s <- convertSolverExpr val
-    --     if inlineHint == ExprCommandInlineHintSometimes && length (showSExprWithPlaceholders s) < 80
-    --         then do
-    --             liftSolver $ #inline %= M.insertWith undefined var.name s
-    --         else do
-    --             name <- addSmtDef var.name.unwrap val
-    --             liftSolver $ #nameMap %= M.insertWith undefined var.name name
-    -- ExprCommandAssert expr -> do
-    --     s <- convertSolverExpr expr
-    --     send $ assertS s
+    ExprCommandDeclare var -> do
+        val' <- varFromNameTyE <$> addVar var.name.unwrap var.ty
+        liftFlatten $ #exprMap %= M.insertWith undefined var.name val'
+    ExprCommandDefine inlineHint var val -> do
+        val' <- convertFlatExpr val >>= addDefWithInlineSplitMem inlineHint var.name.unwrap
+        liftFlatten $ #exprMap %= M.insertWith undefined var.name val'
+    ExprCommandAssert expr -> do
+        assertFact =<< convertFlatExpr expr
 
 convertFlatExpr :: MonadRepGraphSolver m => FlatExpr -> m SolverExpr
 convertFlatExpr = undefined
