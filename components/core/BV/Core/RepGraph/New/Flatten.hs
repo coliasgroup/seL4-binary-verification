@@ -292,11 +292,6 @@ convertFlatExpr = traverseOf (exprArgs % traversed) convertFlatExpr >=> \expr ->
 
 --
 
-flattenOpExprs :: MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
-flattenOpExprs expr = case expr.value of
-    ExprValueOp op args -> traverse flattenOpExprs args >>= flattenOpExpr expr.ty op
-    _ -> return expr
-
 flattenTopLevelExpr :: MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
 flattenTopLevelExpr expr = case expr.value of
     ExprValueOp op args -> flattenOpExpr expr.ty op args
