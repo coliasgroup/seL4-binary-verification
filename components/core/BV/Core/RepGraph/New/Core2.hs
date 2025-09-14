@@ -10,7 +10,8 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Core.RepGraph.New.Core2
-    () where
+    (
+    ) where
 
 -- module BV.Core.RepGraph.New.Core2
 --     ( ForTag
@@ -156,13 +157,13 @@ data RepGraphState t
       , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
       , inductVarEnv :: Map EqHypInduct NameTy
-      , contractions :: Map SolverExpr Ident
+      , contractions :: Map FlatExpr Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , funcs :: M.Map (WithTag t Visit) FunCallInfo
       }
   deriving (Eq, Generic, NFData)
 
-type ExprEnv = Map Ident SolverExpr
+type ExprEnv = Map Ident FlatExpr
 
 withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
 withEnv = flip runReaderT
@@ -414,7 +415,7 @@ addVarWithMemCalls nameHint ty memCallsOpt = do
         liftRepGraph $ #memCalls %= M.insert var.name (fromJust memCallsOpt)
     return var
 
-varRepRequest :: MonadRepGraphForTag t m => VarRepRequestKind -> Visit -> ExprEnv -> NameTy -> m (Maybe SolverExpr)
+varRepRequest :: MonadRepGraphForTag t m => VarRepRequestKind -> Visit -> ExprEnv -> NameTy -> m (Maybe FlatExpr)
 varRepRequest kind visit env var = runMaybeT $ do
     req <- MaybeT $ joinForTag $ runProblemVarRepHook var kind (nodeAddrOf visit.nodeId)
     case req of
@@ -423,7 +424,7 @@ varRepRequest kind visit env var = runMaybeT $ do
             let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
             addSplitMemVar addrSExpr nameHint
 
-addSplitMemVar :: MonadRepGraphFlatten m => SolverExpr -> NameHint -> m SolverExpr
+addSplitMemVar :: MonadRepGraphFlatten m => FlatExpr -> NameHint -> m FlatExpr
 addSplitMemVar split nameHint = do
     top <- varFromNameTyE <$> addVar (nameHint ++ "_top") memT
     bottom <- varFromNameTyE <$> addVar (nameHint ++ "_bot") memT
@@ -452,7 +453,7 @@ addVarReps kind mkName memCalls visit vars = execStateT $ do
 
 data PcEnv
   = PcEnv
-      { pc :: SolverExpr
+      { pc :: FlatExpr
       , env :: ExprEnv
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -561,14 +562,14 @@ addMemCall fname = fmap $ flip M.alter fname $ Just . incr . fromMaybe zeroMemCa
   where
     incr = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
 
-getMemCalls :: MonadRepGraph t m => SolverExpr -> m MemCalls
+getMemCalls :: MonadRepGraph t m => FlatExpr -> m MemCalls
 getMemCalls = getImmBasisMems >=> \mems -> fmap (foldr1 mergeMemCalls) $ for (S.toList mems) $ \mem ->
     liftRepGraph $ use $ #memCalls % expectingAt mem
 
 scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m MemCallsIfKnown
 scanMemCallsEnv = scanMemCalls . toList
 
-scanMemCalls :: MonadRepGraph t m => [SolverExpr] -> m MemCallsIfKnown
+scanMemCalls :: MonadRepGraph t m => [FlatExpr] -> m MemCallsIfKnown
 scanMemCalls exprs = do
     memCalls <- traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT && not (isSplitMem expr)]
     return $ case memCalls of
@@ -601,7 +602,7 @@ mergeMemCalls xs ys =
 
 --
 
-getImmBasisMems :: MonadRepGraphFlatten m => SolverExpr -> m (Set Ident)
+getImmBasisMems :: MonadRepGraphFlatten m => FlatExpr -> m (Set Ident)
 getImmBasisMems = go
   where
     go expr = case expr.value of
@@ -614,10 +615,10 @@ getImmBasisMems = go
 
 --
 
-getPcWithTag :: MonadRepGraph t m => WithTag t Visit -> m SolverExpr
+getPcWithTag :: MonadRepGraph t m => WithTag t Visit -> m FlatExpr
 getPcWithTag (WithTag tag visit) = runForTag tag $ getPc visit
 
-getPc :: MonadRepGraphForTag t m => Visit -> m SolverExpr
+getPc :: MonadRepGraphForTag t m => Visit -> m FlatExpr
 getPc visit = getNodePcEnv visit <&> \case
     Nothing -> falseE
     Just (PcEnv pc _) -> pc
@@ -835,7 +836,7 @@ isSyntacticConstant var split = do
 
 --
 
-instEqWithEnvs :: MonadRepGraphFlatten m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m SolverExpr
+instEqWithEnvs :: MonadRepGraphFlatten m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m FlatExpr
 instEqWithEnvs (x, xenv) (y, yenv) = do
     x' <- withEnv xenv $ flattenExpr x
     y' <- withEnv yenv $ flattenExpr y
@@ -848,9 +849,9 @@ instEqWithEnvs (x, xenv) (y, yenv) = do
 
 data FunCallInfo
   = FunCallInfo
-      { ins :: [SolverExpr]
-      , outs :: [SolverExpr]
-      , success :: SolverExpr
+      { ins :: [FlatExpr]
+      , outs :: [FlatExpr]
+      , success :: FlatExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
