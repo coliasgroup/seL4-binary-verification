@@ -4,7 +4,7 @@ module BV.Core.RepGraph.New.InterpretHyp
     ) where
 
 import BV.Core.RepGraph.New.Core
-import BV.Core.RepGraph.New.Solver
+import BV.Core.RepGraph.New.Flatten
 
 import BV.Core.Logic
 import BV.Core.Types
@@ -12,12 +12,12 @@ import BV.Core.Types.Extras
 
 import qualified Data.Map as M
 
-interpretHypImps :: (RefineTag t, MonadRepGraph t m) => [Hyp t] -> SolverExpr -> m SolverExpr
+interpretHypImps :: (RefineTag t, MonadRepGraph t m) => [Hyp t] -> FlatExpr -> m FlatExpr
 interpretHypImps hyps concl = do
     hyps' <- traverse interpretHyp hyps
-    flattenOpExprs $ strengthenHyp $ nImpliesE hyps' concl
+    return $ strengthenHyp $ nImpliesE hyps' concl
 
-interpretHyp :: (RefineTag t, MonadRepGraph t m) => Hyp t -> m SolverExpr
+interpretHyp :: (RefineTag t, MonadRepGraph t m) => Hyp t -> m FlatExpr
 interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case

@@ -10,7 +10,8 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Core.RepGraph.New.Core
-    ( ForTag
+    ( ExprEnv
+    , ForTag
     , FunCallInfo (..)
     , MemCalls
     , MemCallsIfKnown
@@ -29,7 +30,7 @@ module BV.Core.RepGraph.New.Core
     , askNodeGraph
     , askProblem
     , askWithTag
-    , flattenOpExprs
+    , assertFact
     , getFunCallInfo
     , getFunCallInfoRaw
     , getInductVar
@@ -47,12 +48,15 @@ module BV.Core.RepGraph.New.Core
     , scanMemCalls
     , scanMemCallsEnv
     , tryGetNodePcEnv
+    , withEnv
     , zeroMemCallsRange
     ) where
 
+import BV.Core.RepGraph.New.ExprCommand
 import BV.Core.RepGraph.New.Flatten
 import BV.Core.RepGraph.New.Solver
 
+import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Logic
 import BV.Core.Structs (MonadStructs)
 import BV.Core.Types hiding (SplitMem (..))
@@ -61,10 +65,11 @@ import BV.Core.Utils
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, foldM, guard, unless, when, (>=>))
+import Control.Monad (filterM, guard, unless, when, (>=>))
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
-import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
+import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, asks,
+                             mapReaderT)
 import Control.Monad.RWS (MonadState (get), MonadWriter (..), RWST)
 import Control.Monad.State (StateT, evalStateT, execStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
@@ -154,11 +159,19 @@ data RepGraphState t
       , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
       , inductVarEnv :: Map EqHypInduct NameTy
-      , contractions :: Map SolverExpr Ident
+      , contractions :: Map FlatExpr Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , funcs :: M.Map (WithTag t Visit) FunCallInfo
+      , names :: Set Ident
+      , defs :: Map Ident FlatExpr
+      , exprCache :: Map FlatExpr Ident
       }
   deriving (Eq, Generic, NFData)
+
+type ExprEnv = Map Ident FlatExpr
+
+withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
+withEnv = flip runReaderT
 
 data TooGeneral
   = TooGeneral
@@ -194,6 +207,9 @@ initRepGraphState = RepGraphState
     , contractions = M.empty
     , hasInnerLoop = M.empty
     , funcs = M.empty
+    , names = S.empty
+    , defs = M.empty
+    , exprCache = M.empty
     }
 
 initRepGraph :: MonadRepGraph t m => m ()
@@ -254,6 +270,11 @@ askWithTag :: MonadRepGraphForTag t m => a -> m (WithTag t a)
 askWithTag a = do
     tag <- askTag
     return $ WithTag tag a
+
+--
+
+send :: MonadRepGraphFlatten m => FlatExprCommand -> m ()
+send = sendFlatCommand
 
 --
 
@@ -349,6 +370,16 @@ specialize visit split = ensure (isOptionsVC splitVC)
 
 --
 
+type NameHint = String
+
+takeFreshName :: MonadRepGraph t m => NameHint -> m Ident
+takeFreshName nameHint = liftRepGraph $ zoom #names $ do
+    names <- get
+    let isTaken = (`S.member` names) . Ident
+    let name = Ident (generateFreshName isTaken nameHint)
+    modify $ S.insert name
+    return name
+
 localNameBefore :: Ident -> Visit -> NameHint
 localNameBefore var visit = printf "%P_v_at_%s" var (nodeCountName visit)
 
@@ -385,7 +416,6 @@ nodeCountName visit = intercalate "_" $
     | restr <- visit.restrs
     ]
 
--- TODO will not match python
 visitCountName :: VisitCount -> String
 visitCountName (VisitCount { numbers, offsets }) =
     intercalate "_" $ map showNumber numbers ++ map showOffset offsets
@@ -398,6 +428,55 @@ inductVarName induct = printf "induct_i_%d_%d" induct.n1 induct.n2
 
 --
 
+flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m FlatExpr
+flattenExpr = traverseOf (exprArgs % traversed) flattenExpr >=> \expr -> case expr.value of
+    ExprValueVar name -> do
+        let err = error $ "env miss: " ++ show name
+        asks $ M.findWithDefault err name
+    _ -> return expr
+
+addVar :: MonadRepGraph t m => NameHint -> ExprType -> m NameTy
+addVar nameHint ty = do
+    name <- takeFreshName nameHint
+    let var = NameTy name ty
+    send $ ExprCommandDeclare var
+    return var
+
+addDef :: MonadRepGraph t m => NameHint -> FlatExpr -> m NameTy
+addDef = addDefWithInlineHint ExprCommandInlineHintNever
+
+addInlineDef :: MonadRepGraph t m => NameHint -> FlatExpr -> m NameTy
+addInlineDef = addDefWithInlineHint ExprCommandInlineHintSometimes
+
+addDefWithInlineHint :: MonadRepGraph t m => ExprCommandInlineHint -> NameHint -> FlatExpr -> m NameTy
+addDefWithInlineHint inline nameHint expr = do
+    name <- takeFreshName nameHint
+    let var = NameTy name expr.ty
+    send $ ExprCommandDefine inline var expr
+    liftRepGraph $ #defs %= M.insert name expr
+    return var
+
+lookupDef :: MonadRepGraph t m =>  Ident -> m (Maybe FlatExpr)
+lookupDef name = liftRepGraph $ use $ #defs % at name
+
+cacheExpr :: MonadRepGraph t m => NameHint -> FlatExpr -> m NameTy
+cacheExpr = cacheExprWithInlineHint ExprCommandInlineHintNever
+
+cacheExprInline :: MonadRepGraph t m => NameHint -> FlatExpr -> m NameTy
+cacheExprInline = cacheExprWithInlineHint ExprCommandInlineHintSometimes
+
+cacheExprWithInlineHint :: MonadRepGraph t m => ExprCommandInlineHint -> NameHint -> FlatExpr -> m NameTy
+cacheExprWithInlineHint inline nameHint expr = case expr.value of
+    ExprValueVar name -> return $ NameTy name expr.ty
+    _ -> do
+        name <- withMapSlot #exprCache expr $ (.name) <$> addDefWithInlineHint inline nameHint expr
+        return $ NameTy name expr.ty
+
+assertFact :: MonadRepGraphFlatten m => FlatExpr -> m ()
+assertFact = send . ExprCommandAssert
+
+--
+
 addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> MemCallsIfKnown -> m NameTy
 addVarWithMemCalls nameHint ty memCallsOpt = do
     var <- addVar nameHint ty
@@ -405,7 +484,7 @@ addVarWithMemCalls nameHint ty memCallsOpt = do
         liftRepGraph $ #memCalls %= M.insert var.name (fromJust memCallsOpt)
     return var
 
-varRepRequest :: MonadRepGraphForTag t m => VarRepRequestKind -> Visit -> ExprEnv -> NameTy -> m (Maybe SolverExpr)
+varRepRequest :: MonadRepGraphForTag t m => VarRepRequestKind -> Visit -> ExprEnv -> NameTy -> m (Maybe FlatExpr)
 varRepRequest kind visit env var = runMaybeT $ do
     req <- MaybeT $ joinForTag $ runProblemVarRepHook var kind (nodeAddrOf visit.nodeId)
     case req of
@@ -414,7 +493,7 @@ varRepRequest kind visit env var = runMaybeT $ do
             let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
             addSplitMemVar addrSExpr nameHint
 
-addSplitMemVar :: MonadRepGraphFlatten m => SolverExpr -> NameHint -> m SolverExpr
+addSplitMemVar :: MonadRepGraph t m => FlatExpr -> NameHint -> m FlatExpr
 addSplitMemVar split nameHint = do
     top <- varFromNameTyE <$> addVar (nameHint ++ "_top") memT
     bottom <- varFromNameTyE <$> addVar (nameHint ++ "_bot") memT
@@ -443,19 +522,19 @@ addVarReps kind mkName memCalls visit vars = execStateT $ do
 
 data PcEnv
   = PcEnv
-      { pc :: SolverExpr
+      { pc :: FlatExpr
       , env :: ExprEnv
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-mergeEnvsPcs :: MonadRepGraphFlatten m => [PcEnv] -> m (PcEnv, Bool)
-mergeEnvsPcs unfilteredPcEnvs = do
-    let pcEnvs = filter (\pcEnv -> pcEnv.pc /= falseE) unfilteredPcEnvs
-    let pc = case pcEnvs of
+mergeEnvsPcs :: [PcEnv] -> (PcEnv, Bool)
+mergeEnvsPcs unfilteredPcEnvs = (PcEnv pc env, length pcEnvs > 1)
+  where
+    pcEnvs = filter (\pcEnv -> pcEnv.pc /= falseE) unfilteredPcEnvs
+    pc = case pcEnvs of
             [] -> falseE
             _ -> foldAssocBalanced orE (nub (pcEnvs ^.. folded % #pc))
-    env <- mergeEnvs pcEnvs
-    return (PcEnv pc env, length pcEnvs > 1)
+    env = mergeEnvs pcEnvs
 
 foldAssocBalanced :: (a -> a -> a) -> [a] -> a
 foldAssocBalanced f = go
@@ -469,25 +548,21 @@ foldAssocBalanced f = go
             else
                 foldr1 f xs
 
-mergeEnvs :: MonadRepGraphFlatten m => [PcEnv] -> m ExprEnv
-mergeEnvs envs = do
-    varValPcList <- fmap concat $ for envs $ \(PcEnv pc env) -> do
-        return
-            [ (var, val, pc)
-            | (var, val) <- M.toList env
-            ]
-    let varValPcMap = foldr (M.unionWith (M.unionWith (<>))) M.empty $
-            [ M.singleton var (M.singleton val [pc'])
-            | (var, val, pc') <- varValPcList
-            ]
-    traverse (mergeValPcList . M.toList) varValPcMap
+mergeEnvs :: [PcEnv] -> ExprEnv
+mergeEnvs envs = fmap (mergeValPcList . M.toList) varValPcMap
   where
+    varValPcList = concat $ flip map envs $ \(PcEnv pc env) ->
+        [ (var, val, pc)
+        | (var, val) <- M.toList env
+        ]
+    varValPcMap = foldr (M.unionWith (M.unionWith (<>))) M.empty $
+        [ M.singleton var (M.singleton val [pc'])
+        | (var, val, pc') <- varValPcList
+        ]
     mergeValPcList valsByPc =
         let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
-            f accVal (val, pcs) = do
-                ensureM $ val.ty == accVal.ty
-                flattenOpExpr val.ty OpIfThenElse [foldr1 orE pcs, val, accVal]
-         in foldM f lastVal valsByPcInit
+            f accVal (val, pcs) = ifThenElseE (foldr1 orE pcs) val accVal
+         in foldl f lastVal valsByPcInit
 
 --
 
@@ -499,10 +574,7 @@ contractPcEnv visit (PcEnv pc env) = do
     env' <- M.traverseWithKey f env
     return $ PcEnv pc' env'
   where
-    f name val =
-        if isSplitMem val
-        then return val
-        else varFromNameTyE <$> cacheExprInline (localNameBefore name visit) val
+    f name val = varFromNameTyE <$> cacheExprInline (localNameBefore name visit) val
 
 --
 
@@ -552,16 +624,33 @@ addMemCall fname = fmap $ flip M.alter fname $ Just . incr . fromMaybe zeroMemCa
   where
     incr = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
 
-getMemCalls :: MonadRepGraph t m => SolverExpr -> m MemCalls
-getMemCalls = getImmBasisMems >=> \mems -> fmap (foldr1 mergeMemCalls) $ for (S.toList mems) $ \mem ->
-    liftRepGraph $ use $ #memCalls % expectingAt mem
+getMemCalls :: MonadRepGraph t m => FlatExpr -> m (Maybe MemCalls)
+getMemCalls expr = do
+    basis <- getImmBasisMems expr
+    if S.null basis
+        then return Nothing
+        else Just <$> do
+            fmap (foldr1 mergeMemCalls) $ for (S.toList basis) $ \mem ->
+                liftRepGraph $ use $ #memCalls % expectingAt mem
+
+getImmBasisMems :: MonadRepGraph t m => FlatExpr -> m (Set Ident)
+getImmBasisMems = go
+  where
+    go expr = case expr.value of
+        ExprValueOp OpMemUpdate [m, _, _] -> go m
+        ExprValueOp OpIfThenElse [_, l, r] -> (<>) <$> go l <*> go r
+        ExprValueOp (OpExt OpExtSplitMem) _ -> return mempty -- TODO
+        ExprValueVar name -> do
+            lookupDef name >>= \case
+                Just expr' -> go expr'
+                Nothing -> return $ S.singleton name
 
 scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m MemCallsIfKnown
 scanMemCallsEnv = scanMemCalls . toList
 
-scanMemCalls :: MonadRepGraph t m => [SolverExpr] -> m MemCallsIfKnown
+scanMemCalls :: MonadRepGraph t m => [FlatExpr] -> m MemCallsIfKnown
 scanMemCalls exprs = do
-    memCalls <- traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT && not (isSplitMem expr)]
+    memCalls <- fmap catMaybes $ traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT ]
     return $ case memCalls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
@@ -592,23 +681,10 @@ mergeMemCalls xs ys =
 
 --
 
-getImmBasisMems :: MonadRepGraphFlatten m => SolverExpr -> m (Set Ident)
-getImmBasisMems = go
-  where
-    go expr = case expr.value of
-        ExprValueOp OpMemUpdate [m, _, _] -> go m
-        ExprValueOp OpIfThenElse [_, l, r] -> (<>) <$> go l <*> go r
-        ExprValueVar name -> do
-            lookupDef name >>= \case
-                Just expr' -> go expr'
-                Nothing -> return $ S.singleton name
-
---
-
-getPcWithTag :: MonadRepGraph t m => WithTag t Visit -> m SolverExpr
+getPcWithTag :: MonadRepGraph t m => WithTag t Visit -> m FlatExpr
 getPcWithTag (WithTag tag visit) = runForTag tag $ getPc visit
 
-getPc :: MonadRepGraphForTag t m => Visit -> m SolverExpr
+getPc :: MonadRepGraphForTag t m => Visit -> m FlatExpr
 getPc visit = getNodePcEnv visit <&> \case
     Nothing -> falseE
     Just (PcEnv pc _) -> pc
@@ -648,7 +724,7 @@ getNodePcEnvRaw visit = do
                             let optimize = case visit.nodeId of
                                     Err -> traversed % #env .~ M.empty
                                     _ -> id
-                            (pcEnv, _large) <- mergeEnvsPcs (optimize arcPcEnvs)
+                            let (pcEnv, _large) = mergeEnvsPcs (optimize arcPcEnvs)
                             contractPcEnv visit pcEnv
 
 getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
@@ -752,11 +828,11 @@ emitNode visit = do
                             return $ env ! name
                         _ -> do
                             let name = localName update.var.name visit
-                            withEnv env $ flattenExpr update.val >>= addDefSplitMem name
+                            withEnv env $ flattenExpr update.val >>= fmap varFromNameTyE . addDef name
                     return (update.var.name, val)
                 return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
-                cond <- withEnv env $ flattenExpr condNode.expr >>= addDefSplitMem (condName visit)
+                cond <- withEnv env $ flattenExpr condNode.expr >>= fmap varFromNameTyE . addDef (condName visit)
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, PcEnv lpc env), (condNode.right, PcEnv rpc env)]
@@ -826,7 +902,7 @@ isSyntacticConstant var split = do
 
 --
 
-instEqWithEnvs :: MonadRepGraphFlatten m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m SolverExpr
+instEqWithEnvs :: MonadRepGraphFlatten m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m FlatExpr
 instEqWithEnvs (x, xenv) (y, yenv) = do
     x' <- withEnv xenv $ flattenExpr x
     y' <- withEnv yenv $ flattenExpr y
@@ -839,9 +915,9 @@ instEqWithEnvs (x, xenv) (y, yenv) = do
 
 data FunCallInfo
   = FunCallInfo
-      { ins :: [SolverExpr]
-      , outs :: [SolverExpr]
-      , success :: SolverExpr
+      { ins :: [FlatExpr]
+      , outs :: [FlatExpr]
+      , success :: FlatExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

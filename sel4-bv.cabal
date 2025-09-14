@@ -96,7 +96,10 @@ library core
       BV.Core.RepGraph.New.AsmStackRep
       BV.Core.RepGraph.New.Base
       BV.Core.RepGraph.New.Core
+      BV.Core.RepGraph.New.Core3
+      BV.Core.RepGraph.New.ExprCommand
       BV.Core.RepGraph.New.Flatten
+      BV.Core.RepGraph.New.Flatten3
       BV.Core.RepGraph.New.FunAsserts
       BV.Core.RepGraph.New.InterpretHyp
       BV.Core.RepGraph.New.Solver

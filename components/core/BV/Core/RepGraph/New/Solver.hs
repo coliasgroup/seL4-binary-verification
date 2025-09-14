@@ -11,18 +11,18 @@ module BV.Core.RepGraph.New.Solver
     , MonadRepGraphSolverSend (..)
     , SolverEnv
     , SolverExpr
-    , SolverExprCommand (..)
-    , SolverExprCommandInlineHint (..)
+    , SolverExprCommand
     , SolverExprContext (..)
     , SolverOutput
     , SolverState
-    , convertCommand
-    , convertExpr
+    , convertSolverExpr
     , initSolverEnv
     , initSolverState
+    , sendSolverCommand
     ) where
 
 import BV.Core.GenerateFreshName
+import BV.Core.RepGraph.New.ExprCommand
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
@@ -37,7 +37,6 @@ import Control.Monad.RWS (RWST, lift, modify, tell)
 import Control.Monad.State (StateT, get)
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Control.Monad.Writer (WriterT)
-import Data.Binary (Binary)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
@@ -60,20 +59,7 @@ newtype SolverExprContext
 
 type SolverExpr = Expr SolverExprContext
 
-data SolverExprCommand
-  = SolverExprCommandDeclare NameTy
-  | SolverExprCommandDefine SolverExprCommandInlineHint NameTy SolverExpr
-  | SolverExprCommandAssert SolverExpr
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary SolverExprCommand
-
-data SolverExprCommandInlineHint
-  = SolverExprCommandInlineHintInline
-  | SolverExprCommandInlineHintDontInline
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary SolverExprCommandInlineHint
+type SolverExprCommand = ExprCommand SolverExprContext
 
 --
 
@@ -230,36 +216,36 @@ addSmtVar nameHint ty = do
 addSmtDef :: MonadRepGraphSolver m => SmtNameHint -> SolverExpr -> m SmtName
 addSmtDef nameHint val = do
     name <- takeFreshName nameHint
-    s <- convertExpr val
+    s <- convertSolverExpr val
     send $ defineFunS name.unwrap [] (typeToSMT val.ty) s
     return name
 
 --
 
-convertCommand :: MonadRepGraphSolver m => SolverExprCommand -> m ()
-convertCommand cmd = do
+sendSolverCommand :: MonadRepGraphSolver m => SolverExprCommand -> m ()
+sendSolverCommand cmd = do
     -- traceShowM cmd
-    convertCommand' cmd
+    sendSolverCommand' cmd
 
-convertCommand' :: MonadRepGraphSolver m => SolverExprCommand -> m ()
-convertCommand' = \case
-    SolverExprCommandDeclare var -> do
+sendSolverCommand' :: MonadRepGraphSolver m => SolverExprCommand -> m ()
+sendSolverCommand' = \case
+    ExprCommandDeclare var -> do
         name <- addSmtVar var.name.unwrap var.ty
         liftSolver $ #nameMap %= M.insertWith undefined var.name name
-    SolverExprCommandDefine inlineHint var val -> do
-        s <- convertExpr val
-        if inlineHint == SolverExprCommandInlineHintInline && length (showSExprWithPlaceholders s) < 80
+    ExprCommandDefine inlineHint var val -> do
+        s <- convertSolverExpr val
+        if inlineHint == ExprCommandInlineHintSometimes && length (showSExprWithPlaceholders s) < 80
             then do
                 liftSolver $ #inline %= M.insertWith undefined var.name s
             else do
                 name <- addSmtDef var.name.unwrap val
                 liftSolver $ #nameMap %= M.insertWith undefined var.name name
-    SolverExprCommandAssert expr -> do
-        s <- convertExpr expr
+    ExprCommandAssert expr -> do
+        s <- convertSolverExpr expr
         send $ assertS s
 
-convertExpr :: HasCallStack => MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
-convertExpr expr = case expr.value of
+convertSolverExpr :: HasCallStack => MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
+convertSolverExpr expr = case expr.value of
     ExprValueVar var -> do
         sOpt <- runMaybeT $
             nameS <$> MaybeT (liftSolver $ use $ #nameMap % at var)
@@ -271,12 +257,12 @@ convertExpr expr = case expr.value of
     ExprValueToken tok -> do
         getToken tok
     ExprValueOp OpCountTrailingZeroes [arg] -> do
-        convertExpr $ clzE (wordReverseE arg)
+        convertSolverExpr $ clzE (wordReverseE arg)
     ExprValueOp op [arg] | op == OpWordCast || op == OpWordCastSigned -> do
         let signed = op == OpWordCastSigned
         let ExprTypeWord fromBits = arg.ty
         let ExprTypeWord toBits = expr.ty
-        convertWordCast signed fromBits toBits <$> convertExpr arg
+        convertWordCast signed fromBits toBits <$> convertSolverExpr arg
     ExprValueOp op args -> do
         let argTypes = (map (.ty) args)
         opOpt' <- runMaybeT $
@@ -284,7 +270,7 @@ convertExpr expr = case expr.value of
                 <|> nameS <$> MaybeT (getDerivedOp op expr.ty)
         op' <- whenNothing opOpt' $ do
             error $ "could not convert op: " ++ show op
-        args' <- traverse convertExpr args
+        args' <- traverse convertSolverExpr args
         return $ case args' of
             [] -> op'
             _ -> List $ [op'] ++ args'

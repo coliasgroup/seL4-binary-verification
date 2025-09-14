@@ -3,6 +3,8 @@ module BV.Core.RepGraph.New
     , module BV.Core.RepGraph.New.Base
     , module BV.Core.RepGraph.New.FunAsserts
     , module BV.Core.RepGraph.New.InterpretHyp
+    , FlatExpr
+    , FlatExprContext (..)
     , ForTag
     , FunCallInfo (..)
     , MonadRepGraph (..)
@@ -19,12 +21,12 @@ module BV.Core.RepGraph.New
     , askLoopData
     , askNodeGraph
     , askProblem
+    , convertFlatExpr
     , convertSolverExpr
-    , flattenOpExprs
     , getFunCallInfo
     , getFunCallInfoRaw
-    , getModelExprs
-    , getModelVars
+      -- , getModelExprs
+      -- , getModelVars
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc
@@ -53,12 +55,9 @@ addPValidDomAssertions :: MonadRepGraphFlatten m => m ()
 addPValidDomAssertions = do
     return ()
 
-convertSolverExpr :: MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
-convertSolverExpr = convertExpr
-
 isUnreachable :: MonadRepGraph t m => Visit -> ForTag t m SExprWithPlaceholders
 isUnreachable visit = do
     pcEnv <- fromJust <$> getNodePcEnv visit
-    convertSolverExpr $ notE pcEnv.pc
+    convertFlatExpr (notE pcEnv.pc) >>= convertSolverExpr
 
 type Name = Ident
