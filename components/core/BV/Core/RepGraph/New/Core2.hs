@@ -627,13 +627,13 @@ getMemCalls :: MonadRepGraph t m => FlatExpr -> m MemCalls
 getMemCalls = getImmBasisMems >=> \mems -> fmap (foldr1 mergeMemCalls) $ for (S.toList mems) $ \mem ->
     liftRepGraph $ use $ #memCalls % expectingAt mem
 
-getImmBasisMems :: MonadRepGraphFlatten m => FlatExpr -> m (Set Ident)
+getImmBasisMems :: MonadRepGraph t m => FlatExpr -> m (Set Ident)
 getImmBasisMems = go
   where
     go expr = case expr.value of
         ExprValueOp OpMemUpdate [m, _, _] -> go m
         ExprValueOp OpIfThenElse [_, l, r] -> (<>) <$> go l <*> go r
-        ExprValueOp (OpExt OpExtSplitMem) _ -> mempty -- TODO
+        ExprValueOp (OpExt OpExtSplitMem) _ -> return mempty -- TODO
         ExprValueVar name -> do
             lookupDef name >>= \case
                 Just expr' -> go expr'
