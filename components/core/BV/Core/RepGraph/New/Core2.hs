@@ -67,7 +67,8 @@ import Control.DeepSeq (NFData)
 import Control.Monad (filterM, foldM, guard, unless, when, (>=>))
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
-import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
+import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, asks,
+                             mapReaderT)
 import Control.Monad.RWS (MonadState (get), MonadWriter (..), RWST)
 import Control.Monad.State (StateT, evalStateT, execStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
@@ -405,6 +406,15 @@ visitCountName (VisitCount { numbers, offsets }) =
 
 inductVarName :: EqHypInduct -> NameHint
 inductVarName induct = printf "induct_i_%d_%d" induct.n1 induct.n2
+
+--
+
+flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m FlatExpr
+flattenExpr = traverseOf (exprArgs % traversed) flattenExpr >=> \expr -> case expr.value of
+    ExprValueVar name -> do
+        let err = error $ "env miss: " ++ show name
+        asks $ M.findWithDefault err name
+    _ -> return expr
 
 --
 
