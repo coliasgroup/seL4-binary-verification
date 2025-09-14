@@ -3,6 +3,8 @@ module BV.Core.RepGraph.New
     , module BV.Core.RepGraph.New.Base
     , module BV.Core.RepGraph.New.FunAsserts
     , module BV.Core.RepGraph.New.InterpretHyp
+    , FlatExpr
+    , FlatExprContext (..)
     , ForTag
     , FunCallInfo (..)
     , MonadRepGraph (..)
@@ -23,8 +25,6 @@ module BV.Core.RepGraph.New
     , convertSolverExpr
     , getFunCallInfo
     , getFunCallInfoRaw
-    , FlatExpr
-    , FlatExprContext (..)
       -- , getModelExprs
       -- , getModelVars
     , getNodePcEnv
