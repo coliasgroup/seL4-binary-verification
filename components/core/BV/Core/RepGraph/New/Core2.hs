@@ -50,7 +50,7 @@ module BV.Core.RepGraph.New.Core2
     , zeroMemCallsRange
     ) where
 
-import BV.Core.RepGraph.New.Flatten
+import BV.Core.RepGraph.New.Flatten2
 import BV.Core.RepGraph.New.Solver
 
 import BV.Core.Logic
