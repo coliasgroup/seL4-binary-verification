@@ -89,7 +89,6 @@ data FlattenState
   = FlattenState
       { names :: Set Ident
       , exprMap :: Map Ident SolverExpr
-      , defs :: Map Ident SolverExpr
       , exprCache :: Map SolverExpr Ident
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey Ident
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
@@ -123,7 +122,6 @@ initFlattenState :: FlattenState
 initFlattenState = FlattenState
     { names = S.empty
     , exprMap = M.empty
-    , defs = M.empty
     , exprCache = M.empty
     , impliesStackEqCache = M.empty
     , pvalids = M.empty
@@ -186,14 +184,6 @@ isTypeRepresentable = \case
     ExprTypeToken -> True
     _ -> False
 
-lookupDef :: MonadRepGraphFlatten m => Ident -> m (Maybe SolverExpr)
-lookupDef name = liftFlatten $ use $ #defs % at name
-
-addDefSplitMem :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m SolverExpr
-addDefSplitMem nameHint expr =
-    either varFromNameTyE reconstructSplitMem
-        <$> addDefWithInlineInner ExprCommandInlineHintSometimes nameHint expr
-
 addDef :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
 addDef = addDefWithInline ExprCommandInlineHintNever
 
@@ -212,7 +202,6 @@ addDefWithInlineInner inline nameHint expr = case tryDestructSplitMem (id expr) 
         let var = NameTy name expr.ty
         unless (isTypeOmitted expr.ty) $ do
             send $ ExprCommandDefine inline var expr
-            liftFlatten $ #defs %= M.insert name expr
             when (isTypeRepresentable expr.ty) $ do
                 liftFlatten $ #modelVars %= S.insert name
         return var
