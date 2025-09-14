@@ -37,7 +37,6 @@ import Control.Monad.RWS (RWST, lift, modify, tell)
 import Control.Monad.State (StateT, get)
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Control.Monad.Writer (WriterT)
-import Data.Binary (Binary)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
@@ -61,13 +60,6 @@ newtype SolverExprContext
 type SolverExpr = Expr SolverExprContext
 
 type SolverExprCommand = ExprCommand SolverExprContext
-
-data SolverExprCommandInlineHint
-  = SolverExprCommandInlineHintInline
-  | SolverExprCommandInlineHintDontInline
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary SolverExprCommandInlineHint
 
 --
 

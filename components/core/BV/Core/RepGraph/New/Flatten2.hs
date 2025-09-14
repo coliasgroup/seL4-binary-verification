@@ -4,7 +4,10 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module BV.Core.RepGraph.New.Flatten2
-    ( FlattenEnv
+    ( FlatExpr
+    , FlatExprCommand
+    , FlatExprContext (..)
+    , FlattenEnv
     , FlattenState
     , MonadRepGraphFlatten (..)
     , initFlattenEnv
@@ -38,11 +41,21 @@ import qualified Data.Map as M
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Set (Set)
 import qualified Data.Set as S
+import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=), (<<%=))
 
 -- import Debug.Trace (traceShowM)
+
+--
+
+newtype FlatExprContext
+  = FlatExprContext Void
+
+type FlatExpr = Expr FlatExprContext
+
+type FlatExprCommand = ExprCommand FlatExprContext
 
 --
 
