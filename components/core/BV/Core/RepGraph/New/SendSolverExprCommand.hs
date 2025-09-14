@@ -16,8 +16,9 @@ module BV.Core.RepGraph.New.SendSolverExprCommand
     , sendSolverExprCommand
     ) where
 
-import BV.Core.GenerateFreshName
 import BV.Core.RepGraph.New.ExprCommand
+
+import BV.Core.GenerateFreshName
 import BV.Core.Types
 import BV.Core.Types.Extras
 
@@ -78,6 +79,9 @@ instance MonadTrans RepGraphSendSolverExprCommandT where
 liftPure :: Monad m => StateT TState (Reader TEnv) a -> T m a
 liftPure = RepGraphSendSolverExprCommandT . mapStateT (mapReaderT (return . runIdentity))
 
+send :: C m => SExprWithPlaceholders -> T m ()
+send = lift . sendSExpr
+
 runRepGraphSendSolverExprCommandT :: Monad m => ROData -> T m a -> m a
 runRepGraphSendSolverExprCommandT rodata =
       flip runReaderT (initEnv rodata)
@@ -113,9 +117,6 @@ initState = TState
     , tokens = M.empty
     , smtDerivedOps = M.empty
     }
-
-send :: C m => SExprWithPlaceholders -> T m ()
-send = lift . sendSExpr
 
 --
 

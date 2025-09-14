@@ -36,6 +36,8 @@ instance MonadStructs m => MonadStructs (ExceptT e m) where
 askStruct :: MonadStructs m => Ident -> m Struct
 askStruct name = ($ name) <$> askLookupStruct
 
+-- TODO rename to NoStructsT and StructsT and export
+
 newtype WithoutStructs a
   = WithoutStructs { unwrap :: Identity a }
   deriving newtype (Applicative, Functor, Monad)
