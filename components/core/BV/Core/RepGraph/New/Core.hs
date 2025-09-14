@@ -13,6 +13,7 @@ module BV.Core.RepGraph.New.Core
     ( ForTag
     , FunCallInfo (..)
     , MemCalls
+    , ExprEnv
     , MemCallsIfKnown
     , MemCallsRange (..)
     , MonadRepGraph (..)
