@@ -3,17 +3,33 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.RepGraph.New.Flatten2
-    ( FlatExpr
-    , FlatExprCommand
-    , FlatExprContext (..)
+module BV.Core.RepGraph.New.Flatten3
+    ( ExprEnv
     , FlattenEnv
     , FlattenState
     , MonadRepGraphFlatten (..)
-    , convertFlatExpr
+    , NameHint
+    , addDef
+    , addDefSplitMem
+    , addVar
+    , assertFact
+    , cacheExpr
+    , cacheExprInline
+    , checkSplitMemInvariantId
+    , checkSplitMemInvariantM
+    , flattenAndAddDef
+    , flattenAndAssertFact
+    , flattenExpr
+    , flattenOpExpr
+    , flattenOpExprs
+    , flattenTopLevelExpr
+    , getModelExprs
+    , getModelVars
     , initFlattenEnv
     , initFlattenState
-    , sendFlatCommand
+    , isSplitMem
+    , lookupDef
+    , withEnv
     ) where
 
 import BV.Core.RepGraph.New.Solver
@@ -43,21 +59,11 @@ import qualified Data.Map as M
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Set (Set)
 import qualified Data.Set as S
-import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=), (<<%=))
 
 -- import Debug.Trace (traceShowM)
-
---
-
-newtype FlatExprContext
-  = FlatExprContext Void
-
-type FlatExpr = Expr FlatExprContext
-
-type FlatExprCommand = ExprCommand FlatExprContext
 
 --
 
@@ -88,7 +94,6 @@ data FlattenEnv
 data FlattenState
   = FlattenState
       { names :: Set Ident
-      , exprMap :: Map Ident SolverExpr
       , defs :: Map Ident SolverExpr
       , exprCache :: Map SolverExpr Ident
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey Ident
@@ -122,7 +127,6 @@ initFlattenEnv rodataPtrs = FlattenEnv
 initFlattenState :: FlattenState
 initFlattenState = FlattenState
     { names = S.empty
-    , exprMap = M.empty
     , defs = M.empty
     , exprCache = M.empty
     , impliesStackEqCache = M.empty
@@ -167,9 +171,14 @@ takeFreshName :: MonadRepGraphFlatten m => NameHint -> m Ident
 takeFreshName nameHint = liftFlatten $ zoom #names $ do
     names <- get
     let isTaken = (`S.member` names) . Ident
-    let name = Ident (generateFreshName isTaken nameHint)
+    let name = Ident (generateFreshName isTaken sanitized)
     modify $ S.insert name
     return name
+  where
+    sanitized =
+        [ if c `elem` ("'#\"" :: String) then '_' else c
+        | c <- nameHint
+        ]
 
 --
 
@@ -199,11 +208,6 @@ addDef = addDefWithInline ExprCommandInlineHintNever
 
 addDefWithInline :: MonadRepGraphFlatten m => ExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
 addDefWithInline inline nameHint expr = viewExpecting #_Left <$> addDefWithInlineInner inline nameHint expr
-
-addDefWithInlineSplitMem :: MonadRepGraphFlatten m => ExprCommandInlineHint -> NameHint -> SolverExpr -> m SolverExpr
-addDefWithInlineSplitMem inline nameHint expr = addDefWithInlineInner inline nameHint expr <&> \case
-    Left var' -> varFromNameTyE var'
-    Right splitMem -> reconstructSplitMem splitMem
 
 addDefWithInlineInner :: MonadRepGraphFlatten m => ExprCommandInlineHint -> NameHint -> SolverExpr -> m (Either NameTy DestructSplitMem)
 addDefWithInlineInner inline nameHint expr = case tryDestructSplitMem (id expr) of
@@ -266,31 +270,30 @@ assertFact = send . ExprCommandAssert
 
 --
 
-sendFlatCommand :: MonadRepGraphFlatten m => FlatExprCommand -> m ()
-sendFlatCommand cmd = do
-    -- traceShowM cmd
-    sendFlatCommand' cmd
+type ExprEnv = Map Ident SolverExpr
 
-sendFlatCommand' :: MonadRepGraphFlatten m => FlatExprCommand -> m ()
-sendFlatCommand' = \case
-    ExprCommandDeclare var -> do
-        val' <- varFromNameTyE <$> addVar var.name.unwrap var.ty
-        liftFlatten $ #exprMap %= M.insertWith undefined var.name val'
-    ExprCommandDefine inlineHint var val -> do
-        val' <- convertFlatExpr val >>= addDefWithInlineSplitMem inlineHint var.name.unwrap
-        liftFlatten $ #exprMap %= M.insertWith undefined var.name val'
-    ExprCommandAssert expr -> do
-        assertFact =<< convertFlatExpr expr
-
-convertFlatExpr :: MonadRepGraphFlatten m => FlatExpr -> m SolverExpr
-convertFlatExpr = traverseOf (exprArgs % traversed) convertFlatExpr >=> \expr -> case expr.value of
-    ExprValueVar name -> do
-        -- let err = error $ "env miss: " ++ show name
-        liftFlatten $ use $ #exprMap % expectingAt name
-    ExprValueOp op args -> flattenOpExpr expr.ty op args
-    _ -> return expr
+withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
+withEnv = flip runReaderT
 
 --
+
+flattenAndAddDef :: MonadRepGraphFlatten m => NameHint -> GraphExpr -> ReaderT ExprEnv m NameTy
+flattenAndAddDef nameHint = flattenExpr >=> addDef nameHint
+
+flattenAndAssertFact :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m ()
+flattenAndAssertFact = flattenExpr >=> assertFact
+
+--
+
+-- TODO split out var replacement?
+flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m SolverExpr
+flattenExpr expr = case matching exprOpArgs expr of
+    Left expr' -> case expr'.value of
+        ExprValueVar name -> do
+            let err = error $ "env miss: " ++ show name
+            asks $ M.findWithDefault err name
+        _ -> return expr'
+    Right (op, args) -> traverse flattenExpr args >>= flattenOpExpr expr.ty op
 
 flattenOpExprs :: MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
 flattenOpExprs expr = case expr.value of
