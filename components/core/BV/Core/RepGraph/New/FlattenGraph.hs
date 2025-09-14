@@ -64,7 +64,7 @@ type InnerT = RepGraphSendFlatExprCommandT
 --
 
 newtype RepGraphFlattenGraphT t m a
-  = RepGraphFlattenGraphT { run :: StateT (TState t) (ReaderT (TEnv t) (InnerT m)) a }
+  = RepGraphFlattenGraphT { run :: StateT (TState t) (ReaderT (TEnv t m) (InnerT m)) a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
@@ -73,59 +73,72 @@ instance MonadTrans (RepGraphFlattenGraphT t) where
 
 class (Monad m, Monad n) => MonadT t n m | m -> t, m -> n where
     liftStructs :: MonadStructs n => n a -> m a
-    liftPure :: Monad n => StateT (TState t) (Reader (TEnv t)) a -> m a
-    liftInner :: Monad n => InnerT n a -> m a
+    liftPure :: StateT (TState t) (Reader (TEnv t n)) a -> m a
+    liftInner :: InnerT n a -> m a
+    liftUntagged :: T t n a -> m a
 
 instance Monad n => MonadT t n (T t n) where
     liftStructs = lift
     liftPure = RepGraphFlattenGraphT . mapStateT (mapReaderT (return . runIdentity))
     liftInner = RepGraphFlattenGraphT . lift . lift
+    liftUntagged = id
 
 instance (Monad n, MonadT t n (T t n)) => MonadT t n (TaggedT t n) where
     liftStructs = liftUntagged . liftStructs
     liftPure = liftUntagged . liftPure
     liftInner = liftUntagged . liftInner
+    liftUntagged = TaggedT . lift
 
 instance MonadT t n m => MonadT t n (ExceptT e m) where
     liftStructs = lift . liftStructs
     liftPure = lift . liftPure
     liftInner = lift . liftInner
+    liftUntagged = lift . liftUntagged
 
 instance MonadT t n m => MonadT t n (MaybeT m) where
     liftStructs = lift . liftStructs
     liftPure = lift . liftPure
     liftInner = lift . liftInner
+    liftUntagged = lift . liftUntagged
 
 instance MonadT t n m => MonadT t n (ReaderT r m) where
     liftStructs = lift . liftStructs
     liftPure = lift . liftPure
     liftInner = lift . liftInner
+    liftUntagged = lift . liftUntagged
 
 instance MonadT t n m => MonadT t n (StateT s m) where
     liftStructs = lift . liftStructs
     liftPure = lift . liftPure
     liftInner = lift . liftInner
+    liftUntagged = lift . liftUntagged
 
--- liftStructs :: MonadStructs m => m a -> T t m a
--- liftStructs = lift
-
--- liftPure :: Monad m => StateT (TState t) (Reader (TEnv t)) a -> T t m a
--- liftPure = RepGraphFlattenGraphT . mapStateT (mapReaderT (return . runIdentity))
-
--- liftInner :: Monad m => InnerT m a -> T t m a
--- liftInner = RepGraphFlattenGraphT . lift . lift
-
-runRepGraphFlattenGraphT :: (Tag t, Monad m) => ROData -> Problem t -> T t m a -> m a
-runRepGraphFlattenGraphT rodata problem =
+runRepGraphFlattenGraphT
+    :: (Tag t, Monad m)
+    => ROData
+    -> Problem t
+    -> RepGraphFlattenGraphHooks t m
+    -> T t m a
+    -> m a
+runRepGraphFlattenGraphT rodata problem hooks =
       runRepGraphSendFlatExprCommandT rodata
-    . flip runReaderT (initEnv problem)
+    . flip runReaderT (initEnv problem hooks)
     . flip evalStateT initState
     . (.run)
 
-data TEnv t
+data TEnv t m
   = TEnv
       { problem :: Problem t
       , analysis :: ProblemAnalysis t
+      , hooks :: RepGraphFlattenGraphHooks t m
+      }
+  deriving (Generic)
+
+data RepGraphFlattenGraphHooks t n
+  = RepGraphFlattenGraphHooks
+      { problemVarRepHook :: VarRepRequestKind -> NameTy -> TaggedT t n (Maybe VarReqRequest)
+      , preEmitCallNodeHook :: Visit -> TaggedT t n ()
+      , postEmitCallNodeHook :: Visit -> TaggedT t n ()
       }
   deriving (Generic)
 
@@ -145,10 +158,18 @@ data TState t
       }
   deriving (Generic)
 
-initEnv :: Tag t => Problem t -> TEnv t
-initEnv problem = TEnv
+initEnv :: Tag t => Problem t -> RepGraphFlattenGraphHooks t m -> TEnv t m
+initEnv problem hooks = TEnv
     { problem
     , analysis = analyzeProblem problem
+    , hooks
+    }
+
+defaultRepGraphFlattenGraphHooks :: Monad m => RepGraphFlattenGraphHooks t m
+defaultRepGraphFlattenGraphHooks = RepGraphFlattenGraphHooks
+    { problemVarRepHook = \_ _ -> return Nothing
+    , preEmitCallNodeHook = \_ -> return ()
+    , postEmitCallNodeHook = \_ -> return ()
     }
 
 initState :: TState t
@@ -190,9 +211,6 @@ askWithTag a = do
 
 runTagged :: Monad m => t -> TaggedT t m a -> T t m a
 runTagged tag m = runReaderT m.run tag
-
-liftUntagged :: Monad m => T t m a -> TaggedT t m a
-liftUntagged = TaggedT . lift
 
 --
 
@@ -248,6 +266,9 @@ getHasInnerLoop loopHead = withMapSlotForTag #hasInnerLoop loopHead $ do
     p <- liftPure $ gview #problem
     loop <- askLoopContaining loopHead
     return $ not $ null $ innerLoopsOf p.nodes loop
+
+askHook :: C t n m => Lens' (RepGraphFlattenGraphHooks t n) a -> m a
+askHook l = liftPure $ gview $ #hooks % l
 
 --
 
@@ -553,8 +574,8 @@ addVarWithMemCalls nameHint ty memCallsOpt = do
 
 varRepRequest :: TaggedC t n m => VarRepRequestKind -> Visit -> ExprEnv -> NameTy -> m (Maybe FlatExpr)
 varRepRequest kind visit env var = runMaybeT $ do
-    -- req <- MaybeT $ joinForTag $ runProblemVarRepHook var kind (nodeAddrOf visit.nodeId)
-    req <- todo
+    hook <- askHook #problemVarRepHook
+    req <- MaybeT $ hook kind var
     case req of
         VarRepRequestSplitMem { addr } -> do
             addrSExpr <- lift $ withEnv env $ flattenExpr addr
@@ -817,8 +838,8 @@ emitNode visit = do
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, PcEnv lpc env), (condNode.right, PcEnv rpc env)]
             NodeCall callNode -> do
-                -- joinForTag $ runPreEmitCallNodeHook visit
-                todo
+                preHook <- askHook #preEmitCallNodeHook
+                preHook visit
                 success <- varFromNameTyE <$>
                     addVar (successName callNode.functionName visit) boolT
                 ins <- for callNode.input $ withEnv env . flattenExpr
@@ -834,8 +855,8 @@ emitNode visit = do
                 key <- askWithTag visit
                 let info = FunCallInfo { ins, outs, success }
                 liftPure $ #funcs %= M.insertWith undefined key info
-                -- joinForTag $ runPostEmitCallNodeHook visit
-                todo
+                postHook <- askHook #postEmitCallNodeHook
+                postHook visit
                 return [(callNode.next, PcEnv pc env')]
 
 exprEnvVars :: ExprEnv -> Set NameTy
