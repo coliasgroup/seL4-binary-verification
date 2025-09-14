@@ -19,6 +19,7 @@ module BV.Core.RepGraph.New
     , askLoopData
     , askNodeGraph
     , askProblem
+    , convertFlatExpr
     , convertSolverExpr
     , getFunCallInfo
     , getFunCallInfoRaw
