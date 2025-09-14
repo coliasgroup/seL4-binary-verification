@@ -23,6 +23,7 @@ module BV.Core.RepGraph.New.FlattenGraph
     , askLoopData
     , askNodeGraph
     , askProblem
+    , askTag
     , askWithTag
     , assertFact
     , getFunCallInfo
