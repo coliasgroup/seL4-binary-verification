@@ -624,9 +624,14 @@ addMemCall fname = fmap $ flip M.alter fname $ Just . incr . fromMaybe zeroMemCa
   where
     incr = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
 
-getMemCalls :: MonadRepGraph t m => FlatExpr -> m MemCalls
-getMemCalls = getImmBasisMems >=> \mems -> fmap (foldr1 mergeMemCalls) $ for (S.toList mems) $ \mem ->
-    liftRepGraph $ use $ #memCalls % expectingAt mem
+getMemCalls :: MonadRepGraph t m => FlatExpr -> m (Maybe MemCalls)
+getMemCalls expr = do
+    basis <- getImmBasisMems expr
+    if S.null basis
+        then return Nothing
+        else Just <$> do
+            fmap (foldr1 mergeMemCalls) $ for (S.toList basis) $ \mem ->
+                liftRepGraph $ use $ #memCalls % expectingAt mem
 
 getImmBasisMems :: MonadRepGraph t m => FlatExpr -> m (Set Ident)
 getImmBasisMems = go
@@ -645,7 +650,7 @@ scanMemCallsEnv = scanMemCalls . toList
 
 scanMemCalls :: MonadRepGraph t m => [FlatExpr] -> m MemCallsIfKnown
 scanMemCalls exprs = do
-    memCalls <- traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT ]
+    memCalls <- fmap catMaybes $ traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT ]
     return $ case memCalls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
