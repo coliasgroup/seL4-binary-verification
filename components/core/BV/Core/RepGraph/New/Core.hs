@@ -20,6 +20,7 @@ module BV.Core.RepGraph.New.Core
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphForTag (..)
     , PcEnv (..)
+    , assertFact
     , RepGraphEnv
     , RepGraphState
     , VarRepRequestKind (..)
@@ -469,6 +470,9 @@ cacheExprWithInlineHint inline nameHint expr = case expr.value of
     _ -> do
         name <- withMapSlot #exprCache expr $ (.name) <$> addDefWithInlineHint inline nameHint expr
         return $ NameTy name expr.ty
+
+assertFact :: MonadRepGraphFlatten m => FlatExpr -> m ()
+assertFact = send . ExprCommandAssert
 
 --
 
