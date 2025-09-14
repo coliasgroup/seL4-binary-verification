@@ -10,7 +10,7 @@ module BV.Core.RepGraph.New.SendFlatExprCommand
     , getModelExprs
     , getModelVars
     , runRepGraphSendFlatExprCommandT
-    , sendFlatCommand
+    , sendFlatExprCommand
     ) where
 
 import BV.Core.RepGraph.New.ExprCommand
@@ -70,14 +70,14 @@ newtype RepGraphSendFlatExprCommandT m a
 instance MonadTrans RepGraphSendFlatExprCommandT where
     lift = RepGraphSendFlatExprCommandT . lift . lift . lift
 
+liftStructs :: MonadStructs m => m a -> T m a
+liftStructs = lift
+
 liftPure :: Monad m => StateT TState (Reader TEnv) a -> T m a
 liftPure = RepGraphSendFlatExprCommandT . mapStateT (mapReaderT (return . runIdentity))
 
 liftInner :: Monad m => InnerT m a -> T m a
 liftInner = RepGraphSendFlatExprCommandT . lift . lift
-
-liftStructs :: MonadStructs m => m a -> T m a
-liftStructs = lift
 
 send :: C m => SolverExprCommand -> T m ()
 send = liftInner . sendSolverExprCommand
@@ -85,14 +85,15 @@ send = liftInner . sendSolverExprCommand
 runRepGraphSendFlatExprCommandT :: Monad m => ROData -> T m a -> m a
 runRepGraphSendFlatExprCommandT rodata =
       runRepGraphSendSolverExprCommandT rodata
-    . flip runReaderT (initEnv rodataPtrs)
+    . flip runReaderT (initEnv (rodataPtrsFromROData rodata))
     . flip evalStateT initState
     . (.run)
-  where
-    rodataPtrs =
-        [ pointerE (structT structName) (machineWordE range.addr)
-        | (structName, range) <- rodataStructNamesOf rodata
-        ]
+
+rodataPtrsFromROData :: ROData -> [SolverExpr]
+rodataPtrsFromROData rodata =
+    [ pointerE (structT structName) (machineWordE range.addr)
+    | (structName, range) <- rodataStructNamesOf rodata
+    ]
 
 data TEnv
   = TEnv
@@ -265,13 +266,13 @@ assertFact = send . ExprCommandAssert
 
 --
 
-sendFlatCommand :: C m => FlatExprCommand -> T m ()
-sendFlatCommand cmd = do
+sendFlatExprCommand :: C m => FlatExprCommand -> T m ()
+sendFlatExprCommand cmd = do
     -- traceShowM cmd
-    sendFlatCommand' cmd
+    sendFlatExprCommand' cmd
 
-sendFlatCommand' :: C m => FlatExprCommand -> T m ()
-sendFlatCommand' = \case
+sendFlatExprCommand' :: C m => FlatExprCommand -> T m ()
+sendFlatExprCommand' = \case
     ExprCommandDeclare var -> do
         val' <- varFromNameTyE <$> addVar var.name.unwrap var.ty
         liftPure $ #exprMap %= M.insertWith undefined var.name val'
