@@ -42,6 +42,7 @@ import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.Utils
 
+import BV.Core.RepGraph.New.ExprCommand
 import Control.DeepSeq (NFData)
 import Control.Monad (unless, when, (>=>))
 import Control.Monad.Except (ExceptT)
@@ -137,7 +138,7 @@ initFlattenState = FlattenState
 --
 
 send :: MonadRepGraphFlatten m => SolverExprCommand -> m ()
-send = convertCommand
+send = sendSolverCommand
 
 --
 
@@ -200,21 +201,21 @@ lookupDef name = liftFlatten $ use $ #defs % at name
 addDefSplitMem :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m SolverExpr
 addDefSplitMem nameHint expr =
     either varFromNameTyE reconstructSplitMem
-        <$> addDefWithInlineInner SolverExprCommandInlineHintInline nameHint expr
+        <$> addDefWithInlineInner ExprCommandInlineHintSometimes nameHint expr
 
 addDef :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
-addDef = addDefWithInline SolverExprCommandInlineHintDontInline
+addDef = addDefWithInline ExprCommandInlineHintNever
 
-addDefWithInline :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
+addDefWithInline :: MonadRepGraphFlatten m => ExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
 addDefWithInline inline nameHint expr = viewExpecting #_Left <$> addDefWithInlineInner inline nameHint expr
 
-addDefWithInlineInner :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m (Either NameTy DestructSplitMem)
+addDefWithInlineInner :: MonadRepGraphFlatten m => ExprCommandInlineHint -> NameHint -> SolverExpr -> m (Either NameTy DestructSplitMem)
 addDefWithInlineInner inline nameHint expr = case tryDestructSplitMem (id expr) of
     NotSplitMem _ -> Left <$> do
         name <- takeFreshName nameHint
         let var = NameTy name expr.ty
         unless (isTypeOmitted expr.ty) $ do
-            send $ SolverExprCommandDefine inline var expr
+            send $ ExprCommandDefine inline var expr
             liftFlatten $ #defs %= M.insert name expr
             when (isTypeRepresentable expr.ty) $ do
                 liftFlatten $ #modelVars %= S.insert name
@@ -235,12 +236,12 @@ addVar nameHint ty = do
     name <- takeFreshName nameHint
     let var = NameTy name ty
     unless (isTypeOmitted ty) $ do
-        send $ SolverExprCommandDeclare var
+        send $ ExprCommandDeclare var
         when (isTypeRepresentable ty) $ do
             liftFlatten $ #modelVars %= S.insert name
     return var
 
-cacheExprWithInline :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
+cacheExprWithInline :: MonadRepGraphFlatten m => ExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
 cacheExprWithInline inline nameHint expr = case expr.value of
     ExprValueVar name -> return $ NameTy name expr.ty
     _ -> do
@@ -248,10 +249,10 @@ cacheExprWithInline inline nameHint expr = case expr.value of
         return $ NameTy name expr.ty
 
 cacheExpr :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
-cacheExpr = cacheExprWithInline SolverExprCommandInlineHintDontInline
+cacheExpr = cacheExprWithInline ExprCommandInlineHintNever
 
 cacheExprInline :: MonadRepGraphFlatten m => NameHint -> SolverExpr -> m NameTy
-cacheExprInline = cacheExprWithInline SolverExprCommandInlineHintInline
+cacheExprInline = cacheExprWithInline ExprCommandInlineHintSometimes
 
 cachePtr :: MonadRepGraphFlatten m => SolverExpr -> m NameTy
 cachePtr = cacheExpr "ptr"
@@ -265,7 +266,7 @@ maybeNoteModelExpr expr subexprs =
         noteModelExpr expr
 
 assertFact :: MonadRepGraphFlatten m => SolverExpr -> m ()
-assertFact = send . SolverExprCommandAssert
+assertFact = send . ExprCommandAssert
 
 --
 

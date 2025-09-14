@@ -53,9 +53,6 @@ addPValidDomAssertions :: MonadRepGraphFlatten m => m ()
 addPValidDomAssertions = do
     return ()
 
-convertSolverExpr :: MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
-convertSolverExpr = convertExpr
-
 isUnreachable :: MonadRepGraph t m => Visit -> ForTag t m SExprWithPlaceholders
 isUnreachable visit = do
     pcEnv <- fromJust <$> getNodePcEnv visit
