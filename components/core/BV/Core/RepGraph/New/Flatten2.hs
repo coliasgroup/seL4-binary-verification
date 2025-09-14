@@ -282,8 +282,13 @@ sendFlatCommand' = \case
     ExprCommandAssert expr -> do
         assertFact =<< convertFlatExpr expr
 
-convertFlatExpr :: MonadRepGraphSolver m => FlatExpr -> m SolverExpr
-convertFlatExpr = undefined
+convertFlatExpr :: MonadRepGraphFlatten m => FlatExpr -> m SolverExpr
+convertFlatExpr = traverseOf (exprArgs % traversed) convertFlatExpr >=> \expr -> case expr.value of
+    ExprValueVar name -> do
+        -- let err = error $ "env miss: " ++ show name
+        liftFlatten $ use $ #exprMap % expectingAt name
+    ExprValueOp op args -> flattenOpExpr expr.ty op args
+    _ -> return expr
 
 --
 
