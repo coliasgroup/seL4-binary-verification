@@ -11,6 +11,8 @@ module BV.Core.RepGraph.New.Flatten
     , FlattenState
     , MonadRepGraphFlatten (..)
     , convertFlatExpr
+    , getModelExprs
+    , getModelVars
     , initFlattenEnv
     , initFlattenState
     , sendFlatCommand
@@ -453,11 +455,6 @@ addPValids = go
 
 --
 
-isSplitMem :: SolverExpr -> Bool
-isSplitMem = \case
-    Expr _ (ExprValueOp (OpExt OpExtSplitMem) _) -> True
-    _ -> False
-
 tryDestructSplitMem :: SolverExpr -> TryDestructSplitMem
 tryDestructSplitMem = \case
     Expr ExprTypeMem (ExprValueOp (OpExt OpExtSplitMem) [split, top, bottom]) ->
@@ -479,26 +476,3 @@ data DestructSplitMem
       , bottom :: SolverExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
-
---
-
-checkSplitMemInvariantId :: SolverExpr -> SolverExpr
-checkSplitMemInvariantId expr =
-    if checkSplitMemInvariant expr
-    then expr
-    else error $ "split mem invariant not satisfied: " ++ show expr
-
-checkSplitMemInvariantM :: Monad m => SolverExpr -> m ()
-checkSplitMemInvariantM expr = do
-    if checkSplitMemInvariant expr
-    then pure ()
-    else error $ "split mem invariant not satisfied: " ++ show expr
-
-checkSplitMemInvariant :: SolverExpr -> Bool
-checkSplitMemInvariant = go True
-  where
-    go isAllowed expr = case expr.value of
-        ExprValueOp op args ->
-            (op /= OpExt OpExtSplitMem || isAllowed)
-                && all (go (expr.ty == ExprTypeRelWrapper)) args
-        _ -> True
