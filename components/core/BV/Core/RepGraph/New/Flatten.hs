@@ -292,11 +292,6 @@ convertFlatExpr = traverseOf (exprArgs % traversed) convertFlatExpr >=> \expr ->
 
 --
 
-flattenTopLevelExpr :: MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
-flattenTopLevelExpr expr = case expr.value of
-    ExprValueOp op args -> flattenOpExpr expr.ty op args
-    _ -> return expr
-
 flattenOpExpr :: MonadRepGraphFlatten m => ExprType -> Op -> [SolverExpr] -> m SolverExpr
 flattenOpExpr exprTy op args = do
     expr <- case (op, args) of
@@ -305,7 +300,7 @@ flattenOpExpr exprTy op args = do
         (OpMemUpdate, [m, p, v]) -> do
             flattenMemUpdate m p v v.ty
         (OpMemAcc, [m, p]) -> do
-            flattenMemAccess m p exprTy
+            flattenMemAccess exprTy m p
         (OpExt OpExtStackEqualsImplies, [sp1, stack1, sp2, stack2]) -> do
             if sp1 == sp2 && stack1 == stack2
             then return trueE
@@ -388,11 +383,11 @@ flattenMemUpdate mem p v ty@(ExprTypeWord bits) = case tryDestructSplitMem mem o
             noteModelExpr $ memAccE ty p mem
             return $ memUpdE p mem v
 
-flattenMemAccess :: MonadRepGraphFlatten m => SolverExpr -> SolverExpr -> ExprType -> m SolverExpr
-flattenMemAccess mem p ty@(ExprTypeWord _) = case tryDestructSplitMem mem of
+flattenMemAccess :: MonadRepGraphFlatten m => ExprType -> SolverExpr -> SolverExpr -> m SolverExpr
+flattenMemAccess ty@(ExprTypeWord _) mem p = case tryDestructSplitMem mem of
     SplitMem splitMem -> do
         p' <- varFromNameTyE <$> cacheExprInline "memacc_pointer" p
-        let f side = flattenMemAccess (side splitMem) p' ty
+        let f side = flattenMemAccess ty (side splitMem) p'
         ifThenElseE (splitMem.split `lessEqE` p') <$> f (.top) <*> f (.bottom)
     NotSplitMem _ -> do
         let v = memAccE ty p mem
@@ -406,8 +401,8 @@ addImpliesStackEq key = fmap (varE boolT) $ withMapSlot #impliesStackEqCache key
     addr <- varFromNameTyE <$> addVar "stack-eq-witness" word32T
     assertFact $ (addr `bitwiseAndE` machineWordE 0x00000003) `eqE` machineWordE 0x00000000
     assertFact $ key.sp `lessEqE` addr
-    let f = flattenTopLevelExpr . memAccE word32T addr
-    solverExpr <- eqE <$> f key.stack1 <*> f key.stack2 >>= flattenTopLevelExpr
+    let f mem = flattenMemAccess word32T mem addr
+    solverExpr <- eqE <$> f key.stack1 <*> f key.stack2
     (.name) <$> addDef "stack-eq" solverExpr
 
 getStackEqImplies :: MonadRepGraphFlatten m => SolverExpr -> SolverExpr -> m SolverExpr
