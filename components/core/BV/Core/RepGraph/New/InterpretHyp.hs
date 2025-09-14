@@ -5,7 +5,6 @@ module BV.Core.RepGraph.New.InterpretHyp
 
 import BV.Core.RepGraph.New.Core
 import BV.Core.RepGraph.New.Flatten
-import BV.Core.RepGraph.New.Solver
 
 import BV.Core.Logic
 import BV.Core.Types
