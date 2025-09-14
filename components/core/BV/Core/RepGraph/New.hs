@@ -23,6 +23,8 @@ module BV.Core.RepGraph.New
     , convertSolverExpr
     , getFunCallInfo
     , getFunCallInfoRaw
+    , FlatExpr
+    , FlatExprContext (..)
       -- , getModelExprs
       -- , getModelVars
     , getNodePcEnv
