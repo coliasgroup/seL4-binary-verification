@@ -15,10 +15,10 @@ module BV.Core.RepGraph.New.Solver
     , SolverExprContext (..)
     , SolverOutput
     , SolverState
-    , convertCommand
-    , convertExpr
+    , convertSolverExpr
     , initSolverEnv
     , initSolverState
+    , sendSolverCommand
     ) where
 
 import BV.Core.GenerateFreshName
@@ -224,24 +224,24 @@ addSmtVar nameHint ty = do
 addSmtDef :: MonadRepGraphSolver m => SmtNameHint -> SolverExpr -> m SmtName
 addSmtDef nameHint val = do
     name <- takeFreshName nameHint
-    s <- convertExpr val
+    s <- convertSolverExpr val
     send $ defineFunS name.unwrap [] (typeToSMT val.ty) s
     return name
 
 --
 
-convertCommand :: MonadRepGraphSolver m => SolverExprCommand -> m ()
-convertCommand cmd = do
+sendSolverCommand :: MonadRepGraphSolver m => SolverExprCommand -> m ()
+sendSolverCommand cmd = do
     -- traceShowM cmd
-    convertCommand' cmd
+    sendSolverCommand' cmd
 
-convertCommand' :: MonadRepGraphSolver m => SolverExprCommand -> m ()
-convertCommand' = \case
+sendSolverCommand' :: MonadRepGraphSolver m => SolverExprCommand -> m ()
+sendSolverCommand' = \case
     ExprCommandDeclare var -> do
         name <- addSmtVar var.name.unwrap var.ty
         liftSolver $ #nameMap %= M.insertWith undefined var.name name
     ExprCommandDefine inlineHint var val -> do
-        s <- convertExpr val
+        s <- convertSolverExpr val
         if inlineHint == ExprCommandInlineHintSometimes && length (showSExprWithPlaceholders s) < 80
             then do
                 liftSolver $ #inline %= M.insertWith undefined var.name s
@@ -249,11 +249,11 @@ convertCommand' = \case
                 name <- addSmtDef var.name.unwrap val
                 liftSolver $ #nameMap %= M.insertWith undefined var.name name
     ExprCommandAssert expr -> do
-        s <- convertExpr expr
+        s <- convertSolverExpr expr
         send $ assertS s
 
-convertExpr :: HasCallStack => MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
-convertExpr expr = case expr.value of
+convertSolverExpr :: HasCallStack => MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
+convertSolverExpr expr = case expr.value of
     ExprValueVar var -> do
         sOpt <- runMaybeT $
             nameS <$> MaybeT (liftSolver $ use $ #nameMap % at var)
@@ -265,12 +265,12 @@ convertExpr expr = case expr.value of
     ExprValueToken tok -> do
         getToken tok
     ExprValueOp OpCountTrailingZeroes [arg] -> do
-        convertExpr $ clzE (wordReverseE arg)
+        convertSolverExpr $ clzE (wordReverseE arg)
     ExprValueOp op [arg] | op == OpWordCast || op == OpWordCastSigned -> do
         let signed = op == OpWordCastSigned
         let ExprTypeWord fromBits = arg.ty
         let ExprTypeWord toBits = expr.ty
-        convertWordCast signed fromBits toBits <$> convertExpr arg
+        convertWordCast signed fromBits toBits <$> convertSolverExpr arg
     ExprValueOp op args -> do
         let argTypes = (map (.ty) args)
         opOpt' <- runMaybeT $
@@ -278,7 +278,7 @@ convertExpr expr = case expr.value of
                 <|> nameS <$> MaybeT (getDerivedOp op expr.ty)
         op' <- whenNothing opOpt' $ do
             error $ "could not convert op: " ++ show op
-        args' <- traverse convertExpr args
+        args' <- traverse convertSolverExpr args
         return $ case args' of
             [] -> op'
             _ -> List $ [op'] ++ args'
