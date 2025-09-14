@@ -20,11 +20,10 @@ module BV.Core.RepGraph.New
     , askNodeGraph
     , askProblem
     , convertSolverExpr
-    , flattenOpExprs
     , getFunCallInfo
     , getFunCallInfoRaw
-    , getModelExprs
-    , getModelVars
+      -- , getModelExprs
+      -- , getModelVars
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc
@@ -56,6 +55,6 @@ addPValidDomAssertions = do
 isUnreachable :: MonadRepGraph t m => Visit -> ForTag t m SExprWithPlaceholders
 isUnreachable visit = do
     pcEnv <- fromJust <$> getNodePcEnv visit
-    convertSolverExpr $ notE pcEnv.pc
+    convertFlatExpr (notE pcEnv.pc) >>= convertSolverExpr
 
 type Name = Ident

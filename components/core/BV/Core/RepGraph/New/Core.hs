@@ -48,6 +48,7 @@ module BV.Core.RepGraph.New.Core
     , scanMemCalls
     , scanMemCallsEnv
     , tryGetNodePcEnv
+    , withEnv
     , zeroMemCallsRange
     ) where
 
