@@ -4,32 +4,11 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module BV.Core.RepGraph.New.Flatten2
-    ( ExprEnv
-    , FlattenEnv
+    ( FlattenEnv
     , FlattenState
     , MonadRepGraphFlatten (..)
-    , NameHint
-    , addDef
-    , addDefSplitMem
-    , addVar
-    , assertFact
-    , cacheExpr
-    , cacheExprInline
-    , checkSplitMemInvariantId
-    , checkSplitMemInvariantM
-    , flattenAndAddDef
-    , flattenAndAssertFact
-    , flattenExpr
-    , flattenOpExpr
-    , flattenOpExprs
-    , flattenTopLevelExpr
-    , getModelExprs
-    , getModelVars
     , initFlattenEnv
     , initFlattenState
-    , isSplitMem
-    , lookupDef
-    , withEnv
     ) where
 
 import BV.Core.RepGraph.New.Solver
