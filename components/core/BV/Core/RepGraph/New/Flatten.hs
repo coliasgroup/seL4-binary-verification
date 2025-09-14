@@ -230,7 +230,7 @@ addDef = addDefWithInline SolverExprCommandInlineHintDontInline
 addDefWithInline :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m NameTy
 addDefWithInline inline nameHint expr = viewExpecting #_Left <$> addDefWithInlineInner inline nameHint expr
 
-addDefWithInlineInner :: HasCallStack => MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m (Either NameTy DestructSplitMem)
+addDefWithInlineInner :: MonadRepGraphFlatten m => SolverExprCommandInlineHint -> NameHint -> SolverExpr -> m (Either NameTy DestructSplitMem)
 addDefWithInlineInner inline nameHint expr = case tryDestructSplitMem (id expr) of
     NotSplitMem _ -> Left <$> do
         name <- takeFreshName nameHint
@@ -307,7 +307,7 @@ flattenAndAssertFact = flattenExpr >=> assertFact
 --
 
 -- TODO split out var replacement?
-flattenExpr :: HasCallStack => MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m SolverExpr
+flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m SolverExpr
 flattenExpr expr = case matching exprOpArgs expr of
     Left expr' -> case expr'.value of
         ExprValueVar name -> do
@@ -316,17 +316,17 @@ flattenExpr expr = case matching exprOpArgs expr of
         _ -> return expr'
     Right (op, args) -> traverse flattenExpr args >>= flattenOpExpr expr.ty op
 
-flattenOpExprs :: HasCallStack => MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
+flattenOpExprs :: MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
 flattenOpExprs expr = case expr.value of
     ExprValueOp op args -> traverse flattenOpExprs args >>= flattenOpExpr expr.ty op
     _ -> return expr
 
-flattenTopLevelExpr :: HasCallStack => MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
+flattenTopLevelExpr :: MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
 flattenTopLevelExpr expr = case expr.value of
     ExprValueOp op args -> flattenOpExpr expr.ty op args
     _ -> return expr
 
-flattenOpExpr :: HasCallStack => MonadRepGraphFlatten m => ExprType -> Op -> [SolverExpr] -> m SolverExpr
+flattenOpExpr :: MonadRepGraphFlatten m => ExprType -> Op -> [SolverExpr] -> m SolverExpr
 flattenOpExpr exprTy op args = do
     expr <- case (op, args) of
         (OpIfThenElse, [cond, x, y]) -> do
@@ -527,13 +527,13 @@ data DestructSplitMem
 
 --
 
-checkSplitMemInvariantId :: HasCallStack => SolverExpr -> SolverExpr
+checkSplitMemInvariantId :: SolverExpr -> SolverExpr
 checkSplitMemInvariantId expr =
     if checkSplitMemInvariant expr
     then expr
     else error $ "split mem invariant not satisfied: " ++ show expr
 
-checkSplitMemInvariantM :: HasCallStack => Monad m => SolverExpr -> m ()
+checkSplitMemInvariantM :: Monad m => SolverExpr -> m ()
 checkSplitMemInvariantM expr = do
     if checkSplitMemInvariant expr
     then pure ()
