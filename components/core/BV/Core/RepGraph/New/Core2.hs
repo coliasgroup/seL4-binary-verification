@@ -416,6 +416,15 @@ flattenExpr = traverseOf (exprArgs % traversed) flattenExpr >=> \expr -> case ex
         asks $ M.findWithDefault err name
     _ -> return expr
 
+addVar :: MonadRepGraph t m => NameHint -> ExprType -> m NameTy
+addVar = todo
+
+addDef :: MonadRepGraph t m => NameHint -> FlatExpr -> ReaderT ExprEnv m FlatExpr
+addDef = todo
+
+lookupDef ::MonadRepGraph t m =>  Ident -> m (Maybe FlatExpr)
+lookupDef = todo
+
 --
 
 addVarWithMemCalls :: MonadRepGraph t m => NameHint -> ExprType -> MemCallsIfKnown -> m NameTy
@@ -772,11 +781,11 @@ emitNode visit = do
                             return $ env ! name
                         _ -> do
                             let name = localName update.var.name visit
-                            withEnv env $ flattenExpr update.val >>= addDefSplitMem name
+                            withEnv env $ flattenExpr update.val >>= addDef name
                     return (update.var.name, val)
                 return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
-                cond <- withEnv env $ flattenExpr condNode.expr >>= addDefSplitMem (condName visit)
+                cond <- withEnv env $ flattenExpr condNode.expr >>= addDef (condName visit)
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, PcEnv lpc env), (condNode.right, PcEnv rpc env)]
