@@ -10,8 +10,10 @@ module BV.Core.RepGraph.New.Flatten2
     , FlattenEnv
     , FlattenState
     , MonadRepGraphFlatten (..)
+    , convertFlatExpr
     , initFlattenEnv
     , initFlattenState
+    , sendFlatCommand
     ) where
 
 import BV.Core.RepGraph.New.Solver
