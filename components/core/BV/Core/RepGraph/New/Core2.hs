@@ -10,48 +10,44 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Core.RepGraph.New.Core2
-    (
+    ( ForTag
+    , FunCallInfo (..)
+    , MemCalls
+    , MemCallsIfKnown
+    , MemCallsRange (..)
+    , MonadRepGraph (..)
+    , MonadRepGraphDefaultHelper (..)
+    , MonadRepGraphForTag (..)
+    , PcEnv (..)
+    , RepGraphEnv
+    , RepGraphState
+    , VarRepRequestKind (..)
+    , VarReqRequest (..)
+    , addSplitMemVar
+    , askCont
+    , askLoopData
+    , askNodeGraph
+    , askProblem
+    , askWithTag
+    , getFunCallInfo
+    , getFunCallInfoRaw
+    , getInductVar
+    , getNodePcEnv
+    , getNodePcEnvWithTag
+    , getPc
+    , getPcWithTag
+    , initRepGraph
+    , initRepGraphEnv
+    , initRepGraphState
+    , instEqWithEnvs
+    , mapForTag
+    , mergeEnvsPcs
+    , runForTag
+    , scanMemCalls
+    , scanMemCallsEnv
+    , tryGetNodePcEnv
+    , zeroMemCallsRange
     ) where
-
--- module BV.Core.RepGraph.New.Core2
---     ( ForTag
---     , FunCallInfo (..)
---     , MemCalls
---     , MemCallsIfKnown
---     , MemCallsRange (..)
---     , MonadRepGraph (..)
---     , MonadRepGraphDefaultHelper (..)
---     , MonadRepGraphForTag (..)
---     , PcEnv (..)
---     , RepGraphEnv
---     , RepGraphState
---     , VarRepRequestKind (..)
---     , VarReqRequest (..)
---     , addSplitMemVar
---     , askCont
---     , askLoopData
---     , askNodeGraph
---     , askProblem
---     , askWithTag
---     , getFunCallInfo
---     , getFunCallInfoRaw
---     , getInductVar
---     , getNodePcEnv
---     , getNodePcEnvWithTag
---     , getPc
---     , getPcWithTag
---     , initRepGraph
---     , initRepGraphEnv
---     , initRepGraphState
---     , instEqWithEnvs
---     , mapForTag
---     , mergeEnvsPcs
---     , runForTag
---     , scanMemCalls
---     , scanMemCallsEnv
---     , tryGetNodePcEnv
---     , zeroMemCallsRange
---     ) where
 
 import BV.Core.RepGraph.New.ExprCommand
 import BV.Core.RepGraph.New.Flatten2
