@@ -54,6 +54,7 @@ module BV.Core.RepGraph.New.Core2
 --     ) where
 
 import BV.Core.RepGraph.New.Flatten2
+import BV.Core.RepGraph.New.ExprCommand
 import BV.Core.RepGraph.New.Solver
 
 import BV.Core.Logic
@@ -62,6 +63,7 @@ import BV.Core.Types hiding (SplitMem (..))
 import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.Utils
+import BV.Core.GenerateFreshName (generateFreshName)
 
 import Control.DeepSeq (NFData)
 import Control.Monad (filterM, foldM, guard, unless, when, (>=>))
@@ -266,6 +268,11 @@ askWithTag a = do
 
 --
 
+send :: MonadRepGraphFlatten m => FlatExprCommand -> m ()
+send = sendFlatCommand
+
+--
+
 withMapSlot :: (MonadRepGraph t m, Ord k) => Lens' (RepGraphState t) (M.Map k v) -> k -> m v -> m v
 withMapSlot l k m = do
     opt <- liftRepGraph (use (l % at k))
@@ -360,6 +367,14 @@ specialize visit split = ensure (isOptionsVC splitVC)
 
 type NameHint = String
 
+takeFreshName :: MonadRepGraphFlatten m => NameHint -> m Ident
+takeFreshName nameHint = liftFlatten $ zoom #names $ do
+    names <- get
+    let isTaken = (`S.member` names) . Ident
+    let name = Ident (generateFreshName isTaken nameHint)
+    modify $ S.insert name
+    return name
+
 localNameBefore :: Ident -> Visit -> NameHint
 localNameBefore var visit = printf "%P_v_at_%s" var (nodeCountName visit)
 
@@ -417,7 +432,11 @@ flattenExpr = traverseOf (exprArgs % traversed) flattenExpr >=> \expr -> case ex
     _ -> return expr
 
 addVar :: MonadRepGraph t m => NameHint -> ExprType -> m NameTy
-addVar = todo
+addVar nameHint ty = do
+    name <- takeFreshName nameHint
+    let var = NameTy name ty
+    send $ ExprCommandDeclare var
+    return var
 
 addDef :: MonadRepGraph t m => NameHint -> FlatExpr -> ReaderT ExprEnv m FlatExpr
 addDef = todo
