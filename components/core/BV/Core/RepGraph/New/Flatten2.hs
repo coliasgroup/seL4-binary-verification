@@ -277,6 +277,19 @@ flattenAndAssertFact = flattenExpr >=> assertFact
 
 --
 
+sendFlatCommand :: MonadRepGraphFlatten m => FlatExprCommand -> m ()
+sendFlatCommand cmd = do
+    -- traceShowM cmd
+    sendFlatCommand' cmd
+
+sendFlatCommand' :: MonadRepGraphFlatten m => FlatExprCommand -> m ()
+sendFlatCommand' = undefined
+
+convertFlatExpr :: MonadRepGraphSolver m => FlatExpr -> m SolverExpr
+convertFlatExpr = undefined
+
+--
+
 -- TODO split out var replacement?
 flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m SolverExpr
 flattenExpr expr = case matching exprOpArgs expr of
