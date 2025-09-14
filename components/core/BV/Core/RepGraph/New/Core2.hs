@@ -163,6 +163,10 @@ data RepGraphState t
       , contractions :: Map FlatExpr Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , funcs :: M.Map (WithTag t Visit) FunCallInfo
+
+      , names :: Set Ident
+      , defs :: Map Ident FlatExpr
+      , exprCache :: Map FlatExpr Ident
       }
   deriving (Eq, Generic, NFData)
 
@@ -205,6 +209,9 @@ initRepGraphState = RepGraphState
     , contractions = M.empty
     , hasInnerLoop = M.empty
     , funcs = M.empty
+    , names = S.empty
+    , defs = M.empty
+    , exprCache = M.empty
     }
 
 initRepGraph :: MonadRepGraph t m => m ()
@@ -368,7 +375,7 @@ specialize visit split = ensure (isOptionsVC splitVC)
 type NameHint = String
 
 takeFreshName :: MonadRepGraphFlatten m => NameHint -> m Ident
-takeFreshName nameHint = liftFlatten $ zoom #names $ do
+takeFreshName nameHint = liftRepGraph $ zoom #names $ do
     names <- get
     let isTaken = (`S.member` names) . Ident
     let name = Ident (generateFreshName isTaken nameHint)
@@ -438,16 +445,35 @@ addVar nameHint ty = do
     send $ ExprCommandDeclare var
     return var
 
-addDefWithInlineHint :: MonadRepGraph t m => ExprCommandInlineHint -> NameHint -> GraphExpr -> ReaderT ExprEnv m NameTy
-addDefWithInlineHint inline nameHint = flattenExpr >=> \expr -> lift $ do
+addDef :: MonadRepGraph t m => NameHint -> FlatExpr -> m NameTy
+addDef = addDefWithInlineHint ExprCommandInlineHintNever
+
+addInlineDef :: MonadRepGraph t m => NameHint -> FlatExpr -> m NameTy
+addInlineDef = addDefWithInlineHint ExprCommandInlineHintSometimes
+
+addDefWithInlineHint :: MonadRepGraph t m => ExprCommandInlineHint -> NameHint -> FlatExpr -> m NameTy
+addDefWithInlineHint inline nameHint expr = do
     name <- takeFreshName nameHint
     let var = NameTy name expr.ty
     send $ ExprCommandDefine inline var expr
-    liftFlatten $ #defs %= M.insert name expr
+    liftRepGraph $ #defs %= M.insert name expr
     return var
 
-lookupDef ::MonadRepGraph t m =>  Ident -> m (Maybe FlatExpr)
-lookupDef = todo
+lookupDef :: MonadRepGraph t m =>  Ident -> m (Maybe FlatExpr)
+lookupDef name = liftRepGraph $ use $ #defs % at name
+
+cacheExpr :: MonadRepGraph t m => NameHint -> FlatExpr -> m NameTy
+cacheExpr = cacheExprWithInlineHint ExprCommandInlineHintNever
+
+cacheExprInline :: MonadRepGraph t m => NameHint -> FlatExpr -> m NameTy
+cacheExprInline = cacheExprWithInlineHint ExprCommandInlineHintSometimes
+
+cacheExprWithInlineHint :: MonadRepGraph t m => ExprCommandInlineHint -> NameHint -> FlatExpr -> m NameTy
+cacheExprWithInlineHint inline nameHint expr = case expr.value of
+    ExprValueVar name -> return $ NameTy name expr.ty
+    _ -> do
+        name <- withMapSlot #exprCache expr $ (.name) <$> addDefWithInlineHint inline nameHint expr
+        return $ NameTy name expr.ty
 
 --
 
