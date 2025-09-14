@@ -11,8 +11,7 @@ module BV.Core.RepGraph.New.Solver
     , MonadRepGraphSolverSend (..)
     , SolverEnv
     , SolverExpr
-    , SolverExprCommand (..)
-    , SolverExprCommandInlineHint (..)
+    , SolverExprCommand
     , SolverExprContext (..)
     , SolverOutput
     , SolverState
@@ -23,6 +22,7 @@ module BV.Core.RepGraph.New.Solver
     ) where
 
 import BV.Core.GenerateFreshName
+import BV.Core.RepGraph.New.ExprCommand
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
@@ -60,13 +60,7 @@ newtype SolverExprContext
 
 type SolverExpr = Expr SolverExprContext
 
-data SolverExprCommand
-  = SolverExprCommandDeclare NameTy
-  | SolverExprCommandDefine SolverExprCommandInlineHint NameTy SolverExpr
-  | SolverExprCommandAssert SolverExpr
-  deriving (Eq, Generic, NFData, Ord, Show)
-
-instance Binary SolverExprCommand
+type SolverExprCommand = ExprCommand SolverExprContext
 
 data SolverExprCommandInlineHint
   = SolverExprCommandInlineHintInline
@@ -243,18 +237,18 @@ convertCommand cmd = do
 
 convertCommand' :: MonadRepGraphSolver m => SolverExprCommand -> m ()
 convertCommand' = \case
-    SolverExprCommandDeclare var -> do
+    ExprCommandDeclare var -> do
         name <- addSmtVar var.name.unwrap var.ty
         liftSolver $ #nameMap %= M.insertWith undefined var.name name
-    SolverExprCommandDefine inlineHint var val -> do
+    ExprCommandDefine inlineHint var val -> do
         s <- convertExpr val
-        if inlineHint == SolverExprCommandInlineHintInline && length (showSExprWithPlaceholders s) < 80
+        if inlineHint == ExprCommandInlineHintSometimes && length (showSExprWithPlaceholders s) < 80
             then do
                 liftSolver $ #inline %= M.insertWith undefined var.name s
             else do
                 name <- addSmtDef var.name.unwrap val
                 liftSolver $ #nameMap %= M.insertWith undefined var.name name
-    SolverExprCommandAssert expr -> do
+    ExprCommandAssert expr -> do
         s <- convertExpr expr
         send $ assertS s
 

@@ -21,7 +21,7 @@ instance Binary (ExprCommand c)
 
 data ExprCommandInlineHint
   = ExprCommandInlineHintNever
-  | ExprCommandInlineHintAlways
+  | ExprCommandInlineHintSometimes
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary ExprCommandInlineHint
