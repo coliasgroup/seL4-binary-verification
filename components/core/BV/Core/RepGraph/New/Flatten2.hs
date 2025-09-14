@@ -262,21 +262,6 @@ assertFact = send . ExprCommandAssert
 
 --
 
-type ExprEnv = Map Ident SolverExpr
-
-withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
-withEnv = flip runReaderT
-
---
-
-flattenAndAddDef :: MonadRepGraphFlatten m => NameHint -> GraphExpr -> ReaderT ExprEnv m NameTy
-flattenAndAddDef nameHint = flattenExpr >=> addDef nameHint
-
-flattenAndAssertFact :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m ()
-flattenAndAssertFact = flattenExpr >=> assertFact
-
---
-
 sendFlatCommand :: MonadRepGraphFlatten m => FlatExprCommand -> m ()
 sendFlatCommand cmd = do
     -- traceShowM cmd
@@ -289,16 +274,6 @@ convertFlatExpr :: MonadRepGraphSolver m => FlatExpr -> m SolverExpr
 convertFlatExpr = undefined
 
 --
-
--- TODO split out var replacement?
-flattenExpr :: MonadRepGraphFlatten m => GraphExpr -> ReaderT ExprEnv m SolverExpr
-flattenExpr expr = case matching exprOpArgs expr of
-    Left expr' -> case expr'.value of
-        ExprValueVar name -> do
-            let err = error $ "env miss: " ++ show name
-            asks $ M.findWithDefault err name
-        _ -> return expr'
-    Right (op, args) -> traverse flattenExpr args >>= flattenOpExpr expr.ty op
 
 flattenOpExprs :: MonadRepGraphFlatten m => SolverExpr -> m SolverExpr
 flattenOpExprs expr = case expr.value of
