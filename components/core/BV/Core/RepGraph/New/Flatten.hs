@@ -63,7 +63,8 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=), (<<%=))
-import Debug.Trace (traceShowM)
+
+-- import Debug.Trace (traceShowM)
 
 --
 

@@ -45,12 +45,13 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.String (IsString (..))
 import Data.Void (Void)
-import Debug.Trace (traceShowM)
 import GHC.Generics (Generic)
 import GHC.Stack (HasCallStack)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+
+-- import Debug.Trace (traceShowM)
 
 --
 
