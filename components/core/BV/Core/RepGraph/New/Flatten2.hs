@@ -165,14 +165,9 @@ takeFreshName :: MonadRepGraphFlatten m => NameHint -> m Ident
 takeFreshName nameHint = liftFlatten $ zoom #names $ do
     names <- get
     let isTaken = (`S.member` names) . Ident
-    let name = Ident (generateFreshName isTaken sanitized)
+    let name = Ident (generateFreshName isTaken nameHint)
     modify $ S.insert name
     return name
-  where
-    sanitized =
-        [ if c `elem` ("'#\"" :: String) then '_' else c
-        | c <- nameHint
-        ]
 
 --
 
