@@ -373,7 +373,7 @@ specialize visit split = ensure (isOptionsVC splitVC)
 
 type NameHint = String
 
-takeFreshName :: MonadRepGraphFlatten m => NameHint -> m Ident
+takeFreshName :: MonadRepGraph t m => NameHint -> m Ident
 takeFreshName nameHint = liftRepGraph $ zoom #names $ do
     names <- get
     let isTaken = (`S.member` names) . Ident
@@ -492,7 +492,7 @@ varRepRequest kind visit env var = runMaybeT $ do
             let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
             addSplitMemVar addrSExpr nameHint
 
-addSplitMemVar :: MonadRepGraphFlatten m => FlatExpr -> NameHint -> m FlatExpr
+addSplitMemVar :: MonadRepGraph t m => FlatExpr -> NameHint -> m FlatExpr
 addSplitMemVar split nameHint = do
     top <- varFromNameTyE <$> addVar (nameHint ++ "_top") memT
     bottom <- varFromNameTyE <$> addVar (nameHint ++ "_bot") memT
@@ -526,14 +526,14 @@ data PcEnv
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-mergeEnvsPcs :: MonadRepGraphFlatten m => [PcEnv] -> m (PcEnv, Bool)
-mergeEnvsPcs unfilteredPcEnvs = do
-    let pcEnvs = filter (\pcEnv -> pcEnv.pc /= falseE) unfilteredPcEnvs
-    let pc = case pcEnvs of
+mergeEnvsPcs :: [PcEnv] -> (PcEnv, Bool)
+mergeEnvsPcs unfilteredPcEnvs = (PcEnv pc env, length pcEnvs > 1)
+  where
+    pcEnvs = filter (\pcEnv -> pcEnv.pc /= falseE) unfilteredPcEnvs
+    pc = case pcEnvs of
             [] -> falseE
             _ -> foldAssocBalanced orE (nub (pcEnvs ^.. folded % #pc))
-    env <- mergeEnvs pcEnvs
-    return (PcEnv pc env, length pcEnvs > 1)
+    env = mergeEnvs pcEnvs
 
 foldAssocBalanced :: (a -> a -> a) -> [a] -> a
 foldAssocBalanced f = go
@@ -547,25 +547,21 @@ foldAssocBalanced f = go
             else
                 foldr1 f xs
 
-mergeEnvs :: MonadRepGraphFlatten m => [PcEnv] -> m ExprEnv
-mergeEnvs envs = do
-    varValPcList <- fmap concat $ for envs $ \(PcEnv pc env) -> do
-        return
-            [ (var, val, pc)
-            | (var, val) <- M.toList env
-            ]
-    let varValPcMap = foldr (M.unionWith (M.unionWith (<>))) M.empty $
-            [ M.singleton var (M.singleton val [pc'])
-            | (var, val, pc') <- varValPcList
-            ]
-    traverse (mergeValPcList . M.toList) varValPcMap
+mergeEnvs :: [PcEnv] -> ExprEnv
+mergeEnvs envs = fmap (mergeValPcList . M.toList) varValPcMap
   where
+    varValPcList = concat $ flip map envs $ \(PcEnv pc env) ->
+        [ (var, val, pc)
+        | (var, val) <- M.toList env
+        ]
+    varValPcMap = foldr (M.unionWith (M.unionWith (<>))) M.empty $
+        [ M.singleton var (M.singleton val [pc'])
+        | (var, val, pc') <- varValPcList
+        ]
     mergeValPcList valsByPc =
         let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
-            f accVal (val, pcs) = do
-                ensureM $ val.ty == accVal.ty
-                return $ ifThenElseE (foldr1 orE pcs) val accVal
-         in foldM f lastVal valsByPcInit
+            f accVal (val, pcs) = ifThenElseE (foldr1 orE pcs) val accVal
+         in foldl f lastVal valsByPcInit
 
 --
 
@@ -722,7 +718,7 @@ getNodePcEnvRaw visit = do
                             let optimize = case visit.nodeId of
                                     Err -> traversed % #env .~ M.empty
                                     _ -> id
-                            (pcEnv, _large) <- mergeEnvsPcs (optimize arcPcEnvs)
+                            let (pcEnv, _large) = mergeEnvsPcs (optimize arcPcEnvs)
                             contractPcEnv visit pcEnv
 
 getLoopPcEnv :: MonadRepGraphForTag t m => Visit -> m (Maybe PcEnv)
@@ -826,11 +822,11 @@ emitNode visit = do
                             return $ env ! name
                         _ -> do
                             let name = localName update.var.name visit
-                            withEnv env $ flattenExpr update.val >>= addDef name
+                            withEnv env $ flattenExpr update.val >>= fmap varFromNameTyE . addDef name
                     return (update.var.name, val)
                 return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
-                cond <- withEnv env $ flattenExpr condNode.expr >>= addDef (condName visit)
+                cond <- withEnv env $ flattenExpr condNode.expr >>= fmap varFromNameTyE . addDef (condName visit)
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, PcEnv lpc env), (condNode.right, PcEnv rpc env)]
