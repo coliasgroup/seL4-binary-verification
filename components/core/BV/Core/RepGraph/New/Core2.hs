@@ -53,17 +53,17 @@ module BV.Core.RepGraph.New.Core2
 --     , zeroMemCallsRange
 --     ) where
 
-import BV.Core.RepGraph.New.Flatten2
 import BV.Core.RepGraph.New.ExprCommand
+import BV.Core.RepGraph.New.Flatten2
 import BV.Core.RepGraph.New.Solver
 
+import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Logic
 import BV.Core.Structs (MonadStructs)
 import BV.Core.Types hiding (SplitMem (..))
 import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.Utils
-import BV.Core.GenerateFreshName (generateFreshName)
 
 import Control.DeepSeq (NFData)
 import Control.Monad (filterM, foldM, guard, unless, when, (>=>))
@@ -163,7 +163,6 @@ data RepGraphState t
       , contractions :: Map FlatExpr Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , funcs :: M.Map (WithTag t Visit) FunCallInfo
-
       , names :: Set Ident
       , defs :: Map Ident FlatExpr
       , exprCache :: Map FlatExpr Ident
