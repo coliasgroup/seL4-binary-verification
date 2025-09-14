@@ -10,17 +10,16 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Core.RepGraph.New.Core
-    ( ForTag
+    ( ExprEnv
+    , ForTag
     , FunCallInfo (..)
     , MemCalls
-    , ExprEnv
     , MemCallsIfKnown
     , MemCallsRange (..)
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphForTag (..)
     , PcEnv (..)
-    , assertFact
     , RepGraphEnv
     , RepGraphState
     , VarRepRequestKind (..)
@@ -31,6 +30,7 @@ module BV.Core.RepGraph.New.Core
     , askNodeGraph
     , askProblem
     , askWithTag
+    , assertFact
     , getFunCallInfo
     , getFunCallInfoRaw
     , getInductVar
