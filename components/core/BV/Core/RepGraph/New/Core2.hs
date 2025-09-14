@@ -585,12 +585,24 @@ getMemCalls :: MonadRepGraph t m => FlatExpr -> m MemCalls
 getMemCalls = getImmBasisMems >=> \mems -> fmap (foldr1 mergeMemCalls) $ for (S.toList mems) $ \mem ->
     liftRepGraph $ use $ #memCalls % expectingAt mem
 
+getImmBasisMems :: MonadRepGraphFlatten m => FlatExpr -> m (Set Ident)
+getImmBasisMems = go
+  where
+    go expr = case expr.value of
+        ExprValueOp OpMemUpdate [m, _, _] -> go m
+        ExprValueOp OpIfThenElse [_, l, r] -> (<>) <$> go l <*> go r
+        ExprValueOp (OpExt OpExtSplitMem) _ -> mempty -- TODO
+        ExprValueVar name -> do
+            lookupDef name >>= \case
+                Just expr' -> go expr'
+                Nothing -> return $ S.singleton name
+
 scanMemCallsEnv :: MonadRepGraph t m => ExprEnv -> m MemCallsIfKnown
 scanMemCallsEnv = scanMemCalls . toList
 
 scanMemCalls :: MonadRepGraph t m => [FlatExpr] -> m MemCallsIfKnown
 scanMemCalls exprs = do
-    memCalls <- traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT && not (isSplitMem expr)]
+    memCalls <- traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT ]
     return $ case memCalls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
@@ -618,19 +630,6 @@ mergeMemCalls xs ys =
         { min = min x.min y.min
         , max = max <$> x.max <*> y.max
         }
-
---
-
-getImmBasisMems :: MonadRepGraphFlatten m => FlatExpr -> m (Set Ident)
-getImmBasisMems = go
-  where
-    go expr = case expr.value of
-        ExprValueOp OpMemUpdate [m, _, _] -> go m
-        ExprValueOp OpIfThenElse [_, l, r] -> (<>) <$> go l <*> go r
-        ExprValueVar name -> do
-            lookupDef name >>= \case
-                Just expr' -> go expr'
-                Nothing -> return $ S.singleton name
 
 --
 
