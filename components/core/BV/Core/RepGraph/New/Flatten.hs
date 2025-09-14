@@ -30,7 +30,7 @@ import BV.Core.RepGraph.New.ExprCommand
 import Control.DeepSeq (NFData)
 import Control.Monad (unless, when, (>=>))
 import Control.Monad.Except (ExceptT)
-import Control.Monad.Reader (Reader, ReaderT, asks, runReaderT)
+import Control.Monad.Reader (Reader, ReaderT)
 import Control.Monad.RWS (MonadState (get), RWST)
 import Control.Monad.State (StateT, modify)
 import Control.Monad.Trans (lift)
