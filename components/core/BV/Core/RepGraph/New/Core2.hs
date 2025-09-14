@@ -438,8 +438,13 @@ addVar nameHint ty = do
     send $ ExprCommandDeclare var
     return var
 
-addDef :: MonadRepGraph t m => NameHint -> FlatExpr -> ReaderT ExprEnv m FlatExpr
-addDef = todo
+addDefWithInlineHint :: MonadRepGraph t m => ExprCommandInlineHint -> NameHint -> GraphExpr -> ReaderT ExprEnv m NameTy
+addDefWithInlineHint inline nameHint = flattenExpr >=> \expr -> lift $ do
+    name <- takeFreshName nameHint
+    let var = NameTy name expr.ty
+    send $ ExprCommandDefine inline var expr
+    liftFlatten $ #defs %= M.insert name expr
+    return var
 
 lookupDef ::MonadRepGraph t m =>  Ident -> m (Maybe FlatExpr)
 lookupDef = todo
