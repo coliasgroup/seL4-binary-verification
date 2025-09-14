@@ -62,7 +62,7 @@ import BV.Core.Utils
 import BV.Utils
 
 import Control.DeepSeq (NFData)
-import Control.Monad (filterM, foldM, guard, unless, when, (>=>))
+import Control.Monad (filterM, guard, unless, when, (>=>))
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, asks,
