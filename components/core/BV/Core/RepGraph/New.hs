@@ -8,7 +8,6 @@ module BV.Core.RepGraph.New
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphFlatten (..)
-    , MonadRepGraphFlattenSend (..)
     , MonadRepGraphForTag (..)
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)

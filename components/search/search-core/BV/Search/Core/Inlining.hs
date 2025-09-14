@@ -131,7 +131,6 @@ newtype InlineM m a
     , Functor
     , Monad
     , MonadRepGraphFlatten
-    , MonadRepGraphFlattenSend
     , MonadRepGraphSolver
     , MonadRepGraphSolverInteract
     , MonadRepGraphSolverSend

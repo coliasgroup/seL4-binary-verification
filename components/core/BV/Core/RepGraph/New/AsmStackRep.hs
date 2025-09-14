@@ -28,9 +28,6 @@ runWithAsmStackRep argRenames m = runReaderT m.run argRenames
 instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (WithAsmStackRep m) where
     sendSExprWithPlaceholders = WithAsmStackRep . sendSExprWithPlaceholders
 
-instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (WithAsmStackRep m) where
-    sendCommand = WithAsmStackRep . sendCommand
-
 instance MonadStructs m => MonadStructs (WithAsmStackRep m) where
     askLookupStruct = WithAsmStackRep askLookupStruct
 

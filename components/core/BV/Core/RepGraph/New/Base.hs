@@ -69,12 +69,6 @@ instance MonadState s m => MonadState s (RepGraphBase t m) where
 instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (RepGraphBase t m) where
     sendSExprWithPlaceholders = lift . sendSExprWithPlaceholders
 
-instance MonadRepGraphSolverSend m => MonadRepGraphFlattenSend (RepGraphBase t m) where
-    sendCommand = convertCommand
-
--- instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (RepGraphBase t m) where
---     sendCommand = lift . sendCommand
-
 instance Monad m => MonadStructs (RepGraphBase t m) where
     askLookupStruct = RepGraphBase $ gview #structs
 

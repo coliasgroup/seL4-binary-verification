@@ -229,7 +229,6 @@ newtype ForTag t m a
     , MonadError e
     , MonadRepGraph t
     , MonadRepGraphFlatten
-    , MonadRepGraphFlattenSend
     , MonadRepGraphSolver
     , MonadRepGraphSolverSend
     , MonadStructs

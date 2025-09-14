@@ -8,7 +8,6 @@ module BV.Core.RepGraph.New.Flatten
     , FlattenEnv
     , FlattenState
     , MonadRepGraphFlatten (..)
-    , MonadRepGraphFlattenSend (..)
     , NameHint
     , addDef
     , addDefSplitMem
@@ -47,11 +46,10 @@ import Control.DeepSeq (NFData)
 import Control.Monad (unless, when, (>=>))
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (Reader, ReaderT, asks, runReaderT)
-import Control.Monad.RWS (MonadState (get), MonadWriter (..), RWST)
+import Control.Monad.RWS (MonadState (get), RWST)
 import Control.Monad.State (StateT, modify)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Writer (WriterT)
 import Data.Foldable (for_)
 import Data.Function (on)
 import Data.Functor (void)
@@ -68,44 +66,23 @@ import Optics.State.Operators ((%%=), (%=), (<<%=))
 
 --
 
-class Monad m => MonadRepGraphFlattenSend m where
-    sendCommand :: SolverExprCommand -> m ()
-
-instance Monad m => MonadRepGraphFlattenSend (WriterT [SolverExprCommand] m) where
-    sendCommand s = tell [s]
-
-class (MonadStructs m, MonadRepGraphFlattenSend m, MonadRepGraphSolver m) => MonadRepGraphFlatten m where
+class (MonadStructs m, MonadRepGraphSolver m) => MonadRepGraphFlatten m where
     liftFlatten :: StateT FlattenState (Reader FlattenEnv) a -> m a
 
 instance (Monoid w, MonadRepGraphFlatten m) => MonadRepGraphFlatten (RWST r w s m) where
     liftFlatten = lift . liftFlatten
 
-instance (Monoid w, MonadRepGraphFlattenSend m) => MonadRepGraphFlattenSend (RWST r w s m) where
-    sendCommand = lift . sendCommand
-
 instance MonadRepGraphFlatten m => MonadRepGraphFlatten (ReaderT r m) where
     liftFlatten = lift . liftFlatten
-
-instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (ReaderT r m) where
-    sendCommand = lift . sendCommand
 
 instance MonadRepGraphFlatten m => MonadRepGraphFlatten (StateT s m) where
     liftFlatten = lift . liftFlatten
 
-instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (StateT s m) where
-    sendCommand = lift . sendCommand
-
 instance MonadRepGraphFlatten m => MonadRepGraphFlatten (MaybeT m) where
     liftFlatten = lift . liftFlatten
 
-instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (MaybeT m) where
-    sendCommand = lift . sendCommand
-
 instance MonadRepGraphFlatten m => MonadRepGraphFlatten (ExceptT e m) where
     liftFlatten = lift . liftFlatten
-
-instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (ExceptT e m) where
-    sendCommand = lift . sendCommand
 
 data FlattenEnv
   = FlattenEnv
@@ -160,7 +137,7 @@ initFlattenState = FlattenState
 --
 
 send :: MonadRepGraphFlatten m => SolverExprCommand -> m ()
-send = sendCommand
+send = convertCommand
 
 --
 

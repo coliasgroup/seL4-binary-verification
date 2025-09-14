@@ -8,7 +8,6 @@ module BV.Core.RepGraph.Old
     , MonadRepGraph (..)
     , MonadRepGraphDefaultHelper (..)
     , MonadRepGraphFlatten
-    , MonadRepGraphFlattenSend
     , MonadRepGraphForTag (..)
     , MonadRepGraphSolver (..)
     , MonadRepGraphSolverSend (..)
@@ -56,7 +55,5 @@ isUnreachable :: MonadRepGraph t m => Visit -> ForTag t m SExprWithPlaceholders
 isUnreachable visit = do
     pcEnv <- fromJust <$> getNodePcEnv visit
     withEnv pcEnv.env $ convertExprNotSplit $ notE pcEnv.pc
-
-class MonadRepGraphFlattenSend m
 
 class MonadRepGraphFlatten m

@@ -73,9 +73,6 @@ initState = State
 instance MonadRepGraphSolverSend m => MonadRepGraphSolverSend (WithFunAsserts t m) where
     sendSExprWithPlaceholders = WithFunAsserts . sendSExprWithPlaceholders
 
-instance MonadRepGraphFlattenSend m => MonadRepGraphFlattenSend (WithFunAsserts t m) where
-    sendCommand = WithFunAsserts . sendCommand
-
 instance MonadStructs m => MonadStructs (WithFunAsserts t m) where
     askLookupStruct = WithFunAsserts askLookupStruct
 
