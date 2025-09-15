@@ -9,25 +9,20 @@
 
 module BV.Core.RepGraph.New.FlattenGraph
     ( ExprEnv
-    , FunCallInfo (..)
-    , MemCalls
-    , MemCallsIfKnown
-    , MemCallsRange (..)
     , PcEnv (..)
     , RepGraphFlattenGraphTaggedT
     , RepGraphSendFlatExprCommandT
     , VarRepRequestKind (..)
     , VarReqRequest (..)
-    , addSplitMemVar
+    , addFunAssertsHook
     , askCont
     , askLoopData
     , askNodeGraph
     , askProblem
     , askTag
     , askWithTag
+    , asmStackRepHook
     , assertFact
-    , getFunCallInfo
-    , getFunCallInfoRaw
     , getInductVar
     , getNodePcEnv
     , getNodePcEnvWithTag
@@ -35,13 +30,11 @@ module BV.Core.RepGraph.New.FlattenGraph
     , getPcWithTag
     , initRepGraph
     , instEqWithEnvs
-    , mergeEnvsPcs
     , runTagged
     , scanMemCalls
     , scanMemCallsEnv
     , tryGetNodePcEnv
     , withEnv
-    , zeroMemCallsRange
     ) where
 
 import BV.Core.RepGraph.New.ExprCommand
@@ -71,7 +64,7 @@ import Data.Either (isRight)
 import Data.Foldable (for_, toList, traverse_)
 import Data.Function (on)
 import Data.Functor (void)
-import Data.List (intercalate, nub, sort, tails)
+import Data.List (intercalate, isPrefixOf, nub, sort, tails)
 import Data.List.Split (splitOn)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
@@ -186,7 +179,8 @@ data TState t
       , inductVarEnv :: Map EqHypInduct NameTy
       , contractions :: Map FlatExpr Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
-      , funcs :: M.Map (WithTag t Visit) FunCallInfo
+      , funCalls :: M.Map (WithTag t Visit) FunCallInfo
+      , funCallsByName :: M.Map (WithTag t Ident) [Visit]
       , names :: Set Ident
       , defs :: Map Ident FlatExpr
       , exprCache :: Map FlatExpr Ident
@@ -216,7 +210,8 @@ initState = TState
     , inductVarEnv = M.empty
     , contractions = M.empty
     , hasInnerLoop = M.empty
-    , funcs = M.empty
+    , funCalls = M.empty
+    , funCallsByName = M.empty
     , names = S.empty
     , defs = M.empty
     , exprCache = M.empty
@@ -719,7 +714,7 @@ data FunCallInfo
 getFunCallInfoRawOpt :: TaggedC t n m => Visit -> m (Maybe FunCallInfo)
 getFunCallInfoRawOpt visit = do
     key <- askWithTag visit
-    liftPure $ use $ #funcs % at key
+    liftPure $ use $ #funCalls % at key
 
 getFunCallInfoRaw :: TaggedC t n m => Visit -> m FunCallInfo
 getFunCallInfoRaw visit = fromJust <$> getFunCallInfoRawOpt visit
@@ -733,6 +728,141 @@ getFunCallInfo unprunedVisit = do
     whenNothing infoOpt $ do
         askCont visit >>= getNodePcEnv
         getFunCallInfoRaw visit
+
+getFunCallVisits :: (Tag t, Monad n) => WithTag t Ident -> T t n [Visit]
+getFunCallVisits funName = liftPure $ use $ #funCallsByName % to (M.findWithDefault [] funName)
+
+addFunAssertsHook :: (RefineTag t, MonadStructs m, MonadRepGraphSendSExpr m) => LookupFunctionSignature t -> Pairings t -> Visit -> TaggedT t m ()
+addFunAssertsHook lookupSig pairings visit = runReaderT (addFunAsserts visit) env
+  where
+    env = Env
+        { lookupSig
+        , pairings
+        , pairingsAccess = M.fromList $ concatMap toList
+            [ (,p) <$> withTags p | p <- M.keys pairings.unwrap]
+        }
+
+data AddFunAssertHookEnv t
+  = Env
+      { lookupSig :: LookupFunctionSignature t
+      , pairings :: Pairings t
+      , pairingsAccess :: M.Map (WithTag t Ident) (PairingId t)
+      }
+  deriving (Generic)
+
+addFunAsserts :: (RefineTag t, MonadStructs m, MonadRepGraphSendSExpr m) => Visit -> ReaderT (AddFunAssertHookEnv t) (TaggedT t m) ()
+addFunAsserts visit = do
+    tag <- lift askTag
+    funName <- liftUntagged $ WithTag tag <$> askFunName visit
+    pairingIdOpt <- gview $ #pairingsAccess % at funName
+    for_ pairingIdOpt $ \pairingId -> do
+        let otherFunName = viewAtTag (otherTag tag) (withTags pairingId)
+        group <- liftUntagged $ getFunCallVisits otherFunName
+        for_ group $ \otherVisit -> do
+            let visits = byTagFrom $ \tag' -> if tag' == tag then visit else otherVisit
+            compat <- mapReaderT liftUntagged $ areFunCallsCompatible visits
+            when compat $ do
+                imp <- mapReaderT liftUntagged $ getFunAssert visits
+                assertFact $ weakenAssert $ castExpr imp
+
+areFunCallsCompatible :: (RefineTag t, MonadStructs n, MonadRepGraphSendSExpr n) => ByTag t Visit -> ReaderT (AddFunAssertHookEnv t) (T t n) Bool
+areFunCallsCompatible visits = do
+    lowLevelInfoByTag <- lift $ getFunCallInfoRawByTag visits
+    memCalls <- for lowLevelInfoByTag $ \lowLevelInfo -> scanMemCalls lowLevelInfo.ins
+    memCallsCompatible memCalls
+
+memCallsCompatible :: (RefineTag t, C t n m) => ByTag t MemCallsIfKnown -> ReaderT (AddFunAssertHookEnv t) m Bool
+memCallsCompatible memCalls = case sequenceA memCalls of
+    Nothing -> return True
+    Just calls -> do
+        rcastcalls <- fmap (M.fromList . catMaybes) $ for (M.toList calls.left) $ \(lname, lcallsForFun) -> do
+            pairingId <- gview $ #pairingsAccess % expectingAt (WithTag leftTag lname)
+            let rname = pairingId.right
+            lookupSig <- gview #lookupSig
+            let rsig = lookupSig $ WithTag rightTag rname
+            return $
+                if any (\arg -> arg.ty == memT) rsig.output
+                then Just (rname, lcallsForFun)
+                else Nothing
+        let compat rname =
+                let rcast = fromMaybe zeroMemCallsRange $ rcastcalls !? rname
+                    ractual = fromMaybe zeroMemCallsRange $ calls.right !? rname
+                 in maybe True (ractual.min <=) rcast.max && maybe True (rcast.min <=) ractual.max
+        return $ all compat $ S.toList $ M.keysSet calls.right <> M.keysSet rcastcalls
+
+getFunAssert :: (RefineTag t, MonadStructs n, MonadRepGraphSendSExpr n) => ByTag t Visit -> ReaderT (AddFunAssertHookEnv t) (T t n) FlatExpr
+getFunAssert visits = do
+    pairingId <- liftUntagged $ traverse askFunName visits
+    pairing <- gview $ #pairings % #unwrap % expectingAt pairingId
+    lookupSig <- gview #lookupSig
+    let sigs = lookupSig <$> withTags pairingId
+    lowLevelInfo <- lift $ getFunCallInfoRawByTag visits
+    let info = augmentFunCallInfo <$> sigs <*> lowLevelInfo
+    pcs <- liftUntagged $ traverse getPcWithTag (withTags visits)
+    let instEqs eqs = for eqs $ \eq ->
+            instEqWithEnvs
+                (eq.lhs.expr, envForQuadrant eq.lhs.quadrant info)
+                (eq.rhs.expr, envForQuadrant eq.rhs.quadrant info)
+    inEqs <- instEqs pairing.inEqs
+    outEqs <- instEqs pairing.outEqs
+    return $ impliesE
+        (foldr1 andE (inEqs ++ [pcs.right]))
+        (foldr1 andE (outEqs ++ [info.right.success `impliesE` info.left.success]))
+
+askFunName :: (Tag t, MonadStructs n, MonadRepGraphSendSExpr n) => Visit -> T t n Ident
+askFunName v = do
+    p <- askProblem
+    return $ p ^. #nodes % at (nodeAddrOf v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
+
+getFunCallInfoRawByTag
+    :: (RefineTag t, MonadStructs n, MonadRepGraphSendSExpr n)
+    => ByTag t Visit
+    -> T t n (ByTag t FunCallInfo)
+getFunCallInfoRawByTag visits = for (withTags visits) $ \(WithTag tag visit) ->
+    liftUntagged $ runTagged tag $ getFunCallInfoRaw visit
+
+data FunCallInfoWithNames
+  = FunCallInfoWithNames
+      { ins :: ExprEnv
+      , outs :: ExprEnv
+      , success :: FlatExpr
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+augmentFunCallInfo :: FunctionSignature -> FunCallInfo -> FunCallInfoWithNames
+augmentFunCallInfo sig info = FunCallInfoWithNames
+    { ins = M.fromList (zip (map (.name) sig.input) info.ins)
+    , outs = M.fromList (zip (map (.name) sig.output) info.outs)
+    , success = info.success
+    }
+
+envForQuadrant :: Tag t => PairingEqSideQuadrant t -> ByTag t FunCallInfoWithNames -> ExprEnv
+envForQuadrant (PairingEqSideQuadrant t direction) = view $ atTag t % directionLabel
+  where
+    directionLabel = case direction of
+        PairingEqDirectionIn -> #ins
+        PairingEqDirectionOut -> #outs
+
+--
+
+asmStackRepHook :: Monad m => ArgRenames AsmRefineTag -> VarRepRequestKind -> NameTy -> RepGraphFlattenGraphTaggedT AsmRefineTag m (Maybe VarReqRequest)
+asmStackRepHook argRenames kind var = do
+    tag <- askTag
+    let cond = and
+            [ kind /= VarRepRequestKindInit
+            , tag == Asm
+            , var.ty == ExprTypeMem
+            , "stack" `isPrefixOf` var.name.unwrap -- HACK
+            ]
+    let spName = argRenames
+            (PairingEqSideQuadrant tag PairingEqDirectionIn)
+            (Ident "r13")
+    return $
+        if cond
+        then Just $ VarRepRequestSplitMem
+            { addr = varE word32T spName
+            }
+        else Nothing
 
 --
 
@@ -889,7 +1019,9 @@ emitNode visit = do
                 let outs = [ env' ! out.name | out <- callNode.output ]
                 key <- askWithTag visit
                 let info = FunCallInfo { ins, outs, success }
-                liftPure $ #funcs %= M.insertWith undefined key info
+                liftPure $ #funCalls %= M.insertWith undefined key info
+                funName <- askWithTag callNode.functionName
+                liftPure $ #funCallsByName %= M.insertWith (flip (<>)) funName [visit]
                 postHook <- askHook #postEmitCallNodeHook
                 postHook visit
                 return [(callNode.next, PcEnv pc env')]

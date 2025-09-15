@@ -94,7 +94,6 @@ library core
       BV.Core.Glue
       BV.Core.RepGraph.New
       BV.Core.RepGraph.New.AsmStackRep
-      BV.Core.RepGraph.New.AsmStackRep2
       BV.Core.RepGraph.New.Base
       BV.Core.RepGraph.New.Core
       BV.Core.RepGraph.New.ExprCommand
