@@ -4,22 +4,22 @@ module BV.Core.RepGraph.New.InterpretHyp
     ) where
 
 import BV.Core.RepGraph.New.FlattenGraph
-import BV.Core.RepGraph.New.SendFlatExprCommand
-import BV.Core.RepGraph.New.SendSolverExprCommand
+import BV.Core.RepGraph.New.SendFlatExprCommand (FlatExpr)
+import BV.Core.RepGraph.New.SendSolverExprCommand (MonadRepGraphSendSExpr)
 
+import BV.Core.Logic (strengthenHyp)
 import BV.Core.Structs (MonadStructs)
-
-import BV.Core.Logic
 import BV.Core.Types
 import BV.Core.Types.Extras
+
 import qualified Data.Map as M
 
-interpretHypImps :: (RefineTag t, MonadStructs m, MonadRepGraphSendSExpr m) => [Hyp t] -> FlatExpr -> RepGraphFlattenGraphT t m FlatExpr
+interpretHypImps :: (RefineTag t, MonadStructs m, MonadRepGraphSendSExpr m) => [Hyp t] -> FlatExpr -> RepGraphT t m FlatExpr
 interpretHypImps hyps concl = do
     hyps' <- traverse interpretHyp hyps
     return $ strengthenHyp $ nImpliesE hyps' concl
 
-interpretHyp :: (RefineTag t, MonadStructs m, MonadRepGraphSendSExpr m) => Hyp t -> RepGraphFlattenGraphT t m  FlatExpr
+interpretHyp :: (RefineTag t, MonadStructs m, MonadRepGraphSendSExpr m) => Hyp t -> RepGraphT t m FlatExpr
 interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case
@@ -28,10 +28,11 @@ interpretHyp = \case
         impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
         envExt <- case eq.induct of
-            Nothing -> return mempty
+            Nothing -> do
+                return mempty
             Just induct -> do
-                val <- varFromNameTyE <$> getInductVar induct
-                return $ M.singleton (Ident "%n") val
+                var <- getInductVar induct
+                return $ M.singleton (Ident "%n") (varFromNameTyE var)
         xPcEnvOpt <- getNodePcEnvWithTag eq.lhs.visit
         yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of

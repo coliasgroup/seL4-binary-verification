@@ -1,6 +1,8 @@
 module BV.Core.Structs
     ( MonadStructs (..)
+    , StructsT
     , askStruct
+    , runStructsT
     , withStructs
     , withoutStructs
     ) where
@@ -9,10 +11,10 @@ import BV.Core.Types
 
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Identity (Identity (runIdentity))
-import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT, runReader)
+import Control.Monad.Reader (MonadReader (ask), ReaderT, runReaderT)
 import Control.Monad.RWS (RWST)
 import Control.Monad.State (StateT)
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT)
 
 class Monad m => MonadStructs m where
@@ -49,12 +51,18 @@ instance MonadStructs WithoutStructs where
 withoutStructs :: forall a. (forall m. MonadStructs m => m a) -> a
 withoutStructs m = runIdentity (m :: WithoutStructs a).unwrap
 
-newtype WithStructs a
-  = WithStructs { unwrap :: Reader (Ident -> Struct) a }
+newtype StructsT m a
+  = StructsT { run :: ReaderT (Ident -> Struct) m a }
   deriving newtype (Applicative, Functor, Monad)
 
-instance MonadStructs WithStructs where
-    askLookupStruct = WithStructs ask
+instance MonadTrans StructsT where
+    lift = StructsT . lift
+
+instance Monad m => MonadStructs (StructsT m) where
+    askLookupStruct = StructsT ask
+
+runStructsT :: (Ident -> Struct) -> StructsT m a -> m a
+runStructsT f m = runReaderT m.run f
 
 withStructs :: forall a. (Ident -> Struct) -> (forall m. MonadStructs m => m a) -> a
-withStructs f m = runReader (m :: WithStructs a).unwrap f
+withStructs f m = runIdentity $ runStructsT f m

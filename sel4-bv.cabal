@@ -93,8 +93,12 @@ library core
       BV.Core.GenerateFreshName
       BV.Core.Glue
       BV.Core.RepGraph.New
-      BV.Core.RepGraph.New.ExprCommand
+      BV.Core.RepGraph.New.Common
+      BV.Core.RepGraph.New.Flat
       BV.Core.RepGraph.New.FlattenGraph
+      BV.Core.RepGraph.New.FlattenGraph.MemCalls
+      BV.Core.RepGraph.New.FlattenGraph.NameHint
+      BV.Core.RepGraph.New.FlattenGraph.PcEnv
       BV.Core.RepGraph.New.InterpretHyp
       BV.Core.RepGraph.New.SendFlatExprCommand
       BV.Core.RepGraph.New.SendSolverExprCommand

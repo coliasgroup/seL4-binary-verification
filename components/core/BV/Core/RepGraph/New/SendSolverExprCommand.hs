@@ -12,23 +12,23 @@ module BV.Core.RepGraph.New.SendSolverExprCommand
     , SolverExprCommand
     , SolverExprContext (..)
     , convertSolverExpr
-    , runRepGraphSendSolverExprCommandT
+    , runRepGraphSendSolverExprCommandTStep
     , sendSolverExprCommand
     ) where
 
-import BV.Core.RepGraph.New.ExprCommand
+import BV.Core.RepGraph.New.Common
 
-import BV.Core.GenerateFreshName
+import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Types
 import BV.Core.Types.Extras
+import BV.Core.Utils (whenNothing, withMapSlotWith)
+import BV.SMTLIB2.SExpr (GenericSExpr (List))
 
-import BV.Core.Utils (whenNothing)
-import BV.SMTLIB2.SExpr
 import Control.Applicative ((<|>))
-import Control.Monad.Identity (Identity (runIdentity))
+import Control.Monad.Identity (runIdentity)
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
-import Control.Monad.RWS (lift, modify, tell)
-import Control.Monad.State (StateT, evalStateT, get, mapStateT)
+import Control.Monad.RWS (lift, tell)
+import Control.Monad.State (StateT, evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans)
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Control.Monad.Writer (WriterT)
@@ -45,11 +45,9 @@ import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
 
--- import Debug.Trace (traceShowM)
+type T = RepGraphSendSolverExprCommandT
 
 type C = MonadRepGraphSendSExpr
-
-type T = RepGraphSendSolverExprCommandT
 
 --
 
@@ -82,8 +80,8 @@ liftPure = RepGraphSendSolverExprCommandT . mapStateT (mapReaderT (return . runI
 send :: C m => SExprWithPlaceholders -> T m ()
 send = lift . sendSExpr
 
-runRepGraphSendSolverExprCommandT :: Monad m => ROData -> T m a -> m a
-runRepGraphSendSolverExprCommandT rodata =
+runRepGraphSendSolverExprCommandTStep :: Monad m => ROData -> T m a -> m a
+runRepGraphSendSolverExprCommandTStep rodata =
       flip runReaderT (initEnv rodata)
     . flip evalStateT initState
     . (.run)
@@ -121,12 +119,7 @@ initState = TState
 --
 
 withMapSlot :: (C m, Ord k) => Lens' TState (M.Map k v) -> k -> T m v -> T m v
-withMapSlot l k m = do
-    opt <- liftPure (use (l % at k))
-    whenNothing opt $ do
-        v <- m
-        liftPure $ l %= M.insert k v
-        return v
+withMapSlot = withMapSlotWith $ liftPure . mapStateT (return . runIdentity)
 
 --
 
@@ -143,12 +136,7 @@ nameS :: SmtName -> SExprWithPlaceholders
 nameS name = symbolS name.unwrap
 
 takeFreshName :: C m => SmtNameHint -> T m SmtName
-takeFreshName nameHint = liftPure $ zoom #names $ do
-    names <- get
-    let isTaken = (`S.member` names) . SmtName
-    let name = SmtName (generateFreshName isTaken sanitized)
-    modify $ S.insert name
-    return name
+takeFreshName nameHint = liftPure $ zoom #names $ takeFreshNameWith SmtName sanitized
   where
     sanitized =
         [ if c `elem` ("'#\"" :: String) then '_' else c
@@ -199,12 +187,7 @@ addSmtDef nameHint val = do
 --
 
 sendSolverExprCommand :: C m => SolverExprCommand -> T m ()
-sendSolverExprCommand cmd = do
-    -- traceShowM cmd
-    sendSolverExprCommand' cmd
-
-sendSolverExprCommand' :: C m => SolverExprCommand -> T m ()
-sendSolverExprCommand' = \case
+sendSolverExprCommand = \case
     ExprCommandDeclare var -> do
         name <- addSmtVar var.name.unwrap var.ty
         liftPure $ #nameMap %= M.insertWith undefined var.name name

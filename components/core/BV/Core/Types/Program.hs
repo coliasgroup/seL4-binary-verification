@@ -362,6 +362,7 @@ instance Binary MaybeSplit
 fromNotSplit :: MaybeSplit -> SExprWithPlaceholders
 fromNotSplit = view $ expecting #_NotSplit
 
+-- TODO rename to CompatSplitMem
 data SplitMem
   = SplitMem
       { split :: SExprWithPlaceholders

@@ -1,8 +1,20 @@
 module BV.Core.GenerateFreshName
     ( generateFreshName
+    , takeFreshNameWith
     ) where
 
 import BV.Utils (ensure)
+
+import Control.Monad.State (MonadState, get, modify)
+import qualified Data.Set as S
+
+takeFreshNameWith :: (MonadState (S.Set a) m, Ord a) => (String -> a) -> String -> m a
+takeFreshNameWith f nameHint = do
+    names <- get
+    let isTaken = (`S.member` names) . f
+    let name = f (generateFreshName isTaken nameHint)
+    modify $ S.insert name
+    return name
 
 -- Implementation matches graph_refine.syntax.fresh_name
 generateFreshName :: (String -> Bool) -> String -> String

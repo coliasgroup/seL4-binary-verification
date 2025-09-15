@@ -1,12 +1,25 @@
 module BV.Core.Utils
     ( whenJustThen
     , whenNothing
+    , withMapSlotWith
     ) where
 
+import Control.Monad.State (State)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT), hoistMaybe)
+import qualified Data.Map as M
+import Optics (Lens', at, use, (%))
+import Optics.State.Operators ((%=))
 
 whenNothing :: Monad m => Maybe a -> m a -> m a
 whenNothing opt m = maybe m return opt
 
 whenJustThen :: Monad m => Maybe a -> (a -> m (Maybe b)) -> m (Maybe b)
 whenJustThen opt f = runMaybeT $ hoistMaybe opt >>= MaybeT . f
+
+withMapSlotWith :: (Monad m, Ord k) => (forall a. State s a -> m a) -> Lens' s (M.Map k v) -> k -> m v -> m v
+withMapSlotWith liftState l k m = do
+    opt <- liftState (use (l % at k))
+    whenNothing opt $ do
+        v <- m
+        liftState $ l %= M.insertWith undefined k v
+        return v

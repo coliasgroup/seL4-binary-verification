@@ -21,7 +21,7 @@ import BV.Utils (ensureM, expecting, expectingAt, expectingIx, unwrapped)
 
 import Control.Monad (unless)
 import Control.Monad.Identity (runIdentity)
-import Control.Monad.State (StateT, evalStateT, get, gets, modify, put)
+import Control.Monad.State (StateT, evalStateT, gets, modify, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
 import Data.Foldable (for_, toList)
@@ -128,12 +128,7 @@ appendNode node tag nodeSourceOpt = do
     return addr
 
 getFreshName :: Monad m => Ident -> StateT (ProblemBuilder t) m Ident
-getFreshName hint = do
-    zoom #vars $ do
-        taken <- get
-        let name = Ident $ generateFreshName (flip S.member taken . Ident) hint.unwrap
-        modify $ S.insert name
-        return name
+getFreshName hint = zoom #vars $ takeFreshNameWith Ident hint.unwrap
 
 data AddFunctionRenames
   = AddFunctionRenames
