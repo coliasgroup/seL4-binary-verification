@@ -93,17 +93,11 @@ library core
       BV.Core.GenerateFreshName
       BV.Core.Glue
       BV.Core.RepGraph.New
-      BV.Core.RepGraph.New.AsmStackRep
-      BV.Core.RepGraph.New.Base
-      BV.Core.RepGraph.New.Core
       BV.Core.RepGraph.New.ExprCommand
-      BV.Core.RepGraph.New.Flatten
       BV.Core.RepGraph.New.FlattenGraph
-      BV.Core.RepGraph.New.FunAsserts
       BV.Core.RepGraph.New.InterpretHyp
       BV.Core.RepGraph.New.SendFlatExprCommand
       BV.Core.RepGraph.New.SendSolverExprCommand
-      BV.Core.RepGraph.New.Solver
       BV.Core.RepGraph.Old
       BV.Core.RepGraph.Old.AsmStackRep
       BV.Core.RepGraph.Old.Base

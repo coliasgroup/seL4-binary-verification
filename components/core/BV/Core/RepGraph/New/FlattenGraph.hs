@@ -10,6 +10,7 @@
 module BV.Core.RepGraph.New.FlattenGraph
     ( ExprEnv
     , PcEnv (..)
+    , RepGraphFlattenGraphT
     , RepGraphFlattenGraphTaggedT
     , RepGraphSendFlatExprCommandT
     , VarRepRequestKind (..)
@@ -30,6 +31,8 @@ module BV.Core.RepGraph.New.FlattenGraph
     , getPcWithTag
     , initRepGraph
     , instEqWithEnvs
+    , liftInner
+    , liftUntagged
     , runTagged
     , scanMemCalls
     , scanMemCallsEnv
