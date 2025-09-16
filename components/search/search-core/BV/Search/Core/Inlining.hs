@@ -3,9 +3,8 @@ module BV.Search.Core.Inlining
     , discoverInlineScript
     ) where
 
-import BV.Core.RepGraph
+import BV.Core.RepGraph.New
 import BV.Core.Stages
-import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.Program
@@ -15,7 +14,6 @@ import BV.Utils (expecting, expectingAt, is)
 
 import Control.Monad (unless, when)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
-import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, get, gets, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (execWriterT, tell)
@@ -61,7 +59,7 @@ discoverInlineScript run input =
         let matchedC =
                 let present = presentInProblem problem
                 in S.fromList $ toList $ M.restrictKeys asmToCMatch present
-         in fmap (:[]) <$> run (nextReachableUnmatchedCInlinePoint matchedC (RepGraphBaseInput
+         in fmap (:[]) <$> run (nextReachableUnmatchedCInlinePoint matchedC (RepGraphInput
                 { structs = input.structs
                 , rodata = input.rodata
                 , problem
@@ -100,17 +98,26 @@ nextCompletelyUnmatchedInlinePoints matched p = case M.keys (M.filter f p.nodes)
         NodeCall callNode -> S.notMember callNode.functionName matched
         _ -> False
 
-nextReachableUnmatchedCInlinePoint :: MonadRepGraphSolverInteract m => S.Set Ident -> RepGraphBaseInput AsmRefineTag -> m (Maybe NodeAddr)
+nextReachableUnmatchedCInlinePoint :: MonadRepGraphSolverInteract m => S.Set Ident -> RepGraphInput AsmRefineTag -> m (Maybe NodeAddr)
 nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
     preview (_Left % #nodeAddr)
-        <$> runInlineM repGraphInput inlinerInput nextReachableUnmatchedCInlinePointInner
+        <$> runExceptT (runRepGraphT hooks repGraphInput nextReachableUnmatchedCInlinePointInner)
   where
-    inlinerInput = InlinerInput
-        { matchedC
-        }
+    hooks = defaultRepGraphHooks & #preEmitCallNodeHook .~ inlinerHook
+    inlinerHook visit = do
+        tag <- askTag
+        p <- askProblem
+        let nodeAddr = nodeAddrOf visit.nodeId
+        let fname = p ^. #nodes % expectingAt nodeAddr % expecting #_NodeCall % #functionName
+        when (tag == C && S.notMember fname matchedC) $ do
+            hyp <- isUnreachableCompat visit
+            res <- liftUntagged $ testHyp hyp
+            unless res $ lift $ throwError $ InliningEvent
+                { nodeAddr
+                }
 
-nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => InlineM m ()
-nextReachableUnmatchedCInlinePointInner = runForTag C $ do
+nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => RepGraphT AsmRefineTag (ExceptT InliningEvent m) ()
+nextReachableUnmatchedCInlinePointInner = runTagged C $ do
     p <- askProblem
     g <- askNodeGraph
     loops <- allInnerLoops p.nodes <$> askLoopData
@@ -122,50 +129,8 @@ nextReachableUnmatchedCInlinePointInner = runForTag C $ do
     f Ret
     f Err
 
-type InlineMInner m = ExceptT InliningEvent (RepGraphBase AsmRefineTag (ReaderT InlinerInput m))
-
-newtype InlineM m a
-  = InlineM { run :: InlineMInner m a }
-  deriving newtype
-    ( Applicative
-    , Functor
-    , Monad
-    , MonadRepGraphFlatten
-    , MonadRepGraphSolver
-    , MonadRepGraphSolverInteract
-    , MonadRepGraphSolverSend
-    , MonadStructs
-    )
-
-runInlineM :: MonadRepGraphSolverInteract m => RepGraphBaseInput AsmRefineTag -> InlinerInput -> InlineM m a -> m (Either InliningEvent a)
-runInlineM repGraphInput inlinerInput m =
-    runReaderT (runRepGraphBase repGraphInput (runExceptT m.run)) inlinerInput
-
 data InliningEvent
   = InliningEvent
       { nodeAddr :: NodeAddr
       }
   deriving (Generic)
-
-data InlinerInput
-  = InlinerInput
-      { matchedC :: S.Set Ident
-      }
-  deriving (Generic)
-
-instance MonadRepGraphSolverInteract m => MonadRepGraphDefaultHelper AsmRefineTag (InlineMInner m) (InlineM m) where
-    liftMonadRepGraphDefaultHelper = InlineM
-
-instance MonadRepGraphSolverInteract m => MonadRepGraph AsmRefineTag (InlineM m) where
-    runPreEmitCallNodeHook visit = do
-        tag <- askTag
-        p <- askProblem
-        let nodeAddr = nodeAddrOf visit.nodeId
-        let fname = p ^. #nodes % expectingAt nodeAddr % expecting #_NodeCall % #functionName
-        matchedC <- lift $ InlineM $ gview #matchedC
-        when (tag == C && S.notMember fname matchedC) $ do
-            hyp <- isUnreachable visit
-            res <- testHyp hyp
-            unless res $ lift $ InlineM $ throwError $ InliningEvent
-                { nodeAddr
-                }

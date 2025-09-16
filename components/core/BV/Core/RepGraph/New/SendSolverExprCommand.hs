@@ -27,11 +27,10 @@ import BV.SMTLIB2.SExpr (GenericSExpr (List))
 import Control.Applicative ((<|>))
 import Control.Monad.Identity (runIdentity)
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
-import Control.Monad.RWS (lift, tell)
+import Control.Monad.RWS (lift)
 import Control.Monad.State (StateT, evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans)
 import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
-import Control.Monad.Writer (WriterT)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
@@ -59,12 +58,6 @@ type SolverExpr = Expr SolverExprContext
 type SolverExprCommand = ExprCommand SolverExprContext
 
 --
-
-class Monad m => MonadRepGraphSendSExpr m where
-    sendSExpr :: SExprWithPlaceholders -> m ()
-
-instance Monad m => MonadRepGraphSendSExpr (WriterT [SExprWithPlaceholders] m) where
-    sendSExpr s = tell [s]
 
 newtype RepGraphSendSolverExprCommandT m a
   = RepGraphSendSolverExprCommandT { run :: StateT TState (ReaderT TEnv m) a }

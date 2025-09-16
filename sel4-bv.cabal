@@ -79,6 +79,9 @@ library core
       BV.Core.ModelConfig
       BV.Core.Prelude
       BV.Core.RepGraph
+      BV.Core.RepGraph.New
+      BV.Core.RepGraph.New.InterpretHyp
+      BV.Core.RepGraph.Old
       BV.Core.Stages
       BV.Core.Structs
       BV.Core.Types
@@ -92,17 +95,15 @@ library core
       BV.Core.Arch
       BV.Core.GenerateFreshName
       BV.Core.Glue
-      BV.Core.RepGraph.New
+      BV.Core.RepGraph.InterpretHyp
       BV.Core.RepGraph.New.Common
       BV.Core.RepGraph.New.Flat
       BV.Core.RepGraph.New.FlattenGraph
       BV.Core.RepGraph.New.FlattenGraph.MemCalls
       BV.Core.RepGraph.New.FlattenGraph.NameHint
       BV.Core.RepGraph.New.FlattenGraph.PcEnv
-      BV.Core.RepGraph.New.InterpretHyp
       BV.Core.RepGraph.New.SendFlatExprCommand
       BV.Core.RepGraph.New.SendSolverExprCommand
-      BV.Core.RepGraph.Old
       BV.Core.RepGraph.Old.AsmStackRep
       BV.Core.RepGraph.Old.Base
       BV.Core.RepGraph.Old.Core

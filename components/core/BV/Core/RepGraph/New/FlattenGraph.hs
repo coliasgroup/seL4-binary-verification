@@ -22,13 +22,13 @@ module BV.Core.RepGraph.New.FlattenGraph
     , askWithTag
     , asmRefineRepGraphHooks
     , defaultRepGraphHooks
+    , flattenExpr
     , getFunCallInfo
     , getInductVar
     , getNodePcEnv
-    , getNodePcEnvWithTag
     , getPc
-    , getPcWithTag
     , instEqWithEnvs
+    , liftUntagged
     , runRepGraphTStep
     , runTagged
     , tryGetNodePcEnv
@@ -41,7 +41,6 @@ import BV.Core.RepGraph.New.FlattenGraph.MemCalls
 import BV.Core.RepGraph.New.FlattenGraph.NameHint
 import BV.Core.RepGraph.New.FlattenGraph.PcEnv
 import BV.Core.RepGraph.New.SendFlatExprCommand (FlatExpr)
-import BV.Core.RepGraph.New.SendSolverExprCommand (MonadRepGraphSendSExpr)
 
 import BV.Core.Logic (applyRelWrapper, weakenAssert)
 import BV.Core.Types
@@ -128,6 +127,7 @@ data RepGraphHooks t n
   = RepGraphHooks
       { preEmitCallNodeHook :: Visit -> TaggedT t n ()
       , postEmitCallNodeHook :: Visit -> TaggedT t n ()
+      , isMemHook :: WithTag t Ident -> PairingEqDirection -> NameTy -> Bool
       , isStackHook :: WithTag t Ident -> PairingEqDirection -> NameTy -> Bool
       , stackPointerHook :: t -> Maybe GraphExpr
       }
@@ -159,6 +159,7 @@ defaultRepGraphHooks :: Monad m => RepGraphHooks t m
 defaultRepGraphHooks = RepGraphHooks
     { preEmitCallNodeHook = \_ -> return ()
     , postEmitCallNodeHook = \_ -> return ()
+    , isMemHook = \_ _ _ -> False
     , isStackHook = \_ _ _ -> False
     , stackPointerHook = \_ -> Nothing
     }
@@ -171,6 +172,7 @@ asmRefineRepGraphHooks
     -> RepGraphHooks t m
 asmRefineRepGraphHooks lookupSig pairings argRenames = defaultRepGraphHooks
     & #postEmitCallNodeHook .~ addFunAssertsHook lookupSig pairings
+    & #isMemHook .~ asmRefineIsMemHook
     & #isStackHook .~ asmRefineIsStackHook
     & #stackPointerHook .~ asmRefineStackPointerHook argRenames
 
@@ -276,9 +278,7 @@ getHasInnerLoop loopHead = withMapSlotTagged #hasInnerLoop loopHead $ do
     return $ not $ null $ innerLoopsOf p.nodes loop
 
 askFunName :: (Tag t, MonadRepGraphSendSExpr n) => Visit -> T t n Ident
-askFunName v = do
-    p <- askProblem
-    return $ p ^. #nodes % at (nodeAddrOf v.nodeId) % unwrapped % expecting #_NodeCall % #functionName
+askFunName v = view (expecting #_NodeCall % #functionName) <$> askNode (nodeAddrOf v.nodeId)
 
 askPreds :: C t m => NodeId -> TaggedT t m (Set NodeAddr)
 askPreds n = do
@@ -358,8 +358,20 @@ addVarReps
     -> TaggedT t m ExprEnv
 addVarReps ctx mkName memCallsOpt vars env = do
     tag <- askTag
+    isMemHook <- askHook #isMemHook
     isStackHook <- askHook #isStackHook
     newVars <- for vars $ \var -> (var.name,) <$> do
+        isMem <-
+            if not (isMemT var.ty)
+                then return False
+                else case ctx of
+                    VarRepContextInit -> do
+                        funName <- view (#sides % atTag tag % #name) <$> askProblem
+                        return $ isMemHook (WithTag tag funName) PairingEqDirectionIn var
+                    VarRepContextLoop -> do
+                        isExprMem $ env ! var.name
+                    VarRepContextCall { funName } -> do
+                        return $ isMemHook (WithTag tag funName) PairingEqDirectionOut var
         isStack <-
             if not (isMemT var.ty)
                 then return False
@@ -386,14 +398,21 @@ addVarReps ctx mkName memCallsOpt vars env = do
                     (varFromNameTyE bottom)
             else do
                 newVar <- liftInner $ addVar nameHint var.ty
-                when (isMemT var.ty) $ do
-                    if isStack
-                        then addStack newVar.name
-                        else liftPure $ #memCalls %= M.insert newVar.name (fromJust memCallsOpt)
+                when isMem $ liftPure $ #memCalls %= M.insert newVar.name (fromJust memCallsOpt)
+                when isStack $ addStack newVar.name
                 return $ varFromNameTyE newVar
     return $ M.fromList newVars <> env
   where
     addStack name = liftPure $ #stacks %= S.insert name
+    isExprMem = go
+      where
+        go expr = case expr.value of
+            ExprValueOp OpMemUpdate [m, _, _] -> go m
+            ExprValueOp OpIfThenElse [_, l, r] -> f <$> go l <*> go r
+            ExprValueOp (OpExt OpExtSplitMem) [_, top, bottom] -> f <$> go top <*> go bottom
+            ExprValueVar name -> liftInner (lookupDef name) >>= \case
+                Just def -> go def
+                Nothing -> liftPure $ use $ #memCalls % to (name `M.member`)
     isExprStack = go
       where
         go expr = case expr.value of
@@ -403,7 +422,7 @@ addVarReps ctx mkName memCallsOpt vars env = do
             ExprValueVar name -> liftInner (lookupDef name) >>= \case
                 Just def -> go def
                 Nothing -> liftPure $ use $ #stacks % to (name `S.member`)
-        f x y = ensure (x == y) x
+    f x y = ensure (x == y) x
 
 --
 
@@ -439,16 +458,10 @@ getInductVar induct =
         liftInner $
             addVar (inductVarName induct) word32T
 
-getPcWithTag :: C t m => WithTag t Visit -> T t m FlatExpr
-getPcWithTag (WithTag tag visit) = runTagged tag $ getPc visit
-
 getPc :: C t m => Visit -> TaggedT t m FlatExpr
 getPc visit = getNodePcEnv visit <&> \case
     Nothing -> falseE
     Just (PcEnv pc _) -> pc
-
-getNodePcEnvWithTag :: C t m => WithTag t Visit -> T t m (Maybe PcEnv)
-getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
 
 getNodePcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getNodePcEnv = runIdentityT . getNodePcEnvInner (const (return ()))
@@ -498,7 +511,7 @@ getLoopPcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
-        memCalls <- scanMemCallsHere (toList prevEnv) >>= addLoopMemCalls visitAddr
+        memCalls <- scanMemCalls (toList prevEnv) >>= addLoopMemCalls visitAddr
         nonConsts <- filterM (fmap not . isConstM) (toList (exprEnvVars prevEnv))
         env <- addVarReps
             VarRepContextLoop
@@ -595,7 +608,7 @@ emitNode visit = do
                 success <- liftInner $ varFromNameTyE <$>
                     addVar (successName visit callNode.functionName) boolT
                 ins <- for callNode.input $ withEnv env . flattenExpr
-                memCalls <- fmap (addMemCall callNode.functionName) <$> scanMemCallsHere ins
+                memCalls <- fmap (addMemCall callNode.functionName) <$> scanMemCalls ins
                 env' <- addVarReps
                     (VarRepContextCall { funName = callNode.functionName })
                     (localName visit)
@@ -669,11 +682,22 @@ addPValidDomAssertions = do
 
 --
 
-scanMemCallsHere :: TaggedC t n m => [FlatExpr] -> m (Maybe MemCalls)
-scanMemCallsHere = scanMemCalls $ \name -> liftInner (lookupDef name) >>= \case
-    Just def -> return $ Right def
-    Nothing -> Left <$> do
-        liftPure $ use $ #memCalls % at name
+scanMemCalls :: TaggedC t n m => [FlatExpr] -> m (Maybe MemCalls)
+scanMemCalls exprs = do
+    let lookupMem name = liftInner (lookupDef name) >>= \case
+            Just def -> Right <$> do
+                return def
+            Nothing -> Left <$> do
+                memCallsOpt <- liftPure $ use $ #memCalls % at name
+                return $ maybe mempty (M.singleton name) memCallsOpt
+    let mergeMems mems = case toList mems of
+            [] -> Nothing
+            _ -> Just $ foldl1 mergeMemCalls mems
+    let getMemCalls = fmap mergeMems . getMemBasis (<>) lookupMem
+    allMemCalls <- traverse getMemCalls [ expr | expr <- exprs, expr.ty == memT ]
+    return $ case catMaybes allMemCalls of
+        [] -> Nothing
+        [memCalls] -> Just memCalls
 
 data FunCallInfo
   = FunCallInfo
@@ -741,7 +765,7 @@ addFunAsserts visit = do
 areFunCallsCompatible :: AsmRefineC t m => ByTag' Visit -> ReaderT (AddFunAssertHookEnv t) (T t m) Bool
 areFunCallsCompatible visits = do
     lowLevelInfoByTag <- lift $ getFunCallInfoRawByTag visits
-    memCallsOpt <- for lowLevelInfoByTag $ \lowLevelInfo -> lift $ scanMemCallsHere lowLevelInfo.ins
+    memCallsOpt <- for lowLevelInfoByTag $ \lowLevelInfo -> lift $ scanMemCalls lowLevelInfo.ins
     lookupSig <- gview #lookupSig
     pairingsAccess <- gview $ #pairingsAccess
     let lookupPairingId k = pairingsAccess ! k
@@ -756,7 +780,7 @@ getFunAssert visits = do
         let sigs = lookupSig <$> withTags pairingId
         lowLevelInfo <- getFunCallInfoRawByTag visits
         let info = augmentFunCallInfo <$> sigs <*> lowLevelInfo
-        pcs <- traverse getPcWithTag (withTags visits)
+        rpc <- runTagged rightTag $ getPc visits.right
         let instEqs eqs = for eqs $ \eq ->
                 instEqWithEnvs
                     (eq.lhs.expr, envForQuadrant eq.lhs.quadrant info)
@@ -764,7 +788,7 @@ getFunAssert visits = do
         inEqs <- instEqs pairing.inEqs
         outEqs <- instEqs pairing.outEqs
         return $ impliesE
-            (foldr1 andE (inEqs ++ [pcs.right]))
+            (foldr1 andE (inEqs ++ [rpc]))
             (foldr1 andE (outEqs ++ [info.right.success `impliesE` info.left.success]))
   where
     envForQuadrant (PairingEqSideQuadrant t direction) = view $ atTag t % directionLabel
@@ -789,6 +813,12 @@ augmentFunCallInfo sig info = FunCallInfoWithNames
     }
 
 --
+
+asmRefineIsMemHook :: WithTag' Ident -> PairingEqDirection -> NameTy -> Bool
+asmRefineIsMemHook (WithTag _tag _funName) _direction var = and
+    [ var.name == Ident "mem"
+    , var.ty == ExprTypeMem
+    ]
 
 asmRefineIsStackHook :: WithTag' Ident -> PairingEqDirection -> NameTy -> Bool
 asmRefineIsStackHook (WithTag tag _funName) _direction var = and

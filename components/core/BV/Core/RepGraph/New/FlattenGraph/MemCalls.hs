@@ -5,15 +5,12 @@ module BV.Core.RepGraph.New.FlattenGraph.MemCalls
     , addMemCall
     , addUnboundedMemCalls
     , areMemCallsCompatible
-    , scanMemCalls
+    , mergeMemCalls
     ) where
-
-import BV.Core.RepGraph.New.SendFlatExprCommand
 
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Data.Foldable (toList)
 import Data.Function (on)
 import Data.Map (Map, (!?))
 import qualified Data.Map as M
@@ -62,27 +59,6 @@ mergeMemCalls xs ys =
         { min = min x.min y.min
         , max = max <$> x.max <*> y.max
         }
-
-getMemCalls :: Monad m => (Ident -> m (Either (Maybe MemCalls) FlatExpr)) -> FlatExpr -> m (Maybe MemCalls)
-getMemCalls lookupMem = fmap merge . go
-  where
-    go expr = case expr.value of
-        ExprValueOp OpMemUpdate [m, _, _] -> go m
-        ExprValueOp OpIfThenElse [_, l, r] -> (<>) <$> go l <*> go r
-        ExprValueVar name -> lookupMem name >>= \case
-            Right expr' -> go expr'
-            Left (Just memCalls) -> return $ M.singleton name memCalls
-            Left Nothing -> return mempty
-    merge m = case toList m of
-        [] -> Nothing
-        ms -> Just $ foldr1 mergeMemCalls ms
-
-scanMemCalls :: Monad m => (Ident -> m (Either (Maybe MemCalls) FlatExpr)) -> [FlatExpr] -> m (Maybe MemCalls)
-scanMemCalls lookupMem exprs = do
-    allMemCalls <- traverse (getMemCalls lookupMem) [ expr | expr <- exprs, expr.ty == memT ]
-    return $ case catMaybes allMemCalls of
-        [] -> Nothing
-        [memCalls] -> Just memCalls
 
 areMemCallsCompatible
     :: LookupFunctionSignature AsmRefineTag

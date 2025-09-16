@@ -3,23 +3,20 @@ module BV.Core.RepGraph.New.InterpretHyp
     , interpretHypImps
     ) where
 
-import BV.Core.RepGraph.New.FlattenGraph
-import BV.Core.RepGraph.New.SendFlatExprCommand (FlatExpr)
-import BV.Core.RepGraph.New.SendSolverExprCommand (MonadRepGraphSendSExpr)
+import BV.Core.RepGraph.New
 
 import BV.Core.Logic (strengthenHyp)
-import BV.Core.Structs (MonadStructs)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
 import qualified Data.Map as M
 
-interpretHypImps :: (RefineTag t, MonadStructs m, MonadRepGraphSendSExpr m) => [Hyp t] -> FlatExpr -> RepGraphT t m FlatExpr
+interpretHypImps :: (RefineTag t, MonadRepGraphSendSExpr m) => [Hyp t] -> FlatExpr -> RepGraphT t m FlatExpr
 interpretHypImps hyps concl = do
     hyps' <- traverse interpretHyp hyps
     return $ strengthenHyp $ nImpliesE hyps' concl
 
-interpretHyp :: (RefineTag t, MonadStructs m, MonadRepGraphSendSExpr m) => Hyp t -> RepGraphT t m FlatExpr
+interpretHyp :: (RefineTag t, MonadRepGraphSendSExpr m) => Hyp t -> RepGraphT t m FlatExpr
 interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case

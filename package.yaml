@@ -117,6 +117,9 @@ internal-libraries:
       - BV.Core.ModelConfig
       - BV.Core.Prelude
       - BV.Core.RepGraph
+      - BV.Core.RepGraph.New
+      - BV.Core.RepGraph.New.InterpretHyp
+      - BV.Core.RepGraph.Old
       - BV.Core.Stages
       - BV.Core.Structs
       - BV.Core.Types

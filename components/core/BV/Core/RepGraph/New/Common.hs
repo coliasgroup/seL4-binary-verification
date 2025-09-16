@@ -1,17 +1,24 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module BV.Core.RepGraph.New.Common
     ( ExprCommand (..)
     , ExprCommandInlineHint (..)
     , MonadInner (..)
+    , MonadRepGraphSendSExpr (..)
+    , getMemBasis
     ) where
 
-import BV.Core.Types (Expr, NameTy)
+import BV.Core.Types
 
 import Control.DeepSeq (NFData)
+import Control.Monad.Except (ExceptT)
+import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT)
+import Control.Monad.Writer (WriterT, tell)
 import Data.Binary (Binary)
 import GHC.Generics (Generic)
 
@@ -35,3 +42,24 @@ class (Monad m, Monad n) => MonadInner n m | m -> n where
 
 instance MonadInner n m => MonadInner n (MaybeT m) where
     liftInner = lift . liftInner
+
+class Monad m => MonadRepGraphSendSExpr m where
+    sendSExpr :: SExprWithPlaceholders -> m ()
+
+instance Monad m => MonadRepGraphSendSExpr (WriterT [SExprWithPlaceholders] m) where
+    sendSExpr s = tell [s]
+
+instance MonadRepGraphSendSExpr m => MonadRepGraphSendSExpr (ExceptT e m) where
+    sendSExpr = lift . sendSExpr
+
+instance MonadRepGraphSendSExpr m => MonadRepGraphSendSExpr (ReaderT r m) where
+    sendSExpr = lift . sendSExpr
+
+getMemBasis :: Monad m => (a -> a -> a) -> (Ident -> m (Either a (Expr c))) -> Expr c -> m a
+getMemBasis f lookupName = go
+  where
+    go expr = case expr.value of
+        ExprValueOp OpMemUpdate [m, _, _] -> go m
+        ExprValueOp OpIfThenElse [_, l, r] -> f <$> go l <*> go r
+        ExprValueOp (OpExt OpExtSplitMem) [_, top, bottom] -> f <$> go top <*> go bottom
+        ExprValueVar name -> lookupName name >>= either return go

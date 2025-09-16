@@ -12,7 +12,6 @@ module BV.Core.RepGraph.New.Flat
 
 import BV.Core.RepGraph.New.Common
 import BV.Core.RepGraph.New.SendFlatExprCommand
-import BV.Core.RepGraph.New.SendSolverExprCommand
 
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Types

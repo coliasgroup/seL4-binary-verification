@@ -7,8 +7,6 @@ module BV.Core.RepGraph.New.SendFlatExprCommand
     , FlatExprContext (..)
     , RepGraphSendFlatExprCommandT
     , convertFlatExpr
-    , getModelExprs
-    , getModelVars
     , runRepGraphSendFlatExprCommandTStep
     , sendFlatExprCommand
     ) where
@@ -143,12 +141,6 @@ withMapSlot = withMapSlotWith $ liftPure . mapStateT (return . runIdentity)
 
 askRODataPtrs :: C m => T m [SolverExpr]
 askRODataPtrs = liftPure $ gview #rodataPtrs
-
-getModelVars :: C m => T m (Set Ident)
-getModelVars = liftPure $ use #modelVars
-
-getModelExprs :: C m => T m (Map SolverExpr Ident)
-getModelExprs = liftPure $ use #modelExprs
 
 type NameHint = String
 

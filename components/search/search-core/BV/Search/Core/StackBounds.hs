@@ -7,7 +7,7 @@ module BV.Search.Core.StackBounds
     , discoverStackBounds
     ) where
 
-import BV.Core.RepGraph
+import BV.Core.RepGraph.New
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Problem
@@ -59,24 +59,24 @@ discoverStackBounds run input = do
 
   where
 
-    runRepGraph :: forall t a. Tag t => AsmRefineTag -> Problem t -> RepGraphBase t n a -> m a
+    runRepGraph :: forall t a. Tag t => AsmRefineTag -> Problem t -> RepGraphT t n a -> m a
     runRepGraph tag problem m =
-        let repGraphInput = RepGraphBaseInput
+        let repGraphInput = RepGraphInput
                 { structs = viewAtTag tag input.structs <$ problem.sides
                 , rodata = input.rodata
                 , problem
                 }
-            in run (runRepGraphBase repGraphInput m)
+            in run (runRepGraphT defaultRepGraphHooks repGraphInput m)
 
-    runRepGraphC :: forall t a. Tag t => Problem t -> RepGraphBase t n a -> m a
+    runRepGraphC :: forall t a. Tag t => Problem t -> RepGraphT t n a -> m a
     runRepGraphC = runRepGraph C
 
-    runRepGraphAsm :: forall t a. Tag t => Problem t -> RepGraphBase t n a -> m a
+    runRepGraphAsm :: forall t a. Tag t => Problem t -> RepGraphT t n a -> m a
     runRepGraphAsm = runRepGraph Asm
 
 getRecursionIdents
     :: forall m n. (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
-    => (forall t a. Tag t => Problem t -> RepGraphBase t n a -> m a)
+    => (forall t a. Tag t => Problem t -> RepGraphT t n a -> m a)
     -> M.Map Ident Function
     -> m (M.Map Ident [GraphExpr])
 getRecursionIdents runRepGraph functions =
@@ -112,7 +112,7 @@ getRecursionIdents runRepGraph functions =
 
 addRecursionIdent
     :: forall m n. (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
-    => (forall t a. Tag t => Problem t -> RepGraphBase t n a -> m a)
+    => (forall t a. Tag t => Problem t -> RepGraphT t n a -> m a)
     -> M.Map Ident Function
     -> Ident
     -> S.Set Ident
@@ -151,7 +151,7 @@ addRecursionIdent runRepGraph functions f group = do
 
 findUnknownRecursion
     :: forall m n. (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
-    => (forall t a. Tag t => Problem t -> RepGraphBase t n a -> m a)
+    => (forall t a. Tag t => Problem t -> RepGraphT t n a -> m a)
     -> M.Map Ident Function
     -> Problem FunTag
     -> S.Set Ident

@@ -11,7 +11,7 @@ module BV.Search.Core.Solver
     , RepGraphSolverInteractSimpleFailureInfo (..)
     , TestResultWith (..)
     , emptyCache
-    , evalModelExpr
+      -- , evalModelExpr
     , runRepGraphSolverInteractParallel
     , runRepGraphSolverInteractSimple
     , testHyp
@@ -24,7 +24,8 @@ module BV.Search.Core.Solver
 
 import BV.Core.ExecuteSMTProofChecks (defaultLogic, splitHyp)
 import BV.Core.ModelConfig
-import BV.Core.RepGraph
+import BV.Core.RepGraph.New
+import BV.Core.RepGraph.New.InterpretHyp
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS, symbolS)
@@ -99,64 +100,64 @@ newtype Model
   = Model { unwrap :: M.Map SExprWithPlaceholders GraphExpr }
   deriving (Generic, Show)
 
-type LowLevelModelRequest = [Name]
+type LowLevelModelRequest = [String]
 
 type LowLevelModel = [SExpr]
 
-reconstructModel
-    :: M.Map SExprWithPlaceholders (Name, ExprType)
-    -> LowLevelModelRequest
-    -> LowLevelModel
-    -> Model
-reconstructModel exprs req vals =
-    Model $ M.mapKeys (symbolS . (.unwrap)) assocs <> abbrevs
-  where
-    assocs = M.fromList $ catMaybes $ zipWith (\name val -> (,) name <$> smtToVal val) req vals
-    abbrevs = (assocs M.!) <$> M.filter (`M.member` assocs) (fst <$> exprs)
+-- reconstructModel
+--     :: M.Map SExprWithPlaceholders (Name, ExprType)
+--     -> LowLevelModelRequest
+--     -> LowLevelModel
+--     -> Model
+-- reconstructModel exprs req vals =
+--     Model $ M.mapKeys (symbolS . (.unwrap)) assocs <> abbrevs
+--   where
+--     assocs = M.fromList $ catMaybes $ zipWith (\name val -> (,) name <$> smtToVal val) req vals
+--     abbrevs = (assocs M.!) <$> M.filter (`M.member` assocs) (fst <$> exprs)
 
-smtToVal :: SExpr -> Maybe GraphExpr
-smtToVal sexpr = case viewSExpr sexpr of
-    Atom (SymbolAtom "true") -> Just trueE
-    Atom (SymbolAtom "false") -> Just falseE
-    Atom (HexadecimalAtom s) ->
-        Just $ numE (wordT todo) (readS readHex s)
-    Atom (BinaryAtom s) ->
-        Just $ numE (wordT todo) (readS readBin s)
-    List [Atom (SymbolAtom "_"), Atom (SymbolAtom ('b':'v':bits)), Atom (NumeralAtom n)] ->
-        Just $ numE (wordT (read bits)) (toInteger n)
-    _ -> Nothing
-  where
-    readS p s = case filter (null . snd) (p s) of
-        [(a, "")] -> a
-        _ -> error "parse failure"
+-- smtToVal :: SExpr -> Maybe GraphExpr
+-- smtToVal sexpr = case viewSExpr sexpr of
+--     Atom (SymbolAtom "true") -> Just trueE
+--     Atom (SymbolAtom "false") -> Just falseE
+--     Atom (HexadecimalAtom s) ->
+--         Just $ numE (wordT todo) (readS readHex s)
+--     Atom (BinaryAtom s) ->
+--         Just $ numE (wordT todo) (readS readBin s)
+--     List [Atom (SymbolAtom "_"), Atom (SymbolAtom ('b':'v':bits)), Atom (NumeralAtom n)] ->
+--         Just $ numE (wordT (read bits)) (toInteger n)
+--     _ -> Nothing
+--   where
+--     readS p s = case filter (null . snd) (p s) of
+--         [(a, "")] -> a
+--         _ -> error "parse failure"
 
-evalModelExpr :: MonadRepGraph t m => GraphExpr -> StateT Model m GraphExpr
-evalModelExpr _expr = do
-    -- sexpr <- convertSolverExpr expr
-    evalModel undefined
+-- evalModelExpr :: (Tag t, MonadRepGraphSendSExpr m) => GraphExpr -> StateT Model (RepGraphT t m) GraphExpr
+-- evalModelExpr _expr = do
+--     -- sexpr <- convertSolverExpr expr
+--     evalModel undefined
 
-evalModel :: Monad m => SExprWithPlaceholders -> StateT Model m GraphExpr
-evalModel = go
-  where
-    go sexpr = maybe (complex sexpr) return (trySimple sexpr)
-    trySimple sexpr = smtToVal =<< traverse (preview #_AtomOrPlaceholderAtom) sexpr
-    complex sexpr = do
-        expr <- case sexpr of
-            List [op, cond, x, y] | op == symbolS "ite" -> do
-                cond' <- go cond
-                if | cond' == trueE -> go x
-                   | cond' == falseE -> go y
-                   | otherwise -> undefined
-            List (_op:args) -> do
-                _args' <- traverse go args
-                todo
-            _ -> undefined
-        #unwrap %= M.insert sexpr expr
-        return expr
+-- evalModel :: Monad m => SExprWithPlaceholders -> StateT Model m GraphExpr
+-- evalModel = go
+--   where
+--     go sexpr = maybe (complex sexpr) return (trySimple sexpr)
+--     trySimple sexpr = smtToVal =<< traverse (preview #_AtomOrPlaceholderAtom) sexpr
+--     complex sexpr = do
+--         expr <- case sexpr of
+--             List [op, cond, x, y] | op == symbolS "ite" -> do
+--                 cond' <- go cond
+--                 if | cond' == trueE -> go x
+--                    | cond' == falseE -> go y
+--                    | otherwise -> undefined
+--             List (_op:args) -> do
+--                 _args' <- traverse go args
+--                 todo
+--             _ -> undefined
+--         #unwrap %= M.insert sexpr expr
+--         return expr
 
 --
 
-class MonadRepGraphSolverSend m => MonadRepGraphSolverInteract m where
+class MonadRepGraphSendSExpr m => MonadRepGraphSolverInteract m where
     checkHyp :: Maybe LowLevelModelRequest -> SExprWithPlaceholders -> m (TestResultWith (Maybe LowLevelModel))
 
 instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ReaderT r m) where
@@ -165,13 +166,13 @@ instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ReaderT r
 instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ExceptT e m) where
     checkHyp = compose2 lift checkHyp
 
-instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphBase t m) where
-    checkHyp = compose2 lift checkHyp
+-- instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphT t m) where
+--     checkHyp = compose2 lift checkHyp
 
-instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (ForTag t m) where
-    checkHyp = compose2 lift checkHyp
+-- instance MonadRepGraphSolverInteract m => MonadRepGraphSolverInteract (RepGraphTaggedT t m) where
+--     checkHyp = compose2 lift checkHyp
 
-testHypCommon :: (MonadRepGraphSolver m, MonadRepGraphSolverInteract m) => Bool -> SExprWithPlaceholders -> m (TestResultWith (Maybe Model))
+testHypCommon :: (MonadRepGraphSolverInteract m) => Bool -> SExprWithPlaceholders -> m (TestResultWith (Maybe Model))
 testHypCommon wantModel sexpr = case wantModel of
     False -> ensureNothing <$> checkHyp Nothing sexpr
     True -> do
@@ -182,17 +183,17 @@ testHypCommon wantModel sexpr = case wantModel of
         -- r <- checkHyp (Just req) sexpr
         -- return $ over (#_TestResultWithFalse % _Just) (reconstructModel exprs req) r
 
-testHyp :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m Bool
-testHyp hyp = isTrueResult . ensureNoModel <$> testHypCommon False hyp
+testHyp :: (Tag t, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> RepGraphT t m Bool
+testHyp hyp = lift $ isTrueResult . ensureNoModel <$> testHypCommon False hyp
 
-testHypGetModel :: (MonadRepGraph t m, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> m (TestResultWith Model)
-testHypGetModel hyp = ensureModel <$> testHypCommon True hyp
+testHypGetModel :: (Tag t, MonadRepGraphSolverInteract m) => SExprWithPlaceholders -> RepGraphT t m (TestResultWith Model)
+testHypGetModel hyp = lift $ ensureModel <$> testHypCommon True hyp
 
 testHypWhypsCommon
-    :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => Bool -> Bool -> SolverExpr -> [Hyp t] -> StateT (Maybe Cache) m (Maybe (TestResultWith (Maybe Model)))
+    :: (RefineTag t, MonadRepGraphSolverInteract m)
+    => Bool -> Bool -> FlatExpr -> [Hyp t] -> StateT (Maybe Cache) (RepGraphT t m) (Maybe (TestResultWith (Maybe Model)))
 testHypWhypsCommon fast wantModel hyp hyps = do
-    sexpr <- lift $ interpretHypImps hyps hyp >>= convertSolverExpr
+    sexpr <- lift $ interpretHypImps hyps hyp >>= convertExpr
     cacheEntry <- preuse $ #_Just % #unwrap % at sexpr % #_Just
     case (cacheEntry, fast) of
         (Just v, _) -> do
@@ -202,34 +203,34 @@ testHypWhypsCommon fast wantModel hyp hyps = do
             return Nothing
         (Nothing, False) -> do
             addPValidDomAssertions
-            v <- lift $ testHypCommon wantModel sexpr
+            v <- lift $ lift $ testHypCommon wantModel sexpr
             zoomMaybe (#_Just % #unwrap) $ modify $ M.insertWith undefined sexpr (isTrueResult v)
             return $ Just v
 
 testHypWhyps
-    :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => SolverExpr -> [Hyp t] -> m Bool
+    :: (RefineTag t, MonadRepGraphSolverInteract m)
+    => FlatExpr -> [Hyp t] -> RepGraphT t m Bool
 testHypWhyps hyp hyps =
     isTrueResult . ensureNoModel . fromJust <$>
         withoutCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsGetModel
-    :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => SolverExpr -> [Hyp t] -> m (TestResultWith Model)
+    :: (RefineTag t, MonadRepGraphSolverInteract m)
+    => FlatExpr -> [Hyp t] -> RepGraphT t m (TestResultWith Model)
 testHypWhypsGetModel hyp hyps =
     ensureModel . fromJust <$>
         withoutCache (testHypWhypsCommon False True hyp hyps)
 
 testHypWhypsWithCache
-    :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => SolverExpr -> [Hyp t] -> StateT Cache m Bool
+    :: (RefineTag t, MonadRepGraphSolverInteract m)
+    => FlatExpr -> [Hyp t] -> StateT Cache (RepGraphT t m) Bool
 testHypWhypsWithCache hyp hyps =
     isTrueResult . ensureNoModel . fromJust <$>
         withCache (testHypWhypsCommon False False hyp hyps)
 
 testHypWhypsWithCacheFast
-    :: (RefineTag t, MonadRepGraph t m, MonadRepGraphSolverInteract m)
-    => SolverExpr -> [Hyp t] -> StateT Cache m (Maybe Bool)
+    :: (RefineTag t, MonadRepGraphSolverInteract m)
+    => FlatExpr -> [Hyp t] -> StateT Cache (RepGraphT t m) (Maybe Bool)
 testHypWhypsWithCacheFast hyp hyps =
     fmap (isTrueResult . ensureNoModel) <$>
         withCache (testHypWhypsCommon True False hyp hyps)
@@ -258,7 +259,7 @@ checkHypInner timeout modelConfig modelRequestOpt hyp = runExceptT $ do
         Just (Unknown reason) -> throwError (RepGraphSolverAnsweredUnknown reason)
         Just Unsat -> return TestResultWithTrue
         Just Sat -> fmap TestResultWithFalse $ for modelRequestOpt $ \modelRequest -> do
-            getValue $ map (Atom . symbolAtom . (.unwrap)) modelRequest
+            getValue $ map (Atom . symbolAtom) modelRequest
     sendSimpleCommandExpectingSuccess $ Pop 1
     when (isTrueResult r) $ do
         sendAssert $ notS (andNS hyps)
@@ -293,8 +294,8 @@ data SimpleEnv
       }
   deriving (Generic)
 
-instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (RepGraphSolverInteractSimple m) where
-    sendSExprWithPlaceholders s = RepGraphSolverInteractSimple $ do
+instance (MonadSolver m, MonadThrow m) => MonadRepGraphSendSExpr (RepGraphSolverInteractSimple m) where
+    sendSExpr s = RepGraphSolverInteractSimple $ do
         modelConfig <- gview #modelConfig
         sendExpectingSuccess $ configureSExpr modelConfig s
 
@@ -356,8 +357,8 @@ data ParallelEnv m
 
 type RunParallel m = m ()
 
-instance (MonadSolver m, MonadThrow m) => MonadRepGraphSolverSend (RepGraphSolverInteractParallel m) where
-    sendSExprWithPlaceholders s = RepGraphSolverInteractParallel $ do
+instance (MonadSolver m, MonadThrow m) => MonadRepGraphSendSExpr (RepGraphSolverInteractParallel m) where
+    sendSExpr s = RepGraphSolverInteractParallel $ do
         #setup %= (++ [s])
         modelConfig <- gview #modelConfig
         sendExpectingSuccess $ configureSExpr modelConfig s
