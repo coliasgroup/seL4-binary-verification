@@ -387,8 +387,9 @@ addVarReps ctx mkName memCallsOpt vars env = do
             else do
                 newVar <- liftInner $ addVar nameHint var.ty
                 when (isMemT var.ty) $ do
-                    liftPure $ #memCalls %= M.insert newVar.name (fromJust memCallsOpt)
-                when isStack $ addStack newVar.name
+                    if isStack
+                        then addStack newVar.name
+                        else liftPure $ #memCalls %= M.insert newVar.name (fromJust memCallsOpt)
                 return $ varFromNameTyE newVar
     return $ M.fromList newVars <> env
   where
