@@ -139,7 +139,6 @@ data TState t
       , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
       , inductVarEnv :: Map EqHypInduct NameTy
-      , contractions :: Map FlatExpr Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , stacks :: Set Ident
       , memCalls :: Map Ident MemCalls
@@ -182,7 +181,6 @@ initState = TState
     , nodePcEnvs = M.empty
     , arcPcEnvs = M.empty
     , inductVarEnv = M.empty
-    , contractions = M.empty
     , hasInnerLoop = M.empty
     , stacks = S.empty
     , memCalls = M.empty
