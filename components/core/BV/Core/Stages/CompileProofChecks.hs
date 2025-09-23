@@ -1,10 +1,12 @@
 module BV.Core.Stages.CompileProofChecks
-    ( FunctionSignature (..)
-    , RepGraphBaseInput (..)
+    ( AsmRefineRepGraphInput (..)
+    , FunctionSignature (..)
+    , RepGraphInput (..)
     , compileProofChecks
     ) where
 
 import BV.Core.RepGraph
+import BV.Core.RepGraph.InterpretHyp
 import BV.Core.Stages.EnumerateProofChecks (pruneProofCheck)
 import BV.Core.Stages.GroupProofChecks
 import BV.Core.Types
@@ -15,45 +17,33 @@ import Data.Traversable (for)
 import Optics
 
 compileProofChecks
-    :: RepGraphBaseInput AsmRefineTag
-    -> LookupFunctionSignature AsmRefineTag
-    -> Pairings'
+    :: AsmRefineRepGraphInput
     -> [ProofCheck AsmRefineTag a]
     -> [(ProofCheckGroupCheckIndices, SMTProofCheckGroup a)]
-compileProofChecks repGraphInput lookupSig pairings checks =
+compileProofChecks input checks =
     over (traversed % _2)
-        (compileProofCheckGroup repGraphInput lookupSig pairings . pruneGroup)
+        (compileProofCheckGroup input . pruneGroup)
         (proofCheckGroups checks)
   where
-    pruneCheck = pruneProofCheck (analyzeProblem repGraphInput.problem)
+    pruneCheck = pruneProofCheck (analyzeProblem input.repGraphInput.problem)
     pruneGroup = map pruneCheck
 
 compileProofCheckGroup
-    :: RepGraphBaseInput AsmRefineTag
-    -> LookupFunctionSignature AsmRefineTag
-    -> Pairings'
+    :: AsmRefineRepGraphInput
     -> ProofCheckGroup AsmRefineTag a
     -> SMTProofCheckGroup a
-compileProofCheckGroup repGraphInput lookupSig pairings group =
+compileProofCheckGroup input group =
     SMTProofCheckGroup setup imps
   where
-    (imps, setup) =
-        runWriter
-            (runRepGraphBase
-                repGraphInput
-                (runWithFunAsserts lookupSig pairings (runWithAsmStackRep argRenames m)))
-    argRenames =
-        problemArgRenames repGraphInput.problem $
-            lookupSig <$>
-                withTags (pairingIdOfProblem repGraphInput.problem)
+    (imps, setup) = runWriter (runAsmRefineRepGraphT input m)
     m = interpretGroup group <* addPValidDomAssertions
 
-interpretGroup :: (RefineTag t, MonadRepGraph t m) => ProofCheckGroup t a -> m [SMTProofCheckImp a]
+interpretGroup :: (RefineTag t, MonadRepGraphSendSExpr m) => ProofCheckGroup t a -> RepGraphT t m [SMTProofCheckImp a]
 interpretGroup group = do
     hyps <- for group $ \check -> do
         concl <- interpretHyp check.hyp
         expr <- interpretHypImps check.hyps concl
         return (check, expr)
     for hyps $ \(check, expr) -> do
-        sexpr <- convertSolverExpr expr
+        sexpr <- convertExpr expr
         return $ SMTProofCheckImp check.meta sexpr
