@@ -1,5 +1,8 @@
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module BV.Core.Utils
-    ( whenJustThen
+    ( maybeFromSingletonList
+    , whenJustThen
     , whenNothing
     , withMapSlotWith
     ) where
@@ -23,3 +26,8 @@ withMapSlotWith liftState l k m = do
         v <- m
         liftState $ l %= M.insertWith undefined k v
         return v
+
+maybeFromSingletonList :: [a] -> Maybe a
+maybeFromSingletonList = \case
+    [] -> Nothing
+    [a] -> Just a

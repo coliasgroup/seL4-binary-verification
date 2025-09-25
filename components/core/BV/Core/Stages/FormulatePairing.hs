@@ -11,6 +11,7 @@ import BV.Core.Arch (archPtrSizeBytes)
 import BV.Core.Logic (splitScalarPairs)
 import BV.Core.Types
 import BV.Core.Types.Extras
+import BV.Core.Utils (maybeFromSingletonList)
 
 import Data.Function (applyWhen, on)
 import Data.Maybe (mapMaybe, maybeToList)
@@ -178,8 +179,3 @@ mkMemEqs asmInMem cInMemOpt asmOutMemOpt cOutMemOpt =
             [ asmOut asmOutMem === cOut cOutMem
             , cOut (rodataE cOutMem) === cOut trueE
             ]
-
-maybeFromSingletonList :: [a] -> Maybe a
-maybeFromSingletonList = \case
-    [] -> Nothing
-    [a] -> Just a
