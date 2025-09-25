@@ -126,13 +126,10 @@ stages input = StagesOutput
          in enumerateProofChecks problem sigs pairing proofScript
 
     smtProofChecks = SMTProofChecks $ flip M.mapWithKey provenProblems $ \pairingId problem ->
-        let asmRefineRepGraphInput = AsmRefineRepGraphInput
-                { repGraphInput = RepGraphInput
-                    { structs = (.structs) <$> input.programs
-                    , rodata = input.rodata
-                    , problem
-                    }
-                , lookupSig = lookupFunctionSig
-                , pairings
+        let repGraphInput = RepGraphBaseInput
+                { structs = (.structs) <$> input.programs
+                , rodata = input.rodata
+                , problem
                 }
-         in compileProofChecks asmRefineRepGraphInput <$> (proofChecks.unwrap ! pairingId)
+         in compileProofChecks repGraphInput lookupFunctionSig pairings
+                <$> (proofChecks.unwrap ! pairingId)
