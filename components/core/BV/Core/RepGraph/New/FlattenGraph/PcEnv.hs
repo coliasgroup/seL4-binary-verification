@@ -5,7 +5,6 @@ module BV.Core.RepGraph.New.FlattenGraph.PcEnv
     , PcEnv (..)
     , exprEnvVars
     , mergePcEnvs
-    , withEnv
     ) where
 
 import BV.Core.RepGraph.New.SendFlatExprCommand
@@ -13,7 +12,6 @@ import BV.Core.RepGraph.New.SendFlatExprCommand
 import BV.Core.Types
 import BV.Core.Types.Extras
 
-import Control.Monad.Reader (ReaderT (runReaderT))
 import Data.List (nub)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -22,9 +20,6 @@ import GHC.Generics (Generic)
 import Optics
 
 type ExprEnv = Map Ident FlatExpr
-
-withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
-withEnv = flip runReaderT
 
 exprEnvVars :: ExprEnv -> S.Set NameTy
 exprEnvVars = S.fromList . M.elems . M.mapWithKey (\k v -> NameTy k v.ty)

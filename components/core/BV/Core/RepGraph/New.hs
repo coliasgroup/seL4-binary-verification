@@ -37,7 +37,6 @@ module BV.Core.RepGraph.New
     , runRepGraphTStep
     , runTagged
     , tryGetNodePcEnv
-    , withEnv
     ) where
 
 import BV.Core.RepGraph.New.Common

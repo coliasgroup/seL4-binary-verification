@@ -8,7 +8,6 @@ module BV.Core.RepGraph.New.Common
     , ExprCommandInlineHint (..)
     , MonadInner (..)
     , MonadRepGraphSendSExpr (..)
-    , getMemBasis
     ) where
 
 import BV.Core.Types
@@ -54,12 +53,3 @@ instance MonadRepGraphSendSExpr m => MonadRepGraphSendSExpr (ExceptT e m) where
 
 instance MonadRepGraphSendSExpr m => MonadRepGraphSendSExpr (ReaderT r m) where
     sendSExpr = lift . sendSExpr
-
-getMemBasis :: Monad m => (a -> a -> a) -> (Ident -> m (Either a (Expr c))) -> Expr c -> m a
-getMemBasis f lookupName = go
-  where
-    go expr = case expr.value of
-        ExprValueOp OpMemUpdate [m, _, _] -> go m
-        ExprValueOp OpIfThenElse [_, l, r] -> f <$> go l <*> go r
-        ExprValueOp (OpExt OpExtSplitMem) [_, top, bottom] -> f <$> go top <*> go bottom
-        ExprValueVar name -> lookupName name >>= either return go

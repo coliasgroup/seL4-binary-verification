@@ -25,6 +25,7 @@ import BV.Core.Utils (whenNothing, withMapSlotWith)
 import BV.SMTLIB2.SExpr (GenericSExpr (List))
 
 import Control.Applicative ((<|>))
+import Control.Monad (join)
 import Control.Monad.Identity (runIdentity)
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
 import Control.Monad.RWS (lift)
@@ -128,6 +129,7 @@ instance IsString SmtName where
 nameS :: SmtName -> SExprWithPlaceholders
 nameS name = symbolS name.unwrap
 
+-- TODO prefix all names to avoid clashes?
 takeFreshName :: C m => SmtNameHint -> T m SmtName
 takeFreshName nameHint = liftPure $ zoom #names $ takeFreshNameWith SmtName sanitized
   where
@@ -137,17 +139,18 @@ takeFreshName nameHint = liftPure $ zoom #names $ takeFreshNameWith SmtName sani
         ]
 
 initNames :: Set SmtName
-initNames = S.fromList $ map SmtName $
-    [ "mem-dom"
-    , "word2-xor-scramble"
-    , "unspecified-precond"
-    ] ++
-    [ prefix ++ "-eq"
-    | prefix <- ["mem", "word32"]
-    ] ++
-    [ op ++ "-word" ++ bits
-    | op <- ["load", "store"]
-    , bits <- ["8", "32", "64"]
+initNames = S.fromList $ map SmtName $ join
+    [ [ "mem-dom"
+      , "word2-xor-scramble"
+      , "unspecified-precond"
+      ]
+    , [ prefix ++ "-eq"
+      | prefix <- ["mem", "word32"]
+      ]
+    , [ op ++ "-word" ++ bits
+      | op <- ["load", "store"]
+      , bits <- ["8", "32", "64"]
+      ]
     ]
 
 --
@@ -208,15 +211,15 @@ convertSolverExpr expr = case expr.value of
         return $ intWithWidthS (wordTBits expr.ty) n
     ExprValueToken tok -> do
         getToken tok
-    ExprValueOp OpCountTrailingZeroes [arg] -> do
+    ExprValueOp OpCountTrailingZeroes ~[arg] -> do
         convertSolverExpr $ clzE (wordReverseE arg)
-    ExprValueOp op [arg] | op == OpWordCast || op == OpWordCastSigned -> do
+    ExprValueOp op ~[arg] | op == OpWordCast || op == OpWordCastSigned -> do
         let signed = op == OpWordCastSigned
         let ExprTypeWord fromBits = arg.ty
         let ExprTypeWord toBits = expr.ty
         convertWordCast signed fromBits toBits <$> convertSolverExpr arg
     ExprValueOp op args -> do
-        let argTypes = (map (.ty) args)
+        let argTypes = map (.ty) args
         opOpt' <- runMaybeT $
             hoistMaybe (convertSimpleOpWithTypes op expr.ty argTypes)
                 <|> nameS <$> MaybeT (getDerivedOp op expr.ty)

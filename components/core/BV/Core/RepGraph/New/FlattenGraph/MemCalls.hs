@@ -4,22 +4,24 @@ module BV.Core.RepGraph.New.FlattenGraph.MemCalls
     ( MemCalls
     , addMemCall
     , addUnboundedMemCalls
-    , areMemCallsCompatible
+    , emptyMemCalls
+    , memCallsRangesOverlap
     , mergeMemCalls
+    , zeroMemCallsRange
     ) where
 
 import BV.Core.Types
-import BV.Core.Types.Extras
 
 import Data.Function (on)
-import Data.Map (Map, (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromMaybe)
-import qualified Data.Set as S
+import Data.Maybe (fromMaybe)
 import GHC.Generics (Generic)
 import Optics
 
-type MemCalls = Map Ident MemCallsRange
+type MemCalls = M.Map Ident MemCallsRange
+
+emptyMemCalls :: MemCalls
+emptyMemCalls = M.empty
 
 data MemCallsRange
   = MemCallsRange
@@ -60,24 +62,6 @@ mergeMemCalls xs ys =
         , max = max <$> x.max <*> y.max
         }
 
-areMemCallsCompatible
-    :: LookupFunctionSignature AsmRefineTag
-    -> (WithTag' Ident -> PairingId')
-    -> ByTag' (Maybe MemCalls) -> Bool
-areMemCallsCompatible lookupSig lookupPairingId callsOpt = case sequenceA callsOpt of
-    Nothing -> True
-    Just calls ->
-        let cCastCalls = M.fromList $ catMaybes
-                [ let pairingId = lookupPairingId (WithTag Asm asmName)
-                      cName = pairingId.c
-                      cSig = lookupSig (WithTag C cName)
-                  in if any (\arg -> isMemT arg.ty) cSig.output
-                     then Just (cName, asmCallsForFun)
-                     else Nothing
-                | (asmName, asmCallsForFun) <- M.toList calls.asm
-                ]
-            compat rname =
-                let rcast = fromMaybe zeroMemCallsRange $ cCastCalls !? rname
-                    ractual = fromMaybe zeroMemCallsRange $ calls.c !? rname
-                in maybe True (ractual.min <=) rcast.max && maybe True (rcast.min <=) ractual.max
-         in all compat $ S.toList $ M.keysSet calls.c <> M.keysSet cCastCalls
+memCallsRangesOverlap :: MemCallsRange -> MemCallsRange -> Bool
+memCallsRangesOverlap lhs rhs =
+    maybe True (lhs.min <=) rhs.max && maybe True (rhs.min <=) lhs.max

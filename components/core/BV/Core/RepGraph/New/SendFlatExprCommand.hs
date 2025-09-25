@@ -17,28 +17,32 @@ import BV.Core.RepGraph.New.SendSolverExprCommand
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Logic
 import BV.Core.Structs (StructsT, runStructsT)
-import BV.Core.Types hiding (SplitMem (..))
+import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils (whenNothing, withMapSlotWith)
+import BV.Core.Utils (withMapSlotWith)
 import BV.Utils (ensureM, expectingAt, viewExpecting)
 
-import Control.Monad (unless, when, (>=>))
+import Control.Monad (unless, when)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans, lift)
-import Data.Foldable (for_)
+import Data.Foldable (for_, sequenceA_)
 import Data.Function (on)
 import Data.Functor (void)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (isNothing)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((%%=), (%=), (<<%=))
+import Optics.State.Operators ((%=), (<<.=))
+
+-- import Debug.Trace (traceShowM)
+
+-- TODO explicitly weaken pvalid ops in strengthenHyp
 
 type T = RepGraphSendFlatExprCommandT
 
@@ -93,7 +97,7 @@ data TEnv
 data TState
   = TState
       { names :: Set Ident
-      , exprMap :: Map Ident SolverExpr
+      , exprMap :: Map Ident ExtendedExpr
       , exprCache :: Map SolverExpr Ident
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey Ident
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
@@ -105,8 +109,8 @@ data TState
 data ImpliesStackEqCacheKey
   = ImpliesStackEqCacheKey
       { sp :: SolverExpr
-      , stack1 :: SolverExpr
-      , stack2 :: SolverExpr
+      , stack1 :: ExtendedExpr
+      , stack2 :: ExtendedExpr
       }
   deriving (Eq, Generic, Ord)
 
@@ -136,6 +140,27 @@ initState = TState
 
 --
 
+data ExtendedExpr
+  = ExtendedExprExpr SolverExpr
+  | ExtendedExprSplitMem SplitMemExpr
+  | ExtendedExprHtd HtdExpr
+  deriving (Eq, Generic, Ord, Show)
+
+data SplitMemExpr
+  = SplitMemExpr
+      { split :: SolverExpr
+      , top :: SolverExpr
+      , bottom :: SolverExpr
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+data HtdExpr
+  = HtdExprIdent Ident
+  | HtdExprIfThenElse SolverExpr HtdExpr HtdExpr
+  deriving (Eq, Generic, Ord, Show)
+
+--
+
 withMapSlot :: (C m, Ord k) => Lens' TState (M.Map k v) -> k -> T m v -> T m v
 withMapSlot = withMapSlotWith $ liftPure . mapStateT (return . runIdentity)
 
@@ -149,12 +174,6 @@ takeFreshName nameHint = liftPure $ zoom #names $ takeFreshNameWith Ident nameHi
 
 --
 
-isTypeOmitted :: ExprType -> Bool
-isTypeOmitted = \case
-    ExprTypeHtd -> True
-    ExprTypePms -> True
-    _ -> False
-
 isTypeRepresentable :: ExprType -> Bool
 isTypeRepresentable = \case
     ExprTypeWord _ -> True
@@ -166,39 +185,33 @@ addVar :: C m => NameHint -> ExprType -> T m NameTy
 addVar nameHint ty = do
     name <- takeFreshName nameHint
     let var = NameTy name ty
-    unless (isTypeOmitted ty) $ do
-        send $ ExprCommandDeclare var
-        when (isTypeRepresentable ty) $ do
-            liftPure $ #modelVars %= S.insert name
+    send $ ExprCommandDeclare var
+    when (isTypeRepresentable ty) $ do
+        liftPure $ #modelVars %= S.insert name
     return var
 
 addDef :: C m => NameHint -> SolverExpr -> T m NameTy
 addDef = addDefWithInlineHint ExprCommandInlineHintNever
 
 addDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> SolverExpr -> T m NameTy
-addDefWithInlineHint inline nameHint expr = viewExpecting #_Left <$> addDefWithInlineHintInner inline nameHint expr
+addDefWithInlineHint inline nameHint expr = do
+    name <- takeFreshName nameHint
+    let var = NameTy name expr.ty
+    send $ ExprCommandDefine inline var expr
+    when (isTypeRepresentable expr.ty) $ do
+        liftPure $ #modelVars %= S.insert name
+    return var
 
-addDefWithInlineHintSplitMem :: C m => ExprCommandInlineHint -> NameHint -> SolverExpr -> T m SolverExpr
-addDefWithInlineHintSplitMem inline nameHint expr = addDefWithInlineHintInner inline nameHint expr <&> \case
-    Left var' -> varFromNameTyE var'
-    Right splitMem -> reconstructSplitMem splitMem
-
-addDefWithInlineHintInner :: C m => ExprCommandInlineHint -> NameHint -> SolverExpr -> T m (Either NameTy DestructSplitMem)
-addDefWithInlineHintInner inline nameHint expr = case tryDestructSplitMem (id expr) of
-    NotSplitMem _ -> Left <$> do
-        name <- takeFreshName nameHint
-        let var = NameTy name expr.ty
-        unless (isTypeOmitted expr.ty) $ do
-            send $ ExprCommandDefine inline var expr
-            when (isTypeRepresentable expr.ty) $ do
-                liftPure $ #modelVars %= S.insert name
-        return var
-    SplitMem splitMem -> Right <$> do
-        let add suffix = fmap varFromNameTyE <$> addDef (nameHint ++ "_" ++ suffix)
-        split <- add "split" splitMem.split
-        top <- add "top" splitMem.top
-        bottom <- add "bot" splitMem.bottom
-        return $ DestructSplitMem
+addExtendedDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> ExtendedExpr -> T m ExtendedExpr
+addExtendedDefWithInlineHint inline nameHint = \case
+    ExtendedExprHtd htd -> ExtendedExprHtd <$> return htd
+    ExtendedExprExpr expr -> ExtendedExprExpr <$> varFromNameTyE <$> addDefWithInlineHint inline nameHint expr
+    ExtendedExprSplitMem splitMem -> ExtendedExprSplitMem <$> do
+        let f suffix expr = varFromNameTyE <$> addDef (nameHint ++ "_" ++ suffix) expr
+        split <- f "split" splitMem.split
+        top <- f "top" splitMem.top
+        bottom <- f "bottom" splitMem.bottom
+        return $ SplitMemExpr
             { split
             , top
             , bottom
@@ -233,118 +246,151 @@ assertSolverExpr = send . ExprCommandAssert
 
 sendFlatExprCommand :: C m => FlatExprCommand -> T m ()
 sendFlatExprCommand = \case
-    ExprCommandDeclare var -> do
-        val' <- varFromNameTyE <$> addVar var.name.unwrap var.ty
-        liftPure $ #exprMap %= M.insertWith undefined var.name val'
-    ExprCommandDefine inlineHint var val -> do
-        val' <- convertFlatExpr val >>= addDefWithInlineHintSplitMem inlineHint var.name.unwrap
-        liftPure $ #exprMap %= M.insertWith undefined var.name val'
-    ExprCommandAssert expr -> do
-        assertSolverExpr =<< convertFlatExpr expr
+    ExprCommandDeclare origVar -> case origVar.ty of
+        ExprTypePms -> return ()
+        _ -> do
+            val <- case origVar.ty of
+                ExprTypeHtd -> addHtd origVar.name.unwrap
+                _ -> ExtendedExprExpr <$> varFromNameTyE <$> addVar origVar.name.unwrap origVar.ty
+            liftPure $ #exprMap %= M.insertWith undefined origVar.name val
+    ExprCommandDefine inlineHint origVar origVal -> case origVar.ty of
+        ExprTypePms -> return ()
+        _ -> do
+            val <- convertFlatExprSplitMem origVal
+                >>= addExtendedDefWithInlineHint inlineHint origVar.name.unwrap
+            liftPure $ #exprMap %= M.insertWith undefined origVar.name val
+    ExprCommandAssert expr -> assertSolverExpr =<< convertFlatExpr expr
+
+convertFlatExprSplitMem :: C m => FlatExpr -> T m ExtendedExpr
+convertFlatExprSplitMem expr = case expr.value of
+    ExprValueVar name -> liftPure $ use $ #exprMap % expectingAt name
+    ExprValueOp op args -> traverse convertFlatExprSplitMem args >>= convertFlatOpExpr expr.ty op
+    _ -> return $ ExtendedExprExpr $ castExpr expr
 
 convertFlatExpr :: C m => FlatExpr -> T m SolverExpr
-convertFlatExpr = traverseOf (exprArgs % traversed) convertFlatExpr >=> \expr -> case expr.value of
-    ExprValueVar name -> liftPure $ use $ #exprMap % expectingAt name
-    ExprValueOp op args -> flattenOpExpr expr.ty op args
-    _ -> return expr
+convertFlatExpr expr = viewExpecting #_ExtendedExprExpr <$> convertFlatExprSplitMem expr
 
-flattenOpExpr :: C m => ExprType -> Op -> [SolverExpr] -> T m SolverExpr
-flattenOpExpr exprTy op args = do
+convertFlatOpExpr :: C m => ExprType -> Op -> [ExtendedExpr] -> T m ExtendedExpr
+convertFlatOpExpr exprTy op args = do
     expr <- case (op, args) of
-        (OpIfThenElse, [cond, x, y]) -> do
-            return $ flattenIfThenElse cond x y
-        (OpMemUpdate, [m, p, v]) -> do
-            flattenMemUpdate m p v v.ty
-        (OpMemAcc, [m, p]) -> do
-            flattenMemAccess exprTy m p
-        (OpExt OpExtStackEqualsImplies, [sp1, stack1, sp2, stack2]) -> do
-            if sp1 == sp2 && stack1 == stack2
-            then return trueE
-            else do
-                eq <- getStackEqImplies stack2 stack1
+        (OpIfThenElse, ~[ExtendedExprExpr cond, x, y]) ->
+            return $ convertIfThenElse cond x y
+        (OpExt OpExtSplitMem, ~[ExtendedExprExpr split, ExtendedExprExpr top, ExtendedExprExpr bottom]) ->
+            return $ ExtendedExprSplitMem $ SplitMemExpr
+                { split
+                , top
+                , bottom
+                }
+        (OpMemUpdate, ~[m, ExtendedExprExpr p, ExtendedExprExpr v]) ->
+            convertMemUpdate m p v v.ty
+        (OpMemAcc, ~[m, ExtendedExprExpr p]) ->
+            ExtendedExprExpr <$> convertMemAccess exprTy m p
+        (OpExt OpExtStackEqualsImplies, ~[ExtendedExprExpr sp1, stack1, ExtendedExprExpr sp2, stack2]) ->
+            ExtendedExprExpr <$> do
+                if sp1 == sp2 && stack1 == stack2
+                then return trueE
+                else do
+                    eq <- getStackEqImplies stack2 stack1
+                    return $ (sp1 `eqE` sp2) `andE` eq
+        (OpExt OpExtImpliesStackEquals, ~[ExtendedExprExpr sp1, stack1, ExtendedExprExpr sp2, stack2]) ->
+            ExtendedExprExpr <$> do
+                eq <- addImpliesStackEq $ ImpliesStackEqCacheKey
+                    { sp = sp1
+                    , stack1
+                    , stack2
+                    }
                 return $ (sp1 `eqE` sp2) `andE` eq
-        (OpExt OpExtImpliesStackEquals, [sp1, stack1, sp2, stack2]) -> do
-            eq <- addImpliesStackEq $ ImpliesStackEqCacheKey
-                { sp = sp1
-                , stack1
-                , stack2
-                }
-            return $ (sp1 `eqE` sp2) `andE` eq
-        (OpPArrayValid, [htd, tyExpr, ptrExpr, len]) -> do
-            let ExprValueType tyVal = tyExpr.value
-            ptr <- cachePtr ptrExpr
-            addPValids htd $ PValidKey
-                { pvKind = pvalidKindFromOp op
-                , pvTy = PValidTypeArray { ty = tyVal, len }
-                , ptr
-                }
-        (_, [htd, tyExpr, ptrExpr]) | op `elem` [OpPValid, OpPGlobalValid, OpPWeakValid] -> do
-            let ExprValueType tyVal = tyExpr.value
-            ptr <- cachePtr ptrExpr
-            addPValids htd $ PValidKey
-                { pvKind = pvalidKindFromOp op
-                , pvTy = PValidTypeType tyVal
-                , ptr
-                }
-        _ -> do
-            return $ Expr exprTy (ExprValueOp op args)
-    ensureM $ expr.ty == exprTy
-    maybeNoteModelExpr expr args
+        (OpPArrayValid, ~[ExtendedExprHtd htd, ExtendedExprExpr tyExpr, ExtendedExprExpr ptrExpr, ExtendedExprExpr len]) ->
+            ExtendedExprExpr <$> do
+                let ExprValueType tyVal = tyExpr.value
+                ptr <- cachePtr ptrExpr
+                addPValidExpr htd $ PValidKey
+                    { pvKind = pvalidKindFromOp op
+                    , pvTy = PValidTypeArray { ty = tyVal, len }
+                    , ptr
+                    }
+        (_, ~[ExtendedExprHtd htd, ExtendedExprExpr tyExpr, ExtendedExprExpr ptrExpr])
+                | op `elem` [OpPValid, OpPGlobalValid, OpPWeakValid] ->
+            ExtendedExprExpr <$> do
+                let ExprValueType tyVal = tyExpr.value
+                ptr <- cachePtr ptrExpr
+                addPValidExpr htd $ PValidKey
+                    { pvKind = pvalidKindFromOp op
+                    , pvTy = PValidTypeType tyVal
+                    , ptr
+                    }
+        (OpHtdUpdate, _) ->
+            addHtd "update_htd"
+        _ ->
+            return $ ExtendedExprExpr $ Expr exprTy $ ExprValueOp op $ map (viewExpecting #_ExtendedExprExpr) args
+    sequenceA_ $
+        maybeNoteModelExpr
+            <$> preview #_ExtendedExprExpr expr
+            <*> traverse (preview #_ExtendedExprExpr) args
     return expr
 
-flattenIfThenElse :: SolverExpr -> SolverExpr -> SolverExpr -> SolverExpr
-flattenIfThenElse cond x y = case (tryDestructSplitMem x, tryDestructSplitMem y) of
-    (NotSplitMem xns, NotSplitMem yns) -> ite xns yns
+convertIfThenElse :: SolverExpr -> ExtendedExpr -> ExtendedExpr -> ExtendedExpr
+convertIfThenElse cond x y = case (x, y) of
+    (ExtendedExprHtd xh, ExtendedExprHtd yh) -> ExtendedExprHtd $ HtdExprIfThenElse cond xh yh
+    (ExtendedExprExpr xns, ExtendedExprExpr yns) -> ExtendedExprExpr $ ite xns yns
     (xms, yms) ->
         let xs = trivSplit xms
             ys = trivSplit yms
-            split =
-                if xs.split == ys.split
-                then xs.split
-                else (ite `on` (.split)) xs ys
-            top = (ite `on` (.top)) xs ys
-            bottom = (ite `on` (.bottom)) xs ys
-         in splitMemE split top bottom
+         in ExtendedExprSplitMem $ SplitMemExpr
+                { split =
+                    if xs.split == ys.split
+                    then xs.split
+                    else (ite `on` (.split)) xs ys
+                , top = (ite `on` (.top)) xs ys
+                , bottom = (ite `on` (.bottom)) xs ys
+                }
   where
     ite = ifThenElseE cond
     trivSplit = \case
-        SplitMem splitMem -> splitMem
-        NotSplitMem expr -> DestructSplitMem
+        ExtendedExprSplitMem splitMem -> splitMem
+        ExtendedExprExpr expr -> SplitMemExpr
             { split = machineWordE 0
             , top = expr
             , bottom = expr
             }
 
-flattenMemUpdate :: C m => SolverExpr -> SolverExpr -> SolverExpr -> ExprType -> T m SolverExpr
-flattenMemUpdate mem p v ty@(ExprTypeWord bits) = case tryDestructSplitMem mem of
-    SplitMem splitMem -> do
+convertMemUpdate :: C m => ExtendedExpr -> SolverExpr -> SolverExpr -> ExprType -> T m ExtendedExpr
+convertMemUpdate maybeSplitMem p v ty = case maybeSplitMem of
+    ExtendedExprExpr mem -> ExtendedExprExpr <$> convertMemUpdateSimpleExpr mem p v ty
+    ExtendedExprSplitMem splitMem -> ExtendedExprSplitMem <$> do
         p' <- varFromNameTyE <$> cacheExprInline "memupd_pointer" p
         v' <- varFromNameTyE <$> cacheExprInline "memupd_val" v
         top <- varFromNameTyE <$> cacheExprInline "split_mem_top" splitMem.top
         bottom <- varFromNameTyE <$> cacheExprInline "split_mem_bot" splitMem.bottom
-        topUpd <- flattenMemUpdate top p' v' ty
-        bottomUpd <- flattenMemUpdate bottom p' v' ty
+        topUpd <- convertMemUpdateSimpleExpr top p' v' ty
+        bottomUpd <- convertMemUpdateSimpleExpr bottom p' v' ty
         let f = ifThenElseE (splitMem.split `lessEqE` p')
-        return $ splitMemE splitMem.split (f topUpd top) (f bottom bottomUpd)
-    NotSplitMem _ -> case bits of
-        8 -> do
-            p' <- varFromNameTyE <$> cacheExprInline "memupd_pointer" p
-            let aligned = p' `bitwiseAndE` word32E 0xfffffffd
-            noteModelExpr aligned
-            noteModelExpr $ memAccE word32T aligned mem
-            return $ memUpdE p' mem v
-        _ -> do
-            noteModelExpr p
-            noteModelExpr $ memAccE ty p mem
-            return $ memUpdE p mem v
+        return $ SplitMemExpr
+            { split = splitMem.split
+            , top = f topUpd top
+            , bottom = f bottom bottomUpd
+            }
 
-flattenMemAccess :: C m => ExprType -> SolverExpr -> SolverExpr -> T m SolverExpr
-flattenMemAccess ty@(ExprTypeWord _) mem p = case tryDestructSplitMem mem of
-    SplitMem splitMem -> do
+convertMemUpdateSimpleExpr :: C m => SolverExpr -> SolverExpr -> SolverExpr -> ExprType -> T m SolverExpr
+convertMemUpdateSimpleExpr mem p v ty@(ExprTypeWord bits) = case bits of
+    8 -> do
+        p' <- varFromNameTyE <$> cacheExprInline "memupd_pointer" p
+        let aligned = p' `bitwiseAndE` word32E 0xfffffffd
+        noteModelExpr aligned
+        noteModelExpr $ memAccE word32T aligned mem
+        return $ memUpdE p' mem v
+    _ -> do
+        noteModelExpr p
+        noteModelExpr $ memAccE ty p mem
+        return $ memUpdE p mem v
+
+convertMemAccess :: C m => ExprType -> ExtendedExpr -> SolverExpr -> T m SolverExpr
+convertMemAccess ty@(ExprTypeWord _) maybeSplitMem p = case maybeSplitMem of
+    ExtendedExprSplitMem splitMem -> do
         p' <- varFromNameTyE <$> cacheExprInline "memacc_pointer" p
-        let f side = flattenMemAccess ty (side splitMem) p'
+        let f side = convertMemAccess ty (ExtendedExprExpr (side splitMem)) p'
         ifThenElseE (splitMem.split `lessEqE` p') <$> f (.top) <*> f (.bottom)
-    NotSplitMem _ -> do
+    ExtendedExprExpr mem -> do
         let v = memAccE ty p mem
         noteModelExpr p
         noteModelExpr v
@@ -353,89 +399,72 @@ flattenMemAccess ty@(ExprTypeWord _) mem p = case tryDestructSplitMem mem of
 addImpliesStackEq :: C m => ImpliesStackEqCacheKey -> T m SolverExpr
 addImpliesStackEq key = fmap (varE boolT) $ withMapSlot #impliesStackEqCache key $ do
     addr <- varFromNameTyE <$> addVar "stack-eq-witness" word32T
-    assertSolverExpr $ (addr `bitwiseAndE` machineWordE 0x00000003) `eqE` machineWordE 0x00000000
+    assertSolverExpr $ (addr `bitwiseAndE` machineWordE 3) `eqE` machineWordE 0
     assertSolverExpr $ key.sp `lessEqE` addr
-    let f mem = flattenMemAccess word32T mem addr
+    let f mem = convertMemAccess word32T mem addr
     solverExpr <- eqE <$> f key.stack1 <*> f key.stack2
     (.name) <$> addDef "stack-eq" solverExpr
 
-getStackEqImplies :: C m => SolverExpr -> SolverExpr -> T m SolverExpr
+-- TODO align arg order with call site
+getStackEqImplies :: C m => ExtendedExpr -> ExtendedExpr -> T m SolverExpr
 getStackEqImplies stack1 stack2 = do
-    let SplitMem stack1SplitMem = tryDestructSplitMem stack1
-    let (rhs, cond) = case tryDestructSplitMem stack2 of
-            SplitMem (DestructSplitMem { split, top }) -> (top, split `lessEqE` stack1SplitMem.split)
-            NotSplitMem s -> (s, trueE)
+    let ExtendedExprSplitMem stack1SplitMem = stack1
+    let (rhs, cond) = case stack2 of
+            ExtendedExprSplitMem (SplitMemExpr { split, top }) -> (top, split `lessEqE` stack1SplitMem.split)
+            ExtendedExprExpr s -> (s, trueE)
     noteModelExpr $ stack1SplitMem.top `eqE` rhs
     return $ cond `impliesE` (stack1SplitMem.top `eqE` rhs)
 
-addPValids :: C m => SolverExpr -> PValidKey -> T m SolverExpr
-addPValids = go
+addHtd :: C m => NameHint -> T m ExtendedExpr
+addHtd nameHint = do
+    name <- takeFreshName nameHint
+    old <- liftPure $ #pvalids % at name <<.= Just M.empty
+    ensureM $ isNothing old
+    -- TODO initialize lazily?
+    rodataPtrs <- askRODataPtrs
+    for_ rodataPtrs $ \(Expr (ExprTypePtr roTy) (ExprValueNum roAddr)) -> do
+        ptr <- cachePtr $ machineWordE roAddr
+        let key = PValidKey
+                { pvKind = PValidKindPGlobalValid
+                , pvTy = PValidTypeType roTy
+                , ptr
+                }
+        assertSolverExpr =<< addPValid name key
+    return $ ExtendedExprHtd (HtdExprIdent name)
+
+addPValidExpr :: C m => HtdExpr -> PValidKey -> T m SolverExpr
+addPValidExpr = go
   where
-    go htd key = case htd.value of
-        ExprValueOp OpIfThenElse [cond, l, r] ->
+    go htd key = case htd of
+        HtdExprIdent name ->
+            addPValid name key
+        HtdExprIfThenElse cond l r ->
             ifThenElseE cond
                 <$> go l key
                 <*> go r key
-        ExprValueVar name -> do
-            new <- liftPure $ (#pvalids % at name) %%= \slot ->
-                (isNothing slot, Just (fromMaybe M.empty slot))
-            when new $ do
-                rodataPtrs <- askRODataPtrs
-                for_ rodataPtrs $ \(Expr (ExprTypePtr roTy) (ExprValueNum roAddr)) -> do
-                    ptr <- cachePtr $ machineWordE roAddr
-                    assertSolverExpr =<<
-                        goAssumingAlreadyExists name (PValidKey
-                            { pvKind = PValidKindPGlobalValid
-                            , pvTy = PValidTypeType roTy
-                            , ptr
-                            })
-            goAssumingAlreadyExists name key
-    goAssumingAlreadyExists htd key = do
-        opt <- liftPure $ use $ #pvalids % expectingAt htd % at key
-        whenNothing opt $ do
-            var <- varFromNameTyE <$> addVar "pvalid" boolT
-            let info = mkPvInfo key var
-            do
-                fact <- liftStructs $ alignValidIneq info.pvTy info.p
-                assertSolverExpr $ info.pv `impliesE` fact
-            others <- liftPure $ #pvalids % expectingAt htd <<%= M.insert key var
-            for_ (M.toList others) $ \(otherKey, otherVar) -> do
-                let otherInfo = mkPvInfo otherKey otherVar
-                let pvKinds :: [PValidKind] = [otherInfo.pvKind, info.pvKind]
-                unless (PValidKindPWeakValid `elem` pvKinds && PValidKindPGlobalValid `notElem` pvKinds) $ do
-                    let applyAssertion f = do
-                            fact <- liftStructs $ f info otherInfo
-                            assertSolverExpr fact
-                    applyAssertion pvalidAssertion1
-                    applyAssertion pvalidAssertion2
-            return var
+
+addPValid :: C m => Ident -> PValidKey -> T m SolverExpr
+addPValid htd key = do
+    others <- liftPure $ use $ #pvalids % expectingAt htd
+    withMapSlot (#pvalids % expectingAt htd) key $ do
+        var <- varFromNameTyE <$> addVar "pvalid" boolT
+        let info = mkPvInfo key var
+        do  fact <- liftStructs $ alignValidIneq info.pvTy info.p
+            assertSolverExpr $ info.pv `impliesE` fact
+        for_ (M.toList others) $ \(otherKey, otherVar) -> do
+            let otherInfo = mkPvInfo otherKey otherVar
+            let pvKinds = [otherInfo.pvKind, info.pvKind]
+            unless (PValidKindPWeakValid `elem` pvKinds && PValidKindPGlobalValid `notElem` pvKinds) $ do
+                let applyAssertion f = do
+                        fact <- liftStructs $ f info otherInfo
+                        assertSolverExpr fact
+                applyAssertion pvalidAssertion1
+                applyAssertion pvalidAssertion2
+        return var
+  where
     mkPvInfo (PValidKey { pvKind, pvTy, ptr }) var = PValidInfo
         { pvKind
         , pvTy
         , p = varFromNameTyE ptr
         , pv = var
         }
-
---
-
-tryDestructSplitMem :: SolverExpr -> TryDestructSplitMem
-tryDestructSplitMem = \case
-    Expr ExprTypeMem (ExprValueOp (OpExt OpExtSplitMem) [split, top, bottom]) ->
-        SplitMem $ DestructSplitMem { split, top, bottom }
-    expr -> NotSplitMem expr
-
-reconstructSplitMem :: DestructSplitMem -> SolverExpr
-reconstructSplitMem splitMem = splitMemE splitMem.split splitMem.top splitMem.bottom
-
-data TryDestructSplitMem
-  = SplitMem DestructSplitMem
-  | NotSplitMem SolverExpr
-  deriving (Eq, Generic, Ord, Show)
-
-data DestructSplitMem
-  = DestructSplitMem
-      { split :: SolverExpr
-      , top :: SolverExpr
-      , bottom :: SolverExpr
-      }
-  deriving (Eq, Generic, Ord, Show)
