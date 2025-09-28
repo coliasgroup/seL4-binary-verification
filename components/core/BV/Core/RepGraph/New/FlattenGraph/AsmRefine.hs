@@ -54,7 +54,6 @@ asmRefineIsMemHook lookupSig fun direction i =
         Asm -> "mem"
         C | isInstFun -> "mem"
         C -> "Mem"
---
 
 asmRefineIsStackHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> WithTag t Ident -> PairingEqDirection -> Integer -> Bool
 asmRefineIsStackHook lookupSig fun direction i =

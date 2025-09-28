@@ -3,7 +3,7 @@ module BV.Search.Core.Inlining
     , discoverInlineScript
     ) where
 
-import BV.Core.RepGraph.New
+import BV.Core.RepGraph.X
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Problem

@@ -79,9 +79,12 @@ library core
       BV.Core.ModelConfig
       BV.Core.Prelude
       BV.Core.RepGraph
+      BV.Core.RepGraph.X
+      BV.Core.RepGraph.X.InterpretHyp
       BV.Core.RepGraph.New
       BV.Core.RepGraph.New.InterpretHyp
       BV.Core.RepGraph.Old
+      BV.Core.RepGraph.Old.InterpretHyp
       BV.Core.Stages
       BV.Core.Structs
       BV.Core.Types
@@ -109,8 +112,12 @@ library core
       BV.Core.RepGraph.Old.Base
       BV.Core.RepGraph.Old.Core
       BV.Core.RepGraph.Old.FunAsserts
-      BV.Core.RepGraph.Old.InterpretHyp
       BV.Core.RepGraph.Old.Solver
+      BV.Core.RepGraph.X.Common
+      BV.Core.RepGraph.X.Core
+      BV.Core.RepGraph.X.FlattenGraph.MemCalls
+      BV.Core.RepGraph.X.FlattenGraph.NameHint
+      BV.Core.RepGraph.X.Solver
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks

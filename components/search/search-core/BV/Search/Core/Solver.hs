@@ -24,8 +24,8 @@ module BV.Search.Core.Solver
 
 import BV.Core.ExecuteSMTProofChecks (defaultLogic, splitHyp)
 import BV.Core.ModelConfig
-import BV.Core.RepGraph.New
-import BV.Core.RepGraph.New.InterpretHyp
+import BV.Core.RepGraph.X
+import BV.Core.RepGraph.X.InterpretHyp
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS, symbolS)
@@ -202,7 +202,7 @@ testHypWhypsCommon fast wantModel hyp hyps = do
         (Nothing, True) -> do
             return Nothing
         (Nothing, False) -> do
-            addPValidDomAssertions
+            lift addPValidDomAssertions
             v <- lift $ lift $ testHypCommon wantModel sexpr
             zoomMaybe (#_Just % #unwrap) $ modify $ M.insertWith undefined sexpr (isTrueResult v)
             return $ Just v
