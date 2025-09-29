@@ -456,11 +456,13 @@ contractPcEnv visit (PcEnv pc env) = do
 
 --
 
-getInductVar :: TaggedC t n m => EqHypInduct -> m MaybeSplit
+getInductVar :: TaggedC t n m => EqHypInduct -> m FlatExpr
 getInductVar induct =
-    fmap (NotSplit . nameS) $
+    fmap (smtExprE ty . NotSplit . nameS) $
         withMapSlot #inductVarEnv induct $
-            liftInner $ addVar (printf "induct_i_%d_%d" induct.n1 induct.n2) word32T
+            liftInner $ addVar (printf "induct_i_%d_%d" induct.n1 induct.n2) ty
+  where
+    ty = word32T
 
 --
 

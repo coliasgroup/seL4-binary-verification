@@ -441,11 +441,12 @@ checkGenerality visit = void $ runMaybeT $ do
         when (loopIdOpt' == Just loopId && isOptionsVC restr.visitCount) $ do
             throwError $ TooGeneral { split = restr.nodeAddr }
 
-getInductVar :: TaggedC t n m => EqHypInduct -> m NameTy
+getInductVar :: TaggedC t n m => EqHypInduct -> m FlatExpr
 getInductVar induct =
-    withMapSlot #inductVars induct $
-        liftInner $
-            addVar (inductVarName induct) word32T
+    fmap varFromNameTyE $
+        withMapSlot #inductVars induct $
+            liftInner $
+                addVar (inductVarName induct) word32T
 
 getPc :: C t m => Visit -> TaggedT t m FlatExpr
 getPc visit = getNodePcEnv visit <&> \case
