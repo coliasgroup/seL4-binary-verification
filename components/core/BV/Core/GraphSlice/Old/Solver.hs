@@ -13,8 +13,6 @@ module BV.Core.GraphSlice.Old.Solver
       -- , NameHint
     , GraphSliceSolverT
     , PcEnv (..)
-    , SolverExpr
-    , SolverExprContext (..)
     , addDef
     , addPValidDomAssertions'
     , addSplitMemVar
@@ -35,8 +33,7 @@ module BV.Core.GraphSlice.Old.Solver
     ) where
 
 import BV.Core.GraphSlice.New.Common
-import BV.Core.GraphSlice.New.SendSolverExprCommand (SolverExpr,
-                                                     SolverExprContext (..))
+import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr, FlatExprContext)
 
 import BV.Core.GenerateFreshName
 import BV.Core.Logic
@@ -537,7 +534,7 @@ compatSMTComparisonKey = \case
 --
 
 -- TODO rename
-convertInnerExpr :: C m => GraphExpr -> ReaderT ExprEnv (T m) SolverExpr
+convertInnerExpr :: C m => GraphExpr -> ReaderT ExprEnv (T m) FlatExpr
 convertInnerExpr expr = case expr.ty of
     ExprTypeRelWrapper -> case expr.value of
         ExprValueOp { } -> traverseOf (exprArgs % traversed) convertInnerExpr expr
@@ -801,12 +798,12 @@ getImmBasisMems = go
 data PValidKey
   = PValidKey
       { pvKind :: PValidKind
-      , pvTy :: PValidType SolverExprContext
+      , pvTy :: PValidType FlatExprContext
       , ptrName :: Name
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-addPValids :: C m => S -> PValidKind -> PValidType SolverExprContext -> S -> T m S
+addPValids :: C m => S -> PValidKind -> PValidType FlatExprContext -> S -> T m S
 addPValids = go
   where
     go htd pvKind pvTy ptr = case htd of

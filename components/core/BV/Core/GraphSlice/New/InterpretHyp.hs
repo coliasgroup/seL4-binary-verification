@@ -33,7 +33,7 @@ interpretHyp = \case
         yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
             (Just xPcEnv, Just yPcEnv) -> do
-                let eq' = instEqWithEnvs
+                eq' <- instEqWithEnvsCompat
                         (eq.lhs.expr, envExt <> xPcEnv.env)
                         (eq.rhs.expr, envExt <> yPcEnv.env)
                 if ifAt

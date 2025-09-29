@@ -30,6 +30,7 @@ module BV.Core.GraphSlice.Old
     , getPc
     , getPcWithTag
     , instEqWithEnvs
+    , instEqWithEnvsCompat
     , isUnreachableCompat
     , liftUntagged
     , runAsmRefineGraphSliceT
@@ -42,7 +43,8 @@ module BV.Core.GraphSlice.Old
 import BV.Core.GraphSlice.Old.Core
 import BV.Core.GraphSlice.Old.Solver
 
-import BV.Core.GraphSlice.New (FlatExpr)
+import BV.Core.GraphSlice.New (AsmRefineGraphSliceInput (..), FlatExpr,
+                               GraphSliceInput (..))
 import BV.Core.GraphSlice.New.Common
 
 import BV.Core.Types
@@ -57,14 +59,6 @@ import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 import Optics
 
-data GraphSliceInput t
-  = GraphSliceInput
-      { structs :: ByTag t (M.Map Ident Struct)
-      , rodata :: ROData
-      , problem :: Problem t
-      }
-  deriving (Generic)
-
 runGraphSliceT
     :: (Tag t, MonadGraphSliceSendSExpr m)
     => GraphSliceHooks t m
@@ -77,14 +71,6 @@ runGraphSliceT hooks input =
   where
     structs = (M.!) $ M.unionsWith undefined $
         rodataStructsOf input.rodata : toList input.structs
-
-data AsmRefineGraphSliceInput
-  = AsmRefineGraphSliceInput
-      { repGraphInput :: GraphSliceInput AsmRefineTag
-      , lookupSig :: LookupFunctionSignature AsmRefineTag
-      , pairings :: Pairings'
-      }
-  deriving (Generic)
 
 runAsmRefineGraphSliceT
     :: MonadGraphSliceSendSExpr m
@@ -146,6 +132,9 @@ isUnreachableCompat :: (Tag t, MonadGraphSliceSendSExpr m) => Visit -> GraphSlic
 isUnreachableCompat visit = do
     pcEnv <- fromJust <$> getNodePcEnv visit
     liftInner $ withEnv pcEnv.env $ convertExprNotSplit $ notE pcEnv.pc
+
+instEqWithEnvsCompat :: (Tag t, MonadGraphSliceSendSExpr m) => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> GraphSliceT t m FlatExpr
+instEqWithEnvsCompat = instEqWithEnvs
 
 --
 

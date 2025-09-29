@@ -41,10 +41,12 @@ module BV.Core.GraphSlice.Old.Core
     , zeroMemCallsRange
     ) where
 
+import BV.Core.GraphSlice.Old.Solver
+
+import BV.Core.GraphSlice.New (FlatExpr)
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flatten.MemCalls
 import BV.Core.GraphSlice.New.Flatten.NameHint
-import BV.Core.GraphSlice.Old.Solver
 
 import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Logic
@@ -168,7 +170,7 @@ data FunCallInfo
   = FunCallInfo
       { ins :: [(ExprType, MaybeSplit)]
       , outs :: [(ExprType, MaybeSplit)]
-      , success :: SolverExpr
+      , success :: FlatExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -485,7 +487,7 @@ addInputEnvs = do
             M.empty
         liftGraphSlice $ #inpEnvs %= M.insert side.entryPoint env
 
-getPc :: C t m => Visit -> TaggedT t m SolverExpr
+getPc :: C t m => Visit -> TaggedT t m FlatExpr
 getPc visit = getNodePcEnv visit >>= \case
     Nothing -> return falseE
     Just (PcEnv pc env) -> liftInner $ withEnv env $ convertInnerExpr pc
@@ -757,7 +759,7 @@ addLoopMemCalls split = traverse $ \memCalls -> do
 
 --
 
-instEqWithEnvs :: forall t n m. TaggedC t n m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m SolverExpr
+instEqWithEnvs :: forall t n m. TaggedC t n m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m FlatExpr
 instEqWithEnvs (x, xenv) (y, yenv) = do
     x' <- withEnv xenv $ mapReaderT liftInner $ convertUnderOp x
     y' <- withEnv yenv $ mapReaderT liftInner $ convertUnderOp y
@@ -766,14 +768,14 @@ instEqWithEnvs (x, xenv) (y, yenv) = do
             _ -> eqE
     return $ f x' y'
   where
-    convertUnderOp :: C t n => GraphExpr -> ReaderT ExprEnv (GraphSliceSolverT n) SolverExpr
+    convertUnderOp :: C t n => GraphExpr -> ReaderT ExprEnv (GraphSliceSolverT n) FlatExpr
     convertUnderOp expr = case expr.value of
         ExprValueOp op args -> do
             args' <- traverse convertInnerExpr args
             return $ Expr expr.ty $ ExprValueOp op args'
         _ -> convertInnerExpr expr
 
-convertInnerExprWithPcEnv :: C t m => GraphExpr -> Visit -> TaggedT t m SolverExpr
+convertInnerExprWithPcEnv :: C t m => GraphExpr -> Visit -> TaggedT t m FlatExpr
 convertInnerExprWithPcEnv expr visit = do
     pcEnvOpt <- getNodePcEnv visit
     let Just (PcEnv _ env) = pcEnvOpt
@@ -848,7 +850,7 @@ memCallsCompatible memCalls = do
                     in memCallsRangesOverlap rcast ractual
             return $ all compat $ S.toList $ M.keysSet calls.right <> M.keysSet rcastcalls
 
-getFunAssert :: RefineC t m => ByTag t Visit -> ReaderT (AddFunAssertHookEnv t) (T t m) SolverExpr
+getFunAssert :: RefineC t m => ByTag t Visit -> ReaderT (AddFunAssertHookEnv t) (T t m) FlatExpr
 getFunAssert visits = do
     pairingId <- lift $ traverse askFunName visits
     pairing <- gview $ #pairings % #unwrap % expectingAt pairingId
@@ -873,7 +875,7 @@ data FunCallInfoWithNames
   = FunCallInfoWithNames
       { ins :: ExprEnv
       , outs :: ExprEnv
-      , success :: SolverExpr
+      , success :: FlatExpr
       }
   deriving (Eq, Generic, Ord, Show)
 

@@ -30,6 +30,7 @@ module BV.Core.GraphSlice.New
     , getPc
     , getPcWithTag
     , instEqWithEnvs
+    , instEqWithEnvsCompat
     , isUnreachableCompat
     , liftUntagged
     , runAsmRefineGraphSliceT
@@ -105,6 +106,8 @@ runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
                 withTags (pairingIdOfProblem input.repGraphInput.problem)
     hooks = asmRefineGraphSliceHooks input.lookupSig input.pairings argRenames
 
+--
+
 assertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m ()
 assertExpr = liftInner . assertFlatExpr
 
@@ -145,3 +148,6 @@ isUnreachableCompat :: (Tag t, MonadGraphSliceSendSExpr m) => Visit -> GraphSlic
 isUnreachableCompat visit = do
     pcEnv <- fromJust <$> getNodePcEnv visit
     liftUntagged $ convertExpr $ notE pcEnv.pc
+
+instEqWithEnvsCompat :: Applicative f => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> f FlatExpr
+instEqWithEnvsCompat x y = pure $ instEqWithEnvs x y
