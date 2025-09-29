@@ -6,13 +6,13 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.RepGraph.New.Flatten
+module BV.Core.GraphSlice.New.Flatten
     ( ExprEnv
     , FunCallInfo (..)
     , PcEnv (..)
-    , RepGraphHooks (preEmitCallNodeHook)
-    , RepGraphT
-    , RepGraphTaggedT
+    , GraphSliceHooks (preEmitCallNodeHook)
+    , GraphSliceT
+    , GraphSliceTaggedT
     , addPValidDomAssertions
     , askCont
     , askLoopData
@@ -20,8 +20,8 @@ module BV.Core.RepGraph.New.Flatten
     , askProblem
     , askTag
     , askWithTag
-    , asmRefineRepGraphHooks
-    , defaultRepGraphHooks
+    , asmRefineGraphSliceHooks
+    , defaultGraphSliceHooks
     , flattenExpr
     , getFunCallInfo
     , getInductVar
@@ -29,18 +29,18 @@ module BV.Core.RepGraph.New.Flatten
     , getPc
     , instEqWithEnvs
     , liftUntagged
-    , runRepGraphTStep
+    , runGraphSliceTStep
     , runTagged
     , tryGetNodePcEnv
     ) where
 
-import BV.Core.RepGraph.New.Common
-import BV.Core.RepGraph.New.Flat
-import BV.Core.RepGraph.New.Flatten.AsmRefine
-import BV.Core.RepGraph.New.Flatten.MemCalls
-import BV.Core.RepGraph.New.Flatten.NameHint
-import BV.Core.RepGraph.New.Flatten.PcEnv
-import BV.Core.RepGraph.New.SendFlatExprCommand (FlatExpr)
+import BV.Core.GraphSlice.New.Common
+import BV.Core.GraphSlice.New.Flat
+import BV.Core.GraphSlice.New.Flatten.AsmRefine
+import BV.Core.GraphSlice.New.Flatten.MemCalls
+import BV.Core.GraphSlice.New.Flatten.NameHint
+import BV.Core.GraphSlice.New.Flatten.PcEnv
+import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 
 import BV.Core.Logic (applyRelWrapper, weakenAssert)
 import BV.Core.Types
@@ -79,13 +79,13 @@ cheatMemDoms = True
 
 --
 
-type T = RepGraphT
+type T = GraphSliceT
 
-type TaggedT = RepGraphTaggedT
+type TaggedT = GraphSliceTaggedT
 
-type InnerT = RepGraphFlatT
+type InnerT = GraphSliceFlatT
 
-type C t m = (Tag t, MonadRepGraphSendSExpr m)
+type C t m = (Tag t, MonadGraphSliceSendSExpr m)
 
 type RefineC t m = (C t m, RefineTag t)
 
@@ -95,24 +95,24 @@ type TaggedC t n m = (C t n, MonadInner (InnerT n) m, MonadT t n m)
 
 --
 
-newtype RepGraphT t m a
-  = RepGraphT { run :: StateT (TState t) (ReaderT (TEnv t m) (InnerT m)) a }
+newtype GraphSliceT t m a
+  = GraphSliceT { run :: StateT (TState t) (ReaderT (TEnv t m) (InnerT m)) a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
 instance Monad m => MonadInner (InnerT m) (T t m) where
-    liftInner = RepGraphT . lift . lift
+    liftInner = GraphSliceT . lift . lift
 
 instance MonadTrans (T t) where
     lift = liftInner . lift
 
-runRepGraphTStep
+runGraphSliceTStep
     :: (Tag t, Monad m)
     => Problem t
-    -> RepGraphHooks t m
+    -> GraphSliceHooks t m
     -> T t m a
     -> InnerT m a
-runRepGraphTStep problem hooks =
+runGraphSliceTStep problem hooks =
       flip runReaderT (initEnv problem hooks)
     . flip evalStateT initState
     . (.run)
@@ -121,13 +121,13 @@ data TEnv t m
   = TEnv
       { problem :: Problem t
       , analysis :: ProblemAnalysis t
-      , hooks :: RepGraphHooks t m
+      , hooks :: GraphSliceHooks t m
       }
   deriving (Generic)
 
 -- TODO abuse of PairingEqDirection
-data RepGraphHooks t n
-  = RepGraphHooks
+data GraphSliceHooks t n
+  = GraphSliceHooks
       { preEmitCallNodeHook :: Visit -> TaggedT t n ()
       , postEmitCallNodeHook :: Visit -> TaggedT t n ()
       , isMemHook :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
@@ -158,15 +158,15 @@ data FunCallInfo
       }
   deriving (Eq, Generic, Ord, Show)
 
-initEnv :: Tag t => Problem t -> RepGraphHooks t m -> TEnv t m
+initEnv :: Tag t => Problem t -> GraphSliceHooks t m -> TEnv t m
 initEnv problem hooks = TEnv
     { problem
     , analysis = analyzeProblem problem
     , hooks
     }
 
-defaultRepGraphHooks :: Monad m => RepGraphHooks t m
-defaultRepGraphHooks = RepGraphHooks
+defaultGraphSliceHooks :: Monad m => GraphSliceHooks t m
+defaultGraphSliceHooks = GraphSliceHooks
     { preEmitCallNodeHook = \_ -> return ()
     , postEmitCallNodeHook = \_ -> return ()
     , isMemHook = \_ _ _ -> False
@@ -174,13 +174,13 @@ defaultRepGraphHooks = RepGraphHooks
     , stackPointerHook = \_ -> undefined
     }
 
-asmRefineRepGraphHooks
+asmRefineGraphSliceHooks
     :: AsmRefineC t m
     => LookupFunctionSignature t
     -> Pairings'
     -> ArgRenames t
-    -> RepGraphHooks t m
-asmRefineRepGraphHooks lookupSig pairings argRenames = defaultRepGraphHooks
+    -> GraphSliceHooks t m
+asmRefineGraphSliceHooks lookupSig pairings argRenames = defaultGraphSliceHooks
     & #postEmitCallNodeHook .~ addFunAssertsHook lookupSig pairings
     & #isMemHook .~ asmRefineIsMemHook lookupSig
     & #isStackHook .~ asmRefineIsStackHook lookupSig
@@ -201,19 +201,19 @@ initState = TState
 
 --
 
-newtype RepGraphTaggedT t m a
-  = RepGraphTaggedT { run :: ReaderT t (T t m) a }
+newtype GraphSliceTaggedT t m a
+  = GraphSliceTaggedT { run :: ReaderT t (T t m) a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
 instance Monad m => MonadInner (InnerT m) (TaggedT t m) where
-    liftInner = RepGraphTaggedT . lift . liftInner
+    liftInner = GraphSliceTaggedT . lift . liftInner
 
 instance MonadTrans (TaggedT t) where
     lift = liftInner . lift
 
 askTag :: Monad m => TaggedT t m t
-askTag = RepGraphTaggedT ask
+askTag = GraphSliceTaggedT ask
 
 askWithTag :: Monad m => a -> TaggedT t m (WithTag t a)
 askWithTag a = do
@@ -224,13 +224,13 @@ runTagged :: Monad m => t -> TaggedT t m a -> T t m a
 runTagged tag m = runReaderT m.run tag
 
 liftUntagged :: Monad m => T t m a -> TaggedT t m a
-liftUntagged = RepGraphTaggedT . lift
+liftUntagged = GraphSliceTaggedT . lift
 
 class (Monad n, Monad m) => MonadT t n m | m -> t, m -> n where
     liftPure :: StateT (TState t) (Reader (TEnv t n)) a -> m a
 
 instance Monad n => MonadT t n (T t n) where
-    liftPure = RepGraphT . mapStateT (mapReaderT (return . runIdentity))
+    liftPure = GraphSliceT . mapStateT (mapReaderT (return . runIdentity))
 
 instance (Monad n, MonadT t n (T t n)) => MonadT t n (TaggedT t n) where
     liftPure = liftUntagged . liftPure
@@ -250,7 +250,7 @@ withMapSlotTagged l k m = do
 
 --
 
-askHook :: TaggedC t n m => Lens' (RepGraphHooks t n) a -> m a
+askHook :: TaggedC t n m => Lens' (GraphSliceHooks t n) a -> m a
 askHook l = liftPure $ gview $ #hooks % l
 
 askProblem :: TaggedC t n m => m (Problem t)
@@ -291,7 +291,7 @@ getHasInnerLoop loopHead = withMapSlotTagged #hasInnerLoopCache loopHead $ do
     loop <- askLoopContaining loopHead
     return $ not $ null $ innerLoopsOf p.nodes loop
 
-askFunName :: (Tag t, MonadRepGraphSendSExpr n) => Visit -> T t n Ident
+askFunName :: (Tag t, MonadGraphSliceSendSExpr n) => Visit -> T t n Ident
 askFunName v = view (expecting #_NodeCall % #functionName) <$> askNode (nodeAddrOf v.nodeId)
 
 askPreds :: C t m => NodeId -> TaggedT t m (Set NodeAddr)

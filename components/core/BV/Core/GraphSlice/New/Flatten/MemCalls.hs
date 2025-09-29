@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.RepGraph.New.Flatten.MemCalls
+module BV.Core.GraphSlice.New.Flatten.MemCalls
     ( MemCalls
     , addMemCall
     , addUnboundedMemCalls

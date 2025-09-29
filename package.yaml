@@ -116,11 +116,11 @@ internal-libraries:
       - BV.Core.Logic
       - BV.Core.ModelConfig
       - BV.Core.Prelude
-      - BV.Core.RepGraph
-      - BV.Core.RepGraph.New
-      - BV.Core.RepGraph.New.InterpretHyp
-      - BV.Core.RepGraph.Old
-      - BV.Core.RepGraph.Old.InterpretHyp
+      - BV.Core.GraphSlice
+      - BV.Core.GraphSlice.New
+      - BV.Core.GraphSlice.New.InterpretHyp
+      - BV.Core.GraphSlice.Old
+      - BV.Core.GraphSlice.Old.InterpretHyp
       - BV.Core.Stages
       - BV.Core.Structs
       - BV.Core.Types

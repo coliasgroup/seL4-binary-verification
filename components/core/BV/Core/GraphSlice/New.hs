@@ -1,14 +1,14 @@
-module BV.Core.RepGraph.New
-    ( AsmRefineRepGraphInput (..)
+module BV.Core.GraphSlice.New
+    ( AsmRefineGraphSliceInput (..)
     , ExprEnv
     , FlatExpr
     , FunCallInfo (..)
-    , MonadRepGraphSendSExpr (..)
+    , MonadGraphSliceSendSExpr (..)
     , PcEnv (..)
-    , RepGraphHooks (preEmitCallNodeHook)
-    , RepGraphInput (..)
-    , RepGraphT
-    , RepGraphTaggedT
+    , GraphSliceHooks (preEmitCallNodeHook)
+    , GraphSliceInput (..)
+    , GraphSliceT
+    , GraphSliceTaggedT
     , addPValidDomAssertions
     , askCont
     , askLoopData
@@ -16,10 +16,10 @@ module BV.Core.RepGraph.New
     , askProblem
     , askTag
     , askWithTag
-    , asmRefineRepGraphHooks
+    , asmRefineGraphSliceHooks
     , assertExpr
     , convertExpr
-    , defaultRepGraphHooks
+    , defaultGraphSliceHooks
     , flattenExpr
     , getEvalModel
     , getFunCallInfo
@@ -32,18 +32,18 @@ module BV.Core.RepGraph.New
     , instEqWithEnvs
     , isUnreachableCompat
     , liftUntagged
-    , runAsmRefineRepGraphT
-    , runRepGraphT
-    , runRepGraphTStep
+    , runAsmRefineGraphSliceT
+    , runGraphSliceT
+    , runGraphSliceTStep
     , runTagged
     , tryGetNodePcEnv
     ) where
 
-import BV.Core.RepGraph.New.Common
-import BV.Core.RepGraph.New.Flat
-import BV.Core.RepGraph.New.Flatten
-import BV.Core.RepGraph.New.SendFlatExprCommand
-import BV.Core.RepGraph.New.SendSolverExprCommand
+import BV.Core.GraphSlice.New.Common
+import BV.Core.GraphSlice.New.Flat
+import BV.Core.GraphSlice.New.Flatten
+import BV.Core.GraphSlice.New.SendFlatExprCommand
+import BV.Core.GraphSlice.New.SendSolverExprCommand
 
 import BV.Core.Types
 import BV.Core.Types.Extras
@@ -55,25 +55,25 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 
-data RepGraphInput t
-  = RepGraphInput
+data GraphSliceInput t
+  = GraphSliceInput
       { structs :: ByTag t (M.Map Ident Struct)
       , rodata :: ROData
       , problem :: Problem t
       }
   deriving (Generic)
 
-runRepGraphT
-    :: (Tag t, MonadRepGraphSendSExpr m)
-    => RepGraphHooks t m
-    -> RepGraphInput t
-    -> RepGraphT t m a
+runGraphSliceT
+    :: (Tag t, MonadGraphSliceSendSExpr m)
+    => GraphSliceHooks t m
+    -> GraphSliceInput t
+    -> GraphSliceT t m a
     -> m a
-runRepGraphT hooks input =
-      runRepGraphSendSolverExprCommandTStep input.rodata
-    . runRepGraphSendFlatExprCommandTStep structs (rodataPtrsFromROData input.rodata)
-    . runRepGraphFlatTStep
-    . runRepGraphTStep input.problem hooks
+runGraphSliceT hooks input =
+      runGraphSliceSendSolverExprCommandTStep input.rodata
+    . runGraphSliceSendFlatExprCommandTStep structs (rodataPtrsFromROData input.rodata)
+    . runGraphSliceFlatTStep
+    . runGraphSliceTStep input.problem hooks
   where
     structs = (M.!) $ M.unionsWith undefined $
         rodataStructsOf input.rodata : toList input.structs
@@ -84,39 +84,39 @@ rodataPtrsFromROData rodata =
     | (structName, range) <- rodataStructNamesOf rodata
     ]
 
-data AsmRefineRepGraphInput
-  = AsmRefineRepGraphInput
-      { repGraphInput :: RepGraphInput AsmRefineTag
+data AsmRefineGraphSliceInput
+  = AsmRefineGraphSliceInput
+      { repGraphInput :: GraphSliceInput AsmRefineTag
       , lookupSig :: LookupFunctionSignature AsmRefineTag
       , pairings :: Pairings'
       }
   deriving (Generic)
 
-runAsmRefineRepGraphT
-    :: MonadRepGraphSendSExpr m
-    => AsmRefineRepGraphInput
-    -> RepGraphT AsmRefineTag m a
+runAsmRefineGraphSliceT
+    :: MonadGraphSliceSendSExpr m
+    => AsmRefineGraphSliceInput
+    -> GraphSliceT AsmRefineTag m a
     -> m a
-runAsmRefineRepGraphT input = runRepGraphT hooks input.repGraphInput
+runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
   where
     argRenames =
         problemArgRenames input.repGraphInput.problem $
             input.lookupSig <$>
                 withTags (pairingIdOfProblem input.repGraphInput.problem)
-    hooks = asmRefineRepGraphHooks input.lookupSig input.pairings argRenames
+    hooks = asmRefineGraphSliceHooks input.lookupSig input.pairings argRenames
 
-assertExpr :: (Tag t, MonadRepGraphSendSExpr m) => FlatExpr -> RepGraphT t m ()
+assertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m ()
 assertExpr = liftInner . assertFlatExpr
 
-convertExpr :: (Tag t, MonadRepGraphSendSExpr m) => FlatExpr -> RepGraphT t m SExprWithPlaceholders
+convertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m SExprWithPlaceholders
 convertExpr =
     liftInner . liftInner . convertFlatExpr
         >=> liftInner . liftInner . liftInner . convertSolverExpr
 
-getPcWithTag :: (Tag t, MonadRepGraphSendSExpr m) => WithTag t Visit -> RepGraphT t m FlatExpr
+getPcWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m FlatExpr
 getPcWithTag (WithTag tag visit) = runTagged tag $ getPc visit
 
-getNodePcEnvWithTag :: (Tag t, MonadRepGraphSendSExpr m) => WithTag t Visit -> RepGraphT t m (Maybe PcEnv)
+getNodePcEnvWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m (Maybe PcEnv)
 getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
 
 --
@@ -127,10 +127,10 @@ newtype ModelResponse
   = ModelResponse { unwrap :: M.Map String SExpr }
   deriving (Generic, Show)
 
-getModelRequest :: (Tag t, MonadRepGraphSendSExpr m) => RepGraphT t m ModelRequest
+getModelRequest :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ModelRequest
 getModelRequest = undefined
 
-getEvalModel :: (Tag t, MonadRepGraphSendSExpr m) => RepGraphT t m (ModelResponse -> FlatExpr -> FlatExpr)
+getEvalModel :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m (ModelResponse -> FlatExpr -> FlatExpr)
 getEvalModel = undefined
     -- modelResp expr
 
@@ -141,7 +141,7 @@ getEvalModel = undefined
 
 --
 
-isUnreachableCompat :: (Tag t, MonadRepGraphSendSExpr m) => Visit -> RepGraphTaggedT t m SExprWithPlaceholders
+isUnreachableCompat :: (Tag t, MonadGraphSliceSendSExpr m) => Visit -> GraphSliceTaggedT t m SExprWithPlaceholders
 isUnreachableCompat visit = do
     pcEnv <- fromJust <$> getNodePcEnv visit
     liftUntagged $ convertExpr $ notE pcEnv.pc

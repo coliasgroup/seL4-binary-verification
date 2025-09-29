@@ -1,12 +1,12 @@
 module BV.Core.Stages.CompileProofChecks
-    ( AsmRefineRepGraphInput (..)
+    ( AsmRefineGraphSliceInput (..)
     , FunctionSignature (..)
-    , RepGraphInput (..)
+    , GraphSliceInput (..)
     , compileProofChecks
     ) where
 
-import BV.Core.RepGraph
-import BV.Core.RepGraph.InterpretHyp
+import BV.Core.GraphSlice
+import BV.Core.GraphSlice.InterpretHyp
 import BV.Core.Stages.EnumerateProofChecks (pruneProofCheck)
 import BV.Core.Stages.GroupProofChecks
 import BV.Core.Types
@@ -17,7 +17,7 @@ import Data.Traversable (for)
 import Optics
 
 compileProofChecks
-    :: AsmRefineRepGraphInput
+    :: AsmRefineGraphSliceInput
     -> [ProofCheck AsmRefineTag a]
     -> [(ProofCheckGroupCheckIndices, SMTProofCheckGroup a)]
 compileProofChecks input checks =
@@ -29,16 +29,16 @@ compileProofChecks input checks =
     pruneGroup = map pruneCheck
 
 compileProofCheckGroup
-    :: AsmRefineRepGraphInput
+    :: AsmRefineGraphSliceInput
     -> ProofCheckGroup AsmRefineTag a
     -> SMTProofCheckGroup a
 compileProofCheckGroup input group =
     SMTProofCheckGroup setup imps
   where
-    (imps, setup) = runWriter (runAsmRefineRepGraphT input m)
+    (imps, setup) = runWriter (runAsmRefineGraphSliceT input m)
     m = interpretGroup group <* addPValidDomAssertions
 
-interpretGroup :: (RefineTag t, MonadRepGraphSendSExpr m) => ProofCheckGroup t a -> RepGraphT t m [SMTProofCheckImp a]
+interpretGroup :: (RefineTag t, MonadGraphSliceSendSExpr m) => ProofCheckGroup t a -> GraphSliceT t m [SMTProofCheckImp a]
 interpretGroup group = do
     hyps <- for group $ \check -> do
         concl <- interpretHyp check.hyp

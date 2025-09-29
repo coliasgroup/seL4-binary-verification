@@ -7,12 +7,12 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
-module BV.Core.RepGraph.Old.Solver
+module BV.Core.GraphSlice.Old.Solver
     ( ExprEnv
     , Name (..)
       -- , NameHint
     , PcEnv (..)
-    , RepGraphSolverT
+    , GraphSliceSolverT
     , SolverExpr
     , SolverExprContext (..)
     , addDef
@@ -28,14 +28,14 @@ module BV.Core.RepGraph.Old.Solver
     , getModelVars
     , mergeEnvsPcs
     , nameS
-    , runRepGraphSolverTStep
+    , runGraphSliceSolverTStep
     , tryGetDef
     , withEnv
     , withoutEnv
     ) where
 
-import BV.Core.RepGraph.New.Common
-import BV.Core.RepGraph.New.SendSolverExprCommand (SolverExpr,
+import BV.Core.GraphSlice.New.Common
+import BV.Core.GraphSlice.New.SendSolverExprCommand (SolverExpr,
                                                    SolverExprContext (..))
 
 import BV.Core.GenerateFreshName
@@ -76,25 +76,25 @@ cheatMemDoms = True
 
 --
 
-type T = RepGraphSolverT
+type T = GraphSliceSolverT
 
-type C = MonadRepGraphSendSExpr
+type C = MonadGraphSliceSendSExpr
 
 --
 
-newtype RepGraphSolverT m a
-  = RepGraphSolverT { run :: StateT TState (ReaderT TEnv (StructsT m)) a }
+newtype GraphSliceSolverT m a
+  = GraphSliceSolverT { run :: StateT TState (ReaderT TEnv (StructsT m)) a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
-instance MonadTrans RepGraphSolverT where
-    lift = RepGraphSolverT . lift . lift . lift
+instance MonadTrans GraphSliceSolverT where
+    lift = GraphSliceSolverT . lift . lift . lift
 
 liftStructs :: Monad m => StructsT m a -> T m a
-liftStructs = RepGraphSolverT . lift . lift
+liftStructs = GraphSliceSolverT . lift . lift
 
 liftPure :: Monad m => StateT TState (Reader TEnv) a -> T m a
-liftPure = RepGraphSolverT . mapStateT (mapReaderT (return . runIdentity))
+liftPure = GraphSliceSolverT . mapStateT (mapReaderT (return . runIdentity))
 
 liftSolver :: Monad m => StateT TState (Reader TEnv) a -> T m a
 liftSolver = liftPure
@@ -102,8 +102,8 @@ liftSolver = liftPure
 send :: C m => SExprWithPlaceholders -> T m ()
 send = lift . sendSExpr
 
-runRepGraphSolverTStep :: C m => (Ident -> Struct) -> ROData -> T m a -> m a
-runRepGraphSolverTStep lookupStruct rodata m =
+runGraphSliceSolverTStep :: C m => (Ident -> Struct) -> ROData -> T m a -> m a
+runGraphSliceSolverTStep lookupStruct rodata m =
       runStructsT lookupStruct
     . flip runReaderT (initEnv rodata)
     . flip evalStateT initState

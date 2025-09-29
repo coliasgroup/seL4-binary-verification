@@ -3,7 +3,7 @@ module BV.Search.Core.Inlining
     , discoverInlineScript
     ) where
 
-import BV.Core.RepGraph.Old
+import BV.Core.GraphSlice.Old
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Problem
@@ -38,7 +38,7 @@ data DiscoverInlineScriptInput
   deriving (Generic)
 
 discoverInlineScript
-    :: (Monad m, MonadRepGraphSolverInteract n)
+    :: (Monad m, MonadGraphSliceSolverInteract n)
     => (forall a. n a -> m a)
     -> DiscoverInlineScriptInput
     -> m InlineScript'
@@ -59,7 +59,7 @@ discoverInlineScript run input =
         let matchedC =
                 let present = presentInProblem problem
                 in S.fromList $ toList $ M.restrictKeys asmToCMatch present
-         in fmap (:[]) <$> run (nextReachableUnmatchedCInlinePoint matchedC (RepGraphInput
+         in fmap (:[]) <$> run (nextReachableUnmatchedCInlinePoint matchedC (GraphSliceInput
                 { structs = input.structs
                 , rodata = input.rodata
                 , problem
@@ -98,12 +98,12 @@ nextCompletelyUnmatchedInlinePoints matched p = case M.keys (M.filter f p.nodes)
         NodeCall callNode -> S.notMember callNode.functionName matched
         _ -> False
 
-nextReachableUnmatchedCInlinePoint :: MonadRepGraphSolverInteract m => S.Set Ident -> RepGraphInput AsmRefineTag -> m (Maybe NodeAddr)
+nextReachableUnmatchedCInlinePoint :: MonadGraphSliceSolverInteract m => S.Set Ident -> GraphSliceInput AsmRefineTag -> m (Maybe NodeAddr)
 nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
     preview (_Left % #nodeAddr)
-        <$> runExceptT (runRepGraphT hooks repGraphInput nextReachableUnmatchedCInlinePointInner)
+        <$> runExceptT (runGraphSliceT hooks repGraphInput nextReachableUnmatchedCInlinePointInner)
   where
-    hooks = defaultRepGraphHooks & #preEmitCallNodeHook .~ inlinerHook
+    hooks = defaultGraphSliceHooks & #preEmitCallNodeHook .~ inlinerHook
     inlinerHook visit = do
         tag <- askTag
         p <- askProblem
@@ -116,7 +116,7 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
                 { nodeAddr
                 }
 
-nextReachableUnmatchedCInlinePointInner :: MonadRepGraphSolverInteract m => RepGraphT AsmRefineTag (ExceptT InliningEvent m) ()
+nextReachableUnmatchedCInlinePointInner :: MonadGraphSliceSolverInteract m => GraphSliceT AsmRefineTag (ExceptT InliningEvent m) ()
 nextReachableUnmatchedCInlinePointInner = runTagged C $ do
     p <- askProblem
     g <- askNodeGraph

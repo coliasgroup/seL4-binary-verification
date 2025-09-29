@@ -1,13 +1,13 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
-module BV.Core.RepGraph.New.Flatten.PcEnv
+module BV.Core.GraphSlice.New.Flatten.PcEnv
     ( ExprEnv
     , PcEnv (..)
     , exprEnvVars
     , mergePcEnvs
     ) where
 
-import BV.Core.RepGraph.New.SendFlatExprCommand
+import BV.Core.GraphSlice.New.SendFlatExprCommand
 
 import BV.Core.Types
 import BV.Core.Types.Extras

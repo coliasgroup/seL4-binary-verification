@@ -1,18 +1,18 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.RepGraph.New.SendFlatExprCommand
+module BV.Core.GraphSlice.New.SendFlatExprCommand
     ( FlatExpr
     , FlatExprCommand
     , FlatExprContext (..)
-    , RepGraphSendFlatExprCommandT
+    , GraphSliceSendFlatExprCommandT
     , convertFlatExpr
-    , runRepGraphSendFlatExprCommandTStep
+    , runGraphSliceSendFlatExprCommandTStep
     , sendFlatExprCommand
     ) where
 
-import BV.Core.RepGraph.New.Common
-import BV.Core.RepGraph.New.SendSolverExprCommand
+import BV.Core.GraphSlice.New.Common
+import BV.Core.GraphSlice.New.SendSolverExprCommand
 
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Logic
@@ -44,11 +44,11 @@ import Optics.State.Operators ((%=), (<<.=))
 
 -- TODO explicitly weaken pvalid ops in strengthenHyp
 
-type T = RepGraphSendFlatExprCommandT
+type T = GraphSliceSendFlatExprCommandT
 
-type InnerT = RepGraphSendSolverExprCommandT
+type InnerT = GraphSliceSendSolverExprCommandT
 
-type C = MonadRepGraphSendSExpr
+type C = MonadGraphSliceSendSExpr
 
 --
 
@@ -61,28 +61,28 @@ type FlatExprCommand = ExprCommand FlatExprContext
 
 --
 
-newtype RepGraphSendFlatExprCommandT m a
-  = RepGraphSendFlatExprCommandT { run :: StateT TState (ReaderT TEnv (StructsT (InnerT m))) a }
+newtype GraphSliceSendFlatExprCommandT m a
+  = GraphSliceSendFlatExprCommandT { run :: StateT TState (ReaderT TEnv (StructsT (InnerT m))) a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
 instance Monad m => MonadInner (InnerT m) (T m) where
-    liftInner = RepGraphSendFlatExprCommandT . lift . lift . lift
+    liftInner = GraphSliceSendFlatExprCommandT . lift . lift . lift
 
 instance MonadTrans T where
     lift = liftInner . lift
 
 liftStructs :: Monad m => StructsT (InnerT m) a -> T m a
-liftStructs = RepGraphSendFlatExprCommandT . lift . lift
+liftStructs = GraphSliceSendFlatExprCommandT . lift . lift
 
 liftPure :: Monad m => StateT TState (Reader TEnv) a -> T m a
-liftPure = RepGraphSendFlatExprCommandT . mapStateT (mapReaderT (return . runIdentity))
+liftPure = GraphSliceSendFlatExprCommandT . mapStateT (mapReaderT (return . runIdentity))
 
 send :: C m => SolverExprCommand -> T m ()
 send = liftInner . sendSolverExprCommand
 
-runRepGraphSendFlatExprCommandTStep :: Monad m => (Ident -> Struct) -> [SolverExpr] -> T m a -> InnerT m a
-runRepGraphSendFlatExprCommandTStep lookupStruct rodataPtrs =
+runGraphSliceSendFlatExprCommandTStep :: Monad m => (Ident -> Struct) -> [SolverExpr] -> T m a -> InnerT m a
+runGraphSliceSendFlatExprCommandTStep lookupStruct rodataPtrs =
       runStructsT lookupStruct
     . flip runReaderT (initEnv rodataPtrs)
     . flip evalStateT initState

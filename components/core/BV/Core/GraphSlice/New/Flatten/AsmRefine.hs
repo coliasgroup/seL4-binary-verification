@@ -1,13 +1,13 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.RepGraph.New.Flatten.AsmRefine
+module BV.Core.GraphSlice.New.Flatten.AsmRefine
     ( areMemCallsCompatible
     , asmRefineIsMemHook
     , asmRefineIsStackHook
     , asmRefineStackPointerHook
     ) where
 
-import BV.Core.RepGraph.New.Flatten.MemCalls
+import BV.Core.GraphSlice.New.Flatten.MemCalls
 
 import BV.Core.Types
 import BV.Core.Types.Extras

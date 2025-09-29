@@ -1,17 +1,17 @@
-module BV.Core.RepGraph.New.Flat
+module BV.Core.GraphSlice.New.Flat
     ( NameHint
-    , RepGraphFlatT
+    , GraphSliceFlatT
     , addDef
     , addVar
     , assertFlatExpr
     , cacheExpr
     , cacheExprInline
     , lookupDef
-    , runRepGraphFlatTStep
+    , runGraphSliceFlatTStep
     ) where
 
-import BV.Core.RepGraph.New.Common
-import BV.Core.RepGraph.New.SendFlatExprCommand
+import BV.Core.GraphSlice.New.Common
+import BV.Core.GraphSlice.New.SendFlatExprCommand
 
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Types
@@ -28,27 +28,27 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 
-type T = RepGraphFlatT
+type T = GraphSliceFlatT
 
-type InnerT = RepGraphSendFlatExprCommandT
+type InnerT = GraphSliceSendFlatExprCommandT
 
-type C = MonadRepGraphSendSExpr
+type C = MonadGraphSliceSendSExpr
 
 --
 
-newtype RepGraphFlatT m a
-  = RepGraphFlatT { run :: StateT TState (InnerT m) a }
+newtype GraphSliceFlatT m a
+  = GraphSliceFlatT { run :: StateT TState (InnerT m) a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
 instance Monad m => MonadInner (InnerT m) (T m) where
-    liftInner = RepGraphFlatT . lift
+    liftInner = GraphSliceFlatT . lift
 
 instance MonadTrans T where
     lift = liftInner . lift
 
 liftPure :: Monad m => State TState a -> T m a
-liftPure = RepGraphFlatT . mapStateT (return . runIdentity)
+liftPure = GraphSliceFlatT . mapStateT (return . runIdentity)
 
 send :: C m => FlatExprCommand -> T m ()
 send = liftInner . sendFlatExprCommand
@@ -63,8 +63,8 @@ data TState
       }
   deriving (Generic)
 
-runRepGraphFlatTStep :: Monad m => T m a -> InnerT m a
-runRepGraphFlatTStep = flip evalStateT initState . (.run)
+runGraphSliceFlatTStep :: Monad m => T m a -> InnerT m a
+runGraphSliceFlatTStep = flip evalStateT initState . (.run)
 
 initState :: TState
 initState = TState

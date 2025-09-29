@@ -78,11 +78,11 @@ library core
       BV.Core.Logic
       BV.Core.ModelConfig
       BV.Core.Prelude
-      BV.Core.RepGraph
-      BV.Core.RepGraph.New
-      BV.Core.RepGraph.New.InterpretHyp
-      BV.Core.RepGraph.Old
-      BV.Core.RepGraph.Old.InterpretHyp
+      BV.Core.GraphSlice
+      BV.Core.GraphSlice.New
+      BV.Core.GraphSlice.New.InterpretHyp
+      BV.Core.GraphSlice.Old
+      BV.Core.GraphSlice.Old.InterpretHyp
       BV.Core.Stages
       BV.Core.Structs
       BV.Core.Types
@@ -96,18 +96,18 @@ library core
       BV.Core.Arch
       BV.Core.GenerateFreshName
       BV.Core.Glue
-      BV.Core.RepGraph.InterpretHyp
-      BV.Core.RepGraph.New.Common
-      BV.Core.RepGraph.New.Flat
-      BV.Core.RepGraph.New.Flatten
-      BV.Core.RepGraph.New.Flatten.AsmRefine
-      BV.Core.RepGraph.New.Flatten.MemCalls
-      BV.Core.RepGraph.New.Flatten.NameHint
-      BV.Core.RepGraph.New.Flatten.PcEnv
-      BV.Core.RepGraph.New.SendFlatExprCommand
-      BV.Core.RepGraph.New.SendSolverExprCommand
-      BV.Core.RepGraph.Old.Core
-      BV.Core.RepGraph.Old.Solver
+      BV.Core.GraphSlice.InterpretHyp
+      BV.Core.GraphSlice.New.Common
+      BV.Core.GraphSlice.New.Flat
+      BV.Core.GraphSlice.New.Flatten
+      BV.Core.GraphSlice.New.Flatten.AsmRefine
+      BV.Core.GraphSlice.New.Flatten.MemCalls
+      BV.Core.GraphSlice.New.Flatten.NameHint
+      BV.Core.GraphSlice.New.Flatten.PcEnv
+      BV.Core.GraphSlice.New.SendFlatExprCommand
+      BV.Core.GraphSlice.New.SendSolverExprCommand
+      BV.Core.GraphSlice.Old.Core
+      BV.Core.GraphSlice.Old.Solver
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks

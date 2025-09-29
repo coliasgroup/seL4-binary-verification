@@ -5,17 +5,17 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
-module BV.Core.RepGraph.New.SendSolverExprCommand
-    ( RepGraphSendSolverExprCommandT
+module BV.Core.GraphSlice.New.SendSolverExprCommand
+    ( GraphSliceSendSolverExprCommandT
     , SolverExpr
     , SolverExprCommand
     , SolverExprContext (..)
     , convertSolverExpr
-    , runRepGraphSendSolverExprCommandTStep
+    , runGraphSliceSendSolverExprCommandTStep
     , sendSolverExprCommand
     ) where
 
-import BV.Core.RepGraph.New.Common
+import BV.Core.GraphSlice.New.Common
 
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Types
@@ -44,9 +44,9 @@ import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
 
-type T = RepGraphSendSolverExprCommandT
+type T = GraphSliceSendSolverExprCommandT
 
-type C = MonadRepGraphSendSExpr
+type C = MonadGraphSliceSendSExpr
 
 --
 
@@ -59,22 +59,22 @@ type SolverExprCommand = ExprCommand SolverExprContext
 
 --
 
-newtype RepGraphSendSolverExprCommandT m a
-  = RepGraphSendSolverExprCommandT { run :: StateT TState (ReaderT TEnv m) a }
+newtype GraphSliceSendSolverExprCommandT m a
+  = GraphSliceSendSolverExprCommandT { run :: StateT TState (ReaderT TEnv m) a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
-instance MonadTrans RepGraphSendSolverExprCommandT where
-    lift = RepGraphSendSolverExprCommandT . lift . lift
+instance MonadTrans GraphSliceSendSolverExprCommandT where
+    lift = GraphSliceSendSolverExprCommandT . lift . lift
 
 liftPure :: Monad m => StateT TState (Reader TEnv) a -> T m a
-liftPure = RepGraphSendSolverExprCommandT . mapStateT (mapReaderT (return . runIdentity))
+liftPure = GraphSliceSendSolverExprCommandT . mapStateT (mapReaderT (return . runIdentity))
 
 send :: C m => SExprWithPlaceholders -> T m ()
 send = lift . sendSExpr
 
-runRepGraphSendSolverExprCommandTStep :: Monad m => ROData -> T m a -> m a
-runRepGraphSendSolverExprCommandTStep rodata =
+runGraphSliceSendSolverExprCommandTStep :: Monad m => ROData -> T m a -> m a
+runGraphSliceSendSolverExprCommandTStep rodata =
       flip runReaderT (initEnv rodata)
     . flip evalStateT initState
     . (.run)

@@ -7,7 +7,7 @@ module BV.Search.Core.StackBounds
     , discoverStackBounds
     ) where
 
-import BV.Core.RepGraph.Old
+import BV.Core.GraphSlice.Old
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Problem
@@ -41,7 +41,7 @@ data DiscoverStackBoundsInput
   deriving (Generic)
 
 discoverStackBounds
-    :: forall m n. (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
+    :: forall m n. (Monad m, MonadGraphSliceSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
     => (forall a. n a -> m a)
     -> DiscoverStackBoundsInput
     -> m StackBounds
@@ -52,34 +52,34 @@ discoverStackBounds run input = do
     let cClosure = S.fromList $ input.pairingIds ^.. folded % filtered ((`S.member` asmClosure) . (.asm)) % atTag C
     -- logInfo $ show ("c closure", cClosure ^.. folded % #unwrap)
     cIdents <- getRecursionIdents
-        runRepGraphAsm
+        runGraphSliceAsm
         (M.fromSet (input.lookupFunction . WithTag C) cClosure)
     for_ (M.toList cIdents) $ \(k, v) -> logInfo $ show ("c ident", k.unwrap, v)
     todo
 
   where
 
-    runRepGraph :: forall t a. Tag t => AsmRefineTag -> Problem t -> RepGraphT t n a -> m a
-    runRepGraph tag problem m =
-        let repGraphInput = RepGraphInput
+    runGraphSlice :: forall t a. Tag t => AsmRefineTag -> Problem t -> GraphSliceT t n a -> m a
+    runGraphSlice tag problem m =
+        let repGraphInput = GraphSliceInput
                 { structs = viewAtTag tag input.structs <$ problem.sides
                 , rodata = input.rodata
                 , problem
                 }
-            in run (runRepGraphT defaultRepGraphHooks repGraphInput m)
+            in run (runGraphSliceT defaultGraphSliceHooks repGraphInput m)
 
-    runRepGraphC :: forall t a. Tag t => Problem t -> RepGraphT t n a -> m a
-    runRepGraphC = runRepGraph C
+    runGraphSliceC :: forall t a. Tag t => Problem t -> GraphSliceT t n a -> m a
+    runGraphSliceC = runGraphSlice C
 
-    runRepGraphAsm :: forall t a. Tag t => Problem t -> RepGraphT t n a -> m a
-    runRepGraphAsm = runRepGraph Asm
+    runGraphSliceAsm :: forall t a. Tag t => Problem t -> GraphSliceT t n a -> m a
+    runGraphSliceAsm = runGraphSlice Asm
 
 getRecursionIdents
-    :: forall m n. (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
-    => (forall t a. Tag t => Problem t -> RepGraphT t n a -> m a)
+    :: forall m n. (Monad m, MonadGraphSliceSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
+    => (forall t a. Tag t => Problem t -> GraphSliceT t n a -> m a)
     -> M.Map Ident Function
     -> m (M.Map Ident [GraphExpr])
-getRecursionIdents runRepGraph functions =
+getRecursionIdents runGraphSlice functions =
     mconcat <$> traverse (computeRecursionIdents . S.map fromVertex) scc
   where
     (g, fromVertex', toVertex') = G.graphFromEdges
@@ -108,16 +108,16 @@ getRecursionIdents runRepGraph functions =
         logInfo $ printf "  %s" $ show $ map (.unwrap) $ S.toList group
         for_ (S.toList (S.difference (prevs group) group)) $ \f -> do
             logInfo $ printf "  checking for for %P" f
-            whileM (addRecursionIdent runRepGraph functions f group) (return ())
+            whileM (addRecursionIdent runGraphSlice functions f group) (return ())
 
 addRecursionIdent
-    :: forall m n. (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
-    => (forall t a. Tag t => Problem t -> RepGraphT t n a -> m a)
+    :: forall m n. (Monad m, MonadGraphSliceSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
+    => (forall t a. Tag t => Problem t -> GraphSliceT t n a -> m a)
     -> M.Map Ident Function
     -> Ident
     -> S.Set Ident
     -> StateT (M.Map Ident [GraphExpr]) m Bool
-addRecursionIdent runRepGraph functions f group = do
+addRecursionIdent runGraphSlice functions f group = do
     let initState = (initProblemBuilder, [], [])
     flip execStateT initState $ do
         let mostRecentTag = FunTag . length . (.sides) <$> zoom _1 (gets extractProblem)
@@ -129,7 +129,7 @@ addRecursionIdent runRepGraph functions f group = do
                 idents <- lift get
                 assns <- zoom _3 get
                 tag <- mostRecentTag
-                resOpt <- lift $ lift $ findUnknownRecursion runRepGraph functions pa.problem group idents tag assns
+                resOpt <- lift $ lift $ findUnknownRecursion runGraphSlice functions pa.problem group idents tag assns
                 for_ resOpt $ \res -> do
                     fname <- zoom _1 $ use $ to extractProblem % #nodes % expectingAt res % expecting #_NodeCall % #functionName
                     zoom _2 $ modify (++ [fname])
@@ -150,8 +150,8 @@ addRecursionIdent runRepGraph functions f group = do
 --     h = loopHeadOf n m
 
 findUnknownRecursion
-    :: forall m n. (Monad m, MonadRepGraphSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
-    => (forall t a. Tag t => Problem t -> RepGraphT t n a -> m a)
+    :: forall m n. (Monad m, MonadGraphSliceSolverInteract n, MonadLoggerWithContext m, MonadLoggerWithContext n)
+    => (forall t a. Tag t => Problem t -> GraphSliceT t n a -> m a)
     -> M.Map Ident Function
     -> Problem FunTag
     -> S.Set Ident
@@ -159,7 +159,7 @@ findUnknownRecursion
     -> FunTag
     -> [Hyp FunTag]
     -> m (Maybe NodeAddr)
-findUnknownRecursion runRepGraph group idents tag assns = undefined
+findUnknownRecursion runGraphSlice group idents tag assns = undefined
 
 --
 

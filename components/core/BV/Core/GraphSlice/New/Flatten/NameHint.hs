@@ -1,4 +1,4 @@
-module BV.Core.RepGraph.New.Flatten.NameHint
+module BV.Core.GraphSlice.New.Flatten.NameHint
     ( NameHint
     , condName
     , inductVarName
@@ -9,7 +9,7 @@ module BV.Core.RepGraph.New.Flatten.NameHint
     , successName
     ) where
 
-import BV.Core.RepGraph.New.Flat (NameHint)
+import BV.Core.GraphSlice.New.Flat (NameHint)
 
 import BV.Core.Types
 

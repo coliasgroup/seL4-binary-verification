@@ -3,11 +3,11 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.RepGraph.New.Common
+module BV.Core.GraphSlice.New.Common
     ( ExprCommand (..)
     , ExprCommandInlineHint (..)
     , MonadInner (..)
-    , MonadRepGraphSendSExpr (..)
+    , MonadGraphSliceSendSExpr (..)
     ) where
 
 import BV.Core.Types
@@ -42,14 +42,14 @@ class (Monad m, Monad n) => MonadInner n m | m -> n where
 instance MonadInner n m => MonadInner n (MaybeT m) where
     liftInner = lift . liftInner
 
-class Monad m => MonadRepGraphSendSExpr m where
+class Monad m => MonadGraphSliceSendSExpr m where
     sendSExpr :: SExprWithPlaceholders -> m ()
 
-instance Monad m => MonadRepGraphSendSExpr (WriterT [SExprWithPlaceholders] m) where
+instance Monad m => MonadGraphSliceSendSExpr (WriterT [SExprWithPlaceholders] m) where
     sendSExpr s = tell [s]
 
-instance MonadRepGraphSendSExpr m => MonadRepGraphSendSExpr (ExceptT e m) where
+instance MonadGraphSliceSendSExpr m => MonadGraphSliceSendSExpr (ExceptT e m) where
     sendSExpr = lift . sendSExpr
 
-instance MonadRepGraphSendSExpr m => MonadRepGraphSendSExpr (ReaderT r m) where
+instance MonadGraphSliceSendSExpr m => MonadGraphSliceSendSExpr (ReaderT r m) where
     sendSExpr = lift . sendSExpr

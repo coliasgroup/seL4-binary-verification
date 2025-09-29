@@ -1,7 +1,7 @@
 module BV.Search.System.Core
     ( discoverInlineScript'
     , discoverStackBounds'
-    , runRepGraphSolverInteractSimple'
+    , runGraphSliceSolverInteractSimple'
     ) where
 
 import BV.Core.Types
@@ -24,17 +24,17 @@ import Optics.State.Operators ((<<%=))
 import System.Process (CreateProcess, proc)
 import Text.Printf (printf)
 
-runRepGraphSolverInteractSimple'
+runGraphSliceSolverInteractSimple'
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OnlineSolverConfig -> RepGraphSolverInteractSimple (SolverT m) a -> m (Either RepGraphSolverInteractSimpleFailureInfo a)
-runRepGraphSolverInteractSimple' config m =
+    => OnlineSolverConfig -> GraphSliceSolverInteractSimple (SolverT m) a -> m (Either GraphSliceSolverInteractSimpleFailureInfo a)
+runGraphSliceSolverInteractSimple' config m =
     runSolverWithLogging
         (solverProc config.command)
-        (runRepGraphSolverInteractSimple (Just config.timeout) config.modelConfig m)
+        (runGraphSliceSolverInteractSimple (Just config.timeout) config.modelConfig m)
 
 discoverInlineScript'
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
-    => OnlineSolverConfig -> DiscoverInlineScriptInput -> m (Either RepGraphSolverInteractSimpleFailureInfo InlineScript')
+    => OnlineSolverConfig -> DiscoverInlineScriptInput -> m (Either GraphSliceSolverInteractSimpleFailureInfo InlineScript')
 discoverInlineScript' config input = withPushLogContextPairing input.pairingId $ do
     logDebug "searching"
     (r, elapsed) <- time $ runExceptT $ flip evalStateT 0 $ discoverInlineScript (runSolverSimple config) input
@@ -46,7 +46,7 @@ discoverInlineScript' config input = withPushLogContextPairing input.pairingId $
 
 discoverStackBounds'
     :: (MonadLoggerWithContext m, MonadUnliftIO m, MonadLogger m, MonadMask m)
-    => OnlineSolverConfig -> DiscoverStackBoundsInput -> m (Either RepGraphSolverInteractSimpleFailureInfo StackBounds)
+    => OnlineSolverConfig -> DiscoverStackBoundsInput -> m (Either GraphSliceSolverInteractSimpleFailureInfo StackBounds)
 discoverStackBounds' config input = do
     (r, elapsed) <- time $ runExceptT $ flip evalStateT 0 $ discoverStackBounds (runSolverSimple config) input
     let msg = case r of
@@ -58,12 +58,12 @@ discoverStackBounds' config input = do
 runSolverSimple
     :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
     => OnlineSolverConfig
-    -> RepGraphSolverInteractSimple (SolverT m) a
-    -> StateT Integer (ExceptT RepGraphSolverInteractSimpleFailureInfo m) a
+    -> GraphSliceSolverInteractSimple (SolverT m) a
+    -> StateT Integer (ExceptT GraphSliceSolverInteractSimpleFailureInfo m) a
 runSolverSimple config m = do
     i <- simple <<%= (+ 1)
     withPushLogContext ("solver run " ++ show i) $ do
-        lift $ ExceptT $ runRepGraphSolverInteractSimple' config m
+        lift $ ExceptT $ runGraphSliceSolverInteractSimple' config m
 
 -- TODO unify with other def
 makeElapsedSuffix :: Elapsed -> String
