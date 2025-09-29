@@ -2,13 +2,13 @@
 
 module BV.Search.Core.Solver
     ( Cache
-    , Model
-    , MonadGraphSliceSolverInteract
     , GraphSliceSolverFailureReason (..)
     , GraphSliceSolverInteractParallel
     , GraphSliceSolverInteractParallelFailureInfo (..)
     , GraphSliceSolverInteractSimple
     , GraphSliceSolverInteractSimpleFailureInfo (..)
+    , Model
+    , MonadGraphSliceSolverInteract
     , TestResultWith (..)
     , emptyCache
       -- , evalModelExpr
@@ -23,9 +23,9 @@ module BV.Search.Core.Solver
     ) where
 
 import BV.Core.ExecuteSMTProofChecks (defaultLogic, splitHyp)
-import BV.Core.ModelConfig
 import BV.Core.GraphSlice.Old
 import BV.Core.GraphSlice.Old.InterpretHyp
+import BV.Core.ModelConfig
 import BV.Core.Types
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS)
 import BV.Logging

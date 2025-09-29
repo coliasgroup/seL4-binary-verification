@@ -1,6 +1,6 @@
 module BV.Core.GraphSlice.New.Flat
-    ( NameHint
-    , GraphSliceFlatT
+    ( GraphSliceFlatT
+    , NameHint
     , addDef
     , addVar
     , assertFlatExpr

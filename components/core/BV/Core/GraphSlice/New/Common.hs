@@ -6,8 +6,8 @@
 module BV.Core.GraphSlice.New.Common
     ( ExprCommand (..)
     , ExprCommandInlineHint (..)
-    , MonadInner (..)
     , MonadGraphSliceSendSExpr (..)
+    , MonadInner (..)
     ) where
 
 import BV.Core.Types

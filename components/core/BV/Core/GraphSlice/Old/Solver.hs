@@ -11,8 +11,8 @@ module BV.Core.GraphSlice.Old.Solver
     ( ExprEnv
     , Name (..)
       -- , NameHint
-    , PcEnv (..)
     , GraphSliceSolverT
+    , PcEnv (..)
     , SolverExpr
     , SolverExprContext (..)
     , addDef
@@ -36,7 +36,7 @@ module BV.Core.GraphSlice.Old.Solver
 
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.SendSolverExprCommand (SolverExpr,
-                                                   SolverExprContext (..))
+                                                     SolverExprContext (..))
 
 import BV.Core.GenerateFreshName
 import BV.Core.Logic

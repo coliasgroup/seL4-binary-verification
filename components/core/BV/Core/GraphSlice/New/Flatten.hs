@@ -9,10 +9,10 @@
 module BV.Core.GraphSlice.New.Flatten
     ( ExprEnv
     , FunCallInfo (..)
-    , PcEnv (..)
     , GraphSliceHooks (preEmitCallNodeHook)
     , GraphSliceT
     , GraphSliceTaggedT
+    , PcEnv (..)
     , addPValidDomAssertions
     , askCont
     , askLoopData

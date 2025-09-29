@@ -3,12 +3,12 @@ module BV.Core.GraphSlice.New
     , ExprEnv
     , FlatExpr
     , FunCallInfo (..)
-    , MonadGraphSliceSendSExpr (..)
-    , PcEnv (..)
     , GraphSliceHooks (preEmitCallNodeHook)
     , GraphSliceInput (..)
     , GraphSliceT
     , GraphSliceTaggedT
+    , MonadGraphSliceSendSExpr (..)
+    , PcEnv (..)
     , addPValidDomAssertions
     , askCont
     , askLoopData
