@@ -9,9 +9,8 @@
 
 module BV.Core.GraphSlice.Old.Solver
     ( ExprEnv
-    , Name (..)
-      -- , NameHint
     , GraphSliceSolverT
+    , Name (..)
     , PcEnv (..)
     , addDef
     , addPValidDomAssertions'
@@ -28,9 +27,10 @@ module BV.Core.GraphSlice.Old.Solver
     , nameS
     , runGraphSliceSolverTStep
     , tryGetDef
-    , withEnv
-    , withoutEnv
     ) where
+
+    -- TODO rename Name -> SmtName
+    -- , NameHint -- TODO
 
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr, FlatExprContext)
@@ -47,7 +47,7 @@ import BV.Utils
 import Control.DeepSeq (NFData)
 import Control.Monad (unless, when, (>=>))
 import Control.Monad.Identity (runIdentity)
-import Control.Monad.Reader (Reader, ReaderT (runReaderT), asks)
+import Control.Monad.Reader (Reader, ReaderT (runReaderT))
 import Control.Monad.RWS (lift, modify)
 import Control.Monad.State (StateT, evalStateT, get, mapStateT)
 import Control.Monad.Trans (MonadTrans)
@@ -130,7 +130,7 @@ data TState
       , modelVars :: Set Name
       , modelExprs :: Map SExprWithPlaceholders (Name, ExprType)
       , stackEqImpliesCheckMap :: Map Name (Maybe S)
-      , impliesStackEqMap :: Map (GraphExpr, GraphExpr, GraphExpr) Name
+      , impliesStackEqMap :: Map (FlatExpr, FlatExpr, FlatExpr) Name
       , tokens :: Map Ident Name
       , tokenVals :: Map S Ident
       , smtDerivedOps :: Map (Op, Integer) String
@@ -167,16 +167,6 @@ initSolver = do
 
 --
 
-type ExprEnv = Map NameTy MaybeSplit
-
-withEnv :: ExprEnv -> ReaderT ExprEnv m a -> m a
-withEnv = flip runReaderT
-
-withoutEnv :: ReaderT ExprEnv m a -> m a
-withoutEnv = flip runReaderT mempty
-
---
-
 type NameHint = String
 
 newtype Name
@@ -209,9 +199,6 @@ takeFreshName =
 
 withMapSlot :: (C m, Ord k) => Lens' TState (M.Map k v) -> k -> T m v -> T m v
 withMapSlot = withMapSlotWith $ liftSolver . mapStateT (return . runIdentity)
-
-withMapSlotR :: (C m, Ord k) => Lens' TState (M.Map k v) -> k -> ReaderT r (T m) v -> ReaderT r (T m) v
-withMapSlotR l k = mapReaderT $ withMapSlotWith (liftSolver . mapStateT (return . runIdentity)) l k
 
 --
 
@@ -272,17 +259,17 @@ getDef name = fromJust <$> tryGetDef name
 tryGetDef :: C m => Name -> T m (Maybe S)
 tryGetDef name = liftSolver $ use $ #defs % at name
 
-addDef :: C m => NameHint -> GraphExpr -> ReaderT ExprEnv (T m) MaybeSplit
+addDef :: C m => NameHint -> FlatExpr -> T m MaybeSplit
 addDef nameHint val =
     either (NotSplit . nameS) Split <$> addDefInner nameHint val
 
-addDefNotSplit :: C m => NameHint -> GraphExpr -> ReaderT ExprEnv (T m) Name
+addDefNotSplit :: C m => NameHint -> FlatExpr -> T m Name
 addDefNotSplit nameHint val =
     viewExpecting #_Left <$> addDefInner nameHint val
 
-addDefInner :: C m => NameHint -> GraphExpr -> ReaderT ExprEnv (T m) (Either Name SplitMem)
+addDefInner :: C m => NameHint -> FlatExpr -> T m (Either Name SplitMem)
 addDefInner nameHint expr = convertExpr' expr >>= \case
-    NotSplit s -> lift $ Left <$> do
+    NotSplit s -> Left <$> do
         name <- takeFreshName nameHint
         unless (isTypeOmitted ty) $ do
             -- TODO
@@ -340,23 +327,23 @@ addVar nameHint ty = do
 assertSMTFact :: C m => S -> T m ()
 assertSMTFact = send . assertS
 
-assertFact :: C m => GraphExpr -> ReaderT ExprEnv (T m) ()
-assertFact = convertExprNotSplit >=> lift . assertSMTFact
+assertFact :: C m => FlatExpr -> T m ()
+assertFact = convertExprNotSplit >=> assertSMTFact
 
 noteModelExpr :: C m => S -> ExprType -> T m ()
 noteModelExpr s ty = void $ withMapSlot #modelExprs s $ do
     let sanitized = take 20 (filter (`notElem` (" ()" :: String)) (showSExprWithPlaceholders s))
-    v <- withoutEnv $ addDefNotSplit ("query_" ++ sanitized) (smtExprE ty (NotSplit s))
+    v <- addDefNotSplit ("query_" ++ sanitized) (smtExprE ty (NotSplit s))
     return (v, ty)
 
-maybeNoteModelExpr :: C m => S -> ExprType -> [GraphExpr] -> T m ()
+maybeNoteModelExpr :: C m => S -> ExprType -> [FlatExpr] -> T m ()
 maybeNoteModelExpr s ty subexprs =
     when (isTypeRepresentable ty && not (all (isTypeRepresentable . (.ty)) subexprs)) $ do
         noteModelExpr s ty
 
 notePtr :: C m => S -> T m Name
 notePtr p = withMapSlot #ptrs p $
-    withoutEnv $ addDefNotSplit "ptr" (smtExprE machineWordT (NotSplit p))
+    addDefNotSplit "ptr" (smtExprE machineWordT (NotSplit p))
 
 noteMemDom :: C m => S -> S -> S -> T m ()
 noteMemDom p d md = liftSolver $ #doms %= S.insert (p, d, md)
@@ -371,7 +358,7 @@ cacheLargeExpr s nameHint ty = do
             then do
                 return s
             else do
-                name <- withoutEnv $ addDefNotSplit nameHint (smtExprE ty (NotSplit s))
+                name <- addDefNotSplit nameHint (smtExprE ty (NotSplit s))
                 liftSolver $ do
                     #cachedExprs %= M.insert s name
                     #cachedExprNames %= S.insert name
@@ -382,8 +369,7 @@ getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokens ident $ do
     n <- liftSolver $ (+)
         <$> use (#tokens % to M.size)
         <*> use (#tokenVals % to M.size)
-    k <- withoutEnv $
-        addDefNotSplit
+    k <- addDefNotSplit
             ("token_" ++ ident.unwrap)
             (numE compiledTokenType (toInteger (n + 1)))
     v <- getDef k
@@ -465,9 +451,11 @@ addSplitMemVar split nameHint ty@ExprTypeMem = do
 
 --
 
+type ExprEnv = Map NameTy MaybeSplit
+
 data PcEnv
   = PcEnv
-      { pc :: GraphExpr
+      { pc :: FlatExpr
       , env :: ExprEnv
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -496,7 +484,7 @@ foldAssocBalanced f = go
 mergeEnvs :: C m => [PcEnv] -> T m ExprEnv
 mergeEnvs envs = do
     varValPcList <- fmap concat $ for envs $ \(PcEnv pc env) -> do
-        pc' <- withEnv env $ convertExprNotSplit pc
+        pc' <- convertExprNotSplit pc
         return
             [ (var, val, pc')
             | (var, val) <- M.toList env
@@ -534,16 +522,16 @@ compatSMTComparisonKey = \case
 --
 
 -- TODO rename
-convertInnerExpr :: C m => GraphExpr -> ReaderT ExprEnv (T m) FlatExpr
+convertInnerExpr :: C m => FlatExpr -> T m FlatExpr
 convertInnerExpr expr = case expr.ty of
     ExprTypeRelWrapper -> case expr.value of
         ExprValueOp { } -> traverseOf (exprArgs % traversed) convertInnerExpr expr
     _ -> smtExprE expr.ty <$> convertExpr' expr
 
-convertExprNotSplit :: C m => GraphExpr -> ReaderT ExprEnv (T m) S
+convertExprNotSplit :: C m => FlatExpr -> T m S
 convertExprNotSplit expr = viewExpecting #_NotSplit <$> convertExpr' expr
 
-convertExpr' :: C m => GraphExpr -> ReaderT ExprEnv (T m) MaybeSplit
+convertExpr' :: C m => FlatExpr -> T m MaybeSplit
 convertExpr' expr = case expr.value of
     ExprValueOp op args -> case op of
         _ | op == OpWordCast || op == OpWordCastSigned -> do
@@ -561,7 +549,7 @@ convertExpr' expr = case expr.value of
                 let [v] = args
                 let ExprTypeWord bits = expr.ty
                 v' <- convertExprNotSplit v
-                op' <- lift $ getDerivedOp op bits
+                op' <- getDerivedOp op bits
                 return $ NotSplit [op', v']
         OpCountTrailingZeroes -> do
                 let [v] = args
@@ -578,15 +566,15 @@ convertExpr' expr = case expr.value of
                         let mkPvTy = PValidTypeType
                         return (htd, tyExpr, p, mkPvTy)
                 let ExprValueType ty = tyExpr.value
-                htd' <- gview $ expectingAt (nameTyFromVarE htd) % expecting #_NotSplit
+                let Expr _ (ExprValueSMTExpr (NotSplit htd')) = htd
                 p' <- convertExprNotSplit p
-                lift $ NotSplit <$> addPValids htd' (pvalidKindFromOp op) (mkPvTy ty) p'
+                NotSplit <$> addPValids htd' (pvalidKindFromOp op) (mkPvTy ty) p'
         OpMemDom -> do
                 let [p, dom] = args
                 p' <- convertExprNotSplit p
                 dom' <- convertExprNotSplit dom
                 let md = [opS op, p', dom']
-                lift $ noteMemDom p' dom' md
+                noteMemDom p' dom' md
                 return $ NotSplit $ if cheatMemDoms then trueS else md
         OpMemUpdate -> do
                 let [m, p, v] = args
@@ -594,20 +582,20 @@ convertExpr' expr = case expr.value of
                 m' <- convertExpr' m
                 p' <- convertExprNotSplit p
                 v' <- convertExprNotSplit v
-                lift $ convertMemUpdate m' p' v' v.ty
+                convertMemUpdate m' p' v' v.ty
         OpMemAcc -> do
                 let [m, p] = args
                 ensureM $ isWordT expr.ty
                 m' <- convertExpr' m
                 p' <- convertExprNotSplit p
-                lift $ NotSplit <$> convertMemAccess m' p' expr.ty
+                NotSplit <$> convertMemAccess m' p' expr.ty
         OpExt OpExtStackEqualsImplies -> do
                 args' <- traverse convertExpr' args
                 let [NotSplit sp1, stack1, NotSplit sp2, stack2] = args'
                 if sp1 == sp2 && stack1 == stack2
                     then return $ NotSplit trueS
                     else do
-                        eq <- lift $ getStackEqImplies (viewExpecting #_Split stack2) stack1
+                        eq <- getStackEqImplies (viewExpecting #_Split stack2) stack1
                         return $ NotSplit $ (sp1 `eqS` sp2) `andS` eq
         OpExt OpExtImpliesStackEquals -> do
                 let [sp1, stack1, sp2, stack2] = args
@@ -622,12 +610,12 @@ convertExpr' expr = case expr.value of
                     <*> convertExpr' x
                     <*> convertExpr' y
         OpHtdUpdate -> do
-                lift $ NotSplit . nameS <$> addVar "update_htd" expr.ty
+                NotSplit . nameS <$> addVar "update_htd" expr.ty
         OpEquals | (head args).ty == ExprTypeMem -> do
                 args' <- traverse convertExprNotSplit args
                 let [x, y] = args'
                 let s = ["mem-eq", x, y]
-                lift $ noteModelExpr s boolT
+                noteModelExpr s boolT
                 return $ NotSplit s
         OpEquals | (head args).ty == word32T -> do
                 args' <- traverse convertExprNotSplit args
@@ -640,16 +628,14 @@ convertExpr' expr = case expr.value of
                 let s = case args' of
                         [] -> op'
                         _ -> List $ [op'] ++ args'
-                lift $ maybeNoteModelExpr s expr.ty args
+                maybeNoteModelExpr s expr.ty args
                 return $ NotSplit s
     ExprValueNum n -> do
         return $ NotSplit $ intWithWidthS (wordTBits expr.ty) n
-    ExprValueVar var -> do
-        let key = NameTy var expr.ty
-        let err = error $ "env miss: " ++ show key
-        asks $ M.findWithDefault err key
+    ExprValueVar _ -> do
+        undefined
     ExprValueToken tok -> do
-        lift $ getToken tok
+        getToken tok
     ExprValueSMTExpr s -> do
         return s
 
@@ -753,12 +739,12 @@ convertMemAccess memMaybeSplit p ty@(ExprTypeWord bits) = case memMaybeSplit of
         noteModelExpr v ty
         return v
 
-addImpliesStackEq :: C m => GraphExpr -> GraphExpr -> GraphExpr -> ReaderT ExprEnv (T m) S
-addImpliesStackEq sp stack1 stack2 = fmap nameS $ withMapSlotR #impliesStackEqMap (sp, stack1, stack2) $ do
-    addr <- lift $ nameS <$> addVar "stack-eq-witness" word32T
-    lift $ assertSMTFact $ (addr `bvandS` hexS "00000003") `eqS` hexS "00000000"
+addImpliesStackEq :: C m => FlatExpr -> FlatExpr -> FlatExpr -> T m S
+addImpliesStackEq sp stack1 stack2 = fmap nameS $ withMapSlot #impliesStackEqMap (sp, stack1, stack2) $ do
+    addr <- nameS <$> addVar "stack-eq-witness" word32T
+    assertSMTFact $ (addr `bvandS` hexS "00000003") `eqS` hexS "00000000"
     sp' <- convertExprNotSplit sp
-    lift $ assertSMTFact $ sp' `bvuleS` addr
+    assertSMTFact $ sp' `bvuleS` addr
     let f = memAccE word32T (smtExprE word32T (NotSplit addr))
     addDefNotSplit "stack-eq" $ f stack1 `eqE` f stack2
 
@@ -817,7 +803,7 @@ addPValids = go
             when new $ do
                 rodataPtrs <- askRODataPtrs
                 for_ rodataPtrs $ \(roAddr, roTy) -> do
-                    roAddr' <- withoutEnv $ convertExprNotSplit roAddr
+                    roAddr' <- convertExprNotSplit roAddr
                     assertSMTFact =<<
                         goAssumingAlreadyExists htd PValidKindPGlobalValid (PValidTypeType roTy) roAddr'
             goAssumingAlreadyExists htd pvKind pvTy ptr
@@ -830,7 +816,7 @@ addPValids = go
             let info = mkPvInfo key var
             do
                 fact <- liftStructs $ alignValidIneq info.pvTy info.p
-                withoutEnv $ assertFact $ castExpr $ info.pv `impliesE` fact
+                assertFact $ info.pv `impliesE` fact
             others <- liftSolver $ #pvalids % expectingAt htd <<%= M.insert key var
             for_ (sortOthersCompat others) $ \(otherKey, otherVar) -> do
                 let otherInfo = mkPvInfo otherKey otherVar
@@ -838,7 +824,7 @@ addPValids = go
                 unless (PValidKindPWeakValid `elem` pvKinds && PValidKindPGlobalValid `notElem` pvKinds) $ do
                     let applyAssertion f = do
                             fact <- liftStructs $ f info otherInfo
-                            withoutEnv $ assertFact $ castExpr fact
+                            assertFact fact
                     applyAssertion pvalidAssertion1
                     applyAssertion pvalidAssertion2
             return var

@@ -31,7 +31,6 @@ module BV.Core.GraphSlice.Old
     , getPcWithTag
     , instEqWithEnvs
     , instEqWithEnvsCompat
-    , isUnreachableCompat
     , liftUntagged
     , runAsmRefineGraphSliceT
     , runGraphSliceT
@@ -51,13 +50,9 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.SMTLIB2 (SExpr)
 
-import Control.Monad ((>=>))
 import Data.Foldable (toList)
-import Data.Map ((!))
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
-import Optics
 
 runGraphSliceT
     :: (Tag t, MonadGraphSliceSendSExpr m)
@@ -87,18 +82,11 @@ runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
 
 --
 
-flattenExpr :: ExprEnv -> GraphExpr -> FlatExpr
-flattenExpr = flip go
-  where
-    go = traverseOf (exprArgs % traversed) go >=> \expr -> case expr.value of
-        ExprValueVar name -> \env -> Expr expr.ty $ ExprValueSMTExpr (env ! NameTy name expr.ty)
-        _ -> return expr
-
 assertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m ()
-assertExpr = liftInner . withoutEnv . assertFact . castExpr
+assertExpr = liftInner . assertFact
 
 convertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m SExprWithPlaceholders
-convertExpr expr = liftInner $ withoutEnv $ convertExprNotSplit $ castExpr expr
+convertExpr = liftInner . convertExprNotSplit
 
 getPcWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m FlatExpr
 getPcWithTag (WithTag tag visit) = fmap castExpr $ runTagged tag $ getPc visit
@@ -127,11 +115,6 @@ getEvalModel = undefined
 --   deriving (Generic, Show)
 
 --
-
-isUnreachableCompat :: (Tag t, MonadGraphSliceSendSExpr m) => Visit -> GraphSliceTaggedT t m SExprWithPlaceholders
-isUnreachableCompat visit = do
-    pcEnv <- fromJust <$> getNodePcEnv visit
-    liftInner $ withEnv pcEnv.env $ convertExprNotSplit $ notE pcEnv.pc
 
 instEqWithEnvsCompat :: (Tag t, MonadGraphSliceSendSExpr m) => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> GraphSliceT t m FlatExpr
 instEqWithEnvsCompat = instEqWithEnvs

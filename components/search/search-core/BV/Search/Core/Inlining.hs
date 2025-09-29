@@ -6,6 +6,7 @@ module BV.Search.Core.Inlining
 import BV.Core.GraphSlice.Old
 import BV.Core.Stages
 import BV.Core.Types
+import BV.Core.Types.Extras.Expr (notE)
 import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
@@ -22,6 +23,7 @@ import Data.Functor (void)
 import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (fromJust)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
@@ -110,7 +112,8 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
         let nodeAddr = nodeAddrOf visit.nodeId
         let fname = p ^. #nodes % expectingAt nodeAddr % expecting #_NodeCall % #functionName
         when (tag == C && S.notMember fname matchedC) $ do
-            hyp <- isUnreachableCompat visit
+            pcEnv <- fromJust <$> getNodePcEnv visit
+            hyp <- liftUntagged $ convertExpr $ notE pcEnv.pc
             res <- liftUntagged $ testHyp hyp
             unless res $ lift $ throwError $ InliningEvent
                 { nodeAddr

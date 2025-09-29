@@ -23,8 +23,8 @@ module BV.Core.GraphSlice.Old.Core
     , askTag
     , askWithTag
     , asmRefineGraphSliceHooks
-    , convertInnerExprWithPcEnv
     , defaultGraphSliceHooks
+    , flattenExpr
     , getFunCallInfo
     , getFunCallInfoRaw
     , getFunCallVisits
@@ -40,6 +40,8 @@ module BV.Core.GraphSlice.Old.Core
     , tryGetNodePcEnv
     , zeroMemCallsRange
     ) where
+
+    -- , convertInnerExprWithPcEnv
 
 import BV.Core.GraphSlice.Old.Solver
 
@@ -149,6 +151,7 @@ data TState t
       , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
       , inductVarEnv :: Map EqHypInduct Name
+      , condVars :: Map MaybeSplit Ident
       , contractions :: Map SExprWithPlaceholders MaybeSplit
       , extraProblemNames :: S.Set Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
@@ -205,6 +208,7 @@ initState = TState
     , nodePcEnvs = M.empty
     , arcPcEnvs = M.empty
     , inductVarEnv = M.empty
+    , condVars = M.empty
     , contractions = M.empty
     , extraProblemNames = S.empty
     , hasInnerLoop = M.empty
@@ -361,6 +365,16 @@ getFreshIdent nameHint = do
     liftGraphSlice $ #extraProblemNames %= S.insert n
     return n
 
+flattenExpr :: ExprEnv -> GraphExpr -> FlatExpr
+flattenExpr = flip go
+  where
+    go = traverseOf (exprArgs % traversed) go >=> \expr -> case expr.value of
+        ExprValueVar name -> \env -> Expr expr.ty $ ExprValueSMTExpr (env ! NameTy name expr.ty)
+        _ -> return expr
+
+flattenAndAddDef :: TaggedC t n m => ExprEnv -> NameHint -> GraphExpr -> m MaybeSplit
+flattenAndAddDef env nameHint val = liftInner $ addDef nameHint $ flattenExpr env val
+
 --
 
 type MemCallsIfKnown = Maybe MemCalls
@@ -408,7 +422,7 @@ varRepRequest kind visit env var = do
     reqOpt <- askWithTag var <&> isStackHook kind
     for reqOpt $ \req -> case req of
         VarRepRequestSplitMem { addr } -> do
-            addrSExpr <- liftInner $ withEnv env $ convertExprNotSplit addr
+            addrSExpr <- liftInner $ convertExprNotSplit $ flattenExpr env addr
             let nameHint = printf "%P_for_%s" var.name (nodeCountName visit)
             liftInner $ addSplitMemVar addrSExpr nameHint var.ty
 
@@ -433,10 +447,24 @@ addVarReps kind mkName memCalls visit vars = execStateT $ do
 
 --
 
+-- HACK
+updatePcEnvCompat :: TaggedC t n m => PcEnv -> m PcEnv
+updatePcEnvCompat pcEnv = traverseOf #pc (walkExprsM f) pcEnv
+  where
+    f expr = case expr.value of
+        ExprValueSMTExpr s -> do
+            condIdentOpt <- liftPure $ use $ #condVars % at s
+            return $ case condIdentOpt of
+                Just condIdent -> flattenExpr pcEnv.env (varE boolT condIdent)
+                Nothing -> expr
+        _ -> return expr
+
+--
+
 contract :: TaggedC t n m => Visit -> NameTy -> SExprWithPlaceholders -> m MaybeSplit
 contract visit var sexpr = withMapSlot #contractions sexpr $ do
     let name' = localNameBefore visit var.name
-    liftInner $ withoutEnv $ addDef name' (smtExprE var.ty (NotSplit sexpr))
+    liftInner $ addDef name' $ smtExprE var.ty (NotSplit sexpr)
 
 maybeContract :: TaggedC t n m => Visit -> NameTy -> MaybeSplit -> m MaybeSplit
 maybeContract visit var v = case v of
@@ -444,12 +472,12 @@ maybeContract visit var v = case v of
     _ -> return v
 
 contractPcEnv :: C t m => Visit -> PcEnv -> TaggedT t m PcEnv
-contractPcEnv visit (PcEnv pc env) = do
+contractPcEnv visit = updatePcEnvCompat >=> \(PcEnv pc env) -> do
     pc' <- case pc.value of
         ExprValueSMTExpr _ -> return pc
         _ -> do
             hint <- pathCondName <$> askWithTag visit
-            name <- liftInner $ withEnv env $ addDef hint pc
+            name <- liftInner $ addDef hint pc
             return $ smtExprE boolT name
     env' <- M.traverseWithKey (maybeContract visit) env
     return $ PcEnv pc' env'
@@ -492,7 +520,7 @@ addInputEnvs = do
 getPc :: C t m => Visit -> TaggedT t m FlatExpr
 getPc visit = getNodePcEnv visit >>= \case
     Nothing -> return falseE
-    Just (PcEnv pc env) -> liftInner $ withEnv env $ convertInnerExpr pc
+    Just (PcEnv pc _) -> liftInner $ convertInnerExpr pc
 
 getNodePcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getNodePcEnv = runIdentityT . getNodePcEnvInner (const (return ()))
@@ -524,13 +552,13 @@ getNodePcEnvRaw visit = do
                         [] -> return Nothing
                         _ -> Just <$> do
                             let optimize = case visit.nodeId of
-                                    Err -> traverse $ \(PcEnv pc env) -> do
-                                        pc' <- liftInner $ withEnv env $ convertInnerExpr pc
-                                        return $ PcEnv (castExpr pc') M.empty
+                                    Err -> traverse $ \(PcEnv pc _) -> do
+                                        pc' <- liftInner $ convertInnerExpr pc
+                                        return $ PcEnv pc' M.empty
                                     _ -> return
                             optimizedArcPcEnvs <- optimize arcPcEnvs
                             (pcEnv, _large) <- liftInner $ mergeEnvsPcs optimizedArcPcEnvs
-                            contractPcEnv visit pcEnv
+                            updatePcEnvCompat pcEnv >>= contractPcEnv visit
 
 getLoopPcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getLoopPcEnv visit = do
@@ -633,16 +661,18 @@ emitNode visit = do
                             return $ env ! NameTy name update.val.ty
                         _ -> do
                             let name = localName visit update.var.name
-                            liftInner $ withEnv env $ addDef name update.val
+                            flattenAndAddDef env name update.val
                     return (update.var, val)
                 return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
                 let condNameHint = condName visit
                 condIdent <- getFreshIdent condNameHint
-                let cond = varE boolT condIdent
+                condDef <- flattenAndAddDef env condNameHint condNode.expr
+                liftPure $ #condVars %= M.insert condDef condIdent
+                let condEnv = M.singleton (NameTy condIdent boolT) condDef
+                let cond = flattenExpr condEnv (varE boolT condIdent)
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
-                condDef <- liftInner $ withEnv env $ addDef condNameHint condNode.expr
                 let env' = M.insert (NameTy condIdent boolT) condDef env
                 return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
@@ -650,7 +680,7 @@ emitNode visit = do
                 preHook visit
                 success <- liftInner $ smtExprE boolT . NotSplit . nameS <$>
                     addVar (successName visit callNode.functionName) boolT
-                ins <- liftInner $ for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr' arg)
+                ins <- liftInner $ for callNode.input $ \arg -> (arg.ty,) <$> convertExpr' (flattenExpr env arg)
                 memCalls <- fmap (addMemCall callNode.functionName) <$> scanMemCalls ins
                 env' <- addVarReps
                     VarRepRequestKindCall
@@ -763,25 +793,25 @@ addLoopMemCalls split = traverse $ \memCalls -> do
 
 instEqWithEnvs :: forall t n m. TaggedC t n m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m FlatExpr
 instEqWithEnvs (x, xenv) (y, yenv) = do
-    x' <- withEnv xenv $ mapReaderT liftInner $ convertUnderOp x
-    y' <- withEnv yenv $ mapReaderT liftInner $ convertUnderOp y
+    x' <- liftInner $ convertUnderOp $ flattenExpr xenv x
+    y' <- liftInner $ convertUnderOp $ flattenExpr yenv y
     let f = case x'.ty of
             ExprTypeRelWrapper -> applyRelWrapper
             _ -> eqE
     return $ f x' y'
   where
-    convertUnderOp :: C t n => GraphExpr -> ReaderT ExprEnv (GraphSliceSolverT n) FlatExpr
+    convertUnderOp :: C t n => FlatExpr -> GraphSliceSolverT n FlatExpr
     convertUnderOp expr = case expr.value of
         ExprValueOp op args -> do
             args' <- traverse convertInnerExpr args
             return $ Expr expr.ty $ ExprValueOp op args'
         _ -> convertInnerExpr expr
 
-convertInnerExprWithPcEnv :: C t m => GraphExpr -> Visit -> TaggedT t m FlatExpr
-convertInnerExprWithPcEnv expr visit = do
-    pcEnvOpt <- getNodePcEnv visit
-    let Just (PcEnv _ env) = pcEnvOpt
-    liftInner $ withEnv env $ convertInnerExpr expr
+-- convertInnerExprWithPcEnv :: C t m => GraphExpr -> Visit -> TaggedT t m FlatExpr
+-- convertInnerExprWithPcEnv expr visit = do
+--     pcEnvOpt <- getNodePcEnv visit
+--     let Just (PcEnv _ env) = pcEnvOpt
+--     liftInner $ withEnv env $ convertInnerExpr expr
 
 --
 
@@ -816,7 +846,7 @@ addFunAsserts visit = do
             compat <- mapReaderT liftUntagged $ areFunCallsCompatible visits
             when compat $ do
                 imp <- mapReaderT liftUntagged $ getFunAssert visits
-                lift $ liftInner $ withoutEnv $ assertFact $ weakenAssert $ castExpr imp
+                lift $ liftInner $ assertFact $ weakenAssert imp
 
 getFunCallInfoRawByTag
     :: AsmRefineC t m

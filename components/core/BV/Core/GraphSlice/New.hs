@@ -31,7 +31,6 @@ module BV.Core.GraphSlice.New
     , getPcWithTag
     , instEqWithEnvs
     , instEqWithEnvsCompat
-    , isUnreachableCompat
     , liftUntagged
     , runAsmRefineGraphSliceT
     , runGraphSliceT
@@ -53,7 +52,6 @@ import BV.SMTLIB2 (SExpr)
 import Control.Monad ((>=>))
 import Data.Foldable (toList)
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 
 data GraphSliceInput t
@@ -143,11 +141,6 @@ getEvalModel = undefined
 --   deriving (Generic, Show)
 
 --
-
-isUnreachableCompat :: (Tag t, MonadGraphSliceSendSExpr m) => Visit -> GraphSliceTaggedT t m SExprWithPlaceholders
-isUnreachableCompat visit = do
-    pcEnv <- fromJust <$> getNodePcEnv visit
-    liftUntagged $ convertExpr $ notE pcEnv.pc
 
 instEqWithEnvsCompat :: Applicative f => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> f FlatExpr
 instEqWithEnvsCompat x y = pure $ instEqWithEnvs x y
