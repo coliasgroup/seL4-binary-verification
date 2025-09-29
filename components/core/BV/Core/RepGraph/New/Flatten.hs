@@ -495,7 +495,6 @@ getNodePcEnvRaw visit = do
 getInputEnv :: C t m => TaggedT t m ExprEnv
 getInputEnv = withMapSlotTagged #inputEnvs () $ do
     side <- askProblemSide
-    -- traceShowM $ side.name
     funName <- askWithTag side.name
     isMemHook <- askHook #isMemHook
     isStackHook <- askHook #isStackHook
