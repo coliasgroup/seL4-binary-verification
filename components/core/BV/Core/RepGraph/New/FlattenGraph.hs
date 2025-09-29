@@ -132,7 +132,7 @@ data RepGraphHooks t n
       , postEmitCallNodeHook :: Visit -> TaggedT t n ()
       , isMemHook :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
       , isStackHook :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
-      , stackPointerHook :: t -> Maybe GraphExpr
+      , stackPointerHook :: t -> GraphExpr
       }
   deriving (Generic)
 
@@ -171,7 +171,7 @@ defaultRepGraphHooks = RepGraphHooks
     , postEmitCallNodeHook = \_ -> return ()
     , isMemHook = \_ _ _ -> False
     , isStackHook = \_ _ _ -> False
-    , stackPointerHook = \_ -> Nothing
+    , stackPointerHook = \_ -> undefined
     }
 
 asmRefineRepGraphHooks
@@ -407,7 +407,7 @@ addSplitStackVars env nameHint = do
     registerStack top.name
     registerStack bottom.name
     stackPointerHook <- askHook #stackPointerHook
-    let Just graphStackPointer = stackPointerHook tag
+    let graphStackPointer = stackPointerHook tag
     return $ splitMemE
         (flattenExpr env graphStackPointer)
         (varFromNameTyE top)

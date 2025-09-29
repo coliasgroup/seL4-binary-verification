@@ -6,8 +6,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module BV.Core.RepGraph.New.SendSolverExprCommand
-    ( MonadRepGraphSendSExpr (..)
-    , RepGraphSendSolverExprCommandT
+    ( RepGraphSendSolverExprCommandT
     , SolverExpr
     , SolverExprCommand
     , SolverExprContext (..)

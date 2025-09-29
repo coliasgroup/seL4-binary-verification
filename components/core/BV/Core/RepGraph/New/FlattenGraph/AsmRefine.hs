@@ -67,11 +67,9 @@ directionSigLabel = \case
 asmStackVar :: NameTy
 asmStackVar = NameTy (Ident "stack") memT
 
-asmRefineStackPointerHook :: ArgRenames AsmRefineTag -> AsmRefineTag -> Maybe GraphExpr
+asmRefineStackPointerHook :: ArgRenames AsmRefineTag -> AsmRefineTag -> GraphExpr
 asmRefineStackPointerHook argRenames tag = case tag of
-    Asm ->
-        let name = argRenames
-                (PairingEqSideQuadrant tag PairingEqDirectionIn)
-                (Ident "r13")
-         in Just $ varE machineWordT name
-    _ -> Nothing
+    Asm -> varE machineWordT $
+        argRenames
+        (PairingEqSideQuadrant tag PairingEqDirectionIn)
+        (Ident "r13")
