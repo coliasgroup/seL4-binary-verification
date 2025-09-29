@@ -34,8 +34,7 @@ module BV.Core.RepGraph.Old.Solver
     , withoutEnv
     ) where
 
-import BV.Core.RepGraph.Old.Common
-
+import BV.Core.RepGraph.New.Common
 import BV.Core.RepGraph.New.SendSolverExprCommand (SolverExpr,
                                                    SolverExprContext (..))
 

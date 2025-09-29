@@ -4,11 +4,12 @@ module BV.Core.RepGraph.New.Flatten.NameHint
     , inductVarName
     , localName
     , localNameBefore
+    , nodeCountName
     , pathCondName
     , successName
     ) where
 
-import BV.Core.RepGraph.New.Flat
+import BV.Core.RepGraph.New.Flat (NameHint)
 
 import BV.Core.Types
 

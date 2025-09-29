@@ -106,10 +106,7 @@ library core
       BV.Core.RepGraph.New.Flatten.PcEnv
       BV.Core.RepGraph.New.SendFlatExprCommand
       BV.Core.RepGraph.New.SendSolverExprCommand
-      BV.Core.RepGraph.Old.Common
       BV.Core.RepGraph.Old.Core
-      BV.Core.RepGraph.Old.Flatten.MemCalls
-      BV.Core.RepGraph.Old.Flatten.NameHint
       BV.Core.RepGraph.Old.Solver
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks

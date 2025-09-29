@@ -43,12 +43,12 @@ import BV.Core.RepGraph.Old.Core
 import BV.Core.RepGraph.Old.Solver
 
 import BV.Core.RepGraph.New (FlatExpr)
+import BV.Core.RepGraph.New.Common
 
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.SMTLIB2 (SExpr)
 
-import BV.Core.RepGraph.Old.Common
 import Control.Monad ((>=>))
 import Data.Foldable (toList)
 import Data.Map ((!))

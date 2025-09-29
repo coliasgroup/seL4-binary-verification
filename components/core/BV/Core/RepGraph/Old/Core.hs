@@ -10,9 +10,6 @@
 
 module BV.Core.RepGraph.Old.Core
     ( FunCallInfo (..)
-    , MemCalls
-    , MemCallsIfKnown
-    , MemCallsRange (..)
     , RepGraphHooks (preEmitCallNodeHook)
     , RepGraphT
     , RepGraphTaggedT
@@ -44,9 +41,9 @@ module BV.Core.RepGraph.Old.Core
     , zeroMemCallsRange
     ) where
 
-import BV.Core.RepGraph.Old.Common
-import BV.Core.RepGraph.Old.Flatten.MemCalls
-import BV.Core.RepGraph.Old.Flatten.NameHint
+import BV.Core.RepGraph.New.Common
+import BV.Core.RepGraph.New.Flatten.MemCalls
+import BV.Core.RepGraph.New.Flatten.NameHint
 import BV.Core.RepGraph.Old.Solver
 
 import BV.Core.GenerateFreshName (generateFreshName)
@@ -364,6 +361,8 @@ getFreshIdent nameHint = do
 
 --
 
+type MemCallsIfKnown = Maybe MemCalls
+
 addVarWithMemCalls :: TaggedC t n m => NameHint -> ExprType -> MemCallsIfKnown -> m Name
 addVarWithMemCalls nameHint ty memCallsOpt = do
     v <- liftInner $ addVar nameHint ty
@@ -648,7 +647,7 @@ emitNode visit = do
                 success <- liftInner $ smtExprE boolT . NotSplit . nameS <$>
                     addVar (successName visit callNode.functionName) boolT
                 ins <- liftInner $ for callNode.input $ \arg -> (arg.ty,) <$> withEnv env (convertExpr' arg)
-                memCalls <- addMemCall callNode.functionName <$> scanMemCalls ins
+                memCalls <- fmap (addMemCall callNode.functionName) <$> scanMemCalls ins
                 env' <- addVarReps
                     VarRepRequestKindCall
                     (\name -> localName visit name)
@@ -754,8 +753,7 @@ addLoopMemCalls split = traverse $ \memCalls -> do
     nodeAddrs <- askLoopBody split
     node <- traverse askNode (toList nodeAddrs)
     let fnames = S.fromList $ node ^.. folded % #_NodeCall % #functionName
-    let newMemCalls fname = M.findWithDefault zeroMemCallsRange fname memCalls & #max .~ Nothing
-    return $ M.union (M.fromSet newMemCalls fnames) memCalls
+    return $ foldl (flip addUnboundedMemCalls) memCalls (toList fnames)
 
 --
 
@@ -847,7 +845,7 @@ memCallsCompatible memCalls = do
             let compat rname =
                     let rcast = fromMaybe zeroMemCallsRange $ rcastcalls !? rname
                         ractual = fromMaybe zeroMemCallsRange $ calls.right !? rname
-                    in maybe True (ractual.min <=) rcast.max && maybe True (rcast.min <=) ractual.max
+                    in memCallsRangesOverlap rcast ractual
             return $ all compat $ S.toList $ M.keysSet calls.right <> M.keysSet rcastcalls
 
 getFunAssert :: RefineC t m => ByTag t Visit -> ReaderT (AddFunAssertHookEnv t) (T t m) SolverExpr
