@@ -45,8 +45,8 @@ module BV.Core.RepGraph.Old.Core
     ) where
 
 import BV.Core.RepGraph.Old.Common
-import BV.Core.RepGraph.Old.FlattenGraph.MemCalls
-import BV.Core.RepGraph.Old.FlattenGraph.NameHint
+import BV.Core.RepGraph.Old.Flatten.MemCalls
+import BV.Core.RepGraph.Old.Flatten.NameHint
 import BV.Core.RepGraph.Old.Solver
 
 import BV.Core.GenerateFreshName (generateFreshName)

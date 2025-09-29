@@ -36,10 +36,10 @@ module BV.Core.RepGraph.New.Flatten
 
 import BV.Core.RepGraph.New.Common
 import BV.Core.RepGraph.New.Flat
-import BV.Core.RepGraph.New.FlattenGraph.AsmRefine
-import BV.Core.RepGraph.New.FlattenGraph.MemCalls
-import BV.Core.RepGraph.New.FlattenGraph.NameHint
-import BV.Core.RepGraph.New.FlattenGraph.PcEnv
+import BV.Core.RepGraph.New.Flatten.AsmRefine
+import BV.Core.RepGraph.New.Flatten.MemCalls
+import BV.Core.RepGraph.New.Flatten.NameHint
+import BV.Core.RepGraph.New.Flatten.PcEnv
 import BV.Core.RepGraph.New.SendFlatExprCommand (FlatExpr)
 
 import BV.Core.Logic (applyRelWrapper, weakenAssert)

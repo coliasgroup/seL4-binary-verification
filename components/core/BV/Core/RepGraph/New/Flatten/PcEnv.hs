@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
-module BV.Core.RepGraph.New.FlattenGraph.PcEnv
+module BV.Core.RepGraph.New.Flatten.PcEnv
     ( ExprEnv
     , PcEnv (..)
     , exprEnvVars

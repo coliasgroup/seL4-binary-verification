@@ -1,7 +1,9 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.RepGraph.New.FlattenGraph.MemCalls
+module BV.Core.RepGraph.Old.Flatten.MemCalls
     ( MemCalls
+    , MemCallsIfKnown
+    , MemCallsRange (..)
     , addMemCall
     , addUnboundedMemCalls
     , emptyMemCalls
@@ -20,6 +22,8 @@ import Optics
 
 type MemCalls = M.Map Ident MemCallsRange
 
+type MemCallsIfKnown = Maybe MemCalls
+
 emptyMemCalls :: MemCalls
 emptyMemCalls = M.empty
 
@@ -36,8 +40,8 @@ zeroMemCallsRange = MemCallsRange
     , max = Just 0
     }
 
-addMemCall :: Ident -> MemCalls -> MemCalls
-addMemCall fname = flip M.alter fname $ Just . incr . fromMaybe zeroMemCallsRange
+addMemCall :: Ident -> MemCallsIfKnown -> MemCallsIfKnown
+addMemCall fname = fmap $ flip M.alter fname $ Just . incr . fromMaybe zeroMemCallsRange
   where
     incr = (#min %~ (+1 )) . (#max % _Just %~ (+1 ))
 
