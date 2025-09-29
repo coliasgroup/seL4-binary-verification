@@ -27,8 +27,7 @@ import BV.Core.ModelConfig
 import BV.Core.RepGraph.Old
 import BV.Core.RepGraph.Old.InterpretHyp
 import BV.Core.Types
-import BV.Core.Types.Extras.Expr
-import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS, symbolS)
+import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS)
 import BV.Logging
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Monad
@@ -42,13 +41,11 @@ import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError,
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT (StateT), evalStateT, modify)
 import Control.Monad.Trans (lift)
-import Data.Foldable (toList, traverse_)
+import Data.Foldable (traverse_)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, isNothing)
-import qualified Data.Set as S
+import Data.Maybe (fromJust, isNothing)
 import Data.Traversable (for)
 import GHC.Generics (Generic)
-import Numeric (readBin, readHex)
 import Optics
 import Optics.State.Operators ((%=))
 
