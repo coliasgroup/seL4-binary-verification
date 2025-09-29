@@ -25,8 +25,7 @@ interpretHyp = \case
         impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
         envExt <- case eq.induct of
-            Nothing -> do
-                return mempty
+            Nothing -> return mempty
             Just induct -> do
                 var <- getInductVar induct
                 return $ M.singleton (Ident "%n") (varFromNameTyE var)
