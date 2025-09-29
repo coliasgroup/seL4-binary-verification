@@ -1,4 +1,4 @@
-module BV.Core.RepGraph.X.FlattenGraph.NameHint
+module BV.Core.RepGraph.Old.FlattenGraph.NameHint
     ( NameHint
     , condName
     , inductVarName

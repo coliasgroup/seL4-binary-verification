@@ -3,20 +3,20 @@ module BV.Core.RepGraph.Old.InterpretHyp
     , interpretHypImps
     ) where
 
-import BV.Core.Logic
-import BV.Core.RepGraph.Old.Core
-import BV.Core.RepGraph.Old.Solver
+import BV.Core.RepGraph.Old
+
+import BV.Core.Logic (strengthenHyp)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
 import qualified Data.Map as M
 
-interpretHypImps :: (RefineTag t, MonadRepGraph t m) => [Hyp t] -> SolverExpr -> m SolverExpr
+interpretHypImps :: (RefineTag t, MonadRepGraphSendSExpr m) => [Hyp t] -> FlatExpr -> RepGraphT t m FlatExpr
 interpretHypImps hyps concl = do
     hyps' <- traverse interpretHyp hyps
     return $ strengthenHyp $ nImpliesE hyps' concl
 
-interpretHyp :: (RefineTag t, MonadRepGraph t m) => Hyp t -> m SolverExpr
+interpretHyp :: (RefineTag t, MonadRepGraphSendSExpr m) => Hyp t -> RepGraphT t m FlatExpr
 interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case
@@ -33,7 +33,7 @@ interpretHyp = \case
         yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
             (Just xPcEnv, Just yPcEnv) -> do
-                eq' <- instEqWithEnvs (eq.lhs.expr, xPcEnv.env <> envExt) (eq.rhs.expr, yPcEnv.env <> envExt)
+                eq' <- castExpr <$> instEqWithEnvs (eq.lhs.expr, xPcEnv.env <> envExt) (eq.rhs.expr, yPcEnv.env <> envExt)
                 if ifAt
                     then do
                         xPc <- getPcWithTag eq.lhs.visit

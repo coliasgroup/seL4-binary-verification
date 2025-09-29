@@ -24,8 +24,8 @@ module BV.Search.Core.Solver
 
 import BV.Core.ExecuteSMTProofChecks (defaultLogic, splitHyp)
 import BV.Core.ModelConfig
-import BV.Core.RepGraph.X
-import BV.Core.RepGraph.X.InterpretHyp
+import BV.Core.RepGraph.Old
+import BV.Core.RepGraph.Old.InterpretHyp
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS, symbolS)

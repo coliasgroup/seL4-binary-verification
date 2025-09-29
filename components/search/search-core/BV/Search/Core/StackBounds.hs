@@ -7,7 +7,7 @@ module BV.Search.Core.StackBounds
     , discoverStackBounds
     ) where
 
-import BV.Core.RepGraph.X
+import BV.Core.RepGraph.Old
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Problem

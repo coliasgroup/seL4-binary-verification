@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module BV.Core.RepGraph.X.FlattenGraph.MemCalls
+module BV.Core.RepGraph.Old.FlattenGraph.MemCalls
     ( MemCalls
     , MemCallsIfKnown
     , MemCallsRange (..)

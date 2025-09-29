@@ -1,59 +1,154 @@
 module BV.Core.RepGraph.Old
-    ( module BV.Core.RepGraph.Old.AsmStackRep
-    , module BV.Core.RepGraph.Old.Base
-    , module BV.Core.RepGraph.Old.FunAsserts
-    , module BV.Core.RepGraph.Old.InterpretHyp
-    , ForTag
+    ( AsmRefineRepGraphInput (..)
+    , ExprEnv
+    , FlatExpr
     , FunCallInfo (..)
-    , MonadRepGraph (..)
-    , MonadRepGraphDefaultHelper (..)
-    , MonadRepGraphFlatten
-    , MonadRepGraphForTag (..)
-    , MonadRepGraphSolver (..)
-    , MonadRepGraphSolverSend (..)
-    , Name (..)
+    , MonadRepGraphSendSExpr (..)
     , PcEnv (..)
-    , SolverExpr
-    , SolverExprContext (..)
+    , RepGraphHooks (preEmitCallNodeHook)
+    , RepGraphInput (..)
+    , RepGraphT
+    , RepGraphTaggedT
     , addPValidDomAssertions
+    , askCont
     , askLoopData
     , askNodeGraph
     , askProblem
-    , convertExprNotSplit
-    , convertSolverExpr
+    , askTag
+    , askWithTag
+    , asmRefineRepGraphHooks
+    , assertExpr
+    , convertExpr
+    , defaultRepGraphHooks
+    , flattenExpr
+    , getEvalModel
     , getFunCallInfo
-    , getFunCallInfoRaw
-    , getModelExprs
-    , getModelVars
+    , getInductVar
+    , getModelRequest
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc
     , getPcWithTag
-    , isUnreachable
-    , runForTag
+    , instEqWithEnvs
+    , isUnreachableCompat
+    , liftUntagged
+    , runAsmRefineRepGraphT
+    , runRepGraphT
+    , runRepGraphTStep
+    , runTagged
     , tryGetNodePcEnv
-    , withEnv
-    , withoutEnv
     ) where
 
-import BV.Core.RepGraph.Old.AsmStackRep
-import BV.Core.RepGraph.Old.Base
 import BV.Core.RepGraph.Old.Core
-import BV.Core.RepGraph.Old.FunAsserts
-import BV.Core.RepGraph.Old.InterpretHyp
 import BV.Core.RepGraph.Old.Solver
 
-import BV.Core.Types (SExprWithPlaceholders, Visit)
+import BV.Core.RepGraph.New (FlatExpr)
+
+import BV.Core.Types
 import BV.Core.Types.Extras
+import BV.SMTLIB2 (SExpr)
 
+import BV.Core.RepGraph.Old.Common
+import Control.Monad ((>=>))
+import Data.Foldable (toList)
+import Data.Map ((!))
+import qualified Data.Map as M
 import Data.Maybe (fromJust)
+import GHC.Generics (Generic)
+import Optics
 
-convertSolverExpr :: MonadRepGraphSolver m => SolverExpr -> m SExprWithPlaceholders
-convertSolverExpr expr = withoutEnv $ convertExprNotSplit $ castExpr expr
+data RepGraphInput t
+  = RepGraphInput
+      { structs :: ByTag t (M.Map Ident Struct)
+      , rodata :: ROData
+      , problem :: Problem t
+      }
+  deriving (Generic)
 
-isUnreachable :: MonadRepGraph t m => Visit -> ForTag t m SExprWithPlaceholders
-isUnreachable visit = do
+runRepGraphT
+    :: (Tag t, MonadRepGraphSendSExpr m)
+    => RepGraphHooks t m
+    -> RepGraphInput t
+    -> RepGraphT t m a
+    -> m a
+runRepGraphT hooks input =
+      runRepGraphSolverTStep structs input.rodata
+    . runRepGraphTStep input.problem hooks
+  where
+    structs = (M.!) $ M.unionsWith undefined $
+        rodataStructsOf input.rodata : toList input.structs
+
+data AsmRefineRepGraphInput
+  = AsmRefineRepGraphInput
+      { repGraphInput :: RepGraphInput AsmRefineTag
+      , lookupSig :: LookupFunctionSignature AsmRefineTag
+      , pairings :: Pairings'
+      }
+  deriving (Generic)
+
+runAsmRefineRepGraphT
+    :: MonadRepGraphSendSExpr m
+    => AsmRefineRepGraphInput
+    -> RepGraphT AsmRefineTag m a
+    -> m a
+runAsmRefineRepGraphT input = runRepGraphT hooks input.repGraphInput
+  where
+    argRenames =
+        problemArgRenames input.repGraphInput.problem $
+            input.lookupSig <$>
+                withTags (pairingIdOfProblem input.repGraphInput.problem)
+    hooks = asmRefineRepGraphHooks input.lookupSig input.pairings argRenames
+
+--
+
+flattenExpr :: ExprEnv -> GraphExpr -> FlatExpr
+flattenExpr = flip go
+  where
+    go = traverseOf (exprArgs % traversed) go >=> \expr -> case expr.value of
+        ExprValueVar name -> \env -> Expr expr.ty $ ExprValueSMTExpr (env ! NameTy name expr.ty)
+        _ -> return expr
+
+assertExpr :: (Tag t, MonadRepGraphSendSExpr m) => FlatExpr -> RepGraphT t m ()
+assertExpr = liftInner . withoutEnv . assertFact . castExpr
+
+convertExpr :: (Tag t, MonadRepGraphSendSExpr m) => FlatExpr -> RepGraphT t m SExprWithPlaceholders
+convertExpr expr = liftInner $ withoutEnv $ convertExprNotSplit $ castExpr expr
+
+getPcWithTag :: (Tag t, MonadRepGraphSendSExpr m) => WithTag t Visit -> RepGraphT t m FlatExpr
+getPcWithTag (WithTag tag visit) = fmap castExpr $ runTagged tag $ getPc visit
+
+getNodePcEnvWithTag :: (Tag t, MonadRepGraphSendSExpr m) => WithTag t Visit -> RepGraphT t m (Maybe PcEnv)
+getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
+
+--
+
+type ModelRequest = [String]
+
+newtype ModelResponse
+  = ModelResponse { unwrap :: M.Map String SExpr }
+  deriving (Generic, Show)
+
+getModelRequest :: (Tag t, MonadRepGraphSendSExpr m) => RepGraphT t m ModelRequest
+getModelRequest = undefined
+
+getEvalModel :: (Tag t, MonadRepGraphSendSExpr m) => RepGraphT t m (ModelResponse -> FlatExpr -> FlatExpr)
+getEvalModel = undefined
+    -- modelResp expr
+
+-- newtype Model = Model
+--     { unwrap :: M.Map FlatExpr FlatExpr
+--     }
+--   deriving (Generic, Show)
+
+--
+
+isUnreachableCompat :: (Tag t, MonadRepGraphSendSExpr m) => Visit -> RepGraphTaggedT t m SExprWithPlaceholders
+isUnreachableCompat visit = do
     pcEnv <- fromJust <$> getNodePcEnv visit
-    withEnv pcEnv.env $ convertExprNotSplit $ notE pcEnv.pc
+    liftInner $ withEnv pcEnv.env $ convertExprNotSplit $ notE pcEnv.pc
 
-class MonadRepGraphFlatten m
+--
+
+addPValidDomAssertions :: MonadRepGraphSendSExpr m => RepGraphT t m ()
+addPValidDomAssertions = do
+    liftInner addPValidDomAssertions'
