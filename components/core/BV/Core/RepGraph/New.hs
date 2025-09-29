@@ -41,7 +41,7 @@ module BV.Core.RepGraph.New
 
 import BV.Core.RepGraph.New.Common
 import BV.Core.RepGraph.New.Flat
-import BV.Core.RepGraph.New.FlattenGraph
+import BV.Core.RepGraph.New.Flatten
 import BV.Core.RepGraph.New.SendFlatExprCommand
 import BV.Core.RepGraph.New.SendSolverExprCommand
 

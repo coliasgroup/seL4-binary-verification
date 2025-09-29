@@ -99,7 +99,7 @@ library core
       BV.Core.RepGraph.InterpretHyp
       BV.Core.RepGraph.New.Common
       BV.Core.RepGraph.New.Flat
-      BV.Core.RepGraph.New.FlattenGraph
+      BV.Core.RepGraph.New.Flatten
       BV.Core.RepGraph.New.FlattenGraph.AsmRefine
       BV.Core.RepGraph.New.FlattenGraph.MemCalls
       BV.Core.RepGraph.New.FlattenGraph.NameHint
