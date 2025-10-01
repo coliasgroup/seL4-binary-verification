@@ -13,7 +13,6 @@ module BV.Core.GraphSlice.New.Flatten
     , GraphSliceT
     , GraphSliceTaggedT
     , PcEnv (..)
-    , addPValidDomAssertions
     , askCont
     , askLoopData
     , askNodeGraph
@@ -72,10 +71,6 @@ import Optics.State.Operators ((%=))
 import Text.Printf (printf)
 
 -- import Debug.Trace (traceShowM)
-
--- TODO
-cheatMemDoms :: Bool
-cheatMemDoms = True
 
 --
 
@@ -706,11 +701,6 @@ instEqWithEnvs (x, xenv) (y, yenv) = f x' y'
     f = case x'.ty of
         ExprTypeRelWrapper -> applyRelWrapper
         _ -> eqE
-
-addPValidDomAssertions :: Monad m => m ()
-addPValidDomAssertions = do
-    ensureM cheatMemDoms
-    return ()
 
 --
 

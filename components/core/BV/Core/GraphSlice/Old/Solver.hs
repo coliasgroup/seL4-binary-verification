@@ -13,7 +13,6 @@ module BV.Core.GraphSlice.Old.Solver
     , Name (..)
     , PcEnv (..)
     , addDef
-    , addPValidDomAssertions'
     , addSplitMemVar
     , addVar
     , assertFact
@@ -26,6 +25,7 @@ module BV.Core.GraphSlice.Old.Solver
     , mergeEnvsPcs
     , nameS
     , runGraphSliceSolverTStep
+    , sendAccumulatedSolverAssertions
     , tryGetDef
     ) where
 
@@ -379,6 +379,10 @@ getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokens ident $ do
 compiledTokenType :: ExprType
 compiledTokenType = wordT 64
 
+sendAccumulatedSolverAssertions :: C m => T m ()
+sendAccumulatedSolverAssertions = do
+    addPValidDomAssertions
+
 --
 
 addRODataDef :: C m => T m ()
@@ -431,8 +435,8 @@ addRODataDef = do
         impRoDef
 
 -- TODO
-addPValidDomAssertions' :: C m => T m ()
-addPValidDomAssertions' = do
+addPValidDomAssertions :: C m => T m ()
+addPValidDomAssertions = do
     ensureM cheatMemDoms
     return ()
 

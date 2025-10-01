@@ -35,7 +35,7 @@ compileProofCheckGroup input group =
     SMTProofCheckGroup setup imps
   where
     (imps, setup) = runWriter (runAsmRefineGraphSliceT input m)
-    m = interpretGroup group <* addPValidDomAssertions
+    m = interpretGroup group <* addAccumulatedAssertions
 
 interpretGroup :: (RefineTag t, MonadGraphSliceSendSExpr m) => ProofCheckGroup t a -> GraphSliceT t m [SMTProofCheckImp a]
 interpretGroup group = do

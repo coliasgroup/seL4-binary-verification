@@ -8,6 +8,7 @@ module BV.Core.GraphSlice.New.SendFlatExprCommand
     , GraphSliceSendFlatExprCommandT
     , convertFlatExpr
     , runGraphSliceSendFlatExprCommandTStep
+    , sendAccumulatedAssertionsInner
     , sendFlatExprCommand
     ) where
 
@@ -43,6 +44,12 @@ import Optics.State.Operators ((%=), (<<.=))
 -- import Debug.Trace (traceShowM)
 
 -- TODO explicitly weaken pvalid ops in strengthenHyp
+
+-- TODO
+cheatMemDoms :: Bool
+cheatMemDoms = True
+
+--
 
 type T = GraphSliceSendFlatExprCommandT
 
@@ -241,6 +248,10 @@ maybeNoteModelExpr expr subexprs =
 
 assertSolverExpr :: C m => SolverExpr -> T m ()
 assertSolverExpr = send . ExprCommandAssert
+
+sendAccumulatedAssertionsInner :: C m => T m ()
+sendAccumulatedAssertionsInner = do
+    sendPValidDomAssertions
 
 --
 
@@ -468,3 +479,8 @@ addPValid htd key = do
         , p = varFromNameTyE ptr
         , pv = var
         }
+
+sendPValidDomAssertions :: C m => T m ()
+sendPValidDomAssertions = do
+    ensureM cheatMemDoms
+    return ()

@@ -9,7 +9,7 @@ module BV.Core.GraphSlice.Old
     , GraphSliceTaggedT
     , MonadGraphSliceSendSExpr (..)
     , PcEnv (..)
-    , addPValidDomAssertions
+    , addAccumulatedAssertions
     , askCont
     , askLoopData
     , askNodeGraph
@@ -92,7 +92,6 @@ getPcWithTag (WithTag tag visit) = fmap castExpr $ runTagged tag $ getPc visit
 getNodePcEnvWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m (Maybe PcEnv)
 getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
 
---
-
-addPValidDomAssertions :: MonadGraphSliceSendSExpr m => GraphSliceT t m ()
-addPValidDomAssertions = liftInner addPValidDomAssertions'
+addAccumulatedAssertions :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ()
+addAccumulatedAssertions = do
+    liftInner $ sendAccumulatedSolverAssertions

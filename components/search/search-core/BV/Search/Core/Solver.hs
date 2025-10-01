@@ -198,7 +198,7 @@ testHypWhypsCommon fast wantModel hyp hyps = do
         (Nothing, True) -> do
             return Nothing
         (Nothing, False) -> do
-            lift addPValidDomAssertions
+            lift addAccumulatedAssertions
             v <- lift $ lift $ testHypCommon wantModel sexpr
             zoomMaybe (#_Just % #unwrap) $ modify $ M.insertWith undefined sexpr (isTrueResult v)
             return $ Just v
