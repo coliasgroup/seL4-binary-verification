@@ -152,7 +152,7 @@ data TState t
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
       , inductVarEnv :: Map EqHypInduct Name
       , condVars :: Map MaybeSplit Ident
-      , contractions :: Map SExprWithPlaceholders MaybeSplit
+      , contractions :: Map SExprWithPlaceholders FlatExpr
       , extraProblemNames :: S.Set Ident
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , funCalls :: M.Map (WithTag t Visit) FunCallInfo
@@ -171,8 +171,8 @@ data TState t
 -- TODO
 data FunCallInfo
   = FunCallInfo
-      { ins :: [(ExprType, MaybeSplit)]
-      , outs :: [(ExprType, MaybeSplit)]
+      { ins :: [FlatExpr]
+      , outs :: [FlatExpr]
       , success :: FlatExpr
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -369,7 +369,7 @@ flattenExpr :: ExprEnv -> GraphExpr -> FlatExpr
 flattenExpr = flip go
   where
     go = traverseOf (exprArgs % traversed) go >=> \expr -> case expr.value of
-        ExprValueVar name -> \env -> Expr expr.ty $ ExprValueSMTExpr (env ! NameTy name expr.ty)
+        ExprValueVar name -> \env -> env ! name
         _ -> return expr
 
 flattenAndAddDef :: TaggedC t n m => ExprEnv -> NameHint -> GraphExpr -> m MaybeSplit
@@ -438,12 +438,12 @@ addVarReps
     -> TaggedT t m ExprEnv
 addVarReps kind mkName memCalls visit vars = execStateT $ do
     for_ vars $ \var -> do
-        v <- lift $ NotSplit . nameS <$> addVarWithMemCalls (mkName var.name) var.ty memCalls
-        modify $ M.insert var v
+        v <- lift $ smtExprE var.ty . NotSplit . nameS <$> addVarWithMemCalls (mkName var.name) var.ty memCalls
+        modify $ M.insert var.name v
     intermediateEnv <- get
     for_ vars $ \var -> do
         opt <- lift $ varRepRequest kind visit intermediateEnv var
-        for_ opt $ \splitMem -> modify $ M.insert var (Split splitMem)
+        for_ opt $ \splitMem -> modify $ M.insert var.name $ smtExprE var.ty $ Split splitMem
 
 --
 
@@ -461,15 +461,12 @@ updatePcEnvCompat pcEnv = traverseOf #pc (walkExprsM f) pcEnv
 
 --
 
-contract :: TaggedC t n m => Visit -> NameTy -> SExprWithPlaceholders -> m MaybeSplit
-contract visit var sexpr = withMapSlot #contractions sexpr $ do
-    let name' = localNameBefore visit var.name
-    liftInner $ addDef name' $ smtExprE var.ty (NotSplit sexpr)
-
-maybeContract :: TaggedC t n m => Visit -> NameTy -> MaybeSplit -> m MaybeSplit
-maybeContract visit var v = case v of
-    NotSplit sexpr | length (showSExprWithPlaceholders sexpr) > 80 -> contract visit var sexpr
-    _ -> return v
+maybeContract :: TaggedC t n m => Visit -> Ident -> FlatExpr -> m FlatExpr
+maybeContract visit name expr@(Expr ty (ExprValueSMTExpr ms)) = case ms of
+    NotSplit sexpr | length (showSExprWithPlaceholders sexpr) > 80 -> withMapSlot #contractions sexpr $ do
+        let name' = localNameBefore visit name
+        liftInner $ smtExprE ty <$> addDef name' (smtExprE ty (NotSplit sexpr))
+    _ -> return expr
 
 contractPcEnv :: C t m => Visit -> PcEnv -> TaggedT t m PcEnv
 contractPcEnv visit = updatePcEnvCompat >=> \(PcEnv pc env) -> do
@@ -565,7 +562,7 @@ getLoopPcEnv visit = do
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
-        nonConsts <- filterM (fmap not . isConstM) (M.keys prevEnv)
+        nonConsts <- filterM (fmap not . isConstM) [ NameTy name ty | (name, Expr ty _) <- M.toList prevEnv ]
         env <- addVarReps
             VarRepRequestKindLoop
             (\ident -> printf "%P_after_loop_at_%P" ident visit.nodeId)
@@ -657,30 +654,29 @@ emitNode visit = do
             NodeBasic basicNode -> do
                 updates <- for basicNode.varUpdates $ \update -> do
                     val <- case update.val.value of
-                        ExprValueVar name -> do
-                            return $ env ! NameTy name update.val.ty
+                        ExprValueVar name -> return $ env ! name
                         _ -> do
                             let name = localName visit update.var.name
-                            flattenAndAddDef env name update.val
-                    return (update.var, val)
+                            smtExprE update.var.ty <$> flattenAndAddDef env name update.val
+                    return (update.var.name, val)
                 return [(basicNode.next, PcEnv pc (M.union (M.fromList updates) env))]
             NodeCond condNode -> do
                 let condNameHint = condName visit
                 condIdent <- getFreshIdent condNameHint
                 condDef <- flattenAndAddDef env condNameHint condNode.expr
                 liftPure $ #condVars %= M.insert condDef condIdent
-                let condEnv = M.singleton (NameTy condIdent boolT) condDef
+                let condEnv = M.singleton condIdent $ smtExprE boolT condDef
                 let cond = flattenExpr condEnv (varE boolT condIdent)
                 let lpc = andE cond pc
                 let rpc = andE (notE cond) pc
-                let env' = M.insert (NameTy condIdent boolT) condDef env
+                let env' = M.insert condIdent (smtExprE boolT condDef) env
                 return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
                 preHook <- askHook #preEmitCallNodeHook
                 preHook visit
                 success <- liftInner $ smtExprE boolT . NotSplit . nameS <$>
                     addVar (successName visit callNode.functionName) boolT
-                ins <- liftInner $ for callNode.input $ \arg -> (arg.ty,) <$> convertExpr' (flattenExpr env arg)
+                ins <- liftInner $ for callNode.input $ \arg -> smtExprE arg.ty <$> convertExpr' (flattenExpr env arg)
                 memCalls <- fmap (addMemCall callNode.functionName) <$> scanMemCalls ins
                 env' <- addVarReps
                     VarRepRequestKindCall
@@ -689,7 +685,7 @@ emitNode visit = do
                     visit
                     callNode.output
                     env
-                let outs = [ (out.ty, env' ! out) | out <- callNode.output ]
+                let outs = [ env' ! out.name | out <- callNode.output ]
                 key <- askWithTag visit
                 let info = FunCallInfo { ins, outs, success }
                 liftGraphSlice $ #funCalls %= M.insertWith undefined key info
@@ -770,14 +766,11 @@ getMemCalls = liftInner . getImmBasisMems >=> \mems -> fmap (foldr1 mergeMemCall
     liftGraphSlice $ use $ #memCalls % expectingAt mem
 
 scanMemCallsEnv :: TaggedC t n m => ExprEnv -> m MemCallsIfKnown
-scanMemCallsEnv env = scanMemCalls
-    [ (var.ty, v)
-    | (var, v) <- M.toList env
-    ]
+scanMemCallsEnv = scanMemCalls . toList
 
-scanMemCalls :: TaggedC t n m => [(ExprType, MaybeSplit)] -> m MemCallsIfKnown
+scanMemCalls :: TaggedC t n m => [FlatExpr] -> m MemCallsIfKnown
 scanMemCalls tyVals = do
-    memCalls <- traverse getMemCalls [ v | (ty, NotSplit v) <- tyVals, ty == memT ]
+    memCalls <- traverse getMemCalls [ v | Expr ty (ExprValueSMTExpr (NotSplit v)) <- tyVals, ty == memT ]
     return $ case memCalls of
         [] -> Nothing
         _ -> Just $ foldr1 mergeMemCalls memCalls
@@ -913,8 +906,8 @@ data FunCallInfoWithNames
 
 augmentFunCallInfo :: FunctionSignature -> FunCallInfo -> FunCallInfoWithNames
 augmentFunCallInfo sig info = FunCallInfoWithNames
-    { ins = M.fromList (zip sig.input (map snd info.ins))
-    , outs = M.fromList (zip sig.output (map snd info.outs))
+    { ins = M.fromList (zip (map (.name) sig.input) info.ins)
+    , outs = M.fromList (zip (map (.name) sig.output) info.outs)
     , success = info.success
     }
 

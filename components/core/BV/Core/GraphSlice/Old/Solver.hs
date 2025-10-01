@@ -451,7 +451,7 @@ addSplitMemVar split nameHint ty@ExprTypeMem = do
 
 --
 
-type ExprEnv = Map NameTy MaybeSplit
+type ExprEnv = Map Ident FlatExpr
 
 data PcEnv
   = PcEnv
@@ -496,11 +496,11 @@ mergeEnvs envs = do
     return $ mergeValPcMapCompat <$> varValPcMap
   where
     -- HACK impl compatible with graph-refine
-    mergeValPcMapCompat = mergeValPcListCompat . sortOn (compatSMTComparisonKey . fst) . M.toList
+    mergeValPcMapCompat = mergeValPcListCompat . sortOn (compatSMTComparisonKey . viewExpecting (#value % #_ExprValueSMTExpr) . fst) . M.toList
     mergeValPcListCompat valsByPc =
-        let Just (valsByPcInit, (lastVal, _)) = unsnoc valsByPc
-            f accVal (val, pcs) = convertIfThenElse (orCompat pcs) val accVal
-         in foldl f lastVal valsByPcInit
+        let Just (valsByPcInit, (Expr ty (ExprValueSMTExpr lastVal), _)) = unsnoc valsByPc
+            f accVal (Expr _ (ExprValueSMTExpr val), pcs) = convertIfThenElse (orCompat pcs) val accVal
+         in smtExprE ty $ foldl f lastVal valsByPcInit
     orCompat = \case
         [x] -> x
         xs -> orNS xs

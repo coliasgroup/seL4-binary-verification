@@ -26,9 +26,7 @@ interpretHyp = \case
     HypEq { ifAt, eq } -> do
         envExt <- case eq.induct of
             Nothing -> return mempty
-            Just induct -> do
-                v <- getInductVar induct
-                return $ M.singleton (NameTy (Ident "%n") machineWordT) v
+            Just induct -> M.singleton (Ident "%n") <$> getInductVar induct
         xPcEnvOpt <- getNodePcEnvWithTag eq.lhs.visit
         yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
