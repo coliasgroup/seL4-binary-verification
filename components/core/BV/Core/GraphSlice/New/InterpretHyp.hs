@@ -27,8 +27,8 @@ interpretHyp = \case
         impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
         envExt <- case eq.induct of
-            Nothing -> return mempty
             Just induct -> M.singleton (Ident "%n") <$> getInductVar induct
+            Nothing -> return mempty
         xPcEnvOpt <- runWithTag getNodePcEnv eq.lhs.visit
         yPcEnvOpt <- runWithTag getNodePcEnv eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
