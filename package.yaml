@@ -118,9 +118,7 @@ internal-libraries:
       - BV.Core.Prelude
       - BV.Core.GraphSlice
       - BV.Core.GraphSlice.New
-      - BV.Core.GraphSlice.New.InterpretHyp
       - BV.Core.GraphSlice.Old
-      - BV.Core.GraphSlice.Old.InterpretHyp
       - BV.Core.Stages
       - BV.Core.Structs
       - BV.Core.Types

@@ -3,7 +3,9 @@ module BV.Core.GraphSlice.New.InterpretHyp
     , interpretHypImps
     ) where
 
-import BV.Core.GraphSlice.New
+import BV.Core.GraphSlice.New.Common (MonadGraphSliceSendSExpr)
+import BV.Core.GraphSlice.New.Flatten
+import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 
 import BV.Core.Logic (strengthenHyp)
 import BV.Core.Types
@@ -21,25 +23,28 @@ interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case
                 PcImpHypSideBool v -> return $ fromBoolE v
-                PcImpHypSidePc vt -> getPcWithTag vt
+                PcImpHypSidePc vt -> runWithTag getPc vt
         impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
         envExt <- case eq.induct of
             Nothing -> return mempty
             Just induct -> M.singleton (Ident "%n") <$> getInductVar induct
-        xPcEnvOpt <- getNodePcEnvWithTag eq.lhs.visit
-        yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
+        xPcEnvOpt <- runWithTag getNodePcEnv eq.lhs.visit
+        yPcEnvOpt <- runWithTag getNodePcEnv eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
             (Just xPcEnv, Just yPcEnv) -> do
-                eq' <- instEqWithEnvsCompat
+                let eq' = instEqWithEnvs
                         (eq.lhs.expr, envExt <> xPcEnv.env)
                         (eq.rhs.expr, envExt <> yPcEnv.env)
                 if ifAt
                     then do
-                        xPc <- getPcWithTag eq.lhs.visit
-                        yPc <- getPcWithTag eq.rhs.visit
+                        xPc <- runWithTag getPc eq.lhs.visit
+                        yPc <- runWithTag getPc eq.rhs.visit
                         return $ nImpliesE [xPc, yPc] eq'
                     else do
                         return eq'
             _ -> do
                 return $ fromBoolE ifAt
+
+runWithTag :: Monad m => (a -> GraphSliceTaggedT t m b) -> WithTag t a -> GraphSliceT t m b
+runWithTag f (WithTag tag a) = runTagged tag $ f a

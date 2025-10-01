@@ -21,16 +21,15 @@ module BV.Core.GraphSlice.Old
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
-    , getEvalModel
     , getFunCallInfo
     , getInductVar
-    , getModelRequest
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc
     , getPcWithTag
     , instEqWithEnvs
-    , instEqWithEnvsCompat
+    , interpretHyp
+    , interpretHypImps
     , liftUntagged
     , runAsmRefineGraphSliceT
     , runGraphSliceT
@@ -40,6 +39,7 @@ module BV.Core.GraphSlice.Old
     ) where
 
 import BV.Core.GraphSlice.Old.Core
+import BV.Core.GraphSlice.Old.InterpretHyp
 import BV.Core.GraphSlice.Old.Solver
 
 import BV.Core.GraphSlice.New (AsmRefineGraphSliceInput (..), FlatExpr,
@@ -48,11 +48,9 @@ import BV.Core.GraphSlice.New.Common
 
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.SMTLIB2 (SExpr)
 
 import Data.Foldable (toList)
 import qualified Data.Map as M
-import GHC.Generics (Generic)
 
 runGraphSliceT
     :: (Tag t, MonadGraphSliceSendSExpr m)
@@ -96,31 +94,5 @@ getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
 
 --
 
-type ModelRequest = [String]
-
-newtype ModelResponse
-  = ModelResponse { unwrap :: M.Map String SExpr }
-  deriving (Generic, Show)
-
-getModelRequest :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ModelRequest
-getModelRequest = undefined
-
-getEvalModel :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m (ModelResponse -> FlatExpr -> FlatExpr)
-getEvalModel = undefined
-    -- modelResp expr
-
--- newtype Model = Model
---     { unwrap :: M.Map FlatExpr FlatExpr
---     }
---   deriving (Generic, Show)
-
---
-
-instEqWithEnvsCompat :: (Tag t, MonadGraphSliceSendSExpr m) => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> GraphSliceT t m FlatExpr
-instEqWithEnvsCompat = instEqWithEnvs
-
---
-
 addPValidDomAssertions :: MonadGraphSliceSendSExpr m => GraphSliceT t m ()
-addPValidDomAssertions = do
-    liftInner addPValidDomAssertions'
+addPValidDomAssertions = liftInner addPValidDomAssertions'

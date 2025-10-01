@@ -6,7 +6,6 @@ module BV.Core.Stages.CompileProofChecks
     ) where
 
 import BV.Core.GraphSlice
-import BV.Core.GraphSlice.InterpretHyp
 import BV.Core.Stages.EnumerateProofChecks (pruneProofCheck)
 import BV.Core.Stages.GroupProofChecks
 import BV.Core.Types

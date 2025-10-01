@@ -30,7 +30,8 @@ module BV.Core.GraphSlice.New
     , getPc
     , getPcWithTag
     , instEqWithEnvs
-    , instEqWithEnvsCompat
+    , interpretHyp
+    , interpretHypImps
     , liftUntagged
     , runAsmRefineGraphSliceT
     , runGraphSliceT
@@ -42,6 +43,7 @@ module BV.Core.GraphSlice.New
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flat
 import BV.Core.GraphSlice.New.Flatten
+import BV.Core.GraphSlice.New.InterpretHyp
 import BV.Core.GraphSlice.New.SendFlatExprCommand
 import BV.Core.GraphSlice.New.SendSolverExprCommand
 
@@ -139,8 +141,3 @@ getEvalModel = undefined
 --     { unwrap :: M.Map FlatExpr FlatExpr
 --     }
 --   deriving (Generic, Show)
-
---
-
-instEqWithEnvsCompat :: Applicative f => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> f FlatExpr
-instEqWithEnvsCompat x y = pure $ instEqWithEnvs x y
