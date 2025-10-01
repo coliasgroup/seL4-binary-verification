@@ -149,8 +149,13 @@ initState = TState
 
 data ExtendedExpr
   = ExtendedExprExpr SolverExpr
-  | ExtendedExprSplitMem SplitMemExpr
   | ExtendedExprHtd HtdExpr
+  | ExtendedExprSplitMem SplitMemExpr
+  deriving (Eq, Generic, Ord, Show)
+
+data HtdExpr
+  = HtdExprIdent Ident
+  | HtdExprIfThenElse SolverExpr HtdExpr HtdExpr
   deriving (Eq, Generic, Ord, Show)
 
 data SplitMemExpr
@@ -161,23 +166,18 @@ data SplitMemExpr
       }
   deriving (Eq, Generic, Ord, Show)
 
-data HtdExpr
-  = HtdExprIdent Ident
-  | HtdExprIfThenElse SolverExpr HtdExpr HtdExpr
-  deriving (Eq, Generic, Ord, Show)
-
 --
 
 withMapSlot :: (C m, Ord k) => Lens' TState (M.Map k v) -> k -> T m v -> T m v
 withMapSlot = withMapSlotWith $ liftPure . mapStateT (return . runIdentity)
 
-askRODataPtrs :: C m => T m [SolverExpr]
-askRODataPtrs = liftPure $ gview #rodataPtrs
-
 type NameHint = String
 
 takeFreshName :: C m => NameHint -> T m Ident
 takeFreshName nameHint = liftPure $ zoom #names $ takeFreshNameWith Ident nameHint
+
+askRODataPtrs :: C m => T m [SolverExpr]
+askRODataPtrs = liftPure $ gview #rodataPtrs
 
 --
 
@@ -211,8 +211,10 @@ addDefWithInlineHint inline nameHint expr = do
 
 addExtendedDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> ExtendedExpr -> T m ExtendedExpr
 addExtendedDefWithInlineHint inline nameHint = \case
-    ExtendedExprHtd htd -> ExtendedExprHtd <$> return htd
-    ExtendedExprExpr expr -> ExtendedExprExpr <$> varFromNameTyE <$> addDefWithInlineHint inline nameHint expr
+    ExtendedExprExpr expr -> ExtendedExprExpr <$> do
+        varFromNameTyE <$> addDefWithInlineHint inline nameHint expr
+    ExtendedExprHtd htd -> ExtendedExprHtd <$> do
+        return htd
     ExtendedExprSplitMem splitMem -> ExtendedExprSplitMem <$> do
         let f suffix expr = varFromNameTyE <$> addDef (nameHint ++ "_" ++ suffix) expr
         split <- f "split" splitMem.split
