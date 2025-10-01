@@ -166,10 +166,10 @@ typeToSmt = \case
     ExprTypeBool -> boolS
     ExprTypeMem -> memSortS
     ExprTypeDom -> memDomSortS
-    ExprTypeToken -> typeToSmt compiledTokenType
+    ExprTypeToken -> typeToSmt concreteTokenType
 
-compiledTokenType :: ExprType
-compiledTokenType = ExprTypeWord 64
+concreteTokenType :: ExprType
+concreteTokenType = ExprTypeWord 64
 
 addSmtVar :: C m => SmtNameHint -> ExprType -> T m SmtName
 addSmtVar nameHint ty = do
@@ -239,7 +239,7 @@ getToken ident = fmap nameS $ withMapSlot #tokens ident $ do
     n <- liftPure $ use $ #tokens % to M.size
     addSmtDef
         ("token_" ++ ident.unwrap)
-        (numE compiledTokenType (toInteger n))
+        (numE concreteTokenType (toInteger n))
 
 convertWordCast :: Bool -> Integer -> Integer -> SExprWithPlaceholders -> SExprWithPlaceholders
 convertWordCast signed fromBits toBits arg = if
