@@ -21,7 +21,8 @@ import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils (whenNothing, withMapSlotWith)
-import BV.SMTLIB2.SExpr (GenericSExpr (List))
+import BV.SMTLIB2.SExpr (GenericSExpr (List), isValidSymbolAtomFirstChar,
+                         isValidSymbolAtomSubsequentChar)
 
 import Control.Applicative ((<|>))
 import Control.Monad (join)
@@ -43,6 +44,8 @@ import GHC.Stack (HasCallStack)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+
+-- TODO prefix all names to avoid clashes?
 
 type T = GraphSliceSendSolverExprCommandT
 
@@ -128,14 +131,16 @@ instance IsString SmtName where
 nameS :: SmtName -> SExprWithPlaceholders
 nameS name = symbolS name.unwrap
 
--- TODO prefix all names to avoid clashes?
 takeFreshName :: C m => SmtNameHint -> T m SmtName
-takeFreshName nameHint = liftPure $ zoom #names $ takeFreshNameWith SmtName sanitized
-  where
-    sanitized =
-        [ if c `elem` ("'#\"" :: String) then '_' else c
-        | c <- nameHint
-        ]
+takeFreshName nameHint = liftPure $ zoom #names $ takeFreshNameWith SmtName $ sanitizeName nameHint
+
+sanitizeName :: String -> String
+sanitizeName name =
+    [ if (not isFirst || isValidSymbolAtomFirstChar c) && isValidSymbolAtomSubsequentChar c
+      then c
+      else '_'
+    | (c, isFirst) <- zip name $ True : repeat False
+    ]
 
 initNames :: Set SmtName
 initNames = S.fromList $ map SmtName $ join
