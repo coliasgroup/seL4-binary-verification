@@ -178,10 +178,12 @@ addSmtVar nameHint ty = do
     return name
 
 addSmtDef :: C m => SmtNameHint -> SolverExpr -> T m SmtName
-addSmtDef nameHint val = do
+addSmtDef nameHint val = convertSolverExpr val >>= addConvertedSmtDefx nameHint val.ty
+
+addConvertedSmtDefx :: C m => SmtNameHint -> ExprType -> SExprWithPlaceholders -> T m SmtName
+addConvertedSmtDefx nameHint ty s = do
     name <- takeFreshName nameHint
-    s <- convertSolverExpr val
-    send $ defineFunS name.unwrap [] (typeToSmt val.ty) s
+    send $ defineFunS name.unwrap [] (typeToSmt ty) s
     return name
 
 --
@@ -194,11 +196,11 @@ sendSolverExprCommand = \case
     ExprCommandDefine inlineHint var val -> do
         s <- convertSolverExpr val
         if inlineHint == ExprCommandInlineHintSometimes && length (showSExprWithPlaceholders s) < 80
-            then do
-                liftPure $ #inline %= M.insertWith undefined var.name s
-            else do
-                name <- addSmtDef var.name.unwrap val
-                liftPure $ #nameMap %= M.insertWith undefined var.name name
+        then do
+            liftPure $ #inline %= M.insertWith undefined var.name s
+        else do
+            name <- addConvertedSmtDefx var.name.unwrap val.ty s
+            liftPure $ #nameMap %= M.insertWith undefined var.name name
     ExprCommandAssert expr -> do
         s <- convertSolverExpr expr
         send $ assertS s
@@ -206,11 +208,9 @@ sendSolverExprCommand = \case
 convertSolverExpr :: HasCallStack => C m => SolverExpr -> T m SExprWithPlaceholders
 convertSolverExpr expr = case expr.value of
     ExprValueVar var -> do
-        sOpt <- runMaybeT $
+        fmap fromJust $ runMaybeT $
             nameS <$> MaybeT (liftPure $ use $ #nameMap % at var)
                 <|> MaybeT (liftPure $ use $ #inline % at var)
-        whenNothing sOpt $ do
-            error $ "could not convert var: " ++ show var
     ExprValueNum n -> do
         return $ intWithWidthS (wordTBits expr.ty) n
     ExprValueToken tok -> do
