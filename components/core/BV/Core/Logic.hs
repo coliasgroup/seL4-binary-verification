@@ -143,7 +143,7 @@ data PValidInfo c
   = PValidInfo
       { pvKind :: PValidKind
       , pvTy :: PValidType c
-      , p :: Expr c
+      , ptr :: Expr c
       , pv :: Expr c
       }
   deriving (Eq, Generic, NFData, Ord, Show)
@@ -162,7 +162,7 @@ pvalidAssertion1 x y = do
   where
     completelyPrecedes lo hi = do
         loSize <- pvalidTypeSize lo.pvTy
-        return $ (lo.p `plusE` (loSize `minusE` machineWordE 1)) `lessE` hi.p
+        return $ (lo.ptr `plusE` (loSize `minusE` machineWordE 1)) `lessE` hi.ptr
 
 -- Second pointer validity assertion: implication.
 -- pvalid1 & strictly-contained --> pvalid2
@@ -197,7 +197,7 @@ pvalidContains outer inner = do
                     outer.pvTy
     return $ case condOpt of
         Nothing -> falseE
-        Just cond -> cond (inner.p `minusE` outer.p)
+        Just cond -> cond (inner.ptr `minusE` outer.ptr)
   where
     compatNoop cond offs = cond (offs `minusE` machineWordE 0)
 

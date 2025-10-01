@@ -819,7 +819,7 @@ addPValids = go
             var <- nameS <$> addVar "pvalid" boolT
             let info = mkPvInfo key var
             do
-                fact <- liftStructs $ alignValidIneq info.pvTy info.p
+                fact <- liftStructs $ alignValidIneq info.pvTy info.ptr
                 assertFact $ info.pv `impliesE` fact
             others <- liftSolver $ #pvalids % expectingAt htd <<%= M.insert key var
             for_ (sortOthersCompat others) $ \(otherKey, otherVar) -> do
@@ -835,7 +835,7 @@ addPValids = go
     mkPvInfo (PValidKey { pvKind, pvTy, ptrName }) var = PValidInfo
         { pvKind
         , pvTy
-        , p = smtExprE machineWordT (NotSplit (nameS ptrName))
+        , ptr = smtExprE machineWordT (NotSplit (nameS ptrName))
         , pv = smtExprE boolT (NotSplit var)
         }
     -- HACK matches graph-refine
