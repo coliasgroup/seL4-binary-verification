@@ -159,14 +159,14 @@ initNames = S.fromList $ map SmtName $ join
 
 --
 
-typeToSMT :: ExprType -> S
-typeToSMT = \case
+typeToSmt :: ExprType -> S
+typeToSmt = \case
     ExprTypeWord bits -> bitVecS bits
     ExprTypeWordArray { len, bits } -> ["Array", bitVecS len, bitVecS bits]
     ExprTypeBool -> boolS
     ExprTypeMem -> memSortS
     ExprTypeDom -> memDomSortS
-    ExprTypeToken -> typeToSMT compiledTokenType
+    ExprTypeToken -> typeToSmt compiledTokenType
 
 compiledTokenType :: ExprType
 compiledTokenType = ExprTypeWord 64
@@ -174,14 +174,14 @@ compiledTokenType = ExprTypeWord 64
 addSmtVar :: C m => SmtNameHint -> ExprType -> T m SmtName
 addSmtVar nameHint ty = do
     name <- takeFreshName nameHint
-    send $ declareFunS name.unwrap [] (typeToSMT ty)
+    send $ declareFunS name.unwrap [] (typeToSmt ty)
     return name
 
 addSmtDef :: C m => SmtNameHint -> SolverExpr -> T m SmtName
 addSmtDef nameHint val = do
     name <- takeFreshName nameHint
     s <- convertSolverExpr val
-    send $ defineFunS name.unwrap [] (typeToSMT val.ty) s
+    send $ defineFunS name.unwrap [] (typeToSmt val.ty) s
     return name
 
 --
@@ -377,7 +377,7 @@ getDerivedRODataOp op = do
                 return $ loadWord32S "m" roWitness `eqS` roWitnessVal
     send $ defineFunS
         name.unwrap
-        [("m", typeToSMT ExprTypeMem)]
+        [("m", typeToSmt ExprTypeMem)]
         boolS
         body
     return name
