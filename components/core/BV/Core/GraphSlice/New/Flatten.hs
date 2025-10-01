@@ -136,7 +136,7 @@ data TState t
       { inputEnvs :: Map (WithTag t ()) ExprEnv
       , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
-      , inductVars :: Map EqHypInduct NameTy
+      , inductVars :: Map EqHypInduct FlatExpr
       , hasInnerLoopCache :: Map (WithTag t NodeAddr) Bool
       , stacks :: Set Ident
       , mems :: Map Ident MemCalls
@@ -438,10 +438,9 @@ checkGenerality visit = void $ runMaybeT $ do
 
 getInductVar :: TaggedC t n m => EqHypInduct -> m FlatExpr
 getInductVar induct =
-    fmap varFromNameTyE $
-        withMapSlot #inductVars induct $
-            liftInner $
-                addVar (inductVarName induct) word32T
+    withMapSlot #inductVars induct $
+        liftInner $
+            varFromNameTyE <$> addVar (inductVarName induct) word32T
 
 getPc :: C t m => Visit -> TaggedT t m FlatExpr
 getPc visit = getNodePcEnv visit <&> \case
