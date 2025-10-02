@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-
 module BV.Core.GraphSlice.New.Flatten.MemCalls
     ( MemCalls
     , addMemCall

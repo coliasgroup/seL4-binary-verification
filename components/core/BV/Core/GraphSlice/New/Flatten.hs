@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module BV.Core.GraphSlice.New.Flatten
     ( FunCallInfo (..)
@@ -379,6 +379,8 @@ checkGenerality visit = void $ runMaybeT $ do
         loopIdOpt' <- lift $ lift $ askLoopHead restr.nodeAddr
         when (loopIdOpt' == Just loopId && isOptionsVC restr.visitCount) $ do
             throwError $ TooGeneral { split = restr.nodeAddr }
+
+--
 
 getInductVar :: TaggedC t n m => EqHypInduct -> m FlatExpr
 getInductVar induct =

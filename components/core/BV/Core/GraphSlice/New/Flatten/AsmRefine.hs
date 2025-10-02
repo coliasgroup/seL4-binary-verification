@@ -22,7 +22,8 @@ areMemCallsCompatible
     :: t ~ AsmRefineTag
     => LookupFunctionSignature t
     -> (WithTag t Ident -> PairingId t)
-    -> ByTag t (Maybe MemCalls) -> Bool
+    -> ByTag t (Maybe MemCalls)
+    -> Bool
 areMemCallsCompatible lookupSig lookupPairingId callsOpt = case sequenceA callsOpt of
     Nothing -> True
     Just calls ->
@@ -38,10 +39,10 @@ areMemCallsCompatible lookupSig lookupPairingId callsOpt = case sequenceA callsO
                       else Nothing
                 | (asmFunName, asmCallsForFun) <- M.toList calls.asm
                 ]
-            compat rname =
-                let rcast = M.findWithDefault zeroMemCallsRange rname cCastCalls
-                    ractual = M.findWithDefault zeroMemCallsRange rname calls.c
-                 in memCallsRangesOverlap rcast ractual
+            compat cFunName =
+                let cCast = M.findWithDefault zeroMemCallsRange cFunName cCastCalls
+                    cActual = M.findWithDefault zeroMemCallsRange cFunName calls.c
+                 in memCallsRangesOverlap cCast cActual
          in all compat $ S.toList $ M.keysSet calls.c <> M.keysSet cCastCalls
 
 asmRefineIsMemHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> WithTag t Ident -> PairingEqDirection -> Integer -> Bool

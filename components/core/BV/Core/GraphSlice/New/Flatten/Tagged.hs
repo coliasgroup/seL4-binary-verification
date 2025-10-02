@@ -1,7 +1,5 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-
 module BV.Core.GraphSlice.New.Flatten.Tagged
     ( GraphSliceTaggedT
     , askTag

@@ -1,5 +1,5 @@
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module BV.Core.GraphSlice.New.SendFlatExprCommand
     ( FlatExpr

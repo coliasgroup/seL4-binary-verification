@@ -1,8 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-
 module BV.Core.GraphSlice.New.Common
     ( ExprCommand (..)
     , ExprCommandInlineHint (..)
