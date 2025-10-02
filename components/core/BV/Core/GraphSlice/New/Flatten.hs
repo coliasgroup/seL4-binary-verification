@@ -139,8 +139,8 @@ data TState t
       , hasInnerLoopCache :: Map (WithTag t NodeAddr) Bool
       , stacks :: Set Ident
       , mems :: Map Ident MemCalls
-      , funCalls :: M.Map (WithTag t Visit) FunCallInfo
-      , funCallsByName :: M.Map (WithTag t Ident) (S.Set Visit)
+      , funCalls :: Map (WithTag t Visit) FunCallInfo
+      , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
       }
   deriving (Generic)
 
@@ -195,13 +195,13 @@ initState = TState
 
 --
 
-withMapSlotWithMapping :: (TaggedC t n m, Monad m', Ord k) => (forall a. m a -> m' a) -> Lens' (TState t) (M.Map k v) -> k -> m' v -> m' v
+withMapSlotWithMapping :: (TaggedC t n m, Monad m', Ord k) => (forall a. m a -> m' a) -> Lens' (TState t) (Map k v) -> k -> m' v -> m' v
 withMapSlotWithMapping f = withMapSlotWith $ f . liftPure . mapStateT (return . runIdentity)
 
-withMapSlot :: (TaggedC t n m, Ord k) => Lens' (TState t) (M.Map k v) -> k -> m v -> m v
+withMapSlot :: (TaggedC t n m, Ord k) => Lens' (TState t) (Map k v) -> k -> m v -> m v
 withMapSlot = withMapSlotWithMapping id
 
-withMapSlotTagged :: (C t m, Ord k) => Lens' (TState t) (M.Map (WithTag t k) v) -> k -> TaggedT t m v -> TaggedT t m v
+withMapSlotTagged :: (C t m, Ord k) => Lens' (TState t) (Map (WithTag t k) v) -> k -> TaggedT t m v -> TaggedT t m v
 withMapSlotTagged l k m = do
     k' <- askWithTag k
     withMapSlot l k' m
@@ -519,7 +519,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
             _ -> return prevChain
     iters = 5000 :: Integer
 
-emitNode :: C t m => Visit -> TaggedT t m (M.Map NodeId PcEnv)
+emitNode :: C t m => Visit -> TaggedT t m (Map NodeId PcEnv)
 emitNode visit = do
     pcEnv@(PcEnv pc env) <- fromJust <$> getNodePcEnv visit
     let nodeAddr = nodeAddrOf visit.nodeId
@@ -654,7 +654,7 @@ data AddFunAssertHookEnv t
   = Env
       { lookupSig :: LookupFunctionSignature t
       , pairings :: Pairings t
-      , pairingsAccess :: M.Map (WithTag t Ident) (PairingId t)
+      , pairingsAccess :: Map (WithTag t Ident) (PairingId t)
       }
   deriving (Generic)
 
