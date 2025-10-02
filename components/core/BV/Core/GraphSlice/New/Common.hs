@@ -14,7 +14,6 @@ import Control.DeepSeq (NFData)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Writer (WriterT, tell)
 import Data.Binary (Binary)
 import GHC.Generics (Generic)
@@ -36,9 +35,6 @@ instance Binary ExprCommandInlineHint
 
 class (Monad m, Monad n) => MonadInner n m | m -> n where
     liftInner :: Monad m => n a -> m a
-
-instance MonadInner n m => MonadInner n (MaybeT m) where
-    liftInner = lift . liftInner
 
 class Monad m => MonadGraphSliceSendSExpr m where
     sendSExpr :: SExprWithPlaceholders -> m ()
