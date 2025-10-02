@@ -322,11 +322,11 @@ contractPcEnv :: C t m => Visit -> PcEnv -> TaggedT t m PcEnv
 contractPcEnv visit (PcEnv pc env) = do
     pc' <- do
         hint <- pathCondName <$> askWithTag visit
-        liftInner $ varFromNameTyE <$> cacheExpr hint pc
+        liftInner $ cacheExpr hint pc
     env' <- M.traverseWithKey f env
     return $ PcEnv pc' env'
   where
-    f name val = liftInner $ varFromNameTyE <$> cacheExprInline (localNameBefore visit name) val
+    f name val = liftInner $ cacheExprInline (localNameBefore visit name) val
 
 --
 
@@ -338,7 +338,7 @@ flattenExpr = flip go
         _ -> return expr
 
 flattenAndAddDef :: C t m => ExprEnv -> GraphExpr -> NameHint -> TaggedT t m FlatExpr
-flattenAndAddDef env expr nameHint = liftInner $ varFromNameTyE <$> addDef nameHint (flattenExpr env expr)
+flattenAndAddDef env expr nameHint = liftInner $ addDef nameHint (flattenExpr env expr)
 
 --
 

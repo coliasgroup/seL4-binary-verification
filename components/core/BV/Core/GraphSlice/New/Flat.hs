@@ -15,6 +15,7 @@ import BV.Core.GraphSlice.New.SendFlatExprCommand
 
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Types
+import BV.Core.Types.Extras (varFromNameTyE)
 import BV.Core.Utils (withMapSlotWith)
 
 import Control.Monad.Identity (runIdentity)
@@ -59,7 +60,7 @@ data TState
   = TState
       { names :: Set Ident
       , defs :: Map Ident FlatExpr
-      , exprCache :: Map FlatExpr Ident
+      , exprCache :: Map FlatExpr FlatExpr
       }
   deriving (Generic)
 
@@ -80,28 +81,27 @@ addVar nameHint ty = do
     send $ ExprCommandDeclare var
     return var
 
-addDef :: C m => NameHint -> FlatExpr -> T m NameTy
+addDef :: C m => NameHint -> FlatExpr -> T m FlatExpr
 addDef = addDefWithInlineHint ExprCommandInlineHintNever
 
-addDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> FlatExpr -> T m NameTy
+addDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> FlatExpr -> T m FlatExpr
 addDefWithInlineHint inline nameHint expr = do
     name <- takeFreshName nameHint
     let var = NameTy name expr.ty
     send $ ExprCommandDefine inline var expr
     liftPure $ #defs %= M.insert name expr
-    return var
+    return $ varFromNameTyE var
 
-cacheExpr :: C m => NameHint -> FlatExpr -> T m NameTy
+cacheExpr :: C m => NameHint -> FlatExpr -> T m FlatExpr
 cacheExpr = cacheExprWithInlineHint ExprCommandInlineHintNever
 
-cacheExprInline :: C m => NameHint -> FlatExpr -> T m NameTy
+cacheExprInline :: C m => NameHint -> FlatExpr -> T m FlatExpr
 cacheExprInline = cacheExprWithInlineHint ExprCommandInlineHintSometimes
 
-cacheExprWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> FlatExpr -> T m NameTy
-cacheExprWithInlineHint inline nameHint expr = flip NameTy expr.ty <$> case expr.value of
-    ExprValueVar name -> return name
-    _ -> withMapSlotWith liftPure #exprCache expr $ (.name)
-            <$> addDefWithInlineHint inline nameHint expr
+cacheExprWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> FlatExpr -> T m FlatExpr
+cacheExprWithInlineHint inline nameHint expr = case expr.value of
+    ExprValueVar _ -> return expr
+    _ -> withMapSlotWith liftPure #exprCache expr $ addDefWithInlineHint inline nameHint expr
 
 lookupDef :: C m =>  Ident -> T m (Maybe FlatExpr)
 lookupDef name = liftPure $ use $ #defs % at name
