@@ -1,8 +1,5 @@
 module BV.Core.Stages.CompileProofChecks
-    ( AsmRefineGraphSliceInput (..)
-    , FunctionSignature (..)
-    , GraphSliceInput (..)
-    , compileProofChecks
+    ( compileProofChecks
     ) where
 
 import BV.Core.GraphSlice

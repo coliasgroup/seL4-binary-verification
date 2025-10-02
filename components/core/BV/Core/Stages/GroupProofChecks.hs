@@ -1,6 +1,5 @@
 module BV.Core.Stages.GroupProofChecks
-    ( ProofCheckGroup
-    , proofCheckGroups
+    ( proofCheckGroups
     ) where
 
 import BV.Core.Types

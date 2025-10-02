@@ -10,6 +10,7 @@ module BV.Core.Glue
     , stages
     ) where
 
+import BV.Core.GraphSlice
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras
