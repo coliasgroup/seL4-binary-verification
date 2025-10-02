@@ -1,17 +1,12 @@
 {-# LANGUAGE MultiWayIf #-}
 
--- TODO
-{-# LANGUAGE UndecidableInstances #-}
-
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module BV.Core.GraphSlice.New.Flatten
-    ( ExprEnv
-    , FunCallInfo (..)
+    ( FunCallInfo (..)
     , GraphSliceHooks (preEmitCallNodeHook)
     , GraphSliceT
-    , PcEnv (..)
     , askContVisit
     , askLoopData
     , askNodeGraph
@@ -23,7 +18,6 @@ module BV.Core.GraphSlice.New.Flatten
     , getInductVar
     , getNodePcEnv
     , getPc
-    , instEqWithEnvs
     , runGraphSliceTStep
     , tryGetNodePcEnv
     ) where
@@ -37,7 +31,7 @@ import BV.Core.GraphSlice.New.Flatten.PcEnv
 import BV.Core.GraphSlice.New.Flatten.Tagged
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 
-import BV.Core.Logic (applyRelWrapper, weakenAssert)
+import BV.Core.Logic (eqHandlingRelWrapper, weakenAssert)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils (maybeFromSingletonList, whenNothing, withMapSlotWith)
@@ -642,15 +636,6 @@ getFunCallInfo unprunedVisit = do
         askContVisit visit >>= getNodePcEnv
         liftPure $ use $ #funCalls % expectingAt key
 
-instEqWithEnvs :: (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> FlatExpr
-instEqWithEnvs (x, xenv) (y, yenv) = f x' y'
-  where
-    x' = flattenExpr xenv x
-    y' = flattenExpr yenv y
-    f = case x'.ty of
-        ExprTypeRelWrapper -> applyRelWrapper
-        _ -> eqE
-
 --
 
 addFunAssertsHook :: AsmRefineC t m => LookupFunctionSignature t -> Pairings' -> Visit -> TaggedT t m ()
@@ -715,9 +700,9 @@ getFunAssert visits = do
         let info = augmentFunCallInfo <$> sigs <*> lowLevelInfoByTag
         rpc <- runTagged rightTag $ getPc visits.right
         let instEqs eqs =
-                [ instEqWithEnvs
-                    (eq.lhs.expr, envForQuadrant eq.lhs.quadrant info)
-                    (eq.rhs.expr, envForQuadrant eq.rhs.quadrant info)
+                [ eqHandlingRelWrapper
+                    (flattenExpr (envForQuadrant eq.lhs.quadrant info) eq.lhs.expr)
+                    (flattenExpr (envForQuadrant eq.rhs.quadrant info) eq.rhs.expr)
                 | eq <- eqs
                 ]
         return $ impliesE

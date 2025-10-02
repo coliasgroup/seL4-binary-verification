@@ -5,10 +5,11 @@ module BV.Core.GraphSlice.New.InterpretHyp
 
 import BV.Core.GraphSlice.New.Common (MonadGraphSliceSendSExpr)
 import BV.Core.GraphSlice.New.Flatten
+import BV.Core.GraphSlice.New.Flatten.PcEnv
 import BV.Core.GraphSlice.New.Flatten.Tagged
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 
-import BV.Core.Logic (strengthenHyp)
+import BV.Core.Logic (eqHandlingRelWrapper, strengthenHyp)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
@@ -34,9 +35,9 @@ interpretHyp = \case
         yPcEnvOpt <- runWithTag getNodePcEnv eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
             (Just xPcEnv, Just yPcEnv) -> do
-                let eq' = instEqWithEnvs
-                        (eq.lhs.expr, envExt <> xPcEnv.env)
-                        (eq.rhs.expr, envExt <> yPcEnv.env)
+                let eq' = eqHandlingRelWrapper
+                        (flattenExpr (envExt <> xPcEnv.env) eq.lhs.expr)
+                        (flattenExpr (envExt <> yPcEnv.env) eq.rhs.expr)
                 if ifAt
                     then do
                         xPc <- runWithTag getPc eq.lhs.visit

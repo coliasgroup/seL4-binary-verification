@@ -12,6 +12,7 @@ module BV.Core.Logic
     , alignOfType
     , alignValidIneq
     , applyRelWrapper
+    , eqHandlingRelWrapper
     , instEqAtVisit
     , isNodeNoop
     , pvalidAssertion1
@@ -27,7 +28,7 @@ import BV.Core.Arch
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Utils (ensureM)
+import BV.Utils (ensure, ensureM)
 
 import Control.DeepSeq (NFData)
 import Data.Function (applyWhen, on)
@@ -259,6 +260,13 @@ getSubtypeCondition = go
             return $ len `timesE` elSize
 
 --
+
+eqHandlingRelWrapper :: Expr c -> Expr c -> Expr c
+eqHandlingRelWrapper lhs rhs = ensure (lhs.ty == rhs.ty) $ f lhs rhs
+  where
+    f = case lhs.ty of
+        ExprTypeRelWrapper -> applyRelWrapper
+        _ -> eqE
 
 applyRelWrapper :: Expr c -> Expr c -> Expr c
 applyRelWrapper lhs rhs = if
