@@ -102,11 +102,9 @@ library core
       BV.Core.GraphSlice.New.Flatten.NameHint
       BV.Core.GraphSlice.New.Flatten.PcEnv
       BV.Core.GraphSlice.New.Flatten.Tagged
-      BV.Core.GraphSlice.New.InterpretHyp
       BV.Core.GraphSlice.New.SendFlatExprCommand
       BV.Core.GraphSlice.New.SendSolverExprCommand
       BV.Core.GraphSlice.Old.Core
-      BV.Core.GraphSlice.Old.InterpretHyp
       BV.Core.GraphSlice.Old.Solver
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.CompileProofChecks

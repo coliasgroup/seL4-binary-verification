@@ -29,6 +29,8 @@ module BV.Core.GraphSlice.New
     , getNodePcEnvWithTag
     , getPc
     , getPcWithTag
+    , interpretCheck
+    , interpretGroup
     , interpretHyp
     , interpretHypImps
     , liftUntagged
@@ -45,10 +47,10 @@ import BV.Core.GraphSlice.New.Flat
 import BV.Core.GraphSlice.New.Flatten
 import BV.Core.GraphSlice.New.Flatten.PcEnv
 import BV.Core.GraphSlice.New.Flatten.Tagged
-import BV.Core.GraphSlice.New.InterpretHyp
 import BV.Core.GraphSlice.New.SendFlatExprCommand
 import BV.Core.GraphSlice.New.SendSolverExprCommand
 
+import BV.Core.Logic (eqHandlingRelWrapper, strengthenHyp)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.SMTLIB2 (SExpr)
@@ -128,6 +130,55 @@ getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
 addAccumulatedAssertions :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ()
 addAccumulatedAssertions = do
     liftInner $ liftInner $ sendAccumulatedAssertionsInner
+
+--
+
+interpretGroup
+    :: (RefineTag t, MonadGraphSliceSendSExpr m)
+    => ProofCheckGroup t a
+    -> GraphSliceT t m [SMTProofCheckImp a]
+interpretGroup = traverse interpretCheck
+
+interpretCheck
+    :: (RefineTag t, MonadGraphSliceSendSExpr m)
+    => ProofCheck t a
+    -> GraphSliceT t m (SMTProofCheckImp a)
+interpretCheck check = SMTProofCheckImp check.meta <$> do
+    interpretHyp check.hyp
+        >>= interpretHypImps check.hyps
+        >>= convertExpr
+
+interpretHypImps :: (RefineTag t, MonadGraphSliceSendSExpr m) => [Hyp t] -> FlatExpr -> GraphSliceT t m FlatExpr
+interpretHypImps hyps concl = do
+    hyps' <- traverse interpretHyp hyps
+    return $ strengthenHyp $ nImpliesE hyps' concl
+
+interpretHyp :: (RefineTag t, MonadGraphSliceSendSExpr m) => Hyp t -> GraphSliceT t m FlatExpr
+interpretHyp = \case
+    HypPcImp hyp -> do
+        let f = \case
+                PcImpHypSideBool v -> return $ fromBoolE v
+                PcImpHypSidePc vt -> getPcWithTag vt
+        impliesE <$> f hyp.lhs <*> f hyp.rhs
+    HypEq { ifAt, eq } -> do
+        extEnv <- case eq.induct of
+            Just induct -> M.insert (Ident "%n") <$> getInductVar induct
+            Nothing -> return id
+        xPcEnvOpt <- getNodePcEnvWithTag eq.lhs.visit
+        yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
+        case (xPcEnvOpt, yPcEnvOpt) of
+            (Just xPcEnv, Just yPcEnv) -> do
+                let eq' = eqHandlingRelWrapper
+                        (flattenExpr (extEnv xPcEnv.env) eq.lhs.expr)
+                        (flattenExpr (extEnv yPcEnv.env) eq.rhs.expr)
+                if ifAt
+                    then do
+                        xPc <- getPcWithTag eq.lhs.visit
+                        yPc <- getPcWithTag eq.rhs.visit
+                        return $ nImpliesE [xPc, yPc] eq'
+                    else do
+                        return eq'
+            _ -> return $ fromBoolE ifAt
 
 --
 

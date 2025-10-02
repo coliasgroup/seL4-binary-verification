@@ -76,6 +76,7 @@ data ProblemWithAnalysis t
       }
   deriving (Generic)
 
+-- TODO add problem as field
 data ProblemAnalysis t
   = ProblemAnalysis
       { nodeGraph :: NodeGraph

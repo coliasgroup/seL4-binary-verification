@@ -28,6 +28,7 @@ module BV.Core.GraphSlice.Old
     , getPc
     , getPcWithTag
     , instEqWithEnvs
+    , interpretGroup
     , interpretHyp
     , interpretHypImps
     , liftUntagged
@@ -39,7 +40,6 @@ module BV.Core.GraphSlice.Old
     ) where
 
 import BV.Core.GraphSlice.Old.Core
-import BV.Core.GraphSlice.Old.InterpretHyp
 import BV.Core.GraphSlice.Old.Solver
 
 import BV.Core.GraphSlice.New (AsmRefineGraphSliceInput (..), FlatExpr,
@@ -48,11 +48,13 @@ import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flatten.PcEnv
 import BV.Core.GraphSlice.New.Flatten.Tagged
 
+import BV.Core.Logic (strengthenHyp)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
 import Data.Foldable (toList)
 import qualified Data.Map as M
+import Data.Traversable (for)
 
 runGraphSliceT
     :: (Tag t, MonadGraphSliceSendSExpr m)
@@ -97,3 +99,51 @@ getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
 addAccumulatedAssertions :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ()
 addAccumulatedAssertions = do
     liftInner $ sendAccumulatedSolverAssertions
+
+--
+
+interpretGroup
+    :: (RefineTag t, MonadGraphSliceSendSExpr m)
+    => ProofCheckGroup t a
+    -> GraphSliceT t m [SMTProofCheckImp a]
+interpretGroup group = do
+    hyps <- for group $ \check -> do
+        concl <- interpretHyp check.hyp
+        expr <- interpretHypImps check.hyps concl
+        return (check, expr)
+    for hyps $ \(check, expr) -> do
+        sexpr <- convertExpr expr
+        return $ SMTProofCheckImp check.meta sexpr
+
+interpretHypImps :: (RefineTag t, MonadGraphSliceSendSExpr m) => [Hyp t] -> FlatExpr -> GraphSliceT t m FlatExpr
+interpretHypImps hyps concl = do
+    hyps' <- traverse interpretHyp hyps
+    return $ strengthenHyp $ nImpliesE hyps' concl
+
+interpretHyp :: (RefineTag t, MonadGraphSliceSendSExpr m) => Hyp t -> GraphSliceT t m FlatExpr
+interpretHyp = \case
+    HypPcImp hyp -> do
+        let f = \case
+                PcImpHypSideBool v -> return $ fromBoolE v
+                PcImpHypSidePc vt -> runWithTag getPc vt
+        impliesE <$> f hyp.lhs <*> f hyp.rhs
+    HypEq { ifAt, eq } -> do
+        envExt <- case eq.induct of
+            Just induct -> M.singleton (Ident "%n") <$> getInductVar induct
+            Nothing -> return mempty
+        xPcEnvOpt <- runWithTag getNodePcEnv eq.lhs.visit
+        yPcEnvOpt <- runWithTag getNodePcEnv eq.rhs.visit
+        case (xPcEnvOpt, yPcEnvOpt) of
+            (Just xPcEnv, Just yPcEnv) -> do
+                eq' <- instEqWithEnvs
+                        (eq.lhs.expr, envExt <> xPcEnv.env)
+                        (eq.rhs.expr, envExt <> yPcEnv.env)
+                if ifAt
+                    then do
+                        xPc <- runWithTag getPc eq.lhs.visit
+                        yPc <- runWithTag getPc eq.rhs.visit
+                        return $ nImpliesE [xPc, yPc] eq'
+                    else do
+                        return eq'
+            _ -> do
+                return $ fromBoolE ifAt
