@@ -295,6 +295,19 @@ executables:
       - pretty-simple
     ghc-options: *exe-ghc-options
 
+  model-scratch:
+    source-dirs: components/scratch/model-scratch
+    main: Main
+    dependencies:
+      - sel4-bv:core
+      - sel4-bv:concrete-syntax
+      - sel4-bv:system-utils
+      - sel4-bv:system-core
+      - sel4-bv:system
+      - sel4-bv:target-dir
+      - sel4-bv:test-utils
+    ghc-options: *exe-ghc-options
+
 tests:
 
   smtlib2-test:

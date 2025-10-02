@@ -7,6 +7,7 @@ module BV.System.Core.Types
     ( Check (..)
     , CheckFilter (..)
     , CheckGroup (..)
+    , CheckGroupPath (..)
     , CheckIndexInGroup (..)
     , CheckPath (..)
     , CheckSubgroup (..)

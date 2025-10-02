@@ -4,6 +4,7 @@
 
 module BV.System.EvalStages
     ( EvalStagesContext (..)
+    , defaultEvalStagesContext
     , evalStages
     ) where
 
@@ -34,6 +35,14 @@ data EvalStagesContext
       , mismatchDumpDir :: Maybe FilePath
       }
   deriving (Eq, Generic, Ord, Show)
+
+defaultEvalStagesContext :: EvalStagesContext
+defaultEvalStagesContext = EvalStagesContext
+    { forceAll = False
+    , dumpTargetDir = Nothing
+    , referenceTargetDir = Nothing
+    , mismatchDumpDir = Nothing
+    }
 
 evalStages
     :: forall m. (MonadIO m, MonadFail m, MonadLogger m)
