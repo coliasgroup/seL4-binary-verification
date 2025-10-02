@@ -40,6 +40,7 @@ import BV.Core.GraphSlice.New.Flatten.AsmRefine
 import BV.Core.GraphSlice.New.Flatten.MemCalls
 import BV.Core.GraphSlice.New.Flatten.NameHint
 import BV.Core.GraphSlice.New.Flatten.PcEnv
+import BV.Core.GraphSlice.New.Flatten.Tagged
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 
 import BV.Core.Logic (applyRelWrapper, weakenAssert)
@@ -51,7 +52,7 @@ import BV.Utils
 import Control.Monad (filterM, guard, unless, when, (>=>))
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Identity (runIdentity, runIdentityT)
-import Control.Monad.Reader (Reader, ReaderT, ask, mapReaderT, runReaderT)
+import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, get, mapStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
@@ -77,7 +78,7 @@ import Text.Printf (printf)
 
 type T = GraphSliceT
 
-type TaggedT = GraphSliceTaggedT
+type TaggedT t m = GraphSliceTaggedT t (T t m)
 
 type InnerT = GraphSliceFlatT
 
@@ -196,36 +197,6 @@ initState = TState
     }
 
 --
-
--- TODO move to Tag.hs
-
-newtype GraphSliceTaggedT t m a
-  = GraphSliceTaggedT { run :: ReaderT t (T t m) a }
-  deriving (Functor, Generic)
-  deriving newtype (Applicative, Monad)
-
-instance Monad m => MonadInner (InnerT m) (TaggedT t m) where
-    liftInner = GraphSliceTaggedT . lift . liftInner
-
-instance MonadTrans (TaggedT t) where
-    lift = liftInner . lift
-
-askTag :: Monad m => TaggedT t m t
-askTag = GraphSliceTaggedT ask
-
-askWithTag :: Monad m => a -> TaggedT t m (WithTag t a)
-askWithTag a = do
-    tag <- askTag
-    return $ WithTag tag a
-
-runTagged :: Monad m => t -> TaggedT t m a -> T t m a
-runTagged tag m = runReaderT m.run tag
-
-runWithTag :: Monad m => (a -> TaggedT t m b) -> WithTag t a -> T t m b
-runWithTag f (WithTag tag a) = runTagged tag $ f a
-
-liftUntagged :: Monad m => T t m a -> TaggedT t m a
-liftUntagged = GraphSliceTaggedT . lift
 
 class (Monad n, Monad m) => MonadT t n m | m -> t, m -> n where
     liftPure :: StateT (TState t) (Reader (TEnv t n)) a -> m a
