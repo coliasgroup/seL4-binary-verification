@@ -1,7 +1,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module BV.Core.Types.Extras.ProofCheck
     ( SimpleVisitCountView (..)
+    , contVisits
     , doubleRangeVC
     , enumerateSimpleVCs
     , eqH
@@ -27,6 +29,8 @@ module BV.Core.Types.Extras.ProofCheck
     , pcImpH
     , pcTrivH
     , pcTrueH
+    , predVisits
+    , splitVisitAt
     , toMapVC
     , toSimpleVC
     , trueIfAt
@@ -37,11 +41,13 @@ module BV.Core.Types.Extras.ProofCheck
 
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr
+import BV.Core.Types.Extras.Program (nodeAddrOf)
 import BV.Utils (ensure)
 
 import Control.DeepSeq (NFData)
 import Control.Monad.Identity (Identity (Identity, runIdentity))
 import qualified Data.Map as M
+import Data.Maybe (fromJust, mapMaybe)
 import GHC.Generics (Generic)
 import Optics
 
@@ -123,6 +129,41 @@ fromMapVC :: M.Map NodeAddr VisitCount -> [Restr]
 fromMapVC = map f . M.toList
   where
     f (nodeAddr, visitCount) = Restr { nodeAddr, visitCount }
+
+splitVisitAt :: NodeAddr -> Visit -> [Visit]
+splitVisitAt split visit = ensure (isOptionsVC splitVC)
+    [ visit & #restrs .~ fromMapVC (M.insert split (fromSimpleVC simpleVC) restrsMap)
+    | simpleVC <- enumerateSimpleVCs splitVC
+    ]
+  where
+    restrsMap = toMapVC visit.restrs
+    splitVC = restrsMap M.! split
+
+predVisits :: Visit -> [NodeAddr] -> [Visit]
+predVisits visit = mapMaybe f
+  where
+    f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
+
+contVisits :: Visit -> [NodeId] -> [Visit]
+contVisits visit conts =
+    [ Visit
+        { nodeId = cont
+        , restrs = fromJust $ incrVCs visit.restrs addr 1
+        }
+    | cont <- conts
+    ]
+  where
+    addr = nodeAddrOf visit.nodeId
+
+incrVCs :: [Restr] -> NodeAddr -> Integer -> Maybe [Restr]
+incrVCs restrs n incr = if
+    | n `M.notMember` restrsMap -> Just restrs
+    | isEmptyVC vcNew -> Nothing
+    | otherwise -> Just (fromMapVC (M.insert n vcNew restrsMap))
+  where
+    restrsMap = toMapVC restrs
+    vcOld = restrsMap M.! n
+    vcNew = incrVC incr vcOld
 
 --
 

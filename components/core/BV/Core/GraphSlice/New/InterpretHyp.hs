@@ -45,6 +45,3 @@ interpretHyp = \case
                         return eq'
             _ -> do
                 return $ fromBoolE ifAt
-
-runWithTag :: Monad m => (a -> GraphSliceTaggedT t m b) -> WithTag t a -> GraphSliceT t m b
-runWithTag f (WithTag tag a) = runTagged tag $ f a

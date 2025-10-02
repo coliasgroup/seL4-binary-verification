@@ -13,7 +13,7 @@ module BV.Core.GraphSlice.New.Flatten
     , GraphSliceT
     , GraphSliceTaggedT
     , PcEnv (..)
-    , askCont
+    , askContVisit
     , askLoopData
     , askNodeGraph
     , askProblem
@@ -30,6 +30,7 @@ module BV.Core.GraphSlice.New.Flatten
     , liftUntagged
     , runGraphSliceTStep
     , runTagged
+    , runWithTag
     , tryGetNodePcEnv
     ) where
 
@@ -60,7 +61,7 @@ import Data.Functor (void)
 import Data.List (sort)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -196,6 +197,8 @@ initState = TState
 
 --
 
+-- TODO move to Tag.hs
+
 newtype GraphSliceTaggedT t m a
   = GraphSliceTaggedT { run :: ReaderT t (T t m) a }
   deriving (Functor, Generic)
@@ -217,6 +220,9 @@ askWithTag a = do
 
 runTagged :: Monad m => t -> TaggedT t m a -> T t m a
 runTagged tag m = runReaderT m.run tag
+
+runWithTag :: Monad m => (a -> TaggedT t m b) -> WithTag t a -> T t m b
+runWithTag f (WithTag tag a) = runTagged tag $ f a
 
 liftUntagged :: Monad m => T t m a -> TaggedT t m a
 liftUntagged = GraphSliceTaggedT . lift
@@ -294,40 +300,23 @@ askPreds n = do
     tag <- askTag
     liftPure $ gview $ #analysis % #preds % atTag tag % to ($ n)
 
-askPrevs :: C t m => Visit -> TaggedT t m [Visit]
-askPrevs visit = do
-    preds <- toList <$> askPreds visit.nodeId
-    let f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
-    return $ mapMaybe f preds
+askPredVisits :: C t m => Visit -> TaggedT t m [Visit]
+askPredVisits visit = do
+    tag <- askTag
+    preds <- liftPure $ gview $ #analysis % #preds % atTag tag
+    return $ predVisits visit (toList (preds visit.nodeId))
 
-askCont :: TaggedC t n m => Visit -> m Visit
-askCont visit = do
+askContVisits :: C t m => Visit -> TaggedT t m [Visit]
+askContVisits visit = do
     let addr = nodeAddrOf visit.nodeId
-    conts <- toListOf nodeConts <$> askNode addr
+    node <- askNode addr
+    return $ contVisits visit (toListOf nodeConts node)
+
+askContVisit :: C t m => Visit -> TaggedT t m Visit
+askContVisit visit = do
+    conts <- askContVisits visit
     let [cont] = conts
-    return $ Visit
-        { nodeId = cont
-        , restrs = fromJust $ incrVCs visit.restrs addr 1
-        }
-
-incrVCs :: [Restr] -> NodeAddr -> Integer -> Maybe [Restr]
-incrVCs restrs n incr = if
-    | n `M.notMember` restrsMap -> Just restrs
-    | isEmptyVC vcNew -> Nothing
-    | otherwise -> Just (fromMapVC (M.insert n vcNew restrsMap))
-  where
-    restrsMap = toMapVC restrs
-    vcOld = restrsMap ! n
-    vcNew = incrVC incr vcOld
-
-specialize :: Visit -> NodeAddr -> [Visit]
-specialize visit split = ensure (isOptionsVC splitVC)
-    [ visit & #restrs .~ fromMapVC (M.insert split (fromSimpleVC simpleVC) restrsMap)
-    | simpleVC <- enumerateSimpleVCs splitVC
-    ]
-  where
-    restrsMap = toMapVC visit.restrs
-    splitVC = restrsMap ! split
+    return cont
 
 contractPcEnv :: C t m => Visit -> PcEnv -> TaggedT t m PcEnv
 contractPcEnv visit (PcEnv pc env) = do
@@ -539,7 +528,7 @@ addLoopMemCalls split memCalls = do
 getArcPcEnvs :: C t m => NodeAddr -> Visit -> TaggedT t m [PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- lift $ askPrevs visit >>= pruneVisits . filter (\prev -> prev.nodeId == Addr pred_)
+        prevs <- lift $ askPredVisits visit >>= pruneVisits . filter (\prev -> prev.nodeId == Addr pred_)
         ensureM $ length prevs <= 1
         fmap catMaybes $ for prevs $ \prev -> do
             checkGenerality prev
@@ -547,7 +536,7 @@ getArcPcEnvs pred_ visit = do
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
-            concat <$> traverse (getArcPcEnvs pred_) (specialize visit split)
+            concat <$> traverse (getArcPcEnvs pred_) (splitVisitAt split visit)
 
 getArcPcEnv :: C t m => Visit -> Visit -> TaggedT t m (Maybe PcEnv)
 getArcPcEnv prev visit = runMaybeT $ do
@@ -568,7 +557,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
                 key <- lift $ askWithTag prev
                 present <- lift $ liftPure $ use $ #nodePcEnvs % to (M.member key)
                 return $ not present && prev.restrs == curVisit.restrs
-        runExceptT (lift (askPrevs curVisit >>= pruneVisits) >>= filterM f) >>= \case
+        runExceptT (lift (askPredVisits curVisit >>= pruneVisits) >>= filterM f) >>= \case
             Right (v:_) -> go (i - 1) (v:prevChain) v
             _ -> return prevChain
     iters = 5000 :: Integer
@@ -689,7 +678,7 @@ getFunCallInfo unprunedVisit = do
     key <- askWithTag visit
     opt <- liftPure $ use $ #funCalls % at key
     whenNothing opt $ do
-        askCont visit >>= getNodePcEnv
+        askContVisit visit >>= getNodePcEnv
         liftPure $ use $ #funCalls % expectingAt key
 
 instEqWithEnvs :: (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> FlatExpr

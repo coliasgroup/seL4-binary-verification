@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiWayIf #-}
+
 module BV.Core.Types.Extras.Problem
     ( ArgRenames
     , Loop (..)
@@ -18,6 +20,7 @@ module BV.Core.Types.Extras.Problem
     , loopsFrom
     , loopsOf
     , makeNodeGraph
+    , makeProblemWithAnalysisLens
     , pairingIdOfProblem
     , problemArgRenames
     , reachableFrom
@@ -111,6 +114,11 @@ augmentProblem problem = ProblemWithAnalysis
     { problem
     , analysis = analyzeProblem problem
     }
+
+makeProblemWithAnalysisLens :: Lens' s (Problem t) -> Lens' s (ProblemAnalysis t) -> Lens' s (ProblemWithAnalysis t)
+makeProblemWithAnalysisLens p pa = lens
+    (\s -> ProblemWithAnalysis (view p s) (view pa s))
+    (\s c -> set p c.problem (set pa c.analysis s))
 
 --
 
