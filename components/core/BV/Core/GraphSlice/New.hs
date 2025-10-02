@@ -7,6 +7,7 @@ module BV.Core.GraphSlice.New
     , GraphSliceInput (..)
     , GraphSliceT
     , GraphSliceTaggedT
+    , MonadGraphSliceGetSExprValue (..)
     , MonadGraphSliceSendSExpr (..)
     , PcEnv (..)
     , addAccumulatedAssertions
@@ -21,6 +22,7 @@ module BV.Core.GraphSlice.New
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
+    , getFlatExprValue
     , getFunCallInfo
     , getInductVar
     , getNodePcEnv
@@ -34,7 +36,6 @@ module BV.Core.GraphSlice.New
     , liftUntagged
     , runAsmRefineGraphSliceT
     , runGraphSliceT
-    , runGraphSliceTStep
     , runTagged
     , tryGetNodePcEnv
     , withoutSendSExpr
@@ -51,8 +52,11 @@ import BV.Core.GraphSlice.New.SendSolverExprCommand
 import BV.Core.Logic (eqHandlingRelWrapper, strengthenHyp)
 import BV.Core.Types
 import BV.Core.Types.Extras
+import BV.SMTLIB2 (SExpr)
+import BV.Utils (ensureM)
 
 import Control.Monad ((>=>))
+import Control.Monad.Trans (lift)
 import Control.Monad.Writer (Writer, execWriter, tell)
 import Data.Foldable (toList)
 import qualified Data.Map as M
@@ -194,3 +198,16 @@ withoutSendSExpr = mapBase f g
         "withoutSendSExpr:\n"
             ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- execWriter m.run ]
     g _ = error "withoutSendSExpr"
+
+--
+
+class MonadGraphSliceSendSExpr m => MonadGraphSliceGetSExprValue m where
+    getSExprValue :: SExprWithPlaceholders -> m SExpr
+
+getFlatExprValue :: (Tag t, MonadGraphSliceGetSExprValue m) => FlatExpr -> GraphSliceT t m GraphExpr
+getFlatExprValue expr = do
+    sexpr <- withoutSendSExpr $ convertExpr expr
+    valueSExpr <- lift $ getSExprValue sexpr
+    let valueExpr = sexprToExpr valueSExpr
+    ensureM $ valueExpr.ty == expr.ty
+    return valueExpr

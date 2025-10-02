@@ -118,6 +118,7 @@ library core
       BV.Core.Types.AsmRefineTag
       BV.Core.Types.Extras
       BV.Core.Types.Extras.Pairing
+      BV.Core.Types.Extras.SExprToExpr
       BV.Core.Types.ObjDump
       BV.Core.Types.Pairing
       BV.Core.Types.Problem

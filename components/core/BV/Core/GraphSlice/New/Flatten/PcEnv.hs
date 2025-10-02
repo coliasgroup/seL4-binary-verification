@@ -7,7 +7,7 @@ module BV.Core.GraphSlice.New.Flatten.PcEnv
     , mergePcEnvs
     ) where
 
-import BV.Core.GraphSlice.New.SendFlatExprCommand
+import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 
 import BV.Core.Types
 import BV.Core.Types.Extras
