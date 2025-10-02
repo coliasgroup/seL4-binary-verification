@@ -8,10 +8,8 @@
 {-# OPTIONS_GHC -Wno-x-partial #-}
 
 module BV.Core.GraphSlice.Old.Solver
-    ( ExprEnv
-    , GraphSliceSolverT
-    , Name (..)
-    , PcEnv (..)
+    ( GraphSliceSolverT
+    , SmtName
     , addDef
     , addSplitMemVar
     , addVar
@@ -29,10 +27,8 @@ module BV.Core.GraphSlice.Old.Solver
     , tryGetDef
     ) where
 
-    -- TODO rename Name -> SmtName
-    -- , NameHint -- TODO
-
 import BV.Core.GraphSlice.New.Common
+import BV.Core.GraphSlice.New.Flatten.PcEnv
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr, FlatExprContext)
 
 import BV.Core.GenerateFreshName
@@ -119,19 +115,19 @@ data TEnv
 
 data TState
   = TState
-      { namesUsed :: Set Name
-      , externalNames :: Set Name
+      { namesUsed :: Set SmtName
+      , externalNames :: Set SmtName
       , pvalids :: Map S (Map PValidKey S)
-      , ptrs :: Map S Name
-      , cachedExprs :: Map S Name
-      , cachedExprNames :: Set Name
-      , defs :: Map Name S
+      , ptrs :: Map S SmtName
+      , cachedExprs :: Map S SmtName
+      , cachedExprNames :: Set SmtName
+      , defs :: Map SmtName S
       , doms :: Set (S, S, S)
-      , modelVars :: Set Name
-      , modelExprs :: Map SExprWithPlaceholders (Name, ExprType)
-      , stackEqImpliesCheckMap :: Map Name (Maybe S)
-      , impliesStackEqMap :: Map (FlatExpr, FlatExpr, FlatExpr) Name
-      , tokens :: Map Ident Name
+      , modelVars :: Set SmtName
+      , modelExprs :: Map SExprWithPlaceholders (SmtName, ExprType)
+      , stackEqImpliesCheckMap :: Map SmtName (Maybe S)
+      , impliesStackEqMap :: Map (FlatExpr, FlatExpr, FlatExpr) SmtName
+      , tokens :: Map Ident SmtName
       , tokenVals :: Map S Ident
       , smtDerivedOps :: Map (Op, Integer) String
       }
@@ -167,32 +163,32 @@ initSolver = do
 
 --
 
-type NameHint = String
+type SmtNameHint = String
 
-newtype Name
-  = Name { unwrap :: String }
+newtype SmtName
+  = SmtName { unwrap :: String }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-instance IsString Name where
-    fromString = Name
+instance IsString SmtName where
+    fromString = SmtName
 
-nameS :: Name -> S
+nameS :: SmtName -> S
 nameS name = symbolS name.unwrap
 
-takeFreshName :: C m => NameHint -> T m Name
+takeFreshName :: C m => SmtNameHint -> T m SmtName
 takeFreshName =
     return . sanitize
         >=> takeFreshNameIn #externalNames
         >=> takeFreshNameIn #namesUsed
-        >=> return . Name
+        >=> return . SmtName
   where
     sanitize = map $ \c -> if c `elem` ("'#\"" :: String) then '_' else c
     takeFreshNameIn l = liftSolver . zoom l . takeFreshNameHere
     takeFreshNameHere hint = do
         taken <- get
-        let name = generateFreshName (flip S.member taken . Name) hint
-        modify $ S.insert (Name name)
+        let name = generateFreshName (flip S.member taken . SmtName) hint
+        modify $ S.insert (SmtName name)
         return name
 
 --
@@ -202,10 +198,10 @@ withMapSlot = withMapSlotWith $ liftSolver . mapStateT (return . runIdentity)
 
 --
 
-getModelVars :: C m => T m (Set Name)
+getModelVars :: C m => T m (Set SmtName)
 getModelVars = liftSolver $ use #modelVars
 
-getModelExprs :: C m => T m (Map SExprWithPlaceholders (Name, ExprType))
+getModelExprs :: C m => T m (Map SExprWithPlaceholders (SmtName, ExprType))
 getModelExprs = liftSolver $ use #modelExprs
 
 askRODataPtrs :: C m => T m [(Expr c, ExprType)]
@@ -253,21 +249,21 @@ opS x = case x of
 
 --
 
-getDef :: C m => Name -> T m S
+getDef :: C m => SmtName -> T m S
 getDef name = fromJust <$> tryGetDef name
 
-tryGetDef :: C m => Name -> T m (Maybe S)
+tryGetDef :: C m => SmtName -> T m (Maybe S)
 tryGetDef name = liftSolver $ use $ #defs % at name
 
-addDef :: C m => NameHint -> FlatExpr -> T m MaybeSplit
+addDef :: C m => SmtNameHint -> FlatExpr -> T m MaybeSplit
 addDef nameHint val =
     either (NotSplit . nameS) Split <$> addDefInner nameHint val
 
-addDefNotSplit :: C m => NameHint -> FlatExpr -> T m Name
+addDefNotSplit :: C m => SmtNameHint -> FlatExpr -> T m SmtName
 addDefNotSplit nameHint val =
     viewExpecting #_Left <$> addDefInner nameHint val
 
-addDefInner :: C m => NameHint -> FlatExpr -> T m (Either Name SplitMem)
+addDefInner :: C m => SmtNameHint -> FlatExpr -> T m (Either SmtName SplitMem)
 addDefInner nameHint expr = convertExpr' expr >>= \case
     NotSplit s -> Left <$> do
         name <- takeFreshName nameHint
@@ -315,7 +311,7 @@ typeToSMT = \case
     ExprTypeDom -> memDomSortS
     ExprTypeToken -> typeToSMT compiledTokenType
 
-addVar :: C m => NameHint -> ExprType -> T m Name
+addVar :: C m => SmtNameHint -> ExprType -> T m SmtName
 addVar nameHint ty = do
     name <- takeFreshName nameHint
     unless (isTypeOmitted ty) $ do
@@ -341,14 +337,14 @@ maybeNoteModelExpr s ty subexprs =
     when (isTypeRepresentable ty && not (all (isTypeRepresentable . (.ty)) subexprs)) $ do
         noteModelExpr s ty
 
-notePtr :: C m => S -> T m Name
+notePtr :: C m => S -> T m SmtName
 notePtr p = withMapSlot #ptrs p $
     addDefNotSplit "ptr" (smtExprE machineWordT (NotSplit p))
 
 noteMemDom :: C m => S -> S -> S -> T m ()
 noteMemDom p d md = liftSolver $ #doms %= S.insert (p, d, md)
 
-cacheLargeExpr :: C m => S -> NameHint -> ExprType -> T m S
+cacheLargeExpr :: C m => S -> SmtNameHint -> ExprType -> T m S
 cacheLargeExpr s nameHint ty = do
     nameOpt <- liftSolver $ use $ #cachedExprs % at s
     case nameOpt of
@@ -442,7 +438,7 @@ addPValidDomAssertions = do
 
 --
 
-addSplitMemVar :: C m => S -> NameHint -> ExprType -> T m SplitMem
+addSplitMemVar :: C m => S -> SmtNameHint -> ExprType -> T m SplitMem
 addSplitMemVar split nameHint ty@ExprTypeMem = do
     bottom <- addVar (nameHint ++ "_bot") ty
     top <- addVar (nameHint ++ "_top") ty
@@ -454,15 +450,6 @@ addSplitMemVar split nameHint ty@ExprTypeMem = do
         }
 
 --
-
-type ExprEnv = Map Ident FlatExpr
-
-data PcEnv
-  = PcEnv
-      { pc :: FlatExpr
-      , env :: ExprEnv
-      }
-  deriving (Eq, Generic, NFData, Ord, Show)
 
 mergeEnvsPcs :: C m => [PcEnv] -> T m (PcEnv, Bool)
 mergeEnvsPcs unfilteredPcEnvs = do
@@ -766,7 +753,7 @@ getStackEqImplies stack1 stack2 = do
         Just old -> ensureM $ old == rhs
     return $ cond `impliesS` (stack1.top `eqS` rhs)
 
-getImmBasisMems :: C m => S -> T m (Set Name)
+getImmBasisMems :: C m => S -> T m (Set SmtName)
 getImmBasisMems = go
   where
     go = \case
@@ -776,9 +763,9 @@ getImmBasisMems = go
                 (<>) <$> go l <*> go r
         m -> do
             let Just sym = parseSymbolS m
-            tryGetDef (Name sym) >>= \case
+            tryGetDef (SmtName sym) >>= \case
                 Just x -> go x
-                Nothing -> return $ S.singleton (Name sym)
+                Nothing -> return $ S.singleton (SmtName sym)
     isStore s = s `elem`
         ([ symbolS "store-word8"
          , symbolS "store-word32"
@@ -789,7 +776,7 @@ data PValidKey
   = PValidKey
       { pvKind :: PValidKind
       , pvTy :: PValidType FlatExprContext
-      , ptrName :: Name
+      , ptrName :: SmtName
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

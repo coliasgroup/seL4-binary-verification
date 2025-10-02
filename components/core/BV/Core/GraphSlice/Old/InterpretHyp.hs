@@ -4,9 +4,9 @@ module BV.Core.GraphSlice.Old.InterpretHyp
     ) where
 
 import BV.Core.GraphSlice.Old.Core
-import BV.Core.GraphSlice.Old.Solver
 
 import BV.Core.GraphSlice.New.Common (MonadGraphSliceSendSExpr)
+import BV.Core.GraphSlice.New.Flatten.PcEnv
 import BV.Core.GraphSlice.New.Flatten.Tagged
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 

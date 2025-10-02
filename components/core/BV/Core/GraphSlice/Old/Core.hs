@@ -12,7 +12,6 @@ module BV.Core.GraphSlice.Old.Core
     ( FunCallInfo (..)
     , GraphSliceHooks (preEmitCallNodeHook)
     , GraphSliceT
-    , GraphSliceTaggedT
     , TooGeneral (..)
     , VarRepRequestKind (..)
     , VarReqRequest (..)
@@ -20,28 +19,17 @@ module BV.Core.GraphSlice.Old.Core
     , askLoopData
     , askNodeGraph
     , askProblem
-    , askTag
-    , askWithTag
     , asmRefineGraphSliceHooks
     , defaultGraphSliceHooks
     , flattenExpr
     , getFunCallInfo
-    , getFunCallInfoRaw
-    , getFunCallVisits
     , getInductVar
     , getNodePcEnv
     , getPc
     , instEqWithEnvs
-    , liftUntagged
     , runGraphSliceTStep
-    , runTagged
-    , scanMemCalls
-    , scanMemCallsEnv
     , tryGetNodePcEnv
-    , zeroMemCallsRange
     ) where
-
-    -- , convertInnerExprWithPcEnv
 
 import BV.Core.GraphSlice.Old.Solver
 
@@ -49,6 +37,7 @@ import BV.Core.GraphSlice.New (FlatExpr)
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flatten.MemCalls
 import BV.Core.GraphSlice.New.Flatten.NameHint
+import BV.Core.GraphSlice.New.Flatten.PcEnv
 import BV.Core.GraphSlice.New.Flatten.Tagged
 
 import BV.Core.GenerateFreshName (generateFreshName)
@@ -81,8 +70,6 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-
---
 
 type T = GraphSliceT
 
@@ -160,10 +147,10 @@ data GraphSliceHooks t n
 data TState t
   = TState
       { inpEnvs :: Map NodeId ExprEnv
-      , memCalls :: Map Name MemCalls
+      , memCalls :: Map SmtName MemCalls
       , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
-      , inductVarEnv :: Map EqHypInduct Name
+      , inductVarEnv :: Map EqHypInduct SmtName
       , condVars :: Map MaybeSplit Ident
       , contractions :: Map SExprWithPlaceholders FlatExpr
       , extraProblemNames :: S.Set Ident
@@ -360,7 +347,7 @@ updatePcEnvCompat pcEnv = traverseOf #pc (walkExprsM f) pcEnv
 
 type MemCallsIfKnown = Maybe MemCalls
 
-addVarWithMemCalls :: TaggedC t n m => NameHint -> ExprType -> MemCallsIfKnown -> m Name
+addVarWithMemCalls :: TaggedC t n m => NameHint -> ExprType -> MemCallsIfKnown -> m SmtName
 addVarWithMemCalls nameHint ty memCallsOpt = do
     v <- liftInner $ addVar nameHint ty
     when (isMemT ty) $ do
@@ -394,8 +381,6 @@ asmRefineIsStackHook argRenames kind var =
     req = VarRepRequestSplitMem
         { addr = varE word32T spName
         }
-
-    -- fun.tag == Asm && genericIndex (view (directionSigLabel direction) (lookupSig fun)) i == asmStackVar
 
 varRepRequest :: C t m => VarRepRequestKind -> Visit -> ExprEnv -> NameTy -> TaggedT t m (Maybe SplitMem)
 varRepRequest kind visit env var = do
@@ -704,9 +689,6 @@ getFunCallInfo unprunedVisit = do
         askContVisit visit >>= getNodePcEnv
         getFunCallInfoRaw visit
 
-getFunCallVisits :: TaggedC t n m => WithTag t Ident -> m [Visit]
-getFunCallVisits funName = liftGraphSlice $ use $ #funCallsByName % to (M.findWithDefault [] funName)
-
 --
 
 getMemCalls :: TaggedC t n m => SExprWithPlaceholders -> m MemCalls
@@ -747,12 +729,6 @@ instEqWithEnvs (x, xenv) (y, yenv) = do
             args' <- traverse convertInnerExpr args
             return $ Expr expr.ty $ ExprValueOp op args'
         _ -> convertInnerExpr expr
-
--- convertInnerExprWithPcEnv :: C t m => GraphExpr -> Visit -> TaggedT t m FlatExpr
--- convertInnerExprWithPcEnv expr visit = do
---     pcEnvOpt <- getNodePcEnv visit
---     let Just (PcEnv _ env) = pcEnvOpt
---     liftInner $ withEnv env $ convertInnerExpr expr
 
 --
 
