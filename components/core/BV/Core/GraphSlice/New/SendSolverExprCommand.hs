@@ -178,10 +178,10 @@ addSmtVar nameHint ty = do
     return name
 
 addSmtDef :: C m => SmtNameHint -> SolverExpr -> T m SmtName
-addSmtDef nameHint val = convertSolverExpr val >>= addConvertedSmtDefx nameHint val.ty
+addSmtDef nameHint val = convertSolverExpr val >>= addConvertedSmtDef nameHint val.ty
 
-addConvertedSmtDefx :: C m => SmtNameHint -> ExprType -> SExprWithPlaceholders -> T m SmtName
-addConvertedSmtDefx nameHint ty s = do
+addConvertedSmtDef :: C m => SmtNameHint -> ExprType -> SExprWithPlaceholders -> T m SmtName
+addConvertedSmtDef nameHint ty s = do
     name <- takeFreshName nameHint
     send $ defineFunS name.unwrap [] (typeToSmt ty) s
     return name
@@ -199,7 +199,7 @@ sendSolverExprCommand = \case
         then do
             liftPure $ #inline %= M.insertWith undefined var.name s
         else do
-            name <- addConvertedSmtDefx var.name.unwrap val.ty s
+            name <- addConvertedSmtDef var.name.unwrap val.ty s
             liftPure $ #nameMap %= M.insertWith undefined var.name name
     ExprCommandAssert expr -> do
         s <- convertSolverExpr expr
