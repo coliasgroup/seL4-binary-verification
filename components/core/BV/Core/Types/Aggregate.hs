@@ -57,8 +57,11 @@ newtype Problems t
 
 type Problems' = Problems AsmRefineTag
 
+-- HACK work around compiler bug
+type HackProofCheckList t a = [ProofCheck t a]
+
 newtype ProofChecks t a
-  = ProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t (ProofCheckGroup t a)) }
+  = ProofChecks { unwrap :: M.Map (PairingId t) (ProofScript t (HackProofCheckList t a)) }
   deriving (Eq, Foldable, Functor, Generic, Ord, Show, Traversable)
   deriving newtype (NFData)
 
@@ -74,7 +77,7 @@ type SMTProofChecks' = SMTProofChecks AsmRefineTag ProofCheckDescription
 -- compat
 
 newtype CompatProofChecks
-  = CompatProofChecks { unwrap :: M.Map PairingId' (ProofCheckGroup AsmRefineTag String) }
+  = CompatProofChecks { unwrap :: M.Map PairingId' (HackProofCheckList AsmRefineTag String) }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
