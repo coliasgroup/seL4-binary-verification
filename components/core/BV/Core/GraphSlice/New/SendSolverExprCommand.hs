@@ -67,8 +67,11 @@ newtype GraphSliceSendSolverExprCommandT m a
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
-instance MonadTrans GraphSliceSendSolverExprCommandT where
+instance MonadTrans T where
     lift = GraphSliceSendSolverExprCommandT . lift . lift
+
+instance MonadMapBase T where
+    mapBase f _ = #run %~ mapStateT (mapReaderT f)
 
 liftPure :: Monad m => StateT TState (Reader TEnv) a -> T m a
 liftPure = GraphSliceSendSolverExprCommandT . mapStateT (mapReaderT (return . runIdentity))

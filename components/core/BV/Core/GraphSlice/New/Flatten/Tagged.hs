@@ -5,6 +5,7 @@ module BV.Core.GraphSlice.New.Flatten.Tagged
     , askTag
     , askWithTag
     , liftUntagged
+    , mapGraphSliceTaggedT
     , runTagged
     , runWithTag
     ) where
@@ -13,9 +14,10 @@ import BV.Core.GraphSlice.New.Common (MonadInner (..))
 
 import BV.Core.Types
 
-import Control.Monad.Reader (ReaderT, ask, runReaderT)
+import Control.Monad.Reader (ReaderT, ask, mapReaderT, runReaderT)
 import Control.Monad.Trans (lift)
 import GHC.Generics (Generic)
+import Optics
 
 newtype GraphSliceTaggedT t m a
   = GraphSliceTaggedT { run :: ReaderT t m a }
@@ -24,6 +26,9 @@ newtype GraphSliceTaggedT t m a
 
 instance MonadInner n m => MonadInner n (GraphSliceTaggedT t m) where
     liftInner = GraphSliceTaggedT . lift . liftInner
+
+mapGraphSliceTaggedT :: (m a -> n b) -> GraphSliceTaggedT t m a -> GraphSliceTaggedT t n b
+mapGraphSliceTaggedT f = #run %~ mapReaderT f
 
 liftUntagged :: Monad m => m a -> GraphSliceTaggedT t m a
 liftUntagged = GraphSliceTaggedT . lift

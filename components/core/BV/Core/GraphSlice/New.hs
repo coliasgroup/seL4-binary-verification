@@ -37,6 +37,7 @@ module BV.Core.GraphSlice.New
     , runGraphSliceTStep
     , runTagged
     , tryGetNodePcEnv
+    , withoutSendSExpr
     ) where
 
 import BV.Core.GraphSlice.New.Common
@@ -53,6 +54,7 @@ import BV.Core.Types.Extras
 import BV.SMTLIB2 (SExpr)
 
 import Control.Monad ((>=>))
+import Control.Monad.Writer (Writer, execWriter, tell)
 import Data.Foldable (toList)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
@@ -126,6 +128,24 @@ getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
 addAccumulatedAssertions :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ()
 addAccumulatedAssertions = do
     liftInner $ liftInner $ sendAccumulatedAssertionsInner
+
+--
+
+newtype DontSendSExpr a
+  = DontSendSExprT { run :: Writer [SExprWithPlaceholders] a }
+  deriving (Functor, Generic)
+  deriving newtype (Applicative, Monad)
+
+instance MonadGraphSliceSendSExpr DontSendSExpr where
+    sendSExpr s = DontSendSExprT $ tell [s]
+
+withoutSendSExpr :: Monad m => GraphSliceT t DontSendSExpr a -> GraphSliceT t m a
+withoutSendSExpr = mapBase f g
+  where
+    f m = error $
+        "withoutSendSExpr:\n"
+            ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- execWriter m.run ]
+    g _ = error "withoutSendSExpr"
 
 --
 

@@ -2,6 +2,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module BV.Core.GraphSlice.New.Flatten
     ( FunCallInfo (..)
@@ -40,7 +41,8 @@ import BV.Utils
 import Control.Monad (filterM, guard, unless, when, (>=>))
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Identity (runIdentity, runIdentityT)
-import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
+import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT,
+                             withReaderT)
 import Control.Monad.State (StateT, evalStateT, get, mapStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
@@ -90,6 +92,19 @@ instance MonadTrans (T t) where
 
 instance Monad m => MonadInner (InnerT m) (T t m) where
     liftInner = GraphSliceT . lift . lift
+
+instance MonadMapBase (T t) where
+    mapBase f g = #run %~ (mapStateT (withReaderT (mapEnv g f) . (mapReaderT (mapBase f g))))
+
+mapEnv :: (forall a. m a -> n a) -> (forall a. n a -> m a) -> TEnv t m -> TEnv t n
+mapEnv f g = #hooks %~ mapHooks f g
+
+mapHooks :: (forall a. m a -> n a) -> (forall a. n a -> m a) -> GraphSliceHooks t m -> GraphSliceHooks t n
+mapHooks f g (GraphSliceHooks {..}) = GraphSliceHooks
+    { preEmitCallNodeHook = mapGraphSliceTaggedT (mapBase f g) . preEmitCallNodeHook
+    , postEmitCallNodeHook = mapGraphSliceTaggedT (mapBase f g) . postEmitCallNodeHook
+    , ..
+    }
 
 class (Monad n, Monad m) => MonadT t n m | m -> t, m -> n where
     liftPure :: StateT (TState t) (Reader (TEnv t n)) a -> m a

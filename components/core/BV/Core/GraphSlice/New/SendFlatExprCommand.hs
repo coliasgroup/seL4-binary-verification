@@ -17,7 +17,7 @@ import BV.Core.GraphSlice.New.SendSolverExprCommand
 
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Logic
-import BV.Core.Structs (StructsT, runStructsT)
+import BV.Core.Structs (StructsT, mapStructsT, runStructsT)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils (withMapSlotWith)
@@ -77,6 +77,9 @@ instance MonadTrans T where
 
 instance Monad m => MonadInner (InnerT m) (T m) where
     liftInner = GraphSliceSendFlatExprCommandT . lift . lift . lift
+
+instance MonadMapBase T where
+    mapBase f g = #run %~ (mapStateT (mapReaderT (mapStructsT (mapBase f g))))
 
 liftStructs :: Monad m => StructsT (InnerT m) a -> T m a
 liftStructs = GraphSliceSendFlatExprCommandT . lift . lift
