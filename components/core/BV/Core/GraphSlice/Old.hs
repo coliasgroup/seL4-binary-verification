@@ -128,16 +128,16 @@ interpretHyp = \case
                 PcImpHypSidePc vt -> runWithTag getPc vt
         impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
-        envExt <- case eq.induct of
-            Just induct -> M.singleton (Ident "%n") <$> getInductVar induct
-            Nothing -> return mempty
+        extEnv <- case eq.induct of
+            Just induct -> M.insert (Ident "%n") <$> getInductVar induct
+            Nothing -> return id
         xPcEnvOpt <- runWithTag getNodePcEnv eq.lhs.visit
         yPcEnvOpt <- runWithTag getNodePcEnv eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
             (Just xPcEnv, Just yPcEnv) -> do
                 eq' <- instEqWithEnvs
-                        (eq.lhs.expr, envExt <> xPcEnv.env)
-                        (eq.rhs.expr, envExt <> yPcEnv.env)
+                        (eq.lhs.expr, extEnv xPcEnv.env)
+                        (eq.rhs.expr, extEnv yPcEnv.env)
                 if ifAt
                     then do
                         xPc <- runWithTag getPc eq.lhs.visit
