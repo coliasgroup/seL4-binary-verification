@@ -115,7 +115,7 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
             pcEnv <- fromJust <$> getNodePcEnv visit
             hyp <- liftUntagged $ convertExpr $ notE pcEnv.pc
             res <- liftUntagged $ testHyp hyp
-            unless res $ lift $ throwError $ InliningEvent
+            unless res $ liftUntagged $ lift $ throwError $ InliningEvent
                 { nodeAddr
                 }
 

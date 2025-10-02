@@ -275,6 +275,8 @@ askContVisit visit = do
     let [cont] = conts
     return cont
 
+--
+
 contractPcEnv :: C t m => Visit -> PcEnv -> TaggedT t m PcEnv
 contractPcEnv visit (PcEnv pc env) = do
     pc' <- do
@@ -285,8 +287,6 @@ contractPcEnv visit (PcEnv pc env) = do
   where
     f name val = liftInner $ cacheExprInline (localNameBefore visit name) val
 
---
-
 flattenExpr :: ExprEnv -> GraphExpr -> FlatExpr
 flattenExpr = flip go
   where
@@ -294,8 +294,8 @@ flattenExpr = flip go
         ExprValueVar name -> (! name)
         _ -> return expr
 
-flattenAndAddDef :: C t m => ExprEnv -> GraphExpr -> NameHint -> TaggedT t m FlatExpr
-flattenAndAddDef env expr nameHint = liftInner $ addDef nameHint (flattenExpr env expr)
+flattenAndAddDef :: TaggedC t n m => ExprEnv -> GraphExpr -> NameHint -> m FlatExpr
+flattenAndAddDef env expr nameHint = liftInner $ addDef nameHint $ flattenExpr env expr
 
 --
 

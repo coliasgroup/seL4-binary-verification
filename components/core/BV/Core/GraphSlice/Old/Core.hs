@@ -16,7 +16,7 @@ module BV.Core.GraphSlice.Old.Core
     , TooGeneral (..)
     , VarRepRequestKind (..)
     , VarReqRequest (..)
-    , askCont
+    , askContVisit
     , askLoopData
     , askNodeGraph
     , askProblem
@@ -49,6 +49,7 @@ import BV.Core.GraphSlice.New (FlatExpr)
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flatten.MemCalls
 import BV.Core.GraphSlice.New.Flatten.NameHint
+import BV.Core.GraphSlice.New.Flatten.Tagged
 
 import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Logic
@@ -57,12 +58,11 @@ import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.Utils
 
-import Control.DeepSeq (NFData)
 import Control.Monad (filterM, guard, unless, when, (>=>))
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Identity (IdentityT (runIdentityT), runIdentity)
-import Control.Monad.Reader (Reader, ReaderT (runReaderT), ask, mapReaderT)
+import Control.Monad.Reader (Reader, ReaderT (runReaderT), mapReaderT)
 import Control.Monad.RWS (MonadState (get))
 import Control.Monad.State (StateT, evalStateT, execStateT, mapStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
@@ -73,7 +73,7 @@ import Data.Functor (void)
 import Data.List (isPrefixOf, sort)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe, mapMaybe)
+import Data.Maybe (catMaybes, fromJust, fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -86,7 +86,7 @@ import Text.Printf (printf)
 
 type T = GraphSliceT
 
-type TaggedT = GraphSliceTaggedT
+type TaggedT t m = GraphSliceTaggedT t (T t m)
 
 type InnerT = GraphSliceSolverT
 
@@ -105,11 +105,24 @@ newtype GraphSliceT t m a
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
+instance MonadTrans (T t) where
+    lift = liftInner . lift
+
 instance Monad m => MonadInner (InnerT m) (T t m) where
     liftInner = GraphSliceT . lift . lift
 
-instance MonadTrans (T t) where
-    lift = liftInner . lift
+class (Monad n, Monad m) => MonadT t n m | m -> t, m -> n where
+    liftPure :: StateT (TState t) (Reader (TEnv t n)) a -> m a
+
+instance Monad n => MonadT t n (T t n) where
+    liftPure = GraphSliceT . mapStateT (mapReaderT (return . runIdentity))
+
+instance Monad n => MonadT t n (TaggedT t n) where
+    liftPure = liftUntagged . liftPure
+
+-- TODO remove
+liftGraphSlice :: MonadT t n m => StateT (TState t) (Reader (TEnv t n)) a -> m a
+liftGraphSlice = liftPure
 
 runGraphSliceTStep
     :: (Tag t, MonadGraphSliceSendSExpr m)
@@ -160,22 +173,13 @@ data TState t
       }
   deriving (Generic)
 
--- data FunCallInfo
---   = FunCallInfo
---       { ins :: [FlatExpr]
---       , outs :: [FlatExpr]
---       , success :: FlatExpr
---       }
---   deriving (Eq, Generic, Ord, Show)
-
--- TODO
 data FunCallInfo
   = FunCallInfo
       { ins :: [FlatExpr]
       , outs :: [FlatExpr]
       , success :: FlatExpr
       }
-  deriving (Eq, Generic, NFData, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 initEnv :: Tag t => Problem t -> GraphSliceHooks t m -> TEnv t m
 initEnv problem hooks = TEnv
@@ -221,45 +225,6 @@ initState = TState
 initGraphSlice :: C t m => T t m ()
 initGraphSlice = do
     addInputEnvs
-
---
-
-newtype GraphSliceTaggedT t m a
-  = GraphSliceTaggedT { run :: ReaderT t (T t m) a }
-  deriving (Functor, Generic)
-  deriving newtype (Applicative, Monad)
-
-instance Monad m => MonadInner (InnerT m) (TaggedT t m) where
-    liftInner = GraphSliceTaggedT . lift . liftInner
-
-instance MonadTrans (TaggedT t) where
-    lift = liftInner . lift
-
-askTag :: Monad m => TaggedT t m t
-askTag = GraphSliceTaggedT ask
-
-askWithTag :: Monad m => a -> TaggedT t m (WithTag t a)
-askWithTag a = do
-    tag <- askTag
-    return $ WithTag tag a
-
-runTagged :: Monad m => t -> TaggedT t m a -> T t m a
-runTagged tag m = runReaderT m.run tag
-
-liftUntagged :: Monad m => T t m a -> TaggedT t m a
-liftUntagged = GraphSliceTaggedT . lift
-
-class (Monad n, Monad m) => MonadT t n m | m -> t, m -> n where
-    liftPure :: StateT (TState t) (Reader (TEnv t n)) a -> m a
-
-instance Monad n => MonadT t n (T t n) where
-    liftPure = GraphSliceT . mapStateT (mapReaderT (return . runIdentity))
-
-instance (Monad n, MonadT t n (T t n)) => MonadT t n (TaggedT t n) where
-    liftPure = liftUntagged . liftPure
-
-liftGraphSlice :: MonadT t n m => StateT (TState t) (Reader (TEnv t n)) a -> m a
-liftGraphSlice = liftPure
 
 --
 
@@ -312,47 +277,31 @@ getHasInnerLoop loopHead = withMapSlotTagged #hasInnerLoop loopHead $ do
     loop <- askLoopContaining loopHead
     return $ not $ null $ innerLoopsOf p.nodes loop
 
---
+askFunName :: (Tag t, MonadGraphSliceSendSExpr n) => Visit -> T t n Ident
+askFunName v = view (expecting #_NodeCall % #functionName) <$> askNode (nodeAddrOf v.nodeId)
 
 askPreds :: C t m => NodeId -> TaggedT t m (Set NodeAddr)
 askPreds n = do
     tag <- askTag
-    liftGraphSlice $ gview $ #analysis % #preds % atTag tag % to ($ n)
+    liftPure $ gview $ #analysis % #preds % atTag tag % to ($ n)
 
-askPrevs :: C t m => Visit -> TaggedT t m [Visit]
-askPrevs visit = do
-    preds <- toList <$> askPreds visit.nodeId
-    let f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
-    return $ mapMaybe f preds
+askPredVisits :: C t m => Visit -> TaggedT t m [Visit]
+askPredVisits visit = do
+    tag <- askTag
+    preds <- liftPure $ gview $ #analysis % #preds % atTag tag
+    return $ predVisits visit (toList (preds visit.nodeId))
 
-askCont :: TaggedC t n m => Visit -> m Visit
-askCont visit = do
+askContVisits :: C t m => Visit -> TaggedT t m [Visit]
+askContVisits visit = do
     let addr = nodeAddrOf visit.nodeId
-    conts <- toListOf nodeConts <$> askNode addr
+    node <- askNode addr
+    return $ contVisits visit (toListOf nodeConts node)
+
+askContVisit :: C t m => Visit -> TaggedT t m Visit
+askContVisit visit = do
+    conts <- askContVisits visit
     let [cont] = conts
-    return $ Visit
-        { nodeId = cont
-        , restrs = fromJust $ incrVCs visit.restrs addr 1
-        }
-
-incrVCs :: [Restr] -> NodeAddr -> Integer -> Maybe [Restr]
-incrVCs restrs n incr = if
-    | n `M.notMember` restrsMap -> Just restrs
-    | isEmptyVC vcNew -> Nothing
-    | otherwise -> Just (fromMapVC (M.insert n vcNew restrsMap))
-  where
-    restrsMap = toMapVC restrs
-    vcOld = restrsMap ! n
-    vcNew = incrVC incr vcOld
-
-specialize :: Visit -> NodeAddr -> [Visit]
-specialize visit split = ensure (isOptionsVC splitVC)
-    [ visit & #restrs .~ fromMapVC (M.insert split (fromSimpleVC simpleVC) restrsMap)
-    | simpleVC <- enumerateSimpleVCs splitVC
-    ]
-  where
-    restrsMap = toMapVC visit.restrs
-    splitVC = restrsMap ! split
+    return cont
 
 --
 
@@ -365,15 +314,47 @@ getFreshIdent nameHint = do
     liftGraphSlice $ #extraProblemNames %= S.insert n
     return n
 
+maybeContract :: TaggedC t n m => Visit -> Ident -> FlatExpr -> m FlatExpr
+maybeContract visit name expr@(Expr ty (ExprValueSMTExpr ms)) = case ms of
+    NotSplit sexpr | length (showSExprWithPlaceholders sexpr) > 80 -> withMapSlot #contractions sexpr $ do
+        let name' = localNameBefore visit name
+        liftInner $ smtExprE ty <$> addDef name' (smtExprE ty (NotSplit sexpr))
+    _ -> return expr
+
+contractPcEnv :: C t m => Visit -> PcEnv -> TaggedT t m PcEnv
+contractPcEnv visit (PcEnv pc env) = do
+    pc' <- case pc.value of
+        ExprValueSMTExpr _ -> return pc
+        _ -> do
+            hint <- pathCondName <$> askWithTag visit
+            name <- liftInner $ addDef hint pc
+            return $ smtExprE boolT name
+    env' <- M.traverseWithKey (maybeContract visit) env
+    return $ PcEnv pc' env'
+
 flattenExpr :: ExprEnv -> GraphExpr -> FlatExpr
 flattenExpr = flip go
   where
     go = traverseOf (exprArgs % traversed) go >=> \expr -> case expr.value of
-        ExprValueVar name -> \env -> env ! name
+        ExprValueVar name -> (! name)
         _ -> return expr
 
 flattenAndAddDef :: TaggedC t n m => ExprEnv -> NameHint -> GraphExpr -> m MaybeSplit
 flattenAndAddDef env nameHint val = liftInner $ addDef nameHint $ flattenExpr env val
+
+--
+
+-- HACK
+updatePcEnvCompat :: TaggedC t n m => PcEnv -> m PcEnv
+updatePcEnvCompat pcEnv = traverseOf #pc (walkExprsM f) pcEnv
+  where
+    f expr = case expr.value of
+        ExprValueSMTExpr s -> do
+            condIdentOpt <- liftPure $ use $ #condVars % at s
+            return $ case condIdentOpt of
+                Just condIdent -> flattenExpr pcEnv.env (varE boolT condIdent)
+                Nothing -> expr
+        _ -> return expr
 
 --
 
@@ -445,39 +426,6 @@ addVarReps kind mkName memCalls visit vars = execStateT $ do
         opt <- lift $ varRepRequest kind visit intermediateEnv var
         for_ opt $ \splitMem -> modify $ M.insert var.name $ smtExprE var.ty $ Split splitMem
 
---
-
--- HACK
-updatePcEnvCompat :: TaggedC t n m => PcEnv -> m PcEnv
-updatePcEnvCompat pcEnv = traverseOf #pc (walkExprsM f) pcEnv
-  where
-    f expr = case expr.value of
-        ExprValueSMTExpr s -> do
-            condIdentOpt <- liftPure $ use $ #condVars % at s
-            return $ case condIdentOpt of
-                Just condIdent -> flattenExpr pcEnv.env (varE boolT condIdent)
-                Nothing -> expr
-        _ -> return expr
-
---
-
-maybeContract :: TaggedC t n m => Visit -> Ident -> FlatExpr -> m FlatExpr
-maybeContract visit name expr@(Expr ty (ExprValueSMTExpr ms)) = case ms of
-    NotSplit sexpr | length (showSExprWithPlaceholders sexpr) > 80 -> withMapSlot #contractions sexpr $ do
-        let name' = localNameBefore visit name
-        liftInner $ smtExprE ty <$> addDef name' (smtExprE ty (NotSplit sexpr))
-    _ -> return expr
-
-contractPcEnv :: C t m => Visit -> PcEnv -> TaggedT t m PcEnv
-contractPcEnv visit = updatePcEnvCompat >=> \(PcEnv pc env) -> do
-    pc' <- case pc.value of
-        ExprValueSMTExpr _ -> return pc
-        _ -> do
-            hint <- pathCondName <$> askWithTag visit
-            name <- liftInner $ addDef hint pc
-            return $ smtExprE boolT name
-    env' <- M.traverseWithKey (maybeContract visit) env
-    return $ PcEnv pc' env'
 
 --
 
@@ -585,7 +533,7 @@ getLoopPcEnv visit = do
 getArcPcEnvs :: C t m => NodeAddr -> Visit -> TaggedT t m [PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- lift $ askPrevs visit >>= pruneVisits . filter (\prev -> prev.nodeId == Addr pred_)
+        prevs <- lift $ askPredVisits visit >>= pruneVisits . filter (\prev -> prev.nodeId == Addr pred_)
         ensureM $ length prevs <= 1
         fmap catMaybes $ for prevs $ \prev -> do
             checkGenerality prev
@@ -593,7 +541,7 @@ getArcPcEnvs pred_ visit = do
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
-            concat <$> traverse (getArcPcEnvs pred_) (specialize visit split)
+            concat <$> traverse (getArcPcEnvs pred_) (splitVisitAt split visit)
 
 getArcPcEnv :: C t m => Visit -> Visit -> TaggedT t m (Maybe PcEnv)
 getArcPcEnv prev visit = runMaybeT $ do
@@ -633,7 +581,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
                 key <- lift $ askWithTag prev
                 present <- lift $ liftGraphSlice $ use $ #nodePcEnvs % to (M.member key)
                 return $ not present && prev.restrs == curVisit.restrs
-        runExceptT (lift (askPrevs curVisit >>= pruneVisits) >>= filterM f) >>= \case
+        runExceptT (lift (askPredVisits curVisit >>= pruneVisits) >>= filterM f) >>= \case
             Right (v:_) -> go (i - 1) (v:prevChain) v
             _ -> return prevChain
     iters = 5000 :: Integer
@@ -753,7 +701,7 @@ getFunCallInfo unprunedVisit = do
     ensureM $ is #_NodeCall node
     infoOpt <- getFunCallInfoRawOpt visit
     whenNothing infoOpt $ do
-        askCont visit >>= getNodePcEnv
+        askContVisit visit >>= getNodePcEnv
         getFunCallInfoRaw visit
 
 getFunCallVisits :: TaggedC t n m => WithTag t Ident -> m [Visit]
@@ -917,8 +865,3 @@ envForQuadrant (PairingEqSideQuadrant t direction) = view $ atTag t % directionL
     directionLabel = case direction of
         PairingEqDirectionIn -> #ins
         PairingEqDirectionOut -> #outs
-
---
-
-askFunName :: (Tag t, MonadGraphSliceSendSExpr n) => Visit -> T t n Ident
-askFunName v = view (expecting #_NodeCall % #functionName) <$> askNode (nodeAddrOf v.nodeId)

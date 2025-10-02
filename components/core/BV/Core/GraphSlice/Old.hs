@@ -10,7 +10,7 @@ module BV.Core.GraphSlice.Old
     , MonadGraphSliceSendSExpr (..)
     , PcEnv (..)
     , addAccumulatedAssertions
-    , askCont
+    , askContVisit
     , askLoopData
     , askNodeGraph
     , askProblem
