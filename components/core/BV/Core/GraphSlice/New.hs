@@ -21,10 +21,8 @@ module BV.Core.GraphSlice.New
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
-    , getEvalModel
     , getFunCallInfo
     , getInductVar
-    , getModelRequest
     , getNodePcEnv
     , getNodePcEnvWithTag
     , getPc
@@ -53,7 +51,6 @@ import BV.Core.GraphSlice.New.SendSolverExprCommand
 import BV.Core.Logic (eqHandlingRelWrapper, strengthenHyp)
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.SMTLIB2 (SExpr)
 
 import Control.Monad ((>=>))
 import Control.Monad.Writer (Writer, execWriter, tell)
@@ -197,23 +194,3 @@ withoutSendSExpr = mapBase f g
         "withoutSendSExpr:\n"
             ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- execWriter m.run ]
     g _ = error "withoutSendSExpr"
-
---
-
-type ModelRequest = [String]
-
-newtype ModelResponse
-  = ModelResponse { unwrap :: M.Map String SExpr }
-  deriving (Generic, Show)
-
-getModelRequest :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ModelRequest
-getModelRequest = undefined
-
-getEvalModel :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m (ModelResponse -> FlatExpr -> FlatExpr)
-getEvalModel = undefined
-    -- modelResp expr
-
--- newtype Model = Model
---     { unwrap :: M.Map FlatExpr FlatExpr
---     }
---   deriving (Generic, Show)
