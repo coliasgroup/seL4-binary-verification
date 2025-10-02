@@ -42,11 +42,11 @@ newtype GraphSliceFlatT m a
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
-instance Monad m => MonadInner (InnerT m) (T m) where
-    liftInner = GraphSliceFlatT . lift
-
 instance MonadTrans T where
     lift = liftInner . lift
+
+instance Monad m => MonadInner (InnerT m) (T m) where
+    liftInner = GraphSliceFlatT . lift
 
 liftPure :: Monad m => State TState a -> T m a
 liftPure = GraphSliceFlatT . mapStateT (return . runIdentity)

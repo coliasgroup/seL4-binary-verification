@@ -43,6 +43,7 @@ module BV.Core.GraphSlice.New
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flat
 import BV.Core.GraphSlice.New.Flatten
+import BV.Core.GraphSlice.New.Flatten.Tagged
 import BV.Core.GraphSlice.New.InterpretHyp
 import BV.Core.GraphSlice.New.SendFlatExprCommand
 import BV.Core.GraphSlice.New.SendSolverExprCommand

@@ -27,6 +27,9 @@ newtype GraphSliceTaggedT t m a
 instance MonadInner n m => MonadInner n (GraphSliceTaggedT t m) where
     liftInner = GraphSliceTaggedT . lift . liftInner
 
+liftUntagged :: Monad m => m a -> GraphSliceTaggedT t m a
+liftUntagged = GraphSliceTaggedT . lift
+
 askTag :: Monad m => GraphSliceTaggedT t m t
 askTag = GraphSliceTaggedT ask
 
@@ -40,6 +43,3 @@ runTagged tag m = runReaderT m.run tag
 
 runWithTag :: Monad m => (a -> GraphSliceTaggedT t m b) -> WithTag t a -> m b
 runWithTag f (WithTag tag a) = runTagged tag $ f a
-
-liftUntagged :: Monad m => m a -> GraphSliceTaggedT t m a
-liftUntagged = GraphSliceTaggedT . lift

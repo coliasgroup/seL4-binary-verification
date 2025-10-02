@@ -11,14 +11,11 @@ module BV.Core.GraphSlice.New.Flatten
     , FunCallInfo (..)
     , GraphSliceHooks (preEmitCallNodeHook)
     , GraphSliceT
-    , GraphSliceTaggedT
     , PcEnv (..)
     , askContVisit
     , askLoopData
     , askNodeGraph
     , askProblem
-    , askTag
-    , askWithTag
     , asmRefineGraphSliceHooks
     , defaultGraphSliceHooks
     , flattenExpr
@@ -27,10 +24,7 @@ module BV.Core.GraphSlice.New.Flatten
     , getNodePcEnv
     , getPc
     , instEqWithEnvs
-    , liftUntagged
     , runGraphSliceTStep
-    , runTagged
-    , runWithTag
     , tryGetNodePcEnv
     ) where
 
@@ -97,11 +91,20 @@ newtype GraphSliceT t m a
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
+instance MonadTrans (T t) where
+    lift = liftInner . lift
+
 instance Monad m => MonadInner (InnerT m) (T t m) where
     liftInner = GraphSliceT . lift . lift
 
-instance MonadTrans (T t) where
-    lift = liftInner . lift
+class (Monad n, Monad m) => MonadT t n m | m -> t, m -> n where
+    liftPure :: StateT (TState t) (Reader (TEnv t n)) a -> m a
+
+instance Monad n => MonadT t n (T t n) where
+    liftPure = GraphSliceT . mapStateT (mapReaderT (return . runIdentity))
+
+instance Monad n => MonadT t n (TaggedT t n) where
+    liftPure = liftUntagged . liftPure
 
 runGraphSliceTStep
     :: (Tag t, Monad m)
@@ -195,17 +198,6 @@ initState = TState
     , funCalls = M.empty
     , funCallsByName = M.empty
     }
-
---
-
-class (Monad n, Monad m) => MonadT t n m | m -> t, m -> n where
-    liftPure :: StateT (TState t) (Reader (TEnv t n)) a -> m a
-
-instance Monad n => MonadT t n (T t n) where
-    liftPure = GraphSliceT . mapStateT (mapReaderT (return . runIdentity))
-
-instance (Monad n, MonadT t n (T t n)) => MonadT t n (TaggedT t n) where
-    liftPure = liftUntagged . liftPure
 
 --
 
@@ -313,13 +305,11 @@ flattenAndAddDef env expr nameHint = liftInner $ addDef nameHint (flattenExpr en
 
 --
 
-ensureEqual :: Eq a => a -> a -> a
-ensureEqual x y = ensure (x == y) x
-
 getIsExprWith :: TaggedC t n m => (Ident -> m Bool) -> FlatExpr -> m Bool
 getIsExprWith f expr = do
-    if isMemT expr.ty then getMemBasis ensureEqual lookupName expr else return False
+    if isMemT expr.ty then getMemBasis ensureEq lookupName expr else return False
   where
+    ensureEq x y = ensure (x == y) x
     lookupName name = liftInner (lookupDef name) >>= \case
         Just def -> Right <$> return def
         Nothing -> Left <$> f name
@@ -404,8 +394,8 @@ getInductVar induct =
 
 getPc :: C t m => Visit -> TaggedT t m FlatExpr
 getPc visit = getNodePcEnv visit <&> \case
-    Nothing -> falseE
     Just (PcEnv pc _) -> pc
+    Nothing -> falseE
 
 getNodePcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getNodePcEnv = runIdentityT . getNodePcEnvInner (const (return ()))

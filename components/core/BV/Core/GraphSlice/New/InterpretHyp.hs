@@ -5,6 +5,7 @@ module BV.Core.GraphSlice.New.InterpretHyp
 
 import BV.Core.GraphSlice.New.Common (MonadGraphSliceSendSExpr)
 import BV.Core.GraphSlice.New.Flatten
+import BV.Core.GraphSlice.New.Flatten.Tagged
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 
 import BV.Core.Logic (strengthenHyp)

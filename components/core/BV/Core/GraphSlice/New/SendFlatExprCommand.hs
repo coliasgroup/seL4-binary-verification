@@ -72,11 +72,11 @@ newtype GraphSliceSendFlatExprCommandT m a
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
-instance Monad m => MonadInner (InnerT m) (T m) where
-    liftInner = GraphSliceSendFlatExprCommandT . lift . lift . lift
-
 instance MonadTrans T where
     lift = liftInner . lift
+
+instance Monad m => MonadInner (InnerT m) (T m) where
+    liftInner = GraphSliceSendFlatExprCommandT . lift . lift . lift
 
 liftStructs :: Monad m => StructsT (InnerT m) a -> T m a
 liftStructs = GraphSliceSendFlatExprCommandT . lift . lift
