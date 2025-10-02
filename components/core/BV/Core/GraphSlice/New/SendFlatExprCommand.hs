@@ -396,6 +396,21 @@ convertMemAccess ty@(ExprTypeWord _) extExpr p = case extExpr of
         let f side = convertMemAccess ty (ExtendedExprExpr (side splitMem)) p'
         ifThenElseE (splitMem.split `lessEqE` p') <$> f (.top) <*> f (.bottom)
 
+convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> ExtendedExpr -> T m SolverExpr
+convertStackEqualsImplies sp1 stack1 sp2 stack2 =
+    if sp1 == sp2 && stack1 == stack2
+    then return trueE
+    else do
+        let ExtendedExprSplitMem splitMem2 = stack2
+        ensureM $ splitMem2.split == sp2
+        let eq = case stack1 of
+                ExtendedExprExpr s ->
+                    splitMem2.top `eqE` s
+                ExtendedExprSplitMem splitMem1 ->
+                    (splitMem1.split `lessEqE` splitMem2.split)
+                        `impliesE` (splitMem2.top `eqE` splitMem1.top)
+        return $ (sp1 `eqE` sp2) `andE` eq
+
 convertImpliesStackEquals :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> ExtendedExpr -> T m SolverExpr
 convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
     let key = ImpliesStackEqCacheKey
@@ -411,21 +426,6 @@ convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
         solverExpr <- eqE <$> f key.stack1 <*> f key.stack2
         addDef "stack-eq" solverExpr
     return $ (sp1 `eqE` sp2) `andE` eq
-
-convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> ExtendedExpr -> T m SolverExpr
-convertStackEqualsImplies sp1 stack1 sp2 stack2 =
-    if sp1 == sp2 && stack1 == stack2
-    then return trueE
-    else do
-        let ExtendedExprSplitMem splitMem2 = stack2
-        ensureM $ splitMem2.split == sp2
-        let eq = case stack1 of
-                ExtendedExprExpr s ->
-                    splitMem2.top `eqE` s
-                ExtendedExprSplitMem splitMem1 ->
-                    (splitMem1.split `lessEqE` splitMem2.split)
-                        `impliesE` (splitMem2.top `eqE` splitMem1.top)
-        return $ (sp1 `eqE` sp2) `andE` eq
 
 addHtd :: C m => NameHint -> T m ExtendedExpr
 addHtd nameHint = do
