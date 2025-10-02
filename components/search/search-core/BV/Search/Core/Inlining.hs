@@ -3,7 +3,7 @@ module BV.Search.Core.Inlining
     , discoverInlineScript
     ) where
 
-import BV.Core.GraphSlice.Old
+import BV.Core.GraphSlice.New
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr (notE)

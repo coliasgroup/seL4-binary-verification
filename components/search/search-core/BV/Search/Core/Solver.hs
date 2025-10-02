@@ -23,7 +23,7 @@ module BV.Search.Core.Solver
     ) where
 
 import BV.Core.ExecuteSMTProofChecks (defaultLogic, splitHyp)
-import BV.Core.GraphSlice.Old
+import BV.Core.GraphSlice.New
 import BV.Core.ModelConfig
 import BV.Core.Types
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS)
