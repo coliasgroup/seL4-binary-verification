@@ -325,6 +325,9 @@ convertFlatOpExpr exprTy op args = do
                     }
         (OpHtdUpdate, _) ->
             addHtd "update_htd"
+        (OpMemDom, ~[ExtendedExprExpr _p, ExtendedExprExpr _dom]) -> do
+            ensureM cheatMemDoms
+            return $ ExtendedExprExpr trueE
         _ ->
             return $ ExtendedExprExpr $ Expr exprTy $ ExprValueOp op $ map (viewExpecting #_ExtendedExprExpr) args
     sequenceA_ $
