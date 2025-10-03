@@ -15,6 +15,9 @@ module BV.Core.Types.ProofCheck
     , Visit (..)
     , VisitCount (..)
     , checkVisits
+    , debugShowRestrs
+    , debugShowVisit
+    , debugShowVisitCount
     , hypVisits
     ) where
 
@@ -23,6 +26,7 @@ import BV.Core.Types.Tag
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
+import Data.List (intercalate)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
@@ -126,3 +130,20 @@ hypVisits =
 
 checkVisits :: Traversal' (ProofCheck t a) (WithTag t Visit)
 checkVisits = (#hyps % traversed `adjoin` #hyp) % hypVisits
+
+--
+
+debugShowVisit :: Visit -> String
+debugShowVisit visit = prettyNodeId visit.nodeId ++ ":" ++ debugShowRestrs visit.restrs
+
+debugShowRestrs :: [Restr] -> String
+debugShowRestrs restrs = "[" ++ intercalate "," (map f restrs) ++ "]"
+  where
+    f restr = prettyNodeAddr restr.nodeAddr ++ "=" ++ debugShowVisitCount restr.visitCount
+
+debugShowVisitCount :: VisitCount -> String
+debugShowVisitCount vc =
+    intercalate "_" $ map showNumber vc.numbers ++ map showOffset vc.offsets
+  where
+    showNumber = show
+    showOffset n = "i+" ++ show n

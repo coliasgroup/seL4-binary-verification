@@ -29,6 +29,7 @@ module BV.Core.Types.Program
     , VarUpdate (..)
     , fromListOfNamed
     , fromNotSplit
+    , prettyNodeAddr
     , prettyNodeId
     , toListOfNamed
     , withNamed
@@ -167,7 +168,10 @@ newtype NodeAddr
 instance Binary NodeAddr
 
 instance PrintfArg NodeAddr where
-    formatArg = formatArgSimple $ show . (.unwrap)
+    formatArg = formatArgSimple prettyNodeAddr
+
+prettyNodeAddr :: NodeAddr -> String
+prettyNodeAddr = show . (.unwrap)
 
 -- HACK order matches graph-refine
 data NodeId
