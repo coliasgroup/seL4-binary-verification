@@ -3,6 +3,7 @@ module BV.Core.GraphSlice.New
     , ExprEnv
     , FlatExpr
     , FunCallInfo (..)
+    , GraphSliceExport (..)
     , GraphSliceHooks (preEmitCallNodeHook)
     , GraphSliceInput (..)
     , GraphSliceT
@@ -12,6 +13,7 @@ module BV.Core.GraphSlice.New
     , PcEnv (..)
     , addAccumulatedAssertions
     , askContVisit
+    , askExport
     , askLoopData
     , askNodeGraph
     , askProblem

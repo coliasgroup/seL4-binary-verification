@@ -6,9 +6,11 @@
 
 module BV.Core.GraphSlice.New.Flatten
     ( FunCallInfo (..)
+    , GraphSliceExport (..)
     , GraphSliceHooks (preEmitCallNodeHook)
     , GraphSliceT
     , askContVisit
+    , askExport
     , askLoopData
     , askNodeGraph
     , askProblem
@@ -207,6 +209,34 @@ initState = TState
     , mems = M.empty
     , hasInnerLoopCache = M.empty
     }
+
+data GraphSliceExport t
+  = GraphSliceExport
+      { inputEnvs :: Map (WithTag t ()) ExprEnv
+      , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
+      , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
+      , inductVars :: Map EqHypInduct FlatExpr
+      , funCalls :: Map (WithTag t Visit) FunCallInfo
+      , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
+      }
+  deriving (Generic)
+
+askExport :: Monad m => T t m (GraphSliceExport t)
+askExport = liftPure $ do
+    inputEnvs <- use #inputEnvs
+    nodePcEnvs <- use #nodePcEnvs
+    arcPcEnvs <- use #arcPcEnvs
+    inductVars <- use #inductVars
+    funCalls <- use #funCalls
+    funCallsByName <- use #funCallsByName
+    return $ GraphSliceExport
+        { inputEnvs
+        , nodePcEnvs
+        , arcPcEnvs
+        , inductVars
+        , funCalls
+        , funCallsByName
+        }
 
 --
 
