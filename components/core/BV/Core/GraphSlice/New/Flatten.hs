@@ -276,13 +276,13 @@ askPredVisits :: C t m => Visit -> TaggedT t m [Visit]
 askPredVisits visit = do
     tag <- askTag
     preds <- liftPure $ gview $ #analysis % #preds % atTag tag
-    return $ predVisits visit (toList (preds visit.nodeId))
+    pruneVisits $ predVisits visit (toList (preds visit.nodeId))
 
 askContVisits :: C t m => Visit -> TaggedT t m [Visit]
 askContVisits visit = do
     let addr = nodeAddrOf visit.nodeId
     node <- askNode addr
-    return $ contVisits visit (toListOf nodeConts node)
+    pruneVisits $ contVisits visit (toListOf nodeConts node)
 
 askContVisit :: C t m => Visit -> TaggedT t m Visit
 askContVisit visit = do
@@ -500,7 +500,7 @@ addLoopMemCalls split memCalls = do
 getArcPcEnvs :: C t m => NodeAddr -> Visit -> TaggedT t m [PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
-        prevs <- lift $ askPredVisits visit >>= pruneVisits . filter (\prev -> prev.nodeId == Addr pred_)
+        prevs <- lift $ filter (\prev -> prev.nodeId == Addr pred_) <$> askPredVisits visit
         ensureM $ length prevs <= 1
         fmap catMaybes $ for prevs $ \prev -> do
             checkGenerality prev
@@ -529,7 +529,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
                 key <- lift $ askWithTag prev
                 present <- lift $ liftPure $ use $ #nodePcEnvs % to (M.member key)
                 return $ not present && prev.restrs == curVisit.restrs
-        runExceptT (lift (askPredVisits curVisit >>= pruneVisits) >>= filterM f) >>= \case
+        runExceptT (lift (askPredVisits curVisit) >>= filterM f) >>= \case
             Right (v:_) -> go (i - 1) (v:prevChain) v
             _ -> return prevChain
     iters = 5000 :: Integer
