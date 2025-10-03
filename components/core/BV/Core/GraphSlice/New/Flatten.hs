@@ -151,11 +151,11 @@ data TState t
       , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
       , inductVars :: Map EqHypInduct FlatExpr
-      , hasInnerLoopCache :: Map (WithTag t NodeAddr) Bool
-      , stacks :: Set Ident
-      , mems :: Map Ident MemCalls
       , funCalls :: Map (WithTag t Visit) FunCallInfo
       , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
+      , stacks :: Set Ident
+      , mems :: Map Ident MemCalls
+      , hasInnerLoopCache :: Map (WithTag t NodeAddr) Bool
       }
   deriving (Generic)
 
@@ -201,11 +201,11 @@ initState = TState
     , nodePcEnvs = M.empty
     , arcPcEnvs = M.empty
     , inductVars = M.empty
-    , hasInnerLoopCache = M.empty
-    , stacks = S.empty
-    , mems = M.empty
     , funCalls = M.empty
     , funCallsByName = M.empty
+    , stacks = S.empty
+    , mems = M.empty
+    , hasInnerLoopCache = M.empty
     }
 
 --
