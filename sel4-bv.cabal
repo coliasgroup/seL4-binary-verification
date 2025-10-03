@@ -89,6 +89,7 @@ library core
       BV.Core.Types.Extras.Program
       BV.Core.Types.Extras.ProofCheck
       BV.Core.Types.Extras.SExprWithPlaceholders
+      BV.Core.Types.Extras.DebugShowExpr
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
       BV.Core.Arch
