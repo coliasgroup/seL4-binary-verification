@@ -57,7 +57,7 @@ import BV.Utils (ensureM)
 
 import Control.Monad ((>=>))
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (Writer, execWriter, tell)
+import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.Foldable (toList)
 import qualified Data.Map as M
 import GHC.Generics (Generic)
@@ -194,9 +194,13 @@ instance MonadGraphSliceSendSExpr DontSendSExpr where
 withoutSendSExpr :: Monad m => GraphSliceT t DontSendSExpr a -> GraphSliceT t m a
 withoutSendSExpr = mapBase f g
   where
-    f m = error $
-        "withoutSendSExpr:\n"
-            ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- execWriter m.run ]
+    f m =
+        let (a, ss) = runWriter m.run
+         in case ss of
+                [] -> return a
+                _ -> error $
+                    "withoutSendSExpr:\n"
+                        ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- ss ]
     g _ = error "withoutSendSExpr"
 
 --
