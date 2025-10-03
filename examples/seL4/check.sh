@@ -42,3 +42,12 @@ $exe \
     --file-log $tmp/log.txt \
     --file-log-level debug \
     "$@"
+
+    # --include-function unmapPageTable \
+    # --include-function unmapPageTable \
+    # --include-function invalidateCacheRange_I \
+    # cleanInvalidateL1Caches
+    # arch_clean_invalidate_L1_caches
+    # cleanCacheRange_PoU
+    # cleanCacheRange_RAM
+    # idle_thread

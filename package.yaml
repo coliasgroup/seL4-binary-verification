@@ -309,7 +309,15 @@ executables:
       - sel4-bv:system-core
       - sel4-bv:system
       - sel4-bv:target-dir
+      - sel4-bv:logging
+      - sel4-bv:utils
       - sel4-bv:test-utils
+      - sel4-bv:search-core
+      - sel4-bv:search-system-core
+      - sel4-bv:smtlib2
+      - sel4-bv:smtlib2-process
+      # external
+      - resourcet
     ghc-options: *exe-ghc-options
 
 tests:
