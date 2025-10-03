@@ -18,6 +18,7 @@ module BV.Core.GraphSlice.Old
     , askWithTag
     , asmRefineGraphSliceHooks
     , assertExpr
+    , compileProofCheckGroup
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
@@ -28,7 +29,6 @@ module BV.Core.GraphSlice.Old
     , getPc
     , getPcWithTag
     , instEqWithEnvs
-    , interpretGroup
     , interpretHyp
     , interpretHypImps
     , liftUntagged
@@ -52,6 +52,7 @@ import BV.Core.Logic (strengthenHyp)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
+import Control.Monad.Writer (runWriter)
 import Data.Foldable (toList)
 import qualified Data.Map as M
 import Data.Traversable (for)
@@ -101,6 +102,16 @@ addAccumulatedAssertions = do
     liftInner $ sendAccumulatedSolverAssertions
 
 --
+
+compileProofCheckGroup
+    :: AsmRefineGraphSliceInput
+    -> ProofCheckGroup AsmRefineTag a
+    -> SMTProofCheckGroup a
+compileProofCheckGroup input group =
+    SMTProofCheckGroup setup imps
+  where
+    (imps, setup) = runWriter (runAsmRefineGraphSliceT input m)
+    m = interpretGroup group <* addAccumulatedAssertions
 
 interpretGroup
     :: (RefineTag t, MonadGraphSliceSendSExpr m)

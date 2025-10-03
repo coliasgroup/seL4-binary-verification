@@ -142,3 +142,12 @@ stages input = StagesOutput
 
     smtProofChecks = SMTProofChecks $ flip M.fromSet (M.keysSet provenProblems) $ \pairingId ->
         compileProofChecks (graphSliceInput ! pairingId) <$> (proofChecks.unwrap ! pairingId)
+
+compileProofChecks
+    :: AsmRefineGraphSliceInput
+    -> [ProofCheck AsmRefineTag a]
+    -> [(ProofCheckGroupCheckIndices, SMTProofCheckGroup a)]
+compileProofChecks input checks =
+    over (traversed % _2)
+        (compileProofCheckGroup input)
+        (prunedProofCheckGroups (analyzeProblem input.repGraphInput.problem) checks)

@@ -21,6 +21,7 @@ module BV.Core.GraphSlice.New
     , askWithTag
     , asmRefineGraphSliceHooks
     , assertExpr
+    , compileProofCheckGroup
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
@@ -32,7 +33,6 @@ module BV.Core.GraphSlice.New
     , getPc
     , getPcWithTag
     , interpretCheck
-    , interpretGroup
     , interpretHyp
     , interpretHypImps
     , liftUntagged
@@ -62,6 +62,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.Foldable (toList)
 import qualified Data.Map as M
+import Data.Traversable (for)
 import GHC.Generics (Generic)
 
 data GraphSliceInput t
@@ -136,20 +137,21 @@ addAccumulatedAssertions = do
 
 --
 
-interpretGroup
-    :: (RefineTag t, MonadGraphSliceSendSExpr m)
-    => ProofCheckGroup t a
-    -> GraphSliceT t m [SMTProofCheckImp a]
-interpretGroup = traverse interpretCheck
+compileProofCheckGroup
+    :: AsmRefineGraphSliceInput
+    -> ProofCheckGroup AsmRefineTag a
+    -> SMTProofCheckGroup a
+compileProofCheckGroup input group =
+    SMTProofCheckGroup setup imps
+  where
+    (imps, setup) = runWriter $ runAsmRefineGraphSliceT input $ m <* addAccumulatedAssertions
+    m = for group $ \check -> SMTProofCheckImp check.meta <$> (interpretCheck >=> convertExpr) check
 
 interpretCheck
     :: (RefineTag t, MonadGraphSliceSendSExpr m)
     => ProofCheck t a
-    -> GraphSliceT t m (SMTProofCheckImp a)
-interpretCheck check = SMTProofCheckImp check.meta <$> do
-    interpretHyp check.hyp
-        >>= interpretHypImps check.hyps
-        >>= convertExpr
+    -> GraphSliceT t m FlatExpr
+interpretCheck check = interpretHyp check.hyp >>= interpretHypImps check.hyps
 
 interpretHypImps :: (RefineTag t, MonadGraphSliceSendSExpr m) => [Hyp t] -> FlatExpr -> GraphSliceT t m FlatExpr
 interpretHypImps hyps concl = do
