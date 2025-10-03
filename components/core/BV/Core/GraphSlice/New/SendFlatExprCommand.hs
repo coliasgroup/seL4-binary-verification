@@ -377,15 +377,15 @@ convertMemUpdate extExpr p v ty = case extExpr of
 
 convertMemUpdateSimpleExpr :: C m => SolverExpr -> SolverExpr -> SolverExpr -> ExprType -> T m SolverExpr
 convertMemUpdateSimpleExpr mem p v ty@(ExprTypeWord bits) = do
+    p' <- cacheExprInline "memupd_pointer" p
     case bits of
         8 -> do
-            let aligned = p `bitwiseAndE` word32E 0xfffffffd
+            let aligned = p' `bitwiseAndE` word32E 0xfffffffd
             noteModelExpr aligned
             noteModelExpr $ memAccE word32T aligned mem
         _ -> do
-            noteModelExpr p
-            noteModelExpr $ memAccE ty p mem
-    return $ memUpdE p mem v
+            noteModelExpr $ memAccE ty p' mem
+    return $ memUpdE p' mem v
 
 convertMemAccess :: C m => ExprType -> ExtendedExpr -> SolverExpr -> T m SolverExpr
 convertMemAccess ty@(ExprTypeWord _) extExpr p = case extExpr of
