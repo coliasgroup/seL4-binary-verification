@@ -1,5 +1,6 @@
 module BV.Test.Utils.Tasty
     ( CustomOpts (..)
+    , defaultCustomOpts
     , defaultMainWithOpts
     , testTreeWhen
     ) where
@@ -24,6 +25,27 @@ data CustomOpts
       , defaultTargetDirForTestsRequiringTrace :: TargetDir
       , graphRefineDir :: FilePath
       }
+
+defaultCustomOpts :: CustomOpts
+defaultCustomOpts = CustomOpts
+    { outDir
+    , includeExtra
+    , includeBroken
+    , includeWip
+    , defaultTargetDirForFastTests
+    , defaultTargetDirForSlowTests
+    , defaultTargetDirForTestsRequiringTrace
+    , graphRefineDir
+    }
+  where
+    OutDir outDir = defaultValue
+    IncludeExtra includeExtra = defaultValue
+    IncludeBroken includeBroken = defaultValue
+    IncludeWip includeWip = defaultValue
+    DefaultTargetDirForFastTests defaultTargetDirForFastTests = defaultValue
+    DefaultTargetDirForSlowTests defaultTargetDirForSlowTests = defaultValue
+    DefaultTargetDirForTestsRequiringTrace defaultTargetDirForTestsRequiringTrace = defaultValue
+    GraphRefineDir graphRefineDir = defaultValue
 
 defaultMainWithOpts :: (CustomOpts -> TestTree) -> IO ()
 defaultMainWithOpts f = defaultMainWithIngredients ingredients $
@@ -57,8 +79,7 @@ defaultMainWithOpts f = defaultMainWithIngredients ingredients $
             , Option (Proxy :: Proxy DefaultTargetDirForFastTests)
             , Option (Proxy :: Proxy DefaultTargetDirForSlowTests)
             , Option (Proxy :: Proxy GraphRefineDir)
-            ]
-                : defaultIngredients
+            ] : defaultIngredients
 
 newtype OutDir
   = OutDir FilePath
