@@ -504,19 +504,19 @@ getArcPcEnvs pred_ visit = do
         ensureM $ length prevs <= 1
         fmap catMaybes $ for prevs $ \prev -> do
             checkGenerality prev
-            lift $ getArcPcEnv prev visit
+            lift $ getArcPcEnv prev visit.nodeId
     case r of
         Right x -> return x
         Left (TooGeneral { split }) ->
             concat <$> traverse (getArcPcEnvs pred_) (splitVisitAt split visit)
 
-getArcPcEnv :: C t m => Visit -> Visit -> TaggedT t m (Maybe PcEnv)
-getArcPcEnv prev visit = runMaybeT $ do
+getArcPcEnv :: C t m => Visit -> NodeId -> TaggedT t m (Maybe PcEnv)
+getArcPcEnv prev nodeId = runMaybeT $ do
     key <- lift $ askWithTag prev
     pcEnvs <- withMapSlotWithMapping lift #arcPcEnvs key $ do
         MaybeT $ getNodePcEnv prev
         lift $ emitNode prev
-    hoistMaybe $ pcEnvs !? visit.nodeId
+    hoistMaybe $ pcEnvs !? nodeId
 
 -- TODO try without
 warmPcEnvCache :: C t m => Visit -> TaggedT t m ()
