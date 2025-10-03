@@ -19,7 +19,7 @@ debugShowExpr = showSExpr . debugExprToSExpr
 
 debugExprToSExpr :: Expr c -> SExpr
 debugExprToSExpr expr = case expr.value of
-    ExprValueVar name -> Atom $ stringAtom name.unwrap
+    ExprValueVar name -> Atom $ symbolAtom name.unwrap
     ExprValueNum n ->
         let ExprTypeWord bits = expr.ty
          in wordToSExpr bits n
