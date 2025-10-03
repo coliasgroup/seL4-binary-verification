@@ -1,5 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module BV.Search.Core.Solver
     ( Cache
     , GraphSliceSolverFailureReason (..)
@@ -12,6 +14,8 @@ module BV.Search.Core.Solver
     , TestResultWith (..)
     , emptyCache
       -- , evalModelExpr
+    , askModelConfig
+    , askTimeout
     , runGraphSliceSolverInteractParallel
     , runGraphSliceSolverInteractSimple
     , testHyp
@@ -39,7 +43,7 @@ import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError,
                              withExceptT)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT (StateT), evalStateT, modify)
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (MonadTrans, lift)
 import Data.Foldable (traverse_)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isNothing)
@@ -290,10 +294,26 @@ data SimpleEnv
       }
   deriving (Generic)
 
+askTimeout :: Monad m => GraphSliceSolverInteractSimple m (Maybe SolverTimeout)
+askTimeout = GraphSliceSolverInteractSimple $ gview #timeout
+
+askModelConfig :: Monad m => GraphSliceSolverInteractSimple m ModelConfig
+askModelConfig = GraphSliceSolverInteractSimple $ gview #modelConfig
+
+instance MonadTrans GraphSliceSolverInteractSimple where
+    lift = GraphSliceSolverInteractSimple . lift . lift
+
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractSimple m) where
     sendSExpr s = GraphSliceSolverInteractSimple $ do
         modelConfig <- gview #modelConfig
         sendExpectingSuccess $ configureSExpr modelConfig s
+
+instance (MonadSolver m, MonadThrow m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractSimple m) where
+    getSExprValue s = GraphSliceSolverInteractSimple $ do
+        modelConfig <- gview #modelConfig
+        r <- runExceptT $ getValueE [configureSExpr modelConfig s]
+        let Right [value] = r
+        return value
 
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractSimple m) where
     checkHyp modelRequestOpt hyp = GraphSliceSolverInteractSimple $ do
