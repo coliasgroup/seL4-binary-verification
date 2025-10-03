@@ -3,7 +3,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module BV.Core.DecorateProofScript
-    ( ProofNodeEdge
+    ( ProofNodeEdge (..)
     , ProofScriptEdgePath
     , ProofScriptNodePath (..)
     , decorateProofScriptWithProofScriptNodePathsWith
