@@ -109,7 +109,6 @@ library core
       BV.Core.GraphSlice.Old.Core
       BV.Core.GraphSlice.Old.Solver
       BV.Core.Stages.BuildProblem
-      BV.Core.Stages.CompileProofChecks
       BV.Core.Stages.EnumerateProofChecks
       BV.Core.Stages.FixupProgram
       BV.Core.Stages.FormulatePairing
@@ -760,14 +759,21 @@ executable model-scratch
     , optics
     , parallel
     , process
+    , resourcet
     , safe-exceptions
     , sel4-bv:concrete-syntax
     , sel4-bv:core
+    , sel4-bv:logging
+    , sel4-bv:search-core
+    , sel4-bv:search-system-core
+    , sel4-bv:smtlib2
+    , sel4-bv:smtlib2-process
     , sel4-bv:system
     , sel4-bv:system-core
     , sel4-bv:system-utils
     , sel4-bv:target-dir
     , sel4-bv:test-utils
+    , sel4-bv:utils
     , stm
     , text
     , transformers
