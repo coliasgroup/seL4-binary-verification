@@ -50,7 +50,7 @@ data StagesOutput
         -- intermediate, for checking
       , intermediate :: IntermediateStagesOutput
       }
-  deriving (Eq, Generic)
+  deriving (Generic)
 
 data IntermediateStagesOutput
   = IntermediateStagesOutput
@@ -60,8 +60,10 @@ data IntermediateStagesOutput
       , proofChecks :: ProofChecks'
       , compatProofChecks :: CompatProofChecks
       , compatSMTProofChecks :: CompatSMTProofChecks
+        -- TODO
+      , graphSliceInput :: M.Map PairingId' AsmRefineGraphSliceInput
       }
-  deriving (Eq, Generic, NFData)
+  deriving (Generic)
 
 stages :: StagesInput -> StagesOutput
 stages input = StagesOutput
@@ -78,6 +80,7 @@ stages input = StagesOutput
         , proofChecks
         , compatProofChecks = toCompatProofChecks proofChecks
         , compatSMTProofChecks = toCompatSMTProofChecks smtProofChecks
+        , graphSliceInput
         }
     }
 
@@ -126,14 +129,16 @@ stages input = StagesOutput
             proofScript = input.proofScripts.unwrap ! pairingId
          in enumerateProofChecks problem sigs pairing proofScript
 
-    smtProofChecks = SMTProofChecks $ flip M.mapWithKey provenProblems $ \pairingId problem ->
-        let asmRefineGraphSliceInput = AsmRefineGraphSliceInput
-                { repGraphInput = GraphSliceInput
-                    { structs = (.structs) <$> input.programs
-                    , rodata = input.rodata
-                    , problem
-                    }
-                , lookupSig = lookupFunctionSig
-                , pairings
+    graphSliceInput = provenProblems <&> \problem ->
+        AsmRefineGraphSliceInput
+            { repGraphInput = GraphSliceInput
+                { structs = (.structs) <$> input.programs
+                , rodata = input.rodata
+                , problem
                 }
-         in compileProofChecks asmRefineGraphSliceInput <$> (proofChecks.unwrap ! pairingId)
+            , lookupSig = lookupFunctionSig
+            , pairings
+            }
+
+    smtProofChecks = SMTProofChecks $ flip M.fromSet (M.keysSet provenProblems) $ \pairingId ->
+        compileProofChecks (graphSliceInput ! pairingId) <$> (proofChecks.unwrap ! pairingId)
