@@ -4,6 +4,7 @@ module BV.System.Core.Frontend
 
 import BV.Logging
 import BV.System.Core.Cache
+import BV.System.Core.Fingerprinting
 import BV.System.Core.Report
 import BV.System.Core.Solvers
 import BV.System.Core.Types
@@ -50,6 +51,12 @@ frontend numEvalCores gate backend config checks = do
                             logInfo $ case result of
                                 Right _ -> "success"
                                 Left failure -> "failure: " ++ prettyCheckFailure failure
+                            case result of
+                                Left (CheckFailure { source = CheckFailureSourceCheck check }) -> do
+                                    logWarn $ show (prettyCheckFingerprintShort check.fingerprint, "indexInGroup", check.indexInGroup)
+                                    logWarn $ show (prettyCheckFingerprintShort check.fingerprint, "proofScriptEdgePath", check.group.path.proofScriptEdgePath)
+                                    logWarn $ show (prettyCheckFingerprintShort check.fingerprint, "checkIndices", check.group.path.checkIndices)
+                                _ -> return ()
                             n <- liftIO . atomically $ do
                                 n' <- readTVar completedGroups
                                 let n = n' + 1
