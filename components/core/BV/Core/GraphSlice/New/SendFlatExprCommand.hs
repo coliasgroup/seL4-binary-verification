@@ -441,16 +441,21 @@ addPValidExpr = go
   where
     go htd key = case htd of
         HtdExprIdent name ->
-            addPValid name key
+            addPValidAndInit name key
         HtdExprIfThenElse cond l r ->
             ifThenElseE cond
                 <$> go l key
                 <*> go r key
 
+addPValidAndInit :: C m => Ident -> PValidKey -> T m SolverExpr
+addPValidAndInit htd key = do
+    others <- liftPure $ use $ #pvalids % expectingAt htd
+    when (M.null others) $ addRODataPValids htd
+    addPValid htd key
+
 addPValid :: C m => Ident -> PValidKey -> T m SolverExpr
 addPValid htd key = do
     others <- liftPure $ use $ #pvalids % expectingAt htd
-    when (M.null others) $ addRODataPValids htd
     withMapSlot (#pvalids % expectingAt htd) key $ do
         var <- addVar "pvalid" boolT
         let info = mkPvInfo key var
