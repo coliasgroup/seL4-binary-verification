@@ -2,12 +2,11 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module BV.Core.GraphSlice.New.Flatten
     ( FunCallInfo (..)
     , GraphSliceExport (..)
-    , GraphSliceHooks (preEmitCallNodeHook)
+    , GraphSliceHooks (preEmitCallNode)
     , GraphSliceT
     , askContVisit
     , askExport
@@ -102,11 +101,7 @@ mapEnv :: (forall a. m a -> n a) -> (forall a. n a -> m a) -> TEnv t m -> TEnv t
 mapEnv f g = #hooks %~ mapHooks f g
 
 mapHooks :: (forall a. m a -> n a) -> (forall a. n a -> m a) -> GraphSliceHooks t m -> GraphSliceHooks t n
-mapHooks f g (GraphSliceHooks {..}) = GraphSliceHooks
-    { preEmitCallNodeHook = mapGraphSliceTaggedT (mapBase f g) . preEmitCallNodeHook
-    , postEmitCallNodeHook = mapGraphSliceTaggedT (mapBase f g) . postEmitCallNodeHook
-    , ..
-    }
+mapHooks f g = #preEmitCallNode %~ (mapGraphSliceTaggedT (mapBase f g) .)
 
 class (Monad n, Monad m) => MonadT t n m | m -> t, m -> n where
     liftPure :: StateT (TState t) (Reader (TEnv t n)) a -> m a
@@ -137,15 +132,18 @@ data TEnv t m
   deriving (Generic)
 
 -- TODO abuse of PairingEqDirection
-data GraphSliceHooks t n
+data GraphSliceHooks t m
   = GraphSliceHooks
-      { preEmitCallNodeHook :: Visit -> TaggedT t n ()
-      , postEmitCallNodeHook :: Visit -> TaggedT t n ()
-      , isMemHook :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
-      , isStackHook :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
-      , stackPointerHook :: t -> GraphExpr
+      { isStack :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
+      , stackPointer :: t -> GraphExpr
+      , isMem :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
+      , addFunAsserts :: AddFunAssertsHook t
+      , preEmitCallNode :: Visit -> TaggedT t m ()
       }
   deriving (Generic)
+
+newtype AddFunAssertsHook t
+  = AddFunAssertsHook (forall m. MonadGraphSliceSendSExpr m => Visit -> TaggedT t m ())
 
 data TState t
   = TState
@@ -178,11 +176,11 @@ initEnv problem hooks = TEnv
 
 defaultGraphSliceHooks :: Monad m => GraphSliceHooks t m
 defaultGraphSliceHooks = GraphSliceHooks
-    { preEmitCallNodeHook = \_ -> return ()
-    , postEmitCallNodeHook = \_ -> return ()
-    , isMemHook = \_ _ _ -> False
-    , isStackHook = \_ _ _ -> False
-    , stackPointerHook = \_ -> undefined
+    { isStack = \_ _ _ -> False
+    , stackPointer = \_ -> undefined
+    , isMem = \_ _ _ -> False
+    , addFunAsserts = AddFunAssertsHook $ \_ -> return ()
+    , preEmitCallNode = \_ -> return ()
     }
 
 asmRefineGraphSliceHooks
@@ -192,10 +190,10 @@ asmRefineGraphSliceHooks
     -> ArgRenames t
     -> GraphSliceHooks t m
 asmRefineGraphSliceHooks lookupSig pairings argRenames = defaultGraphSliceHooks
-    & #postEmitCallNodeHook .~ addFunAssertsHook lookupSig pairings
-    & #isMemHook .~ asmRefineIsMemHook lookupSig
-    & #isStackHook .~ asmRefineIsStackHook lookupSig
-    & #stackPointerHook .~ asmRefineStackPointerHook argRenames
+    & #isStack .~ asmRefineIsStackHook lookupSig
+    & #stackPointer .~ asmRefineStackPointerHook argRenames
+    & #isMem .~ asmRefineIsMemHook lookupSig
+    & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
 
 initState :: TState t
 initState = TState
@@ -390,7 +388,7 @@ addSplitStackVars env nameHint = do
     bottom <- liftInner $ addVar (nameHint ++ "_bot") memT
     registerStack top.name
     registerStack bottom.name
-    stackPointerHook <- askHook #stackPointerHook
+    stackPointerHook <- askHook #stackPointer
     let graphStackPointer = stackPointerHook tag
     return $ splitMemE
         (flattenExpr env graphStackPointer)
@@ -482,8 +480,8 @@ getInputEnv :: C t m => TaggedT t m ExprEnv
 getInputEnv = withMapSlotTagged #inputEnvs () $ do
     side <- askProblemSide
     funName <- askWithTag side.name
-    isMemHook <- askHook #isMemHook
-    isStackHook <- askHook #isStackHook
+    isMemHook <- askHook #isMem
+    isStackHook <- askHook #isStack
     fmap M.fromList $ for (zip [0..] side.input) $ \(i, sigVar) -> (sigVar.name,) <$> do
         let isMem = isMemHook funName PairingEqDirectionIn i
         let isStack = isStackHook funName PairingEqDirectionIn i
@@ -590,19 +588,19 @@ emitNode visit = do
                 let rpc = andE (notE cond) pc
                 return [(condNode.left, PcEnv lpc env), (condNode.right, PcEnv rpc env)]
             NodeCall callNode -> do
-                preHook <- askHook #preEmitCallNodeHook
+                preHook <- askHook #preEmitCallNode
                 preHook visit
                 env' <- getCallNodeEnv visit env callNode
-                postHook <- askHook #postEmitCallNodeHook
-                postHook visit
+                AddFunAssertsHook addFunAsserts <- askHook #addFunAsserts
+                addFunAsserts visit
                 return [(callNode.next, PcEnv pc env')]
 
 getCallNodeEnv :: C t m => Visit -> ExprEnv -> CallNode -> TaggedT t m ExprEnv
 getCallNodeEnv visit env callNode = do
     let ins = map (flattenExpr env) callNode.input
     funName <- askWithTag callNode.functionName
-    isMemHook <- askHook #isMemHook
-    isStackHook <- askHook #isStackHook
+    isMemHook <- askHook #isMem
+    isStackHook <- askHook #isStack
     newVars <- fmap M.fromList $ for (zip [0..] callNode.output) $ \(i, sigVar) -> (sigVar.name,) <$> do
         let isMem = isMemHook funName PairingEqDirectionOut i
         let isStack = isStackHook funName PairingEqDirectionOut i
@@ -685,8 +683,8 @@ getFunCallInfo unprunedVisit = do
 
 --
 
-addFunAssertsHook :: AsmRefineC t m => LookupFunctionSignature t -> Pairings' -> Visit -> TaggedT t m ()
-addFunAssertsHook lookupSig pairings = flip runReaderT env . addFunAsserts
+addFunAssertsHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> Pairings' -> AddFunAssertsHook t
+addFunAssertsHook lookupSig pairings = AddFunAssertsHook $ flip runReaderT env . addFunAssertsImpl
   where
     env = Env
         { lookupSig
@@ -703,8 +701,8 @@ data AddFunAssertHookEnv t
       }
   deriving (Generic)
 
-addFunAsserts :: AsmRefineC t m => Visit -> ReaderT (AddFunAssertHookEnv t) (TaggedT t m) ()
-addFunAsserts visit = do
+addFunAssertsImpl :: AsmRefineC t m => Visit -> ReaderT (AddFunAssertHookEnv t) (TaggedT t m) ()
+addFunAssertsImpl visit = do
     tag <- lift askTag
     funName <- lift $ liftUntagged $ WithTag tag <$> askFunName visit
     pairingIdOpt <- gview $ #pairingsAccess % at funName
@@ -723,7 +721,7 @@ areFunCallsCompatible visits = do
     lookupSig <- gview #lookupSig
     pairingsAccess <- gview $ #pairingsAccess
     lift $ do
-        isMemHook <- askHook #isMemHook
+        isMemHook <- askHook #isMem
         memCallsOpt <- for (withTags visits) $ \visitWithTag@(WithTag tag visit) -> do
             funName <- WithTag tag <$> askFunName visit
             info <- liftPure $ use $ #funCalls % expectingAt visitWithTag

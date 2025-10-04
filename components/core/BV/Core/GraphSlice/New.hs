@@ -4,7 +4,7 @@ module BV.Core.GraphSlice.New
     , FlatExpr
     , FunCallInfo (..)
     , GraphSliceExport (..)
-    , GraphSliceHooks (preEmitCallNodeHook)
+    , GraphSliceHooks (preEmitCallNode)
     , GraphSliceInput (..)
     , GraphSliceT
     , GraphSliceTaggedT
@@ -126,10 +126,10 @@ convertExpr =
         >=> liftInner . liftInner . liftInner . convertSolverExpr
 
 getPcWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m FlatExpr
-getPcWithTag (WithTag tag visit) = runTagged tag $ getPc visit
+getPcWithTag = runWithTag getPc
 
 getNodePcEnvWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m (Maybe PcEnv)
-getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
+getNodePcEnvWithTag = runWithTag getNodePcEnv
 
 addAccumulatedAssertions :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ()
 addAccumulatedAssertions = do

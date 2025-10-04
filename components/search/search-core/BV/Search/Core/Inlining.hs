@@ -100,12 +100,12 @@ nextCompletelyUnmatchedInlinePoints matched p = case M.keys (M.filter f p.nodes)
         NodeCall callNode -> S.notMember callNode.functionName matched
         _ -> False
 
-nextReachableUnmatchedCInlinePoint :: MonadGraphSliceSolverInteract m => S.Set Ident -> GraphSliceInput AsmRefineTag -> m (Maybe NodeAddr)
+nextReachableUnmatchedCInlinePoint :: forall m. MonadGraphSliceSolverInteract m => S.Set Ident -> GraphSliceInput AsmRefineTag -> m (Maybe NodeAddr)
 nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
     preview (_Left % #nodeAddr)
         <$> runExceptT (runGraphSliceT hooks repGraphInput nextReachableUnmatchedCInlinePointInner)
   where
-    hooks = defaultGraphSliceHooks & #preEmitCallNodeHook .~ inlinerHook
+    hooks = (defaultGraphSliceHooks :: GraphSliceHooks AsmRefineTag m) & #preEmitCallNode .~ inlinerHook
     inlinerHook visit = do
         tag <- askTag
         p <- askProblem
