@@ -168,14 +168,15 @@ defaultGraphSliceHooks = GraphSliceHooks
 asmRefineGraphSliceHooks
     :: t ~ AsmRefineTag
     => LookupFunctionSignature t
-    -> Pairings'
+    -> Pairings t
     -> ArgRenames t
     -> GraphSliceHooks t
-asmRefineGraphSliceHooks lookupSig pairings argRenames = defaultGraphSliceHooks
-    & #isStack .~ asmRefineIsStackHook lookupSig
-    & #stackPointer .~ asmRefineStackPointerHook argRenames
-    & #isMem .~ asmRefineIsMemHook lookupSig
-    & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
+asmRefineGraphSliceHooks lookupSig pairings argRenames =
+    defaultGraphSliceHooks
+        & #isStack .~ asmRefineIsStackHook lookupSig
+        & #stackPointer .~ asmRefineStackPointerHook argRenames
+        & #isMem .~ asmRefineIsMemHook lookupSig
+        & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
 
 initState :: TState t
 initState = TState
@@ -721,7 +722,7 @@ addFunAssertsImpl visit = do
                 imp <- mapReaderT liftUntagged $ getFunAssert visits
                 lift $ liftFlat $ assertFlatExpr $ weakenAssert imp
 
-areFunCallsCompatible :: AsmRefineC t m => ByTag' Visit -> ReaderT (AddFunAssertHookEnv t) (T t m) Bool
+areFunCallsCompatible :: AsmRefineC t m => ByTag t Visit -> ReaderT (AddFunAssertHookEnv t) (T t m) Bool
 areFunCallsCompatible visits = do
     lookupSig <- gview #lookupSig
     pairingsAccess <- gview $ #pairingsAccess

@@ -83,6 +83,9 @@ newtype GraphSliceSolverT m a
 instance MonadTrans GraphSliceSolverT where
     lift = GraphSliceSolverT . lift . lift . lift
 
+instance MonadMapInnermost T where
+    mapInnermost f = #run %~ mapStateT (mapReaderT (mapStructsT f))
+
 liftStructs :: Monad m => StructsT m a -> T m a
 liftStructs = GraphSliceSolverT . lift . lift
 

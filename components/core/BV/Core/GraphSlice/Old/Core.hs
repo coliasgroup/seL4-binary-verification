@@ -84,7 +84,7 @@ type TaggedC t n m = (C t n, MonadLiftUntaggedGeneric t n m)
 --
 
 newtype GraphSliceT t m a
-  = GraphSliceT { run :: StateT (TState t) (ReaderT (TEnv t m) (InnerT m)) a }
+  = GraphSliceT { run :: StateT (TState t) (ReaderT (TEnv t) (InnerT m)) a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
@@ -94,10 +94,13 @@ instance MonadTrans (T t) where
 instance MonadLiftInner InnerT (T t) where
     liftInner = GraphSliceT . lift . lift
 
+instance MonadMapInnermost (T t) where
+    mapInnermost f = #run %~ mapStateT (mapReaderT (mapInnermost f))
+
 runGraphSliceTStep
     :: (Tag t, MonadGraphSliceSendSExpr m)
     => Problem t
-    -> GraphSliceHooks t m
+    -> GraphSliceHooks t
     -> T t m a
     -> InnerT m a
 runGraphSliceTStep problem hooks m =
@@ -110,21 +113,24 @@ runGraphSliceTStep problem hooks m =
         initGraphSlice
         m
 
-data TEnv t m
+data TEnv t
   = TEnv
       { problem :: Problem t
       , analysis :: ProblemAnalysis t
-      , hooks :: GraphSliceHooks t m
+      , hooks :: GraphSliceHooks t
       }
   deriving (Generic)
 
 -- TODO abuse of PairingEqDirection
-data GraphSliceHooks t m
+data GraphSliceHooks t
   = GraphSliceHooks
       { isStackHook :: VarRepRequestKind -> WithTag t NameTy -> Maybe VarReqRequest
-      , postEmitCallNodeHook :: Visit -> TaggedT t m ()
+      , addFunAsserts :: AddFunAssertsHook t
       }
   deriving (Generic)
+
+newtype AddFunAssertsHook t
+  = AddFunAssertsHook (forall m. MonadGraphSliceSendSExpr m => Visit -> TaggedT t m ())
 
 data TState t
   = TState
@@ -151,29 +157,29 @@ data FunCallInfo
       }
   deriving (Eq, Generic, Ord, Show)
 
-initEnv :: Tag t => Problem t -> GraphSliceHooks t m -> TEnv t m
+initEnv :: Tag t => Problem t -> GraphSliceHooks t -> TEnv t
 initEnv problem hooks = TEnv
     { problem
     , analysis = analyzeProblem problem
     , hooks
     }
 
-defaultGraphSliceHooks :: Monad m => GraphSliceHooks t m
+defaultGraphSliceHooks :: GraphSliceHooks t
 defaultGraphSliceHooks = GraphSliceHooks
     { isStackHook = \_ _ -> Nothing
-    , postEmitCallNodeHook = \_ -> return ()
+    , addFunAsserts = AddFunAssertsHook $ \_ -> return ()
     }
 
 asmRefineGraphSliceHooks
-    :: forall t m. AsmRefineC t m
+    :: t ~ AsmRefineTag
     => LookupFunctionSignature t
-    -> Pairings'
+    -> Pairings t
     -> ArgRenames t
-    -> GraphSliceHooks t m
+    -> GraphSliceHooks t
 asmRefineGraphSliceHooks lookupSig pairings argRenames =
-    (defaultGraphSliceHooks :: GraphSliceHooks t m)
+    defaultGraphSliceHooks
         & #isStackHook .~ asmRefineIsStackHook argRenames
-        & #postEmitCallNodeHook .~ addFunAssertsHook lookupSig pairings
+        & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
 
 initState :: TState t
 initState = TState
@@ -214,7 +220,7 @@ instance Monad n => MonadLiftUntaggedGeneric t n (TaggedT t n) where
 liftFlat :: MonadLiftUntaggedGeneric t n m => InnerT n a -> m a
 liftFlat = liftUntaggedGeneric . liftInner
 
-liftPure :: MonadLiftUntaggedGeneric t n m => StateT (TState t) (Reader (TEnv t n)) a -> m a
+liftPure :: MonadLiftUntaggedGeneric t n m => StateT (TState t) (Reader (TEnv t)) a -> m a
 liftPure = liftUntaggedGeneric . GraphSliceT . mapStateT (mapReaderT (return . runIdentity))
 
 --
@@ -238,7 +244,7 @@ withMapSlotTagged l k m = do
 
 --
 
-askHook :: TaggedC t n m => Lens' (GraphSliceHooks t n) a -> m a
+askHook :: TaggedC t n m => Lens' (GraphSliceHooks t) a -> m a
 askHook l = liftPure $ gview $ #hooks % l
 
 askProblem :: TaggedC t n m => m (Problem t)
@@ -639,8 +645,8 @@ emitNode visit = do
                 liftPure $ #funCalls %= M.insertWith undefined key info
                 funName <- askWithTag callNode.functionName
                 liftPure $ #funCallsByName %= M.insertWith (flip (<>)) funName [visit]
-                postHook <- askHook #postEmitCallNodeHook
-                postHook visit
+                AddFunAssertsHook addFunAsserts <- askHook #addFunAsserts
+                addFunAsserts visit
                 return [(callNode.next, PcEnv pc env')]
 
 isSyntacticConstant :: C t m => NameTy -> NodeAddr -> TaggedT t m Bool
@@ -712,8 +718,8 @@ instEqWithEnvs (x, xenv) (y, yenv) = do
         _ -> convertInnerExpr expr
 --
 
-addFunAssertsHook :: AsmRefineC t m => LookupFunctionSignature t -> Pairings' -> Visit -> TaggedT t m ()
-addFunAssertsHook lookupSig pairings = flip runReaderT env . addFunAsserts
+addFunAssertsHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> Pairings t -> AddFunAssertsHook t
+addFunAssertsHook lookupSig pairings = AddFunAssertsHook $ flip runReaderT env . addFunAssertsImpl
   where
     env = Env
         { lookupSig
@@ -730,8 +736,8 @@ data AddFunAssertHookEnv t
       }
   deriving (Generic)
 
-addFunAsserts :: AsmRefineC t m => Visit -> ReaderT (AddFunAssertHookEnv t) (TaggedT t m) ()
-addFunAsserts visit = do
+addFunAssertsImpl :: AsmRefineC t m => Visit -> ReaderT (AddFunAssertHookEnv t) (TaggedT t m) ()
+addFunAssertsImpl visit = do
     tag <- lift askTag
     funName <- lift $ askWithTag =<< askFunName visit
     pairingIdOpt <- gview $ #pairingsAccess % at funName

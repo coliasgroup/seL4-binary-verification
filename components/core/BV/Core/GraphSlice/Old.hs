@@ -30,14 +30,14 @@ module BV.Core.GraphSlice.Old
     , getNodePcEnvWithTag
     , getPc
     , getPcWithTag
-    , instEqWithEnvs
     , interpretCheck
     , interpretHyp
     , interpretHypImps
     , liftUntagged
+    , mapGraphSliceT
+    , mapGraphSliceTaggedT
     , runAsmRefineGraphSliceT
     , runGraphSliceT
-    , runGraphSliceTStep
     , runTagged
     , tryGetNodePcEnv
     ) where
@@ -62,7 +62,7 @@ import Data.Traversable (for)
 
 runGraphSliceT
     :: (Tag t, MonadGraphSliceSendSExpr m)
-    => GraphSliceHooks t m
+    => GraphSliceHooks t
     -> GraphSliceInput t
     -> GraphSliceT t m a
     -> m a
@@ -87,6 +87,12 @@ runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
     hooks = asmRefineGraphSliceHooks input.lookupSig input.pairings argRenames
 
 --
+
+mapGraphSliceT
+    :: (forall a. m a -> n a)
+    -> GraphSliceT t m b
+    -> GraphSliceT t n b
+mapGraphSliceT = mapInnermost
 
 assertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m ()
 assertExpr = liftInner . assertFact
