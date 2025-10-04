@@ -3,9 +3,10 @@ module BV.Search.Core.Inlining.All
     , prepareAllDiscoverInlineScriptInput
     ) where
 
+import BV.Search.Core.Inlining
+
 import BV.Core.Stages
 import BV.Core.Types
-import BV.Search.Core.Inlining
 
 import Control.Monad (guard)
 import Data.Map ((!))

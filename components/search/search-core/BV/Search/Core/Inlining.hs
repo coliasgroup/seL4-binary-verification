@@ -1,22 +1,25 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module BV.Search.Core.Inlining
     ( DiscoverInlineScriptInput (..)
     , discoverInlineScript
     ) where
 
-import BV.Core.GraphSlice.New
+import BV.Search.Core.GraphSlice
+
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr (notE)
 import BV.Core.Types.Extras.Problem
-import BV.Core.Types.Extras.Program
 import BV.Core.Types.Extras.ProofCheck
 import BV.Search.Core.Solver
-import BV.Utils (expecting, expectingAt, is)
+import BV.Utils (expectingAt, is)
 
-import Control.Monad (unless, when)
-import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import Control.Applicative (asum)
+import Control.Monad (guard)
 import Control.Monad.State (StateT, evalStateT, get, gets, put)
 import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Maybe (runMaybeT)
 import Control.Monad.Writer (execWriterT, tell)
 import Data.Foldable (for_, toList, traverse_)
 import Data.Functor (void)
@@ -61,11 +64,11 @@ discoverInlineScript run input =
         let matchedC =
                 let present = presentInProblem problem
                 in S.fromList $ toList $ M.restrictKeys asmToCMatch present
-         in fmap (:[]) <$> run (nextReachableUnmatchedCInlinePoint matchedC (GraphSliceInput
+         in run $ nextReachableUnmatchedCInlinePoints matchedC $ GraphSliceInput
                 { structs = input.structs
                 , rodata = input.rodata
                 , problem
-                }))
+                }
 
 type Inliner t m = Problem t -> m (Maybe [NodeAddr])
 
@@ -100,28 +103,20 @@ nextCompletelyUnmatchedInlinePoints matched p = case M.keys (M.filter f p.nodes)
         NodeCall callNode -> S.notMember callNode.functionName matched
         _ -> False
 
-nextReachableUnmatchedCInlinePoint :: forall m. MonadGraphSliceSolverInteract m => S.Set Ident -> GraphSliceInput AsmRefineTag -> m (Maybe NodeAddr)
-nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
-    preview (_Left % #nodeAddr)
-        <$> runExceptT (runGraphSliceT hooks repGraphInput nextReachableUnmatchedCInlinePointInner)
-  where
-    hooks = defaultGraphSliceHooks & #preEmitCallNode .~ GraphSlicePreEmitCallNodeHookFn inlinerHook
-    inlinerHook :: Visit -> GraphSliceTaggedT AsmRefineTag (GraphSliceWithPreEmitCallHookFnT AsmRefineTag (ExceptT InliningEvent m)) ()
-    inlinerHook visit = do
-        tag <- askTag
-        p <- askProblem
-        let nodeAddr = nodeAddrOf visit.nodeId
-        let fname = p ^. #nodes % expectingAt nodeAddr % expecting #_NodeCall % #functionName
-        when (tag == C && S.notMember fname matchedC) $ do
-            pcEnv <- fromJust <$> getNodePcEnv visit
-            hyp <- liftUntagged $ convertExpr $ notE pcEnv.pc
-            res <- liftUntagged $ testHyp hyp
-            unless res $ liftUntagged $ lift $ throwError $ InliningEvent
-                { nodeAddr
-                }
+nextReachableUnmatchedCInlinePoints
+    :: MonadGraphSliceSolverInteract m
+    => S.Set Ident
+    -> GraphSliceInput AsmRefineTag
+    -> m (Maybe [NodeAddr])
+nextReachableUnmatchedCInlinePoints matchedC repGraphInput =
+    runGraphSliceT defaultGraphSliceHooks repGraphInput $
+        nextReachableUnmatchedCInlinePointsInner matchedC
 
-nextReachableUnmatchedCInlinePointInner :: MonadGraphSliceSolverInteract m => GraphSliceWithPreEmitCallHookFnT AsmRefineTag (ExceptT InliningEvent m) ()
-nextReachableUnmatchedCInlinePointInner = runTagged C $ do
+nextReachableUnmatchedCInlinePointsInner
+    :: MonadGraphSliceSolverInteract m
+    => S.Set Ident
+    -> GraphSliceT AsmRefineTag m (Maybe [NodeAddr])
+nextReachableUnmatchedCInlinePointsInner matchedC = runTagged C $ do
     p <- askProblem
     g <- askNodeGraph
     loops <- allInnerLoops p.nodes <$> askLoopData
@@ -132,9 +127,16 @@ nextReachableUnmatchedCInlinePointInner = runTagged C $ do
     traverse_ f $ sort $ filter (is #_Addr) reachable
     f Ret
     f Err
-
-data InliningEvent
-  = InliningEvent
-      { nodeAddr :: NodeAddr
-      }
-  deriving (Generic)
+    export <- liftUntagged askExport
+    -- HACK return just one result at a time to match graph-refine
+    runMaybeT $ asum $ flip map (toList export.funCallOrder) $ \(WithTag tag visit) -> do
+        guard $ tag == C
+        let Addr addr = visit.nodeId
+        problem <- lift askProblem
+        let Just fname = problem ^? #nodes % expectingAt addr % #_NodeCall % #functionName
+        guard $ S.notMember fname matchedC
+        pcEnv <- lift $ fromJust <$> getNodePcEnv visit
+        hyp <- lift $ liftUntagged $ convertExpr $ notE pcEnv.pc
+        res <- lift $ liftUntagged $ testHyp hyp
+        guard $ not res
+        return [addr]

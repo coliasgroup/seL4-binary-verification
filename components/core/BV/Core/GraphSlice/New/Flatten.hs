@@ -57,6 +57,7 @@ import Data.List (sort)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe)
+import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -156,6 +157,7 @@ data TState t
       , inductVars :: Map EqHypInduct FlatExpr
       , funCalls :: Map (WithTag t Visit) FunCallInfo
       , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
+      , funCallOrder :: Seq.Seq (WithTag t Visit)
       , stacks :: Set Ident
       , mems :: Map Ident MemCalls
       , hasInnerLoopCache :: Map (WithTag t NodeAddr) Bool
@@ -206,6 +208,7 @@ initState = TState
     , inductVars = M.empty
     , funCalls = M.empty
     , funCallsByName = M.empty
+    , funCallOrder = Seq.empty
     , stacks = S.empty
     , mems = M.empty
     , hasInnerLoopCache = M.empty
@@ -221,6 +224,7 @@ data GraphSliceExport t
       , inductVars :: Map EqHypInduct FlatExpr
       , funCalls :: Map (WithTag t Visit) FunCallInfo
       , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
+      , funCallOrder :: Seq.Seq (WithTag t Visit)
       }
   deriving (Generic)
 
@@ -232,6 +236,7 @@ askExport = liftPure $ do
     inductVars <- use #inductVars
     funCalls <- use #funCalls
     funCallsByName <- use #funCallsByName
+    funCallOrder <- use #funCallOrder
     return $ GraphSliceExport
         { inputEnvs
         , nodePcEnvs
@@ -239,6 +244,7 @@ askExport = liftPure $ do
         , inductVars
         , funCalls
         , funCallsByName
+        , funCallOrder
         }
 
 --

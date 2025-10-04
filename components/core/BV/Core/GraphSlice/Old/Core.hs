@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-missing-fields #-}
 
 module BV.Core.GraphSlice.Old.Core
     ( FunCallInfo (..)
@@ -9,6 +10,7 @@ module BV.Core.GraphSlice.Old.Core
     , VarRepRequestKind (..)
     , VarReqRequest (..)
     , askContVisit
+    , askExport
     , askLoopData
     , askNodeGraph
     , askProblem
@@ -26,7 +28,7 @@ module BV.Core.GraphSlice.Old.Core
 
 import BV.Core.GraphSlice.Old.Solver
 
-import BV.Core.GraphSlice.New (FlatExpr)
+import BV.Core.GraphSlice.New (FlatExpr, GraphSliceExport (..))
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.MemCalls
 import BV.Core.GraphSlice.New.NameHint
@@ -56,6 +58,7 @@ import Data.List (isPrefixOf, sort)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe)
+import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -137,6 +140,7 @@ data TState t
       , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , funCalls :: M.Map (WithTag t Visit) FunCallInfo
       , funCallsByName :: M.Map (WithTag t Ident) [Visit]
+      , funCallOrder :: Seq.Seq (WithTag t Visit)
       }
   deriving (Generic)
 
@@ -185,7 +189,17 @@ initState = TState
     , hasInnerLoop = M.empty
     , funCalls = M.empty
     , funCallsByName = M.empty
+    , funCallOrder = Seq.empty
     }
+
+--
+
+askExport :: Monad m => T t m (GraphSliceExport t)
+askExport = liftPure $ do
+    funCallOrder <- use #funCallOrder
+    return $ GraphSliceExport
+        { funCallOrder
+        }
 
 --
 
@@ -607,6 +621,8 @@ emitNode visit = do
                 let env' = M.insert condIdent (smtExprE boolT condDef) env
                 return [(condNode.left, PcEnv lpc env'), (condNode.right, PcEnv rpc env')]
             NodeCall callNode -> do
+                visitWithTag <- askWithTag visit
+                liftPure $ #funCallOrder %= (Seq.|> visitWithTag)
                 preHook <- askHook #preEmitCallNodeHook
                 preHook visit
                 success <- liftFlat $ smtExprE boolT . NotSplit . nameS <$>

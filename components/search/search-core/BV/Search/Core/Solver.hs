@@ -28,8 +28,9 @@ module BV.Search.Core.Solver
     , withoutSendSExpr
     ) where
 
+import BV.Search.Core.GraphSlice
+
 import BV.Core.ExecuteSMTProofChecks (defaultLogic, splitHyp)
-import BV.Core.GraphSlice.New
 import BV.Core.ModelConfig
 import BV.Core.Types
 import BV.Core.Types.Extras.SExprToExpr (sexprToExpr)
@@ -134,7 +135,7 @@ testHypCommon wantModel sexpr = case wantModel of
     True -> do
         undefined
 
-testHyp :: (Tag t, MonadGraphSliceSolverInteract m) => SExprWithPlaceholders -> GraphSliceWithPreEmitCallHookT h t m Bool
+testHyp :: (Tag t, MonadGraphSliceSolverInteract m) => SExprWithPlaceholders -> GraphSliceT t m Bool
 testHyp hyp = lift $ isTrueResult . ensureNoModel <$> testHypCommon False hyp
 
 testHypGetModel :: (Tag t, MonadGraphSliceSolverInteract m) => SExprWithPlaceholders -> GraphSliceT t m (TestResultWith Model)
@@ -370,15 +371,16 @@ instance MonadGraphSliceSendSExpr DontSendSExpr where
     sendSExpr s = DontSendSExprT $ tell [s]
 
 withoutSendSExpr :: Monad m => GraphSliceT t DontSendSExpr a -> GraphSliceT t m a
-withoutSendSExpr = mapGraphSliceT f
-  where
-    f m =
-        let (a, ss) = runWriter m.run
-         in case ss of
-                [] -> return a
-                _ -> error $
-                    "withoutSendSExpr:\n"
-                        ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- ss ]
+withoutSendSExpr = undefined
+-- withoutSendSExpr = mapGraphSliceT f
+--   where
+--     f m =
+--         let (a, ss) = runWriter m.run
+--          in case ss of
+--                 [] -> return a
+--                 _ -> error $
+--                     "withoutSendSExpr:\n"
+--                         ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- ss ]
 
 --
 

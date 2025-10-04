@@ -266,6 +266,7 @@ library search-core
       BV.Search.Core
       BV.Search.Core.Solver
   other-modules:
+      BV.Search.Core.GraphSlice
       BV.Search.Core.Inlining
       BV.Search.Core.Inlining.All
       BV.Search.Core.StackBounds
