@@ -36,6 +36,7 @@ module BV.Core.GraphSlice.New
     , interpretHyp
     , interpretHypImps
     , liftUntagged
+    , mapGraphSliceTaggedT
     , runAsmRefineGraphSliceT
     , runGraphSliceT
     , runTagged

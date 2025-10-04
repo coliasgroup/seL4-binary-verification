@@ -34,10 +34,11 @@ data ExprCommandInlineHint
 
 instance Binary ExprCommandInlineHint
 
--- TODO operate on t
-class (Monad m, Monad n) => MonadInner n m | m -> n where
-    liftInner :: Monad m => n a -> m a
+-- TODO rename to MonadLiftInner
+class MonadInner u t | t -> u where
+    liftInner :: Monad m => u m a -> t m a
 
+-- TODO rename to MonadMapInnermost
 class MonadMapBase t where
     mapBase :: (forall a. m a -> n a) -> (forall a. n a -> m a) -> t m b -> t n b
 

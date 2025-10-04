@@ -75,7 +75,7 @@ newtype GraphSliceSendFlatExprCommandT m a
 instance MonadTrans T where
     lift = liftInner . lift
 
-instance Monad m => MonadInner (InnerT m) (T m) where
+instance MonadInner InnerT T where
     liftInner = GraphSliceSendFlatExprCommandT . lift . lift . lift
 
 instance MonadMapBase T where

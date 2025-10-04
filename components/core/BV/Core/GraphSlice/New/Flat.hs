@@ -45,7 +45,7 @@ newtype GraphSliceFlatT m a
 instance MonadTrans T where
     lift = liftInner . lift
 
-instance Monad m => MonadInner (InnerT m) (T m) where
+instance MonadInner InnerT T where
     liftInner = GraphSliceFlatT . lift
 
 instance MonadMapBase T where
