@@ -188,7 +188,7 @@ testHypCommon wantModel sexpr = case wantModel of
         -- r <- checkHyp (Just req) sexpr
         -- return $ over (#_TestResultWithFalse % _Just) (reconstructModel exprs req) r
 
-testHyp :: (Tag t, MonadGraphSliceSolverInteract m) => SExprWithPlaceholders -> GraphSliceT t m Bool
+testHyp :: (Tag t, MonadGraphSliceSolverInteract m) => SExprWithPlaceholders -> GraphSliceWithPreEmitCallHookT h t m Bool
 testHyp hyp = lift $ isTrueResult . ensureNoModel <$> testHypCommon False hyp
 
 testHypGetModel :: (Tag t, MonadGraphSliceSolverInteract m) => SExprWithPlaceholders -> GraphSliceT t m (TestResultWith Model)

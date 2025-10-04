@@ -6,8 +6,12 @@ module BV.Core.GraphSlice.New
     , GraphSliceExport (..)
     , GraphSliceHooks (preEmitCallNode)
     , GraphSliceInput (..)
+    , GraphSlicePreEmitCallNodeHook (..)
+    , GraphSlicePreEmitCallNodeHookFn (..)
     , GraphSliceT
     , GraphSliceTaggedT
+    , GraphSliceWithPreEmitCallHookFnT
+    , GraphSliceWithPreEmitCallHookT
     , MonadGraphSliceSendSExpr (..)
     , PcEnv (..)
     , addAccumulatedAssertions
@@ -71,9 +75,9 @@ data GraphSliceInput t
 
 runGraphSliceT
     :: (Tag t, MonadGraphSliceSendSExpr m)
-    => GraphSliceHooks t m
+    => GraphSliceHooks h t
     -> GraphSliceInput t
-    -> GraphSliceT t m a
+    -> GraphSliceWithPreEmitCallHookT h t m a
     -> m a
 runGraphSliceT hooks input =
       runGraphSliceSendSolverExprCommandTStep input.rodata
@@ -123,7 +127,7 @@ mapGraphSliceT = mapInnermost
 assertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m ()
 assertExpr = liftInner . assertFlatExpr
 
-convertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m SExprWithPlaceholders
+convertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceWithPreEmitCallHookT h t m SExprWithPlaceholders
 convertExpr =
     liftInner . liftInner . convertFlatExpr
         >=> liftInner . liftInner . liftInner . convertSolverExpr

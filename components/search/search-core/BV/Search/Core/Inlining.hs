@@ -105,7 +105,8 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
     preview (_Left % #nodeAddr)
         <$> runExceptT (runGraphSliceT hooks repGraphInput nextReachableUnmatchedCInlinePointInner)
   where
-    hooks = (defaultGraphSliceHooks :: GraphSliceHooks AsmRefineTag m) & #preEmitCallNode .~ inlinerHook
+    hooks = defaultGraphSliceHooks & #preEmitCallNode .~ GraphSlicePreEmitCallNodeHookFn inlinerHook
+    inlinerHook :: Visit -> GraphSliceTaggedT AsmRefineTag (GraphSliceWithPreEmitCallHookFnT AsmRefineTag (ExceptT InliningEvent m)) ()
     inlinerHook visit = do
         tag <- askTag
         p <- askProblem
@@ -119,7 +120,7 @@ nextReachableUnmatchedCInlinePoint matchedC repGraphInput =
                 { nodeAddr
                 }
 
-nextReachableUnmatchedCInlinePointInner :: MonadGraphSliceSolverInteract m => GraphSliceT AsmRefineTag (ExceptT InliningEvent m) ()
+nextReachableUnmatchedCInlinePointInner :: MonadGraphSliceSolverInteract m => GraphSliceWithPreEmitCallHookFnT AsmRefineTag (ExceptT InliningEvent m) ()
 nextReachableUnmatchedCInlinePointInner = runTagged C $ do
     p <- askProblem
     g <- askNodeGraph
