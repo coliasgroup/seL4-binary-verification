@@ -3,9 +3,10 @@ module BV.Search.Core.StackBounds.All
     , prepareDiscoverStackBoundsInput
     ) where
 
+import BV.Search.Core.StackBounds
+
 import BV.Core.Stages
 import BV.Core.Types
-import BV.Search.Core.StackBounds
 
 import Control.Monad (guard)
 import qualified Data.Map as M

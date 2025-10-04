@@ -6,29 +6,28 @@ module BV.Search.Core.Inlining
     ) where
 
 import BV.Search.Core.GraphSlice
+import BV.Search.Core.Solver
 
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr (notE)
 import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.ProofCheck
-import BV.Search.Core.Solver
 import BV.Utils (expectingAt, is)
 
 import Control.Applicative (asum)
-import Control.Monad (guard)
+import Control.Monad (guard, unless)
 import Control.Monad.State (StateT, evalStateT, get, gets, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (runMaybeT)
 import Control.Monad.Writer (execWriterT, tell)
-import Data.Foldable (for_, toList, traverse_)
+import Data.Foldable (toList, traverse_)
 import Data.Functor (void)
 import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
-import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 
@@ -70,7 +69,7 @@ discoverInlineScript run input =
                 , problem
                 }
 
-type Inliner t m = Problem t -> m (Maybe [NodeAddr])
+type Inliner t m = Problem t -> m [NodeAddr]
 
 buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (WithTag t Ident -> Function) -> ByTag t (Named Function) -> m (InlineScript t)
 buildInlineScript inliner lookupFun funs = flip evalStateT initProblemBuilder $ do
@@ -78,9 +77,11 @@ buildInlineScript inliner lookupFun funs = flip evalStateT initProblemBuilder $ 
     doAnalysis
     let go = do
             p <- lift $ gets extractProblem
-            addrsOpt <- lift $ lift $ inliner p
-            for_ addrsOpt $ \addrs -> do
-                entries <- lift $ for addrs $ \addr -> inlineAtPoint lookupFun addr <* doAnalysis
+            addrs <- lift $ lift $ inliner p
+            unless (null addrs) $ do
+                entries <- lift $ traverse inlineEntryForPoint addrs
+                lift $ traverse (inline lookupFun) entries
+                lift $ doAnalysis
                 tell entries
                 go
     execWriterT go
@@ -89,15 +90,13 @@ composeInliners :: Monad m => Inliner t (StateT [Inliner t m] m)
 composeInliners problem = go
   where
     go = get >>= \case
-        [] -> return Nothing
+        [] -> return []
         x:xs -> lift (x problem) >>= \case
-            Just y -> return (Just y)
-            Nothing -> put xs >> go
+            [] -> put xs >> go
+            ys -> return ys
 
-nextCompletelyUnmatchedInlinePoints :: S.Set Ident -> Problem' -> Maybe [NodeAddr]
-nextCompletelyUnmatchedInlinePoints matched p = case M.keys (M.filter f p.nodes) of
-    [] -> Nothing
-    addrs -> Just addrs
+nextCompletelyUnmatchedInlinePoints :: S.Set Ident -> Problem' -> [NodeAddr]
+nextCompletelyUnmatchedInlinePoints matched p = M.keys (M.filter f p.nodes)
   where
     f = \case
         NodeCall callNode -> S.notMember callNode.functionName matched
@@ -107,7 +106,7 @@ nextReachableUnmatchedCInlinePoints
     :: MonadGraphSliceSolverInteract m
     => S.Set Ident
     -> GraphSliceInput AsmRefineTag
-    -> m (Maybe [NodeAddr])
+    -> m [NodeAddr]
 nextReachableUnmatchedCInlinePoints matchedC repGraphInput =
     runGraphSliceT defaultGraphSliceHooks repGraphInput $
         nextReachableUnmatchedCInlinePointsInner matchedC
@@ -115,7 +114,7 @@ nextReachableUnmatchedCInlinePoints matchedC repGraphInput =
 nextReachableUnmatchedCInlinePointsInner
     :: MonadGraphSliceSolverInteract m
     => S.Set Ident
-    -> GraphSliceT AsmRefineTag m (Maybe [NodeAddr])
+    -> GraphSliceT AsmRefineTag m [NodeAddr]
 nextReachableUnmatchedCInlinePointsInner matchedC = runTagged C $ do
     p <- askProblem
     g <- askNodeGraph
@@ -129,14 +128,13 @@ nextReachableUnmatchedCInlinePointsInner matchedC = runTagged C $ do
     f Err
     export <- liftUntagged askExport
     -- HACK return just one result at a time to match graph-refine
-    runMaybeT $ asum $ flip map (toList export.funCallOrder) $ \(WithTag tag visit) -> do
-        guard $ tag == C
+    fmap toList $ runMaybeT $ asum $ flip map (toList export.funCallOrder) $ \(WithTag tag visit) -> do
         let Addr addr = visit.nodeId
-        problem <- lift askProblem
-        let Just fname = problem ^? #nodes % expectingAt addr % #_NodeCall % #functionName
+        let Just fname = p ^? #nodes % expectingAt addr % #_NodeCall % #functionName
+        guard $ tag == C
         guard $ S.notMember fname matchedC
-        pcEnv <- lift $ fromJust <$> getNodePcEnv visit
-        hyp <- lift $ liftUntagged $ convertExpr $ notE pcEnv.pc
-        res <- lift $ liftUntagged $ testHyp hyp
+        res <- lift $ do
+            pcEnv <- fromJust <$> getNodePcEnv visit
+            liftUntagged $ convertExpr (notE pcEnv.pc) >>= testHyp
         guard $ not res
-        return [addr]
+        return addr

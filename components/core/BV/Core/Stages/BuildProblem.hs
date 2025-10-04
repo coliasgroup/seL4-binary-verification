@@ -10,7 +10,9 @@ module BV.Core.Stages.BuildProblem
     , extractProblem
     , extractProblemWithAnalysis
     , initProblemBuilder
+    , inline
     , inlineAtPoint
+    , inlineEntryForPoint
     ) where
 
 import BV.Core.GenerateFreshName
@@ -236,18 +238,23 @@ inline lookupFun entry = do
             % expectingIx entry.indexInProblem
     inlineInner lookupFun nodeAddr entry
 
-inlineAtPoint
-    :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
-inlineAtPoint lookupFun nodeAddr = do
+inlineEntryForPoint
+    :: (Tag t, Monad m) => NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
+inlineEntryForPoint nodeAddr = do
     meta <- use $ #nodes % expectingAt nodeAddr % unwrapped % #meta
     inlinedFunctionName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
     let Just (nodeSource, indexInProblem) = meta.sourceWithIndex
-    let entry = InlineScriptEntry
+    return $ InlineScriptEntry
             { tag = meta.tag
             , nodeSource
             , indexInProblem
             , inlinedFunctionName
             }
+
+inlineAtPoint
+    :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
+inlineAtPoint lookupFun nodeAddr = do
+    entry <- inlineEntryForPoint nodeAddr
     inlineInner lookupFun nodeAddr entry
     return entry
 
