@@ -91,7 +91,7 @@ newtype Cache
   deriving (Generic)
 
 emptyCache :: Cache
-emptyCache = Cache  M.empty
+emptyCache = Cache M.empty
 
 withCache :: Monad m => StateT (Maybe Cache) m a -> StateT Cache m a
 withCache (StateT f) = StateT $ \cache -> over _2 fromJust <$> f (Just cache)
@@ -109,56 +109,7 @@ type LowLevelModelRequest = [String]
 
 type LowLevelModel = [SExpr]
 
--- reconstructModel
---     :: M.Map SExprWithPlaceholders (Name, ExprType)
---     -> LowLevelModelRequest
---     -> LowLevelModel
---     -> Model
--- reconstructModel exprs req vals =
---     Model $ M.mapKeys (symbolS . (.unwrap)) assocs <> abbrevs
---   where
---     assocs = M.fromList $ catMaybes $ zipWith (\name val -> (,) name <$> smtToVal val) req vals
---     abbrevs = (assocs M.!) <$> M.filter (`M.member` assocs) (fst <$> exprs)
-
--- smtToVal :: SExpr -> Maybe GraphExpr
--- smtToVal sexpr = case viewSExpr sexpr of
---     Atom (SymbolAtom "true") -> Just trueE
---     Atom (SymbolAtom "false") -> Just falseE
---     Atom (HexadecimalAtom s) ->
---         Just $ numE (wordT todo) (readS readHex s)
---     Atom (BinaryAtom s) ->
---         Just $ numE (wordT todo) (readS readBin s)
---     List [Atom (SymbolAtom "_"), Atom (SymbolAtom ('b':'v':bits)), Atom (NumeralAtom n)] ->
---         Just $ numE (wordT (read bits)) (toInteger n)
---     _ -> Nothing
---   where
---     readS p s = case filter (null . snd) (p s) of
---         [(a, "")] -> a
---         _ -> error "parse failure"
-
--- evalModelExpr :: (Tag t, MonadGraphSliceSendSExpr m) => GraphExpr -> StateT Model (GraphSliceT t m) GraphExpr
--- evalModelExpr _expr = do
---     -- sexpr <- convertSolverExpr expr
---     evalModel undefined
-
--- evalModel :: Monad m => SExprWithPlaceholders -> StateT Model m GraphExpr
--- evalModel = go
---   where
---     go sexpr = maybe (complex sexpr) return (trySimple sexpr)
---     trySimple sexpr = smtToVal =<< traverse (preview #_AtomOrPlaceholderAtom) sexpr
---     complex sexpr = do
---         expr <- case sexpr of
---             List [op, cond, x, y] | op == symbolS "ite" -> do
---                 cond' <- go cond
---                 if | cond' == trueE -> go x
---                    | cond' == falseE -> go y
---                    | otherwise -> undefined
---             List (_op:args) -> do
---                 _args' <- traverse go args
---                 todo
---             _ -> undefined
---         #unwrap %= M.insert sexpr expr
---         return expr
+-- newtype ModelRequest t
 
 --
 
@@ -182,11 +133,6 @@ testHypCommon wantModel sexpr = case wantModel of
     False -> ensureNothing <$> checkHyp Nothing sexpr
     True -> do
         undefined
-        -- vars <- getModelVars
-        -- exprs <- getModelExprs
-        -- let req = S.toList vars ++ map fst (toList exprs)
-        -- r <- checkHyp (Just req) sexpr
-        -- return $ over (#_TestResultWithFalse % _Just) (reconstructModel exprs req) r
 
 testHyp :: (Tag t, MonadGraphSliceSolverInteract m) => SExprWithPlaceholders -> GraphSliceWithPreEmitCallHookT h t m Bool
 testHyp hyp = lift $ isTrueResult . ensureNoModel <$> testHypCommon False hyp
@@ -446,3 +392,8 @@ getFlatExprValue expr = do
     let valueExpr = sexprToExpr valueSExpr
     ensureM $ valueExpr.ty == expr.ty
     return valueExpr
+
+--
+
+newtype ModelRequest t a
+  = ModelRequest { unwrap :: forall m. MonadGraphSliceGetSExprValue m => GraphSliceT t m a }
