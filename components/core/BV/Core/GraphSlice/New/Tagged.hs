@@ -1,6 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module BV.Core.GraphSlice.New.Flatten.Tagged
+module BV.Core.GraphSlice.New.Tagged
     ( GraphSliceTaggedT
     , askTag
     , askWithTag

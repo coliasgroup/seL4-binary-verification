@@ -28,7 +28,7 @@ module BV.Core.GraphSlice.Old.Solver
     ) where
 
 import BV.Core.GraphSlice.New.Common
-import BV.Core.GraphSlice.New.Flatten.PcEnv
+import BV.Core.GraphSlice.New.PcEnv
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr, FlatExprContext)
 
 import BV.Core.GenerateFreshName

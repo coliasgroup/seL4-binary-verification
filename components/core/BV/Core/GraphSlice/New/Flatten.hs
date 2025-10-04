@@ -26,11 +26,11 @@ module BV.Core.GraphSlice.New.Flatten
 
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flat
-import BV.Core.GraphSlice.New.Flatten.AsmRefine
-import BV.Core.GraphSlice.New.Flatten.MemCalls
-import BV.Core.GraphSlice.New.Flatten.NameHint
-import BV.Core.GraphSlice.New.Flatten.PcEnv
-import BV.Core.GraphSlice.New.Flatten.Tagged
+import BV.Core.GraphSlice.New.AsmRefine
+import BV.Core.GraphSlice.New.MemCalls
+import BV.Core.GraphSlice.New.NameHint
+import BV.Core.GraphSlice.New.PcEnv
+import BV.Core.GraphSlice.New.Tagged
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 
 import BV.Core.Logic (eqHandlingRelWrapper, weakenAssert)

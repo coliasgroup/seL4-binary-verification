@@ -1,4 +1,4 @@
-module BV.Core.GraphSlice.New.Flatten.NameHint
+module BV.Core.GraphSlice.New.NameHint
     ( NameHint
     , condName
     , inductVarName

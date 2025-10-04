@@ -1,4 +1,4 @@
-module BV.Core.GraphSlice.New.Flatten.MemCalls
+module BV.Core.GraphSlice.New.MemCalls
     ( MemCalls
     , addMemCall
     , addUnboundedMemCalls

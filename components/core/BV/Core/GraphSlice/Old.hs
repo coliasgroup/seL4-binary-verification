@@ -45,8 +45,8 @@ import BV.Core.GraphSlice.Old.Solver
 import BV.Core.GraphSlice.New (AsmRefineGraphSliceInput (..), FlatExpr,
                                GraphSliceInput (..))
 import BV.Core.GraphSlice.New.Common
-import BV.Core.GraphSlice.New.Flatten.PcEnv
-import BV.Core.GraphSlice.New.Flatten.Tagged
+import BV.Core.GraphSlice.New.PcEnv
+import BV.Core.GraphSlice.New.Tagged
 
 import BV.Core.Logic (strengthenHyp)
 import BV.Core.Types

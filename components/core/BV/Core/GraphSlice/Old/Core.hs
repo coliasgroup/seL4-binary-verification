@@ -28,10 +28,10 @@ import BV.Core.GraphSlice.Old.Solver
 
 import BV.Core.GraphSlice.New (FlatExpr)
 import BV.Core.GraphSlice.New.Common
-import BV.Core.GraphSlice.New.Flatten.MemCalls
-import BV.Core.GraphSlice.New.Flatten.NameHint
-import BV.Core.GraphSlice.New.Flatten.PcEnv
-import BV.Core.GraphSlice.New.Flatten.Tagged
+import BV.Core.GraphSlice.New.MemCalls
+import BV.Core.GraphSlice.New.NameHint
+import BV.Core.GraphSlice.New.PcEnv
+import BV.Core.GraphSlice.New.Tagged
 
 import BV.Core.GenerateFreshName (generateFreshName)
 import BV.Core.Logic
