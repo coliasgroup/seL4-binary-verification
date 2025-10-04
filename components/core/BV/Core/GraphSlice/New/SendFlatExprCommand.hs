@@ -79,7 +79,7 @@ instance MonadLiftInner InnerT T where
     liftInner = GraphSliceSendFlatExprCommandT . lift . lift . lift
 
 instance MonadMapInnermost T where
-    mapInnermost f g = #run %~ (mapStateT (mapReaderT (mapStructsT (mapInnermost f g))))
+    mapInnermost f = #run %~ mapStateT (mapReaderT (mapStructsT (mapInnermost f)))
 
 liftStructs :: Monad m => StructsT (InnerT m) a -> T m a
 liftStructs = GraphSliceSendFlatExprCommandT . lift . lift

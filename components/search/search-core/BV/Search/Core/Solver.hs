@@ -424,7 +424,7 @@ instance MonadGraphSliceSendSExpr DontSendSExpr where
     sendSExpr s = DontSendSExprT $ tell [s]
 
 withoutSendSExpr :: Monad m => GraphSliceT t DontSendSExpr a -> GraphSliceT t m a
-withoutSendSExpr = mapGraphSliceT f g
+withoutSendSExpr = mapGraphSliceT f
   where
     f m =
         let (a, ss) = runWriter m.run
@@ -433,7 +433,6 @@ withoutSendSExpr = mapGraphSliceT f g
                 _ -> error $
                     "withoutSendSExpr:\n"
                         ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- ss ]
-    g _ = error "withoutSendSExpr"
 
 --
 

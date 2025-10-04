@@ -38,7 +38,7 @@ class MonadLiftInner u t | t -> u where
     liftInner :: Monad m => u m a -> t m a
 
 class MonadMapInnermost t where
-    mapInnermost :: (forall a. m a -> n a) -> (forall a. n a -> m a) -> t m b -> t n b
+    mapInnermost :: (forall a. m a -> n a) -> t m b -> t n b
 
 class Monad m => MonadGraphSliceSendSExpr m where
     sendSExpr :: SExprWithPlaceholders -> m ()

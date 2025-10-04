@@ -119,7 +119,6 @@ runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
 
 mapGraphSliceT
     :: (forall a. m a -> n a)
-    -> (forall a. n a -> m a)
     -> GraphSliceT t m b
     -> GraphSliceT t n b
 mapGraphSliceT = mapInnermost

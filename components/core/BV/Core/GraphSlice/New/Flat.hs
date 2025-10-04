@@ -49,7 +49,7 @@ instance MonadLiftInner InnerT T where
     liftInner = GraphSliceFlatT . lift
 
 instance MonadMapInnermost T where
-    mapInnermost f g = #run %~ (mapStateT (mapInnermost f g))
+    mapInnermost f = #run %~ mapStateT (mapInnermost f)
 
 liftPure :: Monad m => State TState a -> T m a
 liftPure = GraphSliceFlatT . mapStateT (return . runIdentity)

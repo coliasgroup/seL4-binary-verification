@@ -101,7 +101,7 @@ instance MonadLiftInner InnerT (T h t) where
     liftInner = GraphSliceT . lift . lift
 
 instance MonadMapInnermost (T h t) where
-    mapInnermost f g = #run %~ (mapStateT ((mapReaderT (mapInnermost f g))))
+    mapInnermost f = #run %~ mapStateT ((mapReaderT (mapInnermost f)))
 
 runGraphSliceTStep
     :: (Tag t, Monad m)

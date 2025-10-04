@@ -71,7 +71,7 @@ instance MonadTrans T where
     lift = GraphSliceSendSolverExprCommandT . lift . lift
 
 instance MonadMapInnermost T where
-    mapInnermost f _ = #run %~ mapStateT (mapReaderT f)
+    mapInnermost f = #run %~ mapStateT (mapReaderT f)
 
 liftPure :: Monad m => StateT TState (Reader TEnv) a -> T m a
 liftPure = GraphSliceSendSolverExprCommandT . mapStateT (mapReaderT (return . runIdentity))
