@@ -24,14 +24,14 @@ module BV.Core.GraphSlice.New.Flatten
     , tryGetNodePcEnv
     ) where
 
+import BV.Core.GraphSlice.New.AsmRefine
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flat
-import BV.Core.GraphSlice.New.AsmRefine
 import BV.Core.GraphSlice.New.MemCalls
 import BV.Core.GraphSlice.New.NameHint
 import BV.Core.GraphSlice.New.PcEnv
-import BV.Core.GraphSlice.New.Tagged
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
+import BV.Core.GraphSlice.New.Tagged
 
 import BV.Core.Logic (eqHandlingRelWrapper, weakenAssert)
 import BV.Core.Types

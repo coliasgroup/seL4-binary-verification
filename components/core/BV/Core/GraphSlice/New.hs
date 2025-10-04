@@ -46,9 +46,9 @@ import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flat
 import BV.Core.GraphSlice.New.Flatten
 import BV.Core.GraphSlice.New.PcEnv
-import BV.Core.GraphSlice.New.Tagged
 import BV.Core.GraphSlice.New.SendFlatExprCommand
 import BV.Core.GraphSlice.New.SendSolverExprCommand
+import BV.Core.GraphSlice.New.Tagged
 
 import BV.Core.Logic (eqHandlingRelWrapper, strengthenHyp)
 import BV.Core.Types
