@@ -204,6 +204,7 @@ internal-libraries:
     source-dirs: components/search/search-core
     exposed-modules:
       - BV.Search.Core
+      - BV.Search.Core.GraphSlice
       - BV.Search.Core.Solver
     dependencies:
       - sel4-bv:smtlib2

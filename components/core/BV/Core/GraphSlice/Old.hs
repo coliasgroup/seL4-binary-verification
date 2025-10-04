@@ -31,6 +31,7 @@ module BV.Core.GraphSlice.Old
     , getPc
     , getPcWithTag
     , instEqWithEnvs
+    , interpretCheck
     , interpretHyp
     , interpretHypImps
     , liftUntagged
@@ -127,6 +128,12 @@ interpretGroup group = do
     for hyps $ \(check, expr) -> do
         sexpr <- convertExpr expr
         return $ SMTProofCheckImp check.meta sexpr
+
+interpretCheck
+    :: (RefineTag t, MonadGraphSliceSendSExpr m)
+    => ProofCheck t a
+    -> GraphSliceT t m FlatExpr
+interpretCheck check = interpretHyp check.hyp >>= interpretHypImps check.hyps
 
 interpretHypImps :: (RefineTag t, MonadGraphSliceSendSExpr m) => [Hyp t] -> FlatExpr -> GraphSliceT t m FlatExpr
 interpretHypImps hyps concl = do
