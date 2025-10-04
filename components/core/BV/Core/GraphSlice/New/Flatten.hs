@@ -119,7 +119,6 @@ data TEnv t m
   deriving (Generic)
 
 -- TODO abuse of PairingEqDirection
--- TODO isStack -> Maybe stackPointer
 data GraphSliceHooks t m
   = GraphSliceHooks
       { isStack :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
