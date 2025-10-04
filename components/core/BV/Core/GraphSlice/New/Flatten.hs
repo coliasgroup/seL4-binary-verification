@@ -118,12 +118,11 @@ data TEnv t m
       }
   deriving (Generic)
 
--- TODO abuse of PairingEqDirection
 data GraphSliceHooks t m
   = GraphSliceHooks
-      { isStack :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
+      { isStack :: WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
       , stackPointer :: t -> GraphExpr
-      , isMem :: WithTag t Ident -> PairingEqDirection -> Integer -> Bool
+      , isMem :: WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
       , addFunAsserts :: AddFunAssertsHook t
       , preEmitCallNode :: Visit -> TaggedT t m ()
       }
@@ -489,8 +488,8 @@ getInputEnv = withMapSlotTagged #inputEnvs () $ do
     isMemHook <- askHook #isMem
     isStackHook <- askHook #isStack
     fmap M.fromList $ for (zip [0..] side.input) $ \(i, sigVar) -> (sigVar.name,) <$> do
-        let isMem = isMemHook funName PairingEqDirectionIn i
-        let isStack = isStackHook funName PairingEqDirectionIn i
+        let isMem = isMemHook funName FunctionSignatureDirectionIn i
+        let isStack = isStackHook funName FunctionSignatureDirectionIn i
         envVar <- liftFlat $ addVar (printf "%P_init" sigVar.name) sigVar.ty
         when isMem $ registerMem envVar.name emptyMemCalls
         when isStack $ registerStack envVar.name
@@ -608,8 +607,8 @@ getCallNodeEnv visit env callNode = do
     isMemHook <- askHook #isMem
     isStackHook <- askHook #isStack
     newVars <- fmap M.fromList $ for (zip [0..] callNode.output) $ \(i, sigVar) -> (sigVar.name,) <$> do
-        let isMem = isMemHook funName PairingEqDirectionOut i
-        let isStack = isStackHook funName PairingEqDirectionOut i
+        let isMem = isMemHook funName FunctionSignatureDirectionOut i
+        let isStack = isStackHook funName FunctionSignatureDirectionOut i
         let nameHint = localName visit sigVar.name
         if isStack
             then addSplitStackVars env nameHint
@@ -619,7 +618,7 @@ getCallNodeEnv visit env callNode = do
                     let [memInExpr] =
                             [ expr
                             | (inIx, expr) <- zip [0..] ins
-                            , isMemHook funName PairingEqDirectionIn inIx
+                            , isMemHook funName FunctionSignatureDirectionIn inIx
                             ]
                     memCalls <- getExprMemCalls memInExpr
                     registerMem envVar.name (addMemCall callNode.functionName memCalls)
@@ -735,7 +734,7 @@ areFunCallsCompatible visits = do
             let memInExprOpt = maybeFromSingletonList
                     [ expr
                     | (inIx, expr) <- zip [0..] info.ins
-                    , isMemHook funName PairingEqDirectionIn inIx
+                    , isMemHook funName FunctionSignatureDirectionIn inIx
                     ]
             traverse getExprMemCalls memInExprOpt
         return $ areMemCallsCompatible lookupSig (pairingsAccess !) memCallsOpt

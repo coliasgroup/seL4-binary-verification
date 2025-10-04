@@ -16,7 +16,6 @@ import Data.List (genericIndex)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
 import qualified Data.Set as S
-import Optics
 
 areMemCallsCompatible
     :: t ~ AsmRefineTag
@@ -29,7 +28,7 @@ areMemCallsCompatible lookupSig lookupPairingId callsOpt = case sequenceA callsO
     Just calls ->
         let hasMem cFunName =
                 any
-                    (asmRefineIsMemHook lookupSig (WithTag C cFunName) PairingEqDirectionIn)
+                    (asmRefineIsMemHook lookupSig (WithTag C cFunName) FunctionSignatureDirectionIn)
                     (zipWith const [0..] (lookupSig (WithTag C cFunName)).output)
             cCastCalls = M.fromList $ catMaybes
                 [ let pairingId = lookupPairingId (WithTag Asm asmFunName)
@@ -45,9 +44,9 @@ areMemCallsCompatible lookupSig lookupPairingId callsOpt = case sequenceA callsO
                  in memCallsRangesOverlap cCast cActual
          in all compat $ S.toList $ M.keysSet calls.c <> M.keysSet cCastCalls
 
-asmRefineIsMemHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> WithTag t Ident -> PairingEqDirection -> Integer -> Bool
+asmRefineIsMemHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
 asmRefineIsMemHook lookupSig fun direction i =
-    genericIndex (view (directionSigLabel direction) sig) i == NameTy (Ident memName) memT
+    genericIndex (viewFunctionSignatureDirection direction sig) i == NameTy (Ident memName) memT
   where
     sig = lookupSig fun
     isInstFun = any (== NameTy (Ident "inst_ident") tokenT) sig.input -- HACK
@@ -56,14 +55,9 @@ asmRefineIsMemHook lookupSig fun direction i =
         C | isInstFun -> "mem"
         C -> "Mem"
 
-asmRefineIsStackHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> WithTag t Ident -> PairingEqDirection -> Integer -> Bool
+asmRefineIsStackHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
 asmRefineIsStackHook lookupSig fun direction i =
-    fun.tag == Asm && genericIndex (view (directionSigLabel direction) (lookupSig fun)) i == asmStackVar
-
-directionSigLabel :: PairingEqDirection -> Lens' FunctionSignature [NameTy]
-directionSigLabel = \case
-    PairingEqDirectionIn -> #input
-    PairingEqDirectionOut -> #output
+    fun.tag == Asm && genericIndex (viewFunctionSignatureDirection direction (lookupSig fun)) i == asmStackVar
 
 asmStackVar :: NameTy
 asmStackVar = NameTy (Ident "stack") memT

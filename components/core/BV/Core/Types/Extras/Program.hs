@@ -4,6 +4,7 @@ module BV.Core.Types.Extras.Program
     ( FoldExprs (..)
     , FunctionFilter
     , FunctionSignature (..)
+    , FunctionSignatureDirection (..)
     , HasVarDecls (..)
     , HasVarNames (..)
     , LookupFunctionSignature
@@ -24,6 +25,7 @@ module BV.Core.Types.Extras.Program
     , varSubst
     , varSubstAll
     , varSubstAllM
+    , viewFunctionSignatureDirection
     , walkExprs
     , walkExprsGM
     , walkExprsM
@@ -220,3 +222,13 @@ signatureOfFunction fun = FunctionSignature
     }
 
 type LookupFunctionSignature t = WithTag t Ident -> FunctionSignature
+
+data FunctionSignatureDirection
+  = FunctionSignatureDirectionIn
+  | FunctionSignatureDirectionOut
+  deriving (Generic)
+
+viewFunctionSignatureDirection :: FunctionSignatureDirection -> FunctionSignature -> [NameTy]
+viewFunctionSignatureDirection dir = view $ case dir of
+    FunctionSignatureDirectionIn -> #input
+    FunctionSignatureDirectionOut -> #output
