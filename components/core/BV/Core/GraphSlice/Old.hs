@@ -4,7 +4,7 @@ module BV.Core.GraphSlice.Old
     , FlatExpr
     , FunCallInfo (..)
     , GraphSliceExport (..)
-    , GraphSliceHooks (preEmitCallNodeHook)
+    , GraphSliceHooks
     , GraphSliceInput (..)
     , GraphSliceT
     , GraphSliceTaggedT

@@ -4,7 +4,7 @@
 
 module BV.Core.GraphSlice.Old.Core
     ( FunCallInfo (..)
-    , GraphSliceHooks (preEmitCallNodeHook)
+    , GraphSliceHooks
     , GraphSliceT
     , TooGeneral (..)
     , VarRepRequestKind (..)
@@ -119,11 +119,10 @@ data TEnv t m
   deriving (Generic)
 
 -- TODO abuse of PairingEqDirection
-data GraphSliceHooks t n
+data GraphSliceHooks t m
   = GraphSliceHooks
-      { preEmitCallNodeHook :: Visit -> TaggedT t n ()
-      , postEmitCallNodeHook :: Visit -> TaggedT t n ()
-      , isStackHook :: VarRepRequestKind -> WithTag t NameTy -> Maybe VarReqRequest
+      { isStackHook :: VarRepRequestKind -> WithTag t NameTy -> Maybe VarReqRequest
+      , postEmitCallNodeHook :: Visit -> TaggedT t m ()
       }
   deriving (Generic)
 
@@ -161,20 +160,20 @@ initEnv problem hooks = TEnv
 
 defaultGraphSliceHooks :: Monad m => GraphSliceHooks t m
 defaultGraphSliceHooks = GraphSliceHooks
-    { preEmitCallNodeHook = \_ -> return ()
+    { isStackHook = \_ _ -> Nothing
     , postEmitCallNodeHook = \_ -> return ()
-    , isStackHook = \_ _ -> Nothing
     }
 
 asmRefineGraphSliceHooks
-    :: AsmRefineC t m
+    :: forall t m. AsmRefineC t m
     => LookupFunctionSignature t
     -> Pairings'
     -> ArgRenames t
     -> GraphSliceHooks t m
-asmRefineGraphSliceHooks lookupSig pairings argRenames = defaultGraphSliceHooks
-    & #postEmitCallNodeHook .~ addFunAssertsHook lookupSig pairings
-    & #isStackHook .~ asmRefineIsStackHook argRenames
+asmRefineGraphSliceHooks lookupSig pairings argRenames =
+    (defaultGraphSliceHooks :: GraphSliceHooks t m)
+        & #isStackHook .~ asmRefineIsStackHook argRenames
+        & #postEmitCallNodeHook .~ addFunAssertsHook lookupSig pairings
 
 initState :: TState t
 initState = TState
@@ -623,8 +622,6 @@ emitNode visit = do
             NodeCall callNode -> do
                 visitWithTag <- askWithTag visit
                 liftPure $ #funCallOrder %= (Seq.|> visitWithTag)
-                preHook <- askHook #preEmitCallNodeHook
-                preHook visit
                 success <- liftFlat $ smtExprE boolT . NotSplit . nameS <$>
                     addVar (successName visit callNode.functionName) boolT
                 ins <- liftFlat $ for callNode.input $ \arg -> smtExprE arg.ty <$> convertExpr' (flattenExpr env arg)
