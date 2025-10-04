@@ -5,8 +5,8 @@ module BV.Core.GraphSlice.New.Common
     ( ExprCommand (..)
     , ExprCommandInlineHint (..)
     , MonadGraphSliceSendSExpr (..)
-    , MonadInner (..)
-    , MonadMapBase (..)
+    , MonadLiftInner (..)
+    , MonadMapInnermost (..)
     ) where
 
 import BV.Core.Types
@@ -34,13 +34,11 @@ data ExprCommandInlineHint
 
 instance Binary ExprCommandInlineHint
 
--- TODO rename to MonadLiftInner
-class MonadInner u t | t -> u where
+class MonadLiftInner u t | t -> u where
     liftInner :: Monad m => u m a -> t m a
 
--- TODO rename to MonadMapInnermost
-class MonadMapBase t where
-    mapBase :: (forall a. m a -> n a) -> (forall a. n a -> m a) -> t m b -> t n b
+class MonadMapInnermost t where
+    mapInnermost :: (forall a. m a -> n a) -> (forall a. n a -> m a) -> t m b -> t n b
 
 class Monad m => MonadGraphSliceSendSExpr m where
     sendSExpr :: SExprWithPlaceholders -> m ()

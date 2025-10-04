@@ -45,11 +45,11 @@ newtype GraphSliceFlatT m a
 instance MonadTrans T where
     lift = liftInner . lift
 
-instance MonadInner InnerT T where
+instance MonadLiftInner InnerT T where
     liftInner = GraphSliceFlatT . lift
 
-instance MonadMapBase T where
-    mapBase f g = #run %~ (mapStateT (mapBase f g))
+instance MonadMapInnermost T where
+    mapInnermost f g = #run %~ (mapStateT (mapInnermost f g))
 
 liftPure :: Monad m => State TState a -> T m a
 liftPure = GraphSliceFlatT . mapStateT (return . runIdentity)

@@ -197,7 +197,7 @@ instance MonadGraphSliceSendSExpr DontSendSExpr where
     sendSExpr s = DontSendSExprT $ tell [s]
 
 withoutSendSExpr :: Monad m => GraphSliceT t DontSendSExpr a -> GraphSliceT t m a
-withoutSendSExpr = mapBase f g
+withoutSendSExpr = mapInnermost f g
   where
     f m =
         let (a, ss) = runWriter m.run

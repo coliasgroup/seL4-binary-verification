@@ -90,14 +90,14 @@ newtype GraphSliceT t m a
 instance MonadTrans (T t) where
     lift = liftInner . lift
 
-instance MonadInner InnerT (T t) where
+instance MonadLiftInner InnerT (T t) where
     liftInner = GraphSliceT . lift . lift
 
-instance MonadMapBase (T t) where
-    mapBase f g = #run %~ (mapStateT (withReaderT mapEnv . (mapReaderT (mapBase f g))))
+instance MonadMapInnermost (T t) where
+    mapInnermost f g = #run %~ (mapStateT (withReaderT mapEnv . (mapReaderT (mapInnermost f g))))
       where
         mapEnv = #hooks %~ mapHooks
-        mapHooks = #preEmitCallNode %~ (mapGraphSliceTaggedT (mapBase g f) .)
+        mapHooks = #preEmitCallNode %~ (mapGraphSliceTaggedT (mapInnermost g f) .)
 
 runGraphSliceTStep
     :: (Tag t, Monad m)

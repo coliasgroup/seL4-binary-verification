@@ -88,7 +88,7 @@ newtype GraphSliceT t m a
 instance MonadTrans (T t) where
     lift = liftInner . lift
 
-instance MonadInner InnerT (T t) where
+instance MonadLiftInner InnerT (T t) where
     liftInner = GraphSliceT . lift . lift
 
 runGraphSliceTStep

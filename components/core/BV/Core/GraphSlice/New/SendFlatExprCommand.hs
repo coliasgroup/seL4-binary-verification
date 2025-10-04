@@ -75,11 +75,11 @@ newtype GraphSliceSendFlatExprCommandT m a
 instance MonadTrans T where
     lift = liftInner . lift
 
-instance MonadInner InnerT T where
+instance MonadLiftInner InnerT T where
     liftInner = GraphSliceSendFlatExprCommandT . lift . lift . lift
 
-instance MonadMapBase T where
-    mapBase f g = #run %~ (mapStateT (mapReaderT (mapStructsT (mapBase f g))))
+instance MonadMapInnermost T where
+    mapInnermost f g = #run %~ (mapStateT (mapReaderT (mapStructsT (mapInnermost f g))))
 
 liftStructs :: Monad m => StructsT (InnerT m) a -> T m a
 liftStructs = GraphSliceSendFlatExprCommandT . lift . lift
