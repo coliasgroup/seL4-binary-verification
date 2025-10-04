@@ -8,7 +8,6 @@ module BV.Core.GraphSlice.New
     , GraphSliceInput (..)
     , GraphSliceT
     , GraphSliceTaggedT
-    , MonadGraphSliceGetSExprValue (..)
     , MonadGraphSliceSendSExpr (..)
     , PcEnv (..)
     , addAccumulatedAssertions
@@ -25,7 +24,6 @@ module BV.Core.GraphSlice.New
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
-    , getFlatExprValue
     , getFunCallInfo
     , getInductVar
     , getNodePcEnv
@@ -36,12 +34,12 @@ module BV.Core.GraphSlice.New
     , interpretHyp
     , interpretHypImps
     , liftUntagged
+    , mapGraphSliceT
     , mapGraphSliceTaggedT
     , runAsmRefineGraphSliceT
     , runGraphSliceT
     , runTagged
     , tryGetNodePcEnv
-    , withoutSendSExpr
     ) where
 
 import BV.Core.GraphSlice.New.Common
@@ -55,12 +53,9 @@ import BV.Core.GraphSlice.New.SendSolverExprCommand
 import BV.Core.Logic (eqHandlingRelWrapper, strengthenHyp)
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.SMTLIB2 (SExpr)
-import BV.Utils (ensureM)
 
 import Control.Monad ((>=>))
-import Control.Monad.Trans (lift)
-import Control.Monad.Writer (Writer, runWriter, tell)
+import Control.Monad.Writer (runWriter)
 import Data.Foldable (toList)
 import qualified Data.Map as M
 import Data.Traversable (for)
@@ -117,6 +112,13 @@ runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
     hooks = asmRefineGraphSliceHooks input.lookupSig input.pairings argRenames
 
 --
+
+mapGraphSliceT
+    :: (forall a. m a -> n a)
+    -> (forall a. n a -> m a)
+    -> GraphSliceT t m b
+    -> GraphSliceT t n b
+mapGraphSliceT = mapInnermost
 
 assertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m ()
 assertExpr = liftInner . assertFlatExpr
@@ -185,38 +187,3 @@ interpretHyp = \case
                     else do
                         return eq'
             _ -> return $ fromBoolE ifAt
-
---
-
-newtype DontSendSExpr a
-  = DontSendSExprT { run :: Writer [SExprWithPlaceholders] a }
-  deriving (Functor, Generic)
-  deriving newtype (Applicative, Monad)
-
-instance MonadGraphSliceSendSExpr DontSendSExpr where
-    sendSExpr s = DontSendSExprT $ tell [s]
-
-withoutSendSExpr :: Monad m => GraphSliceT t DontSendSExpr a -> GraphSliceT t m a
-withoutSendSExpr = mapInnermost f g
-  where
-    f m =
-        let (a, ss) = runWriter m.run
-         in case ss of
-                [] -> return a
-                _ -> error $
-                    "withoutSendSExpr:\n"
-                        ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- ss ]
-    g _ = error "withoutSendSExpr"
-
---
-
-class MonadGraphSliceSendSExpr m => MonadGraphSliceGetSExprValue m where
-    getSExprValue :: SExprWithPlaceholders -> m SExpr
-
-getFlatExprValue :: (Tag t, MonadGraphSliceGetSExprValue m) => FlatExpr -> GraphSliceT t m GraphExpr
-getFlatExprValue expr = do
-    sexpr <- withoutSendSExpr $ convertExpr expr
-    valueSExpr <- lift $ getSExprValue sexpr
-    let valueExpr = sexprToExpr valueSExpr
-    ensureM $ valueExpr.ty == expr.ty
-    return valueExpr

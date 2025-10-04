@@ -113,21 +113,22 @@ internal-libraries:
     exposed-modules:
       - BV.Core.DecorateProofScript
       - BV.Core.ExecuteSMTProofChecks
-      - BV.Core.Logic
-      - BV.Core.ModelConfig
-      - BV.Core.Prelude
       - BV.Core.GraphSlice
       - BV.Core.GraphSlice.New
       - BV.Core.GraphSlice.Old
+      - BV.Core.Logic
+      - BV.Core.ModelConfig
+      - BV.Core.Prelude
       - BV.Core.Stages
       - BV.Core.Structs
       - BV.Core.Types
+      - BV.Core.Types.Extras.DebugShowExpr # TODO
       - BV.Core.Types.Extras.Expr # TODO
       - BV.Core.Types.Extras.Problem # TODO
       - BV.Core.Types.Extras.Program # TODO
       - BV.Core.Types.Extras.ProofCheck # TODO
+      - BV.Core.Types.Extras.SExprToExpr # TODO
       - BV.Core.Types.Extras.SExprWithPlaceholders # TODO
-      - BV.Core.Types.Extras.DebugShowExpr # TODO
       - BV.Core.Utils.IncludeExcludeFilter
     dependencies:
       - sel4-bv:smtlib2

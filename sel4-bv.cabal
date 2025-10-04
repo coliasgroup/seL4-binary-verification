@@ -75,21 +75,22 @@ library core
   exposed-modules:
       BV.Core.DecorateProofScript
       BV.Core.ExecuteSMTProofChecks
-      BV.Core.Logic
-      BV.Core.ModelConfig
-      BV.Core.Prelude
       BV.Core.GraphSlice
       BV.Core.GraphSlice.New
       BV.Core.GraphSlice.Old
+      BV.Core.Logic
+      BV.Core.ModelConfig
+      BV.Core.Prelude
       BV.Core.Stages
       BV.Core.Structs
       BV.Core.Types
+      BV.Core.Types.Extras.DebugShowExpr
       BV.Core.Types.Extras.Expr
       BV.Core.Types.Extras.Problem
       BV.Core.Types.Extras.Program
       BV.Core.Types.Extras.ProofCheck
+      BV.Core.Types.Extras.SExprToExpr
       BV.Core.Types.Extras.SExprWithPlaceholders
-      BV.Core.Types.Extras.DebugShowExpr
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
       BV.Core.Arch
@@ -119,7 +120,6 @@ library core
       BV.Core.Types.AsmRefineTag
       BV.Core.Types.Extras
       BV.Core.Types.Extras.Pairing
-      BV.Core.Types.Extras.SExprToExpr
       BV.Core.Types.ObjDump
       BV.Core.Types.Pairing
       BV.Core.Types.Problem
