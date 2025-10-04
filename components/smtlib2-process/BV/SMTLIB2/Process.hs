@@ -13,13 +13,16 @@ import BV.SMTLIB2.SExpr.Build
 import BV.SMTLIB2.SExpr.Parse.Attoparsec
 
 import Control.Applicative ((<|>))
-import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently))
-import Control.Concurrent.STM
-import Control.Exception (Exception, SomeException, bracket, finally, throwIO)
-import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow, try)
+import Control.Concurrent.Async (Concurrently (Concurrently, runConcurrently),
+                                 withAsync)
+import Control.Concurrent.STM (STM, TChan, atomically, check, newEmptyTMVarIO,
+                               newTChanIO, putTMVar, readTChan, readTMVar,
+                               readTVar, registerDelay, writeTChan)
+import Control.Exception (Exception, SomeException, bracket, finally)
+import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow, throwM, try)
 import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO), toIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO (withRunInIO))
 import Control.Monad.Reader (MonadTrans (lift), ReaderT, asks, runReaderT)
 import Data.Conduit (Flush (Chunk, Flush), runConduit, yield, (.|))
 import Data.Conduit.Attoparsec (conduitParser)
@@ -37,7 +40,6 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB
 import Data.Void (absurd)
 import GHC.Generics (Generic)
-import GHC.Stack (HasCallStack)
 import System.Exit (ExitCode)
 import System.Process (CreateProcess)
 
@@ -59,6 +61,9 @@ newtype SolverT m a
 
 type SolverTInner m = ReaderT (SolverContext m) m
 
+instance MonadTrans SolverT where
+    lift = SolverT . lift
+
 runSolverT :: Monad m => SolverT m a -> SolverContext m -> m a
 runSolverT = runReaderT . (.unwrap)
 
@@ -66,7 +71,15 @@ data SolverContext m
   = SolverContext
       { sendSExpr :: SExpr -> m ()
       , recvSExprWithTimeout :: Maybe SolverTimeout -> m (Maybe SExpr)
+      , monitor :: STM SolverProcessException
       }
+
+mapSolverContext :: (forall a. m a -> n a) -> SolverContext m -> SolverContext n
+mapSolverContext f ctx = SolverContext
+    { sendSExpr = f . ctx.sendSExpr
+    , recvSExprWithTimeout = f . ctx.recvSExprWithTimeout
+    , monitor = ctx.monitor
+    }
 
 instance Monad m => MonadSolver (SolverT m) where
     sendSExpr req = SolverT $ do
@@ -76,12 +89,6 @@ instance Monad m => MonadSolver (SolverT m) where
         f <- asks (.recvSExprWithTimeout)
         lift $ f timeout
 
-liftIOContext :: MonadIO m => SolverContext IO -> SolverContext m
-liftIOContext ctx = SolverContext
-    { sendSExpr = liftIO . ctx.sendSExpr
-    , recvSExprWithTimeout = liftIO . ctx.recvSExprWithTimeout
-    }
-
 runSolver
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
     => (T.Text -> m ()) -> CreateProcess -> SolverT m a -> m a
@@ -90,7 +97,7 @@ runSolver = runSolverWith id
 runSolverWith
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
     => (SolverContext m -> SolverContext m) -> (T.Text -> m ()) -> CreateProcess -> SolverT m a -> m a
-runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
+runSolverWith modifyCtx stderrSink cmd solverAction = withRunInIO $ \run -> bracket
     (streamingProcess cmd)
     cleanup
     (run . go)
@@ -98,8 +105,10 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
     cleanup (_, _, _, sph) =
         closeStreamingProcessHandle sph `finally` terminateProcess (streamingProcessHandleRaw sph)
 
-    go (FlushInput procStdin, procStdout, procStderr, processHandle) = do
-        sourceChan <- liftIO newTChanIO
+    go (FlushInput procStdin, procStdout, procStderr, processHandle) = withRunInIO $ \run -> liftIO $ do
+        sourceChan <- newTChanIO
+
+        exceptionSlot <- newEmptyTMVarIO
 
         let sexprToChunks sexpr = map T.encodeUtf8 (TL.toChunks (TB.toLazyText (buildSExpr sexpr <> "\n")))
 
@@ -115,7 +124,7 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
                 .| CL.concat
                 .| CL.mapM_ (atomically . writeTChan sourceChan)
 
-        logging <- toIO . runConduit $
+        let logging = run $ runConduit $
                 procStderr
                 .| decodeUtf8
                 .| CT.lines
@@ -123,21 +132,31 @@ runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run -> bracket
 
         let termination = waitForStreamingProcess processHandle
 
-        let ctx = SolverContext
+        let ctx = mapSolverContext monitoring $ SolverContext
                 { sendSExpr = sink
                 , recvSExprWithTimeout = \maybeTimeout ->
                     readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
+                , monitor = readTMVar exceptionSlot
                 }
 
-        let env = asum $ map (Concurrently . (>>= throwIO))
-                [ SolverProcessExceptionSource <$> try source
-                , SolverProcessExceptionLogging <$> try logging
-                , SolverProcessExceptionTermination <$> termination
-                ]
+            monitor :: IO a
+            monitor = atomically ctx.monitor >>= throwM
 
-        let interaction = runSolverT m (modifyCtx (liftIOContext ctx))
+            monitoring :: IO a -> IO a
+            monitoring m = runConcurrently $ Concurrently m <|> Concurrently monitor
 
-        withRunInIO $ \run -> liftIO $ runConcurrently $ Concurrently (run interaction) <|> (absurd <$> env)
+        let env = do
+                ex <- runConcurrently $ asum $ map Concurrently
+                    [ SolverProcessExceptionSource <$> try source
+                    , SolverProcessExceptionLogging <$> try logging
+                    , SolverProcessExceptionTermination <$> termination
+                    ]
+                atomically $ putTMVar exceptionSlot ex
+
+        let interaction = runSolverT solverAction (modifyCtx (liftIOContext ctx))
+
+        withAsync env $ \_ ->
+            runConcurrently $ Concurrently (run interaction) <|> Concurrently (absurd <$> monitor)
 
 data SolverProcessException
   = SolverProcessExceptionSource (Either SomeException ())
@@ -159,8 +178,14 @@ readTChanWithTimeout maybeMicroseconds chan = case maybeMicroseconds of
 solverTimeoutToMicroseconds :: SolverTimeout -> Int
 solverTimeoutToMicroseconds timeout = fromIntegerChecked (solverTimeoutToSeconds timeout * 10^(6 :: Integer))
 
-fromIntegerChecked :: forall a. HasCallStack => (Num a, Integral a, Bounded a) => Integer -> a
+fromIntegerChecked :: forall a. (Num a, Integral a, Bounded a) => Integer -> a
 fromIntegerChecked x = if lo <= x && x <= hi then fromInteger x else error "out of bounds"
   where
     lo = toInteger (minBound :: a)
     hi = toInteger (maxBound :: a)
+
+--
+
+-- TODO
+liftIOContext :: MonadIO m => SolverContext IO -> SolverContext m
+liftIOContext = mapSolverContext liftIO

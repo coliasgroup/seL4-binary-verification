@@ -66,6 +66,7 @@ augmentSolverContextWithLogging ctx =
                 Just sexpr -> withPushLogContext "recv" $ do
                     logTraceGeneric . toLazyText $ buildSExpr sexpr
             return resp
+        , monitor = ctx.monitor
         }
 
 runSolverWithLogging :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m) => CreateProcess -> SolverT m a -> m a
