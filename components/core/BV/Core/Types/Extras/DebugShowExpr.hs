@@ -12,6 +12,7 @@ module BV.Core.Types.Extras.DebugShowExpr
 import BV.Core.Types
 import BV.SMTLIB2
 import BV.Utils (ensure)
+
 import Text.Printf (printf)
 
 debugShowExpr :: Expr c -> String
