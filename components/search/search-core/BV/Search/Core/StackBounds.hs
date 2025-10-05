@@ -7,9 +7,9 @@ module BV.Search.Core.StackBounds
     , discoverStackBounds
     ) where
 
+import BV.Search.Core.GraphSlice
 import BV.Search.Core.Solver
 
-import BV.Core.GraphSlice.New
 import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Problem
