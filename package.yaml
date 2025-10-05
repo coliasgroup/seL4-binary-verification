@@ -87,6 +87,7 @@ internal-libraries:
       # external
       - conduit
       - conduit-extra
+      - resourcet
 
   logging:
     visibility: public

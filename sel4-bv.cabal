@@ -435,6 +435,7 @@ library smtlib2-process
     , optics
     , parallel
     , process
+    , resourcet
     , safe-exceptions
     , sel4-bv:smtlib2
     , stm
