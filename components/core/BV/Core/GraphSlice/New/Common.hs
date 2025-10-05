@@ -41,13 +41,13 @@ class MonadMapInnermost t where
     mapInnermost :: (forall a. m a -> n a) -> t m b -> t n b
 
 class Monad m => MonadGraphSliceSendSExpr m where
-    sendSExpr :: SExprWithPlaceholders -> m ()
+    sendCommand :: SMTProofCheckCommand -> m ()
 
-instance Monad m => MonadGraphSliceSendSExpr (WriterT [SExprWithPlaceholders] m) where
-    sendSExpr s = tell [s]
+instance Monad m => MonadGraphSliceSendSExpr (WriterT [SMTProofCheckCommand] m) where
+    sendCommand s = tell [s]
 
 instance MonadGraphSliceSendSExpr m => MonadGraphSliceSendSExpr (ExceptT e m) where
-    sendSExpr = lift . sendSExpr
+    sendCommand = lift . sendCommand
 
 instance MonadGraphSliceSendSExpr m => MonadGraphSliceSendSExpr (ReaderT r m) where
-    sendSExpr = lift . sendSExpr
+    sendCommand = lift . sendCommand

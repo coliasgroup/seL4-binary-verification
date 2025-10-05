@@ -197,7 +197,7 @@ simpleCommandToSExpr = \case
     DefineFun (FunDefinition { name, args, ret, body }) -> List
         [ "define-fun"
         , Atom (symbolAtom name)
-        , List (map (\(n, ty) -> List [Atom (symbolAtom n), ty]) args)
+        , List [ List [Atom (symbolAtom n), ty] | (n, ty) <- args ]
         , ret
         , body
         ]

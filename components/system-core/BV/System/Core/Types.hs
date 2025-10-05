@@ -35,6 +35,7 @@ module BV.System.Core.Types
     ) where
 
 import BV.Core.Prelude
+import BV.Core.Types
 import BV.System.Core.Fingerprinting
 import BV.Utils (expectingAt)
 
@@ -58,7 +59,7 @@ data CheckGroup
       { fingerprint :: CheckGroupFingerprint
       , path :: CheckGroupPath
       , proofScriptNodePath :: ProofScriptNodePath AsmRefineTag
-      , setup :: [SExprWithPlaceholders]
+      , setup :: [SMTProofCheckCommand]
       , checks :: [Check]
       }
   deriving (Eq, Generic, Ord, Show)

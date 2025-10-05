@@ -33,7 +33,7 @@ executeSMTProofCheckOffline
     => Maybe SolverTimeout -> ModelConfig -> SMTProofCheck a -> m (Maybe SatResult)
 executeSMTProofCheckOffline timeout config check = do
     commonSolverSetup config
-    traverse_ (sendExpectingSuccess . configureSExpr config) check.setup
+    traverse_ (sendExpectingSuccess . simpleCommandToSExpr . configureCommand config) check.setup
     sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr config $ goal
     checkSatWithTimeout timeout
   where
@@ -79,7 +79,7 @@ executeSMTProofCheckGroupOnline
     -> m (Either OnlineSolverFailureInfo ())
 executeSMTProofCheckGroupOnline timeout config group = do
     commonSolverSetup config
-    traverse_ (sendExpectingSuccess . configureSExpr config) group.setup
+    traverse_ (sendExpectingSuccess . simpleCommandToSExpr . configureCommand config) group.setup
     runExceptT $ do
         for_ (zip [0..] group.imps) $ \(i, imp) -> do
             let hyps = splitHyp (notS imp.term)

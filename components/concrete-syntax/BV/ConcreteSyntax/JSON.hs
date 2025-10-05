@@ -99,13 +99,13 @@ deriving instance FromJSON CompatSMTProofChecks
 
 deriving instance ToJSON CompatSMTProofChecks
 
-instance FromJSON (SMTProofCheckGroup ())
+instance FromJSON CompatSMTProofCheckGroup
 
-instance ToJSON (SMTProofCheckGroup ())
+instance ToJSON CompatSMTProofCheckGroup
 
-instance FromJSON (SMTProofCheckImp ())
+instance FromJSON CompatSMTProofCheckImp
 
-instance ToJSON (SMTProofCheckImp ())
+instance ToJSON CompatSMTProofCheckImp
 
 instance FromJSON SExprWithPlaceholders where
     parseJSON = parseTextFaster parseSExprWithPlaceholdersFaster

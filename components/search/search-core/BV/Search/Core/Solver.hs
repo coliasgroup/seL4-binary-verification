@@ -256,9 +256,9 @@ instance MonadTrans GraphSliceSolverInteractSimple where
     lift = GraphSliceSolverInteractSimple . lift . lift
 
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractSimple m) where
-    sendSExpr s = GraphSliceSolverInteractSimple $ do
+    sendCommand s = GraphSliceSolverInteractSimple $ do
         modelConfig <- gview #modelConfig
-        sendExpectingSuccess $ configureSExpr modelConfig s
+        sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
 
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractSimple m) where
     getSExprValue s = GraphSliceSolverInteractSimple $ do
@@ -311,7 +311,7 @@ newtype GraphSliceSolverInteractParallel m a
 
 data ParallelState
   = ParallelState
-      { setup :: [SExprWithPlaceholders]
+      { setup :: [SMTProofCheckCommand]
       }
   deriving (Generic)
 
@@ -326,10 +326,10 @@ data ParallelEnv m
 type RunParallel m = m ()
 
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
-    sendSExpr s = GraphSliceSolverInteractParallel $ do
+    sendCommand s = GraphSliceSolverInteractParallel $ do
         #setup %= (++ [s])
         modelConfig <- gview #modelConfig
-        sendExpectingSuccess $ configureSExpr modelConfig s
+        sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
 
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
     checkHyp modelRequestOpt hyp = GraphSliceSolverInteractParallel $ do
@@ -363,12 +363,12 @@ runGraphSliceSolverInteractParallel runParallel timeout modelConfig m = do
 --
 
 newtype DontSendSExpr a
-  = DontSendSExprT { run :: Writer [SExprWithPlaceholders] a }
+  = DontSendSExprT { run :: Writer [SMTProofCheckCommand] a }
   deriving (Functor, Generic)
   deriving newtype (Applicative, Monad)
 
 instance MonadGraphSliceSendSExpr DontSendSExpr where
-    sendSExpr s = DontSendSExprT $ tell [s]
+    sendCommand s = DontSendSExprT $ tell [s]
 
 withoutSendSExpr :: Monad m => GraphSliceT t DontSendSExpr a -> GraphSliceT t m a
 withoutSendSExpr = mapGraphSliceT f
@@ -379,7 +379,7 @@ withoutSendSExpr = mapGraphSliceT f
                 [] -> return a
                 _ -> error $
                     "withoutSendSExpr:\n"
-                        ++ concat [ showSExprWithPlaceholders s ++ "\n" | s <- ss ]
+                        ++ concat [ showSExprWithPlaceholders (commandToSExpr s) ++ "\n" | s <- ss ]
 
 --
 

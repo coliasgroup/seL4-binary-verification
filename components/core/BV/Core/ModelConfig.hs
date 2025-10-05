@@ -9,7 +9,8 @@ module BV.Core.ModelConfig
     , prettyModelConfig
     ) where
 
-import BV.Core.Types
+import BV.Core.Types.SExprWithPlaceholders
+
 import BV.SMTLIB2
 
 import Data.Binary (Binary)

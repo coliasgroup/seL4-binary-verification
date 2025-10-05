@@ -76,8 +76,8 @@ instance MonadMapInnermost T where
 liftPure :: Monad m => StateT TState (Reader TEnv) a -> T m a
 liftPure = GraphSliceSendSolverExprCommandT . mapStateT (mapReaderT (return . runIdentity))
 
-send :: C m => SExprWithPlaceholders -> T m ()
-send = lift . sendSExpr
+send :: C m => SMTProofCheckCommand -> T m ()
+send = lift . sendCommand
 
 runGraphSliceSendSolverExprCommandTStep :: Monad m => ROData -> T m a -> m a
 runGraphSliceSendSolverExprCommandTStep rodata =
@@ -177,7 +177,11 @@ concreteTokenType = ExprTypeWord 64
 addSmtVar :: C m => SmtNameHint -> ExprType -> T m SmtName
 addSmtVar nameHint ty = do
     name <- takeFreshName nameHint
-    send $ declareFunS name.unwrap [] (typeToSmt ty)
+    send $ SMTProofCheckCommandDeclareFun $ SMTProofCheckFunDeclaration
+        { name = name.unwrap
+        , args = []
+        , ret = typeToSmt ty
+        }
     return name
 
 addSmtDef :: C m => SmtNameHint -> SolverExpr -> T m SmtName
@@ -186,7 +190,12 @@ addSmtDef nameHint val = convertSolverExpr val >>= addConvertedSmtDef nameHint v
 addConvertedSmtDef :: C m => SmtNameHint -> ExprType -> SExprWithPlaceholders -> T m SmtName
 addConvertedSmtDef nameHint ty s = do
     name <- takeFreshName nameHint
-    send $ defineFunS name.unwrap [] (typeToSmt ty) s
+    send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
+        { name = name.unwrap
+        , args = []
+        , ret = typeToSmt ty
+        , body = s
+        }
     return name
 
 --
@@ -206,7 +215,7 @@ sendSolverExprCommand = \case
             liftPure $ #nameMap %= M.insertWith undefined var.name name
     ExprCommandAssert expr -> do
         s <- convertSolverExpr expr
-        send $ assertS s
+        send $ SMTProofCheckCommandAssert $ SMTProofCheckAssertion s
 
 convertSolverExpr :: HasCallStack => C m => SolverExpr -> T m SExprWithPlaceholders
 convertSolverExpr expr = case expr.value of
@@ -341,11 +350,12 @@ getDerivedWordOp op bits = do
                         topAppExtended
                 OpWordReverse ->
                     concatS botApp topApp
-    send $ defineFunS
-        name.unwrap
-        [("x", bitVecS bits)]
-        (bitVecS bits)
-        body
+    send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
+        { name = name.unwrap
+        , args = [("x", bitVecS bits)]
+        , ret = bitVecS bits
+        , body
+        }
     return name
 
 getDerivedRODataOp :: C m => Op -> T m SmtName
@@ -368,19 +378,20 @@ getDerivedRODataOp op = do
             OpExt OpExtImpliesROData -> do
                 roWitness <- nameS <$> addSmtVar "rodata-witness" word32T
                 roWitnessVal <- nameS <$> addSmtVar "rodata-witness-val" word32T
-                send $ assertS $ orNS
+                send $ SMTProofCheckCommandAssert $ SMTProofCheckAssertion $ orNS
                     [ andS
                         (machineWordS range.addr `bvuleS` roWitness)
                         (roWitness `bvuleS` machineWordS (range.addr + range.size - 1))
                     | range <- rodata.ranges
                     ]
-                send $ assertS $ eqS
+                send $ SMTProofCheckCommandAssert $ SMTProofCheckAssertion $ eqS
                     (roWitness `bvandS` machineWordS 3)
                     (machineWordS 0)
                 return $ loadWord32S "m" roWitness `eqS` roWitnessVal
-    send $ defineFunS
-        name.unwrap
-        [("m", typeToSmt ExprTypeMem)]
-        boolS
-        body
+    send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
+        { name = name.unwrap
+        , args = [("m", typeToSmt ExprTypeMem)]
+        , ret = boolS
+        , body
+        }
     return name

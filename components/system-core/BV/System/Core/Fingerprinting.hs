@@ -18,6 +18,7 @@ module BV.System.Core.Fingerprinting
 
 import BV.ConcreteSyntax
 import BV.Core.Prelude
+import BV.Core.Types
 
 import Control.DeepSeq (NFData)
 import Crypto.Hash.SHA256 (hashlazy)
@@ -40,7 +41,7 @@ fingerprintCheck :: SMTProofCheck a -> CheckFingerprint
 fingerprintCheck check =
     CheckFingerprint . hashlazy . encodeUtf8 . toLazyText . buildSExprWithPlaceholders $
         [ "SMTProofCheck"
-        , ["setup", fromList check.setup]
+        , ["setup", fromList (map commandToSExpr check.setup)]
         , ["imp", check.imp.term]
         ]
 
@@ -53,7 +54,7 @@ fingerprintCheckGroup :: SMTProofCheckGroup a -> CheckGroupFingerprint
 fingerprintCheckGroup group =
     CheckGroupFingerprint . hashlazy . encodeUtf8 . toLazyText . buildSExprWithPlaceholders $
         [ "SMTProofCheckGroup"
-        , ["setup", fromList group.setup]
+        , ["setup", fromList (map commandToSExpr group.setup)]
         , ["imps", fromList (map (.term) group.imps)]
         ]
 

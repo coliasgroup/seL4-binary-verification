@@ -1,5 +1,9 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module BV.Core.Types.Aggregate
     ( CompatProofChecks (..)
+    , CompatSMTProofCheckGroup (..)
+    , CompatSMTProofCheckImp (..)
     , CompatSMTProofChecks (..)
     , InlineScripts (..)
     , InlineScripts'
@@ -24,6 +28,7 @@ import BV.Core.Types.Problem
 import BV.Core.Types.Program
 import BV.Core.Types.ProofCheck
 import BV.Core.Types.ProofScript
+import BV.Core.Types.SExprWithPlaceholders
 import BV.Core.Types.SMTProofCheck
 import BV.Core.Types.Tag
 
@@ -85,13 +90,41 @@ toCompatProofChecks :: ProofChecks AsmRefineTag String -> CompatProofChecks
 toCompatProofChecks (ProofChecks byPairing) = CompatProofChecks $ M.map fold byPairing
 
 newtype CompatSMTProofChecks
-  = CompatSMTProofChecks { unwrap :: M.Map PairingId' [SMTProofCheckGroup ()] }
+  = CompatSMTProofChecks { unwrap :: M.Map PairingId' [CompatSMTProofCheckGroup] }
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
+toCompatSMTProofCheckGroup :: SMTProofCheckGroup () -> CompatSMTProofCheckGroup
+toCompatSMTProofCheckGroup group = CompatSMTProofCheckGroup
+    { setup = map commandToSExpr group.setup
+    , imps =
+        [ CompatSMTProofCheckImp
+            { meta = ()
+            , term = imp.term
+            }
+        | imp <- group.imps
+        ]
+    }
+
+data CompatSMTProofCheckGroup
+  = CompatSMTProofCheckGroup
+      { setup :: [SExprWithPlaceholders]
+      , imps :: [CompatSMTProofCheckImp]
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data CompatSMTProofCheckImp
+  = CompatSMTProofCheckImp
+      { meta :: ()
+      , term :: SExprWithPlaceholders
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
 toCompatSMTProofChecks :: SMTProofChecks AsmRefineTag a -> CompatSMTProofChecks
 toCompatSMTProofChecks smtProofChecks = CompatSMTProofChecks $
-    M.map (toListOf (folded % folded % _2)) (void smtProofChecks).unwrap
+    M.map
+        (map toCompatSMTProofCheckGroup . toListOf (folded % folded % _2))
+        (void smtProofChecks).unwrap
 
 -- search outputs
 

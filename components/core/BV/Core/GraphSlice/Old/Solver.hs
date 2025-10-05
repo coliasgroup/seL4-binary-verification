@@ -95,8 +95,8 @@ liftPure = GraphSliceSolverT . mapStateT (mapReaderT (return . runIdentity))
 liftSolver :: Monad m => StateT TState (Reader TEnv) a -> T m a
 liftSolver = liftPure
 
-send :: C m => SExprWithPlaceholders -> T m ()
-send = lift . sendSExpr
+send :: C m => SMTProofCheckCommand -> T m ()
+send = lift . sendCommand
 
 runGraphSliceSolverTStep :: C m => (Ident -> Struct) -> ROData -> T m a -> m a
 runGraphSliceSolverTStep lookupStruct rodata m =
@@ -273,7 +273,12 @@ addDefInner nameHint expr = convertExpr' expr >>= \case
         unless (isTypeOmitted ty) $ do
             -- TODO
             -- ensureM $ isn't #_ExprValueVar expr.value
-            send $ defineFunS name.unwrap [] (typeToSMT ty) s
+            send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
+                { name = name.unwrap
+                , args = []
+                , ret = typeToSMT ty
+                , body = s
+                }
             liftSolver $ #defs %= M.insert name s
             when (isTypeRepresentable ty) $ do
                 liftSolver $ #modelVars %= S.insert name
@@ -318,13 +323,17 @@ addVar :: C m => SmtNameHint -> ExprType -> T m SmtName
 addVar nameHint ty = do
     name <- takeFreshName nameHint
     unless (isTypeOmitted ty) $ do
-        send $ declareFunS name.unwrap [] (typeToSMT ty)
+        send $ SMTProofCheckCommandDeclareFun $ SMTProofCheckFunDeclaration
+            { name = name.unwrap
+            , args = []
+            , ret = typeToSMT ty
+            }
         when (isTypeRepresentable ty) $ do
             liftSolver $ #modelVars %= S.insert name
     return name
 
 assertSMTFact :: C m => S -> T m ()
-assertSMTFact = send . assertS
+assertSMTFact = send . SMTProofCheckCommandAssert . SMTProofCheckAssertion
 
 assertFact :: C m => FlatExpr -> T m ()
 assertFact = convertExprNotSplit >=> assertSMTFact
@@ -422,16 +431,18 @@ addRODataDef = do
                 (roWitnessS `bvandS` machineWordS 3)
                 (machineWordS 0)
             return (andNS eqs, last eqs)
-    send $ defineFunS
-        roName.unwrap
-        [(memParamName, typeToSMT ExprTypeMem)]
-        boolS
-        roDef
-    send $ defineFunS
-        impRoName.unwrap
-        [(memParamName, typeToSMT ExprTypeMem)]
-        boolS
-        impRoDef
+    send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
+        { name = roName.unwrap
+        , args = [(memParamName, typeToSMT ExprTypeMem)]
+        , ret = boolS
+        , body = roDef
+        }
+    send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
+        { name = impRoName.unwrap
+        , args = [(memParamName, typeToSMT ExprTypeMem)]
+        , ret = boolS
+        , body = impRoDef
+        }
 
 -- TODO
 addPValidDomAssertions :: C m => T m ()
@@ -684,7 +695,12 @@ getDerivedOp op bits = fmap symbolS $ withMapSlot #smtDerivedOps (op, bits) $ do
                         topAppExtended
                 OpWordReverse ->
                     concatS botApp topApp
-    send $ defineFunS fname [("x", bitVecS bits)] (bitVecS bits) body
+    send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
+        { name = fname
+        , args = [("x", bitVecS bits)]
+        , ret = bitVecS bits
+        , body
+        }
     return fname
 
 convertMemUpdate :: C m => MaybeSplit -> S -> S -> ExprType -> T m MaybeSplit
