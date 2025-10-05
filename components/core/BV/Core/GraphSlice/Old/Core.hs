@@ -10,7 +10,6 @@ module BV.Core.GraphSlice.Old.Core
     , VarRepRequestKind (..)
     , VarReqRequest (..)
     , askContVisit
-    , askExport
     , askLoopData
     , askNodeGraph
     , askProblem
@@ -18,6 +17,7 @@ module BV.Core.GraphSlice.Old.Core
     , defaultGraphSliceHooks
     , flattenExpr
     , getFunCallInfo
+    , getFunCallVisitsCompat
     , getInductVar
     , getNodePcEnv
     , getPc
@@ -28,7 +28,7 @@ module BV.Core.GraphSlice.Old.Core
 
 import BV.Core.GraphSlice.Old.Solver
 
-import BV.Core.GraphSlice.New (FlatExpr, GraphSliceExport (..))
+import BV.Core.GraphSlice.New (FlatExpr)
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.MemCalls
 import BV.Core.GraphSlice.New.NameHint
@@ -199,12 +199,10 @@ initState = TState
 
 --
 
-askExport :: Monad m => T t m (GraphSliceExport t)
-askExport = liftPure $ do
+getFunCallVisitsCompat :: Monad m => T t m [WithTag t Visit]
+getFunCallVisitsCompat = liftPure $ do
     funCallOrder <- use #funCallOrder
-    return $ GraphSliceExport
-        { funCallOrder
-        }
+    return $ toList funCallOrder
 
 --
 

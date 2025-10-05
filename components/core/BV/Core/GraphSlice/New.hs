@@ -12,7 +12,6 @@ module BV.Core.GraphSlice.New
     , PcEnv (..)
     , addAccumulatedAssertions
     , askContVisit
-    , askExport
     , askLoopData
     , askNodeGraph
     , askProblem
@@ -24,7 +23,9 @@ module BV.Core.GraphSlice.New
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
+    , getExport
     , getFunCallInfo
+    , getFunCallVisitsCompat
     , getInductVar
     , getNodePcEnv
     , getNodePcEnvWithTag
@@ -186,3 +187,10 @@ interpretHyp = \case
                     else do
                         return eq'
             _ -> return $ fromBoolE ifAt
+
+--
+
+getFunCallVisitsCompat :: Monad m => GraphSliceT t m [WithTag t Visit]
+getFunCallVisitsCompat = do
+    export <- getExport
+    return $ M.keys export.funCalls

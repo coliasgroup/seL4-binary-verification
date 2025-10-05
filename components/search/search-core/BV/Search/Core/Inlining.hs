@@ -126,9 +126,9 @@ nextReachableUnmatchedCInlinePointsInner matchedC = runTagged C $ do
     traverse_ f $ sort $ filter (is #_Addr) reachable
     f Ret
     f Err
-    export <- liftUntagged askExport
+    funCallVisits <- liftUntagged getFunCallVisitsCompat
     -- HACK return just one result at a time to match graph-refine
-    fmap toList $ runMaybeT $ asum $ flip map (toList export.funCallOrder) $ \(WithTag tag visit) -> do
+    fmap toList $ runMaybeT $ asum $ flip map funCallVisits $ \(WithTag tag visit) -> do
         let Addr addr = visit.nodeId
         let Just fname = p ^? #nodes % expectingAt addr % #_NodeCall % #functionName
         guard $ tag == C

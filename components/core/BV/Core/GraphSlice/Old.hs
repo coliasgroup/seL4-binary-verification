@@ -12,7 +12,6 @@ module BV.Core.GraphSlice.Old
     , PcEnv (..)
     , addAccumulatedAssertions
     , askContVisit
-    , askExport
     , askLoopData
     , askNodeGraph
     , askProblem
@@ -24,7 +23,9 @@ module BV.Core.GraphSlice.Old
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
+    , getExport
     , getFunCallInfo
+    , getFunCallVisitsCompat
     , getInductVar
     , getNodePcEnv
     , getNodePcEnvWithTag
@@ -46,8 +47,9 @@ import BV.Core.GraphSlice.Old.Core
 import BV.Core.GraphSlice.Old.Solver
 
 import BV.Core.GraphSlice.New (AsmRefineGraphSliceInput (..), FlatExpr,
-                               GraphSliceExport (..), GraphSliceInput (..))
+                               GraphSliceInput (..))
 import BV.Core.GraphSlice.New.Common
+import BV.Core.GraphSlice.New.Flatten (GraphSliceExport (..))
 import BV.Core.GraphSlice.New.PcEnv
 import BV.Core.GraphSlice.New.Tagged
 
@@ -173,3 +175,8 @@ interpretHyp = \case
                         return eq'
             _ -> do
                 return $ fromBoolE ifAt
+
+--
+
+getExport :: Monad m => GraphSliceT t m (GraphSliceExport t)
+getExport = undefined
