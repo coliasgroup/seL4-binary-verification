@@ -3,6 +3,8 @@ module BV.SMTLIB2.Process
     , SolverProcessException (..)
     , SolverT (..)
     , mapSolverContext
+    , monitorSolverContext
+    , monitoringSolverContext
     , runSolver
     , runSolverT
     , runSolverWith
@@ -91,6 +93,13 @@ instance Monad m => MonadSolver (SolverT m) where
         f <- asks (.recvSExprWithTimeout)
         lift $ f timeout
 
+monitorSolverContext :: SolverContext m -> IO a
+monitorSolverContext ctx = atomically ctx.monitor >>= throwM
+
+monitoringSolverContext :: SolverContext m -> IO a -> IO a
+monitoringSolverContext ctx m = runConcurrently $
+    Concurrently m <|> Concurrently (monitorSolverContext ctx)
+
 acquireSolverContext :: (T.Text -> IO ()) -> CreateProcess -> Acquire (SolverContext IO)
 acquireSolverContext stderrSink cmd = do
 
@@ -126,16 +135,12 @@ acquireSolverContext stderrSink cmd = do
 
         termination = waitForStreamingProcess processHandle
 
-        ctx = mapSolverContext orThrow $ SolverContext
+        ctx = SolverContext
             { sendSExpr = sink
             , recvSExprWithTimeout = \maybeTimeout ->
                 readTChanWithTimeout (solverTimeoutToMicroseconds <$> maybeTimeout) sourceChan
             , monitor = readTMVar exceptionSlot
             }
-
-        orThrow :: IO a -> IO a
-        orThrow m = runConcurrently $
-            Concurrently m <|> Concurrently (atomically ctx.monitor >>= throwM)
 
         monitorBackend = do
             ex <- runConcurrently $ asum $ map Concurrently
@@ -147,7 +152,7 @@ acquireSolverContext stderrSink cmd = do
 
     mkAcquire (async monitorBackend) uninterruptibleCancel
 
-    return ctx
+    return $ mapSolverContext (monitoringSolverContext ctx) ctx
 
 runSolver
     :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
@@ -159,7 +164,9 @@ runSolverWith
     => (SolverContext m -> SolverContext m) -> (T.Text -> m ()) -> CreateProcess -> SolverT m a -> m a
 runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run ->
     withAcquire (acquireSolverContext (run . stderrSink) cmd) $ \ctx ->
-        run $ runSolverT m (modifyCtx (mapSolverContext liftIO ctx))
+        monitoringSolverContext ctx $
+            run $
+                runSolverT m (modifyCtx (mapSolverContext liftIO ctx))
 
 data SolverProcessException
   = SolverProcessExceptionSource (Either SomeException ())
