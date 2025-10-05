@@ -1,5 +1,8 @@
 module BV.Utils
-    ( applyWhenM
+    ( allM
+    , andM
+    , anyM
+    , applyWhenM
     , compose2
     , compose3
     , compose4
@@ -16,6 +19,7 @@ module BV.Utils
     , is
     , mapFilterA
     , mapFromSetA
+    , orM
     , setFilterA
     , todo
     , unimplemented
@@ -107,6 +111,18 @@ findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present:
 (!@) = findWithCallstack
 
 --
+
+allM :: (Monad m, Foldable f) => (a -> m Bool) -> f a -> m Bool
+allM f = foldr (andM . f) (pure True)
+
+anyM :: (Monad m, Foldable f) => (a -> m Bool) -> f a -> m Bool
+anyM f = foldr (orM . f) (pure False)
+
+orM :: Monad m => m Bool -> m Bool -> m Bool
+orM m1 m2 = m1 >>= \x -> if x then return True else m2
+
+andM :: Monad m => m Bool -> m Bool -> m Bool
+andM m1 m2 = m1 >>= \x -> if x then m2 else return False
 
 whileM :: Monad m => m Bool -> m () -> m ()
 whileM cond body = go

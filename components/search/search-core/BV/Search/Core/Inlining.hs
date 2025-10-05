@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Search.Core.Inlining
     ( DiscoverInlineScriptInput (..)
@@ -13,15 +14,15 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr (notE)
 import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.ProofCheck
-import BV.Utils (expectingAt, is)
+import BV.Utils (anyM, expecting, expectingAt, is)
 
 import Control.Applicative (asum)
-import Control.Monad (guard, unless)
+import Control.Monad (filterM, guard, unless)
 import Control.Monad.State (StateT, evalStateT, get, gets, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (runMaybeT)
 import Control.Monad.Writer (execWriterT, tell)
-import Data.Foldable (toList, traverse_)
+import Data.Foldable (for_, toList, traverse_)
 import Data.Functor (void)
 import Data.List (sort)
 import Data.Map (Map)
@@ -115,7 +116,40 @@ nextReachableUnmatchedCInlinePointsInner
     :: MonadGraphSliceSolverInteract m
     => S.Set Ident
     -> GraphSliceT AsmRefineTag m [NodeAddr]
-nextReachableUnmatchedCInlinePointsInner matchedC = runTagged C $ do
+nextReachableUnmatchedCInlinePointsInner =
+    -- nextReachableUnmatchedCInlinePointsInnerIncompat
+    nextReachableUnmatchedCInlinePointsInnerCompat
+
+nextReachableUnmatchedCInlinePointsInnerIncompat
+    :: MonadGraphSliceSolverInteract m
+    => S.Set Ident
+    -> GraphSliceT AsmRefineTag m [NodeAddr]
+nextReachableUnmatchedCInlinePointsInnerIncompat matchedC = runTagged C $ do
+    p <- askProblem
+    g <- askNodeGraph
+    loops <- allInnerLoops p.nodes <$> askLoopData
+    let limits = [ Restr loop.head (doubleRangeVC 3 3) | loop <- loops ]
+    for_ (reachableFrom g p.sides.c.entryPoint) $ \n -> tryGetNodePcEnv $ Visit n limits
+    funCallVisits <- liftUntagged getFunCallVisitsCompat
+    let unmatchedByAddr = foldl (M.unionWith S.union) M.empty
+            [ let Addr addr = visit.nodeId
+                  fname = p ^. #nodes % expectingAt addr % expecting #_NodeCall % #functionName
+               in if S.notMember fname matchedC
+                  then M.singleton addr (S.singleton visit)
+                  else M.empty
+            | WithTag C visit <- funCallVisits
+            ]
+    fmap (map fst) $ flip filterM (M.toList unmatchedByAddr) $ \(_addr, visits) ->
+        flip anyM visits $ \visit -> do
+            pcEnv <- fromJust <$> getNodePcEnv visit
+            unreachable <- liftUntagged $ convertExpr (notE pcEnv.pc) >>= testHyp
+            return $ not unreachable
+
+nextReachableUnmatchedCInlinePointsInnerCompat
+    :: MonadGraphSliceSolverInteract m
+    => S.Set Ident
+    -> GraphSliceT AsmRefineTag m [NodeAddr]
+nextReachableUnmatchedCInlinePointsInnerCompat matchedC = runTagged C $ do
     p <- askProblem
     g <- askNodeGraph
     loops <- allInnerLoops p.nodes <$> askLoopData
