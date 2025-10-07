@@ -8,8 +8,6 @@ module BV.Search.Core.Solver
     , GraphSliceSolverInteractSimpleFailureInfo (..)
     , MonadGraphSliceGetSExprValue
     , MonadGraphSliceSolverInteract
-    , askModelConfig
-    , askTimeout
     , emptyCache
     , getFlatExprValue
     , runGraphSliceSolverInteractSimple
@@ -36,10 +34,10 @@ import BV.Utils
 
 import Control.Monad (when)
 import Control.Monad.Catch (MonadThrow)
-import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError,
-                             withExceptT)
-import Control.Monad.Reader (ReaderT, runReaderT)
-import Control.Monad.State (StateT (StateT), evalStateT, modify)
+import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError)
+import Control.Monad.Identity (runIdentity)
+import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
+import Control.Monad.State (StateT (StateT), evalStateT, mapStateT, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.Foldable (traverse_)
@@ -47,18 +45,16 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((%=), (.=))
+import Optics.State.Operators ((.=), (<<.=))
 
 -- TODO
 -- Use an abstraction that allows for caching sat results
-
--- TODO
 -- Add param to run*Solver* that determines whether ":produce-models" is sent
 
 --
 
 newtype Cache
-  = Cache { unwrap :: M.Map SExprWithPlaceholders Bool }
+  = Cache { unwrap :: M.Map FlatExpr Bool }
   deriving (Generic)
 
 emptyCache :: Cache
@@ -73,33 +69,34 @@ withoutCache (StateT f) = fst <$> f Nothing
 --
 
 class MonadGraphSliceSendSExpr m => MonadGraphSliceSolverInteract m where
-    checkHyp :: SExprWithPlaceholders -> m Bool
+    checkSExprHyp :: SExprWithPlaceholders -> m Bool
 
 instance MonadGraphSliceSolverInteract m => MonadGraphSliceSolverInteract (ReaderT r m) where
-    checkHyp = lift . checkHyp
+    checkSExprHyp = lift . checkSExprHyp
 
 instance MonadGraphSliceSolverInteract m => MonadGraphSliceSolverInteract (ExceptT e m) where
-    checkHyp = lift . checkHyp
+    checkSExprHyp = lift . checkSExprHyp
 
-testHyp :: (Tag t, MonadGraphSliceSolverInteract m) => SExprWithPlaceholders -> GraphSliceT t m Bool
-testHyp sexpr = do
+testHyp :: (Tag t, MonadGraphSliceSolverInteract m) => FlatExpr -> GraphSliceT t m Bool
+testHyp expr = do
+    sexpr <- convertExpr expr
     addAccumulatedAssertions
-    lift $ checkHyp sexpr
+    lift $ checkSExprHyp sexpr
 
 testHypWhypsCommon
     :: (RefineTag t, MonadGraphSliceSolverInteract m)
     => Bool -> FlatExpr -> [Hyp t] -> StateT (Maybe Cache) (GraphSliceT t m) (Maybe Bool)
 testHypWhypsCommon fast hyp hyps = do
-    sexpr <- lift $ interpretHypImps hyps hyp >>= convertExpr
-    cacheEntry <- preuse $ #_Just % #unwrap % at sexpr % #_Just
+    expr <- lift $ interpretHypImps hyps hyp
+    cacheEntry <- preuse $ #_Just % #unwrap % at expr % #_Just
     case (cacheEntry, fast) of
         (Just v, _) -> do
             return $ Just $ v
         (Nothing, True) -> do
             return Nothing
         (Nothing, False) -> do
-            v <- lift $ testHyp sexpr
-            zoomMaybe (#_Just % #unwrap) $ modify $ M.insertWith undefined sexpr v
+            v <- lift $ testHyp expr
+            zoomMaybe (#_Just % #unwrap) $ modify $ M.insertWith undefined expr v
             return $ Just v
 
 testHypWhyps
@@ -120,7 +117,16 @@ testHypWhypsWithCacheFast
 testHypWhypsWithCacheFast hyp hyps =
     withCache (testHypWhypsCommon True hyp hyps)
 
---
+class MonadGraphSliceSolverInteract m => MonadGraphSliceGetSExprValue m where
+    getSExprValue :: SExprWithPlaceholders -> m SExpr
+
+getFlatExprValue :: (Tag t, MonadGraphSliceGetSExprValue m) => FlatExpr -> GraphSliceT t m GraphExpr
+getFlatExprValue expr = do
+    sexpr <- withoutSendSExpr $ convertExpr expr
+    valueSExpr <- lift $ getSExprValue sexpr
+    let valueExpr = sexprToExpr valueSExpr
+    ensureM $ valueExpr.ty == expr.ty
+    return valueExpr
 
 newtype DontSendSExpr a
   = DontSendSExprT { run :: Writer [SMTProofCheckCommand] a }
@@ -139,57 +145,6 @@ withoutSendSExpr = mapGraphSliceT $ \m -> case runWriter m.run of
 
 --
 
-class MonadGraphSliceSolverInteract m => MonadGraphSliceGetSExprValue m where
-    getSExprValue :: SExprWithPlaceholders -> m SExpr
-
-getFlatExprValue :: (Tag t, MonadGraphSliceGetSExprValue m) => FlatExpr -> GraphSliceT t m GraphExpr
-getFlatExprValue expr = do
-    sexpr <- withoutSendSExpr $ convertExpr expr
-    valueSExpr <- lift $ getSExprValue sexpr
-    let valueExpr = sexprToExpr valueSExpr
-    ensureM $ valueExpr.ty == expr.ty
-    return valueExpr
-
---
-
-data GraphSliceSolverFailureReason
-  = GraphSliceSolverTimedOut
-  | GraphSliceSolverAnsweredUnknown SExpr
-  deriving (Eq, Generic, Ord, Show)
-
-checkHypInner
-    :: (MonadSolver m, MonadThrow m)
-    => Maybe SolverTimeout
-    -> ModelConfig
-    -> SExprWithPlaceholders
-    -> m (Either GraphSliceSolverFailureReason Bool)
-checkHypInner timeout modelConfig hyp = runExceptT $ do
-    let sendAssert = sendSimpleCommandExpectingSuccess . Assert . Assertion . configureSExpr modelConfig
-    let hyps = splitHyp (notS hyp)
-    sendSimpleCommandExpectingSuccess $ Push 1
-    traverse_ sendAssert hyps
-    r <- checkSatWithTimeout timeout >>= \case
-        Nothing -> throwError GraphSliceSolverTimedOut
-        Just (Unknown reason) -> throwError (GraphSliceSolverAnsweredUnknown reason)
-        Just Unsat -> return True
-        Just Sat -> return False
-    sendSimpleCommandExpectingSuccess $ Pop 1
-    when r $ do
-        sendAssert $ notS (andNS hyps)
-    return r
-
-commonSolverSetup
-    :: (MonadSolver m, MonadThrow m)
-    => ModelConfig
-    -> m ()
-commonSolverSetup modelConfig = do
-    sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
-    sendSimpleCommandExpectingSuccess $ SetOption (ProduceModelsOption True)
-    sendSimpleCommandExpectingSuccess $ SetLogic defaultLogic
-    traverse_ sendExpectingSuccess (modelConfigPreamble modelConfig)
-
---
-
 newtype GraphSliceSolverInteractSimple m a
   = GraphSliceSolverInteractSimple { run :: ExceptT GraphSliceSolverInteractSimpleFailureInfo (StateT SimpleState (ReaderT SimpleEnv m)) a }
   deriving newtype
@@ -202,7 +157,7 @@ newtype GraphSliceSolverInteractSimple m a
 
 data SimpleState
   = SimpleState
-      { model :: Bool
+      { haveModel :: Bool
       }
   deriving (Generic)
 
@@ -213,38 +168,11 @@ data SimpleEnv
       }
   deriving (Generic)
 
-askTimeout :: Monad m => GraphSliceSolverInteractSimple m (Maybe SolverTimeout)
-askTimeout = GraphSliceSolverInteractSimple $ gview #timeout
-
-askModelConfig :: Monad m => GraphSliceSolverInteractSimple m ModelConfig
-askModelConfig = GraphSliceSolverInteractSimple $ gview #modelConfig
+liftPure :: Monad m => StateT SimpleState (Reader SimpleEnv) a -> GraphSliceSolverInteractSimple m a
+liftPure = GraphSliceSolverInteractSimple . lift . mapStateT (mapReaderT (return . runIdentity))
 
 instance MonadTrans GraphSliceSolverInteractSimple where
     lift = GraphSliceSolverInteractSimple . lift . lift . lift
-
-instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractSimple m) where
-    sendCommand s = GraphSliceSolverInteractSimple $ do
-        modelConfig <- gview #modelConfig
-        sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
-        #model .= False
-
-instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractSimple m) where
-    checkHyp hyp = GraphSliceSolverInteractSimple $ do
-        timeout <- gview #timeout
-        modelConfig <- gview #modelConfig
-        res <- withExceptT GraphSliceSolverInteractSimpleFailureInfo $
-            ExceptT $ checkHypInner timeout modelConfig hyp
-        when (not res) $ #model .= True
-        return res
-
-instance (MonadSolver m, MonadThrow m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractSimple m) where
-    getSExprValue s = GraphSliceSolverInteractSimple $ do
-        model <- use #model
-        ensureM model
-        modelConfig <- gview #modelConfig
-        r <- runExceptT $ getValueE [configureSExpr modelConfig s]
-        let Right [value] = r
-        return value
 
 data GraphSliceSolverInteractSimpleFailureInfo
   = GraphSliceSolverInteractSimpleFailureInfo
@@ -252,85 +180,85 @@ data GraphSliceSolverInteractSimpleFailureInfo
       }
   deriving (Eq, Generic, Ord, Show)
 
+data GraphSliceSolverFailureReason
+  = GraphSliceSolverTimedOut
+  | GraphSliceSolverAnsweredUnknown SExpr
+  deriving (Eq, Generic, Ord, Show)
+
 runGraphSliceSolverInteractSimple
     :: (MonadSolver m, MonadThrow m)
     => Maybe SolverTimeout -> ModelConfig -> GraphSliceSolverInteractSimple m a -> m (Either GraphSliceSolverInteractSimpleFailureInfo a)
 runGraphSliceSolverInteractSimple timeout modelConfig m = do
-    commonSolverSetup modelConfig
-    runReaderT (evalStateT (runExceptT m.run) initState) env
+    runReaderT (evalStateT (runExceptT m'.run) initState) env
   where
+    m' = do
+        commonSolverSetup
+        m
     env = SimpleEnv
         { timeout
         , modelConfig
         }
     initState = SimpleState
-        { model = False
+        { haveModel = False
         }
 
---
-
--- TODO
-
-type GraphSliceSolverInteractParallelInner m =
-    ExceptT GraphSliceSolverInteractParallelFailureInfo (StateT ParallelState (ReaderT (ParallelEnv m) m))
-
-newtype GraphSliceSolverInteractParallel m a
-  = GraphSliceSolverInteractParallel { run :: GraphSliceSolverInteractParallelInner m a }
-  deriving newtype
-    ( Applicative
-    , Functor
-    , Monad
-    , MonadLogger
-    , MonadLoggerWithContext
-    )
-
-data ParallelState
-  = ParallelState
-      { setup :: [SMTProofCheckCommand]
-      }
-  deriving (Generic)
-
-data ParallelEnv m
-  = ParallelEnv
-      { timeout :: Maybe SolverTimeout
-      , modelConfig :: ModelConfig
-      , runParallel :: RunParallel m
-      }
-  deriving (Generic)
-
-type RunParallel m = m ()
-
-instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
-    sendCommand s = GraphSliceSolverInteractParallel $ do
-        #setup %= (++ [s])
-        modelConfig <- gview #modelConfig
-        sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
-
-instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
-    checkHyp hyp = GraphSliceSolverInteractParallel $ do
-        timeout <- gview #timeout
-        modelConfig <- gview #modelConfig
-        withExceptT GraphSliceSolverInteractParallelFailureInfo $
-            ExceptT $ checkHypInner timeout modelConfig hyp
-
-data GraphSliceSolverInteractParallelFailureInfo
-  = GraphSliceSolverInteractParallelFailureInfo
-      { reason :: GraphSliceSolverFailureReason
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-runGraphSliceSolverInteractParallel
+commonSolverSetup
     :: (MonadSolver m, MonadThrow m)
-    => RunParallel m -> Maybe SolverTimeout -> ModelConfig -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
-runGraphSliceSolverInteractParallel runParallel timeout modelConfig m = do
-    commonSolverSetup modelConfig
-    runReaderT (evalStateT (runExceptT m.run) initState) env
+    => GraphSliceSolverInteractSimple m ()
+commonSolverSetup = do
+    modelConfig <- liftPure $ gview #modelConfig
+    lift $ do
+        sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
+        sendSimpleCommandExpectingSuccess $ SetOption (ProduceModelsOption True)
+        sendSimpleCommandExpectingSuccess $ SetLogic defaultLogic
+        traverse_ sendExpectingSuccess (modelConfigPreamble modelConfig)
+
+checkSatSimple
+    :: (MonadSolver m, MonadThrow m)
+    => GraphSliceSolverInteractSimple m Bool
+checkSatSimple = do
+    timeout <- liftPure $ gview #timeout
+    r <- lift $ checkSatWithTimeout timeout
+    case r of
+        Nothing -> throwReason GraphSliceSolverTimedOut
+        Just (Unknown msg) -> throwReason $ GraphSliceSolverAnsweredUnknown msg
+        Just Sat -> return True
+        Just Unsat -> return False
   where
-    env = ParallelEnv
-        { timeout
-        , modelConfig
-        , runParallel
-        }
-    initState = ParallelState
-        { setup = []
-        }
+    throwReason reason =
+        GraphSliceSolverInteractSimple $ throwError $ GraphSliceSolverInteractSimpleFailureInfo
+            { reason
+            }
+
+instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractSimple m) where
+    sendCommand s = do
+        hadModel <- liftPure $ #haveModel <<.= False
+        when hadModel $ do
+            lift $ sendSimpleCommandExpectingSuccess $ Pop 1
+        modelConfig <- liftPure $ gview #modelConfig
+        lift $ sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
+
+instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractSimple m) where
+    checkSExprHyp hyp = do
+        modelConfig <- liftPure $ gview #modelConfig
+        let sendAssert s =
+                lift $ sendSimpleCommandExpectingSuccess $ Assert $ Assertion $ configureSExpr modelConfig s
+        lift $ sendSimpleCommandExpectingSuccess $ Push 1
+        traverse_ sendAssert split
+        sat <- checkSatSimple
+        liftPure $ #haveModel .= sat
+        when (not sat) $ do
+            lift $ sendSimpleCommandExpectingSuccess $ Pop 1
+            sendAssert $ notS (andNS split)
+        return $ not sat
+      where
+        split = splitHyp (notS hyp)
+
+instance (MonadSolver m, MonadThrow m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractSimple m) where
+    getSExprValue s = do
+        haveModel <- liftPure $ use #haveModel
+        ensureM haveModel
+        modelConfig <- liftPure $ gview #modelConfig
+        r <- lift $ getValue [configureSExpr modelConfig s]
+        let [value] = r
+        return value

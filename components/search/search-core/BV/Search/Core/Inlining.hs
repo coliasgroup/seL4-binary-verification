@@ -142,7 +142,7 @@ nextReachableUnmatchedCInlinePointsInnerIncompat matchedC = runTagged C $ do
     fmap (map fst) $ flip filterM (M.toList unmatchedByAddr) $ \(_addr, visits) ->
         flip anyM visits $ \visit -> do
             pcEnv <- fromJust <$> getNodePcEnv visit
-            unreachable <- liftUntagged $ convertExpr (notE pcEnv.pc) >>= testHyp
+            unreachable <- liftUntagged $ testHyp $ notE pcEnv.pc
             return $ not unreachable
 
 nextReachableUnmatchedCInlinePointsInnerCompat
@@ -169,6 +169,6 @@ nextReachableUnmatchedCInlinePointsInnerCompat matchedC = runTagged C $ do
         guard $ S.notMember fname matchedC
         res <- lift $ do
             pcEnv <- fromJust <$> getNodePcEnv visit
-            liftUntagged $ convertExpr (notE pcEnv.pc) >>= testHyp
+            liftUntagged $ testHyp $ notE pcEnv.pc
         guard $ not res
         return addr
