@@ -60,6 +60,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import Debug.Trace (traceShowM)
 
 -- import Debug.Trace (traceShowM)
 
@@ -199,6 +200,7 @@ data GraphSliceExport t
       , inductVars :: Map EqHypInduct FlatExpr
       , funCalls :: Map (WithTag t Visit) FunCallInfo
       , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
+      , mems :: Map Ident MemCalls
       }
   deriving (Generic)
 
@@ -210,6 +212,7 @@ getExport = liftPure $ do
     inductVars <- use #inductVars
     funCalls <- use #funCalls
     funCallsByName <- use #funCallsByName
+    mems <- use #mems
     return $ GraphSliceExport
         { inputEnvs
         , nodePcEnvs
@@ -217,6 +220,7 @@ getExport = liftPure $ do
         , inductVars
         , funCalls
         , funCallsByName
+        , mems
         }
 
 --
@@ -488,6 +492,9 @@ getInputEnv = withMapSlotTagged #inputEnvs () $ do
         envVar <- liftFlat $ addVar (printf "%P_init" sigVar.name) sigVar.ty
         when isMem $ registerMem envVar.name emptyMemCalls
         when isStack $ registerStack envVar.name
+        -- HACK
+        when (isMemT sigVar.ty) $ do
+            ensureM $ isStack || isMem 
         return $ varFromNameTyE envVar
 
 getLoopPcEnv :: C t m => ExprEnv -> Visit -> TaggedT t m PcEnv
@@ -497,6 +504,9 @@ getLoopPcEnv preLoopEnv visit = do
         let preLoopVal = preLoopEnv ! preLoopVar.name
         isStack <- getIsExprStack preLoopVal
         isMem <- getIsExprMem preLoopVal
+        -- HACK
+        when (isMemT preLoopVar.ty) $ do
+            ensureM $ isStack || isMem 
         let postLoopNameHint = printf "%P_after_loop_at_%P" preLoopVar.name visit.nodeId
         if isStack
             then addSplitStackVars preLoopEnv postLoopNameHint
@@ -506,6 +516,7 @@ getLoopPcEnv preLoopEnv visit = do
                     memCalls <- getExprMemCalls preLoopVal >>= addLoopMemCalls visitAddr
                     registerMem postLoopVar.name memCalls
                 return $ varFromNameTyE postLoopVar
+        
     pc <- liftFlat $ varFromNameTyE <$>
         addVar (printf "pc_of_loop_at_%P" visit.nodeId) boolT
     return $ PcEnv pc (M.union newVars preLoopEnv)
@@ -603,6 +614,12 @@ getCallNodeEnv visit env callNode = do
         let isMem = isMemHook funName FunctionSignatureDirectionOut i
         let isStack = isStackHook funName FunctionSignatureDirectionOut i
         let nameHint = localName visit sigVar.name
+        when (callNode.functionName.unwrap == "Kernel_C.lookupIPCBuffer") $ do
+            -- traceShowM $ ("XXXXXX", debugShowMemCalls (addMemCall callNode.functionName memCalls))
+            traceShowM $ ("XXXXXX", isStack, isMem)
+        -- HACK
+        when (isMemT sigVar.ty) $ do
+            ensureM $ isStack || isMem
         if isStack
             then addSplitStackVars env nameHint
             else do
@@ -705,12 +722,15 @@ addFunAssertsImpl visit = do
     funName <- lift $ askWithTag =<< askFunName visit
     pairingIdOpt <- gview $ #pairingsAccess % at funName
     for_ pairingIdOpt $ \pairingId -> do
+        traceShowM ("call", funName.value.unwrap, debugShowVisit visit)
         let otherFunName = viewAtTag (otherTag tag) (withTags pairingId)
         group <- lift $ liftUntagged $ liftPure $ use $ #funCallsByName % to (M.findWithDefault S.empty otherFunName)
         for_ group $ \otherVisit -> do
             let visits = byTagFrom $ \tag' -> if tag' == tag then visit else otherVisit
+            traceShowM ("other visit", debugShowVisit otherVisit)
             compat <- mapReaderT liftUntagged $ areFunCallsCompatible visits
             when compat $ do
+                traceShowM ("compat")
                 imp <- mapReaderT liftUntagged $ getFunAssert visits
                 lift $ liftFlat $ assertFlatExpr $ weakenAssert imp
 
@@ -730,6 +750,10 @@ areFunCallsCompatible visits = do
                     , isMemHook funName FunctionSignatureDirectionIn inIx
                     ]
             traverse getExprMemCalls memInExprOpt
+        traceShowM ("calls")
+        for_ memCallsOpt $ \opt -> case opt of
+            Nothing -> traceShowM ("nothing")
+            Just x -> traceShowM (debugShowMemCalls x)
         return $ areMemCallsCompatible lookupSig (pairingsAccess !) memCallsOpt
 
 getFunAssert :: RefineC t m => ByTag t Visit -> ReaderT (AddFunAssertHookEnv t) (T t m) FlatExpr

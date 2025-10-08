@@ -15,6 +15,7 @@ module BV.Core.GraphSlice.New
     , askLoopData
     , askNodeGraph
     , askProblem
+    , debugShowMemCalls
     , askTag
     , askWithTag
     , asmRefineGraphSliceHooks
@@ -53,6 +54,7 @@ import BV.Core.GraphSlice.New.Tagged
 
 import BV.Core.Logic (eqHandlingRelWrapper, strengthenHyp)
 import BV.Core.Types
+import BV.Core.GraphSlice.New.MemCalls (debugShowMemCalls)
 import BV.Core.Types.Extras
 
 import Control.Monad ((>=>))

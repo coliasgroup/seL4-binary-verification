@@ -64,21 +64,21 @@ main = withLoggingOpts loggingOpts $ withPushLogContext "x" $ do
             _ <- convertExpr $ flattenExpr initEnv $ acc
             x <- testHyp goal
             traceShowM ("r", x)
-            -- traceShowM ("mems")
-            -- for_ (M.toList export.mems) $ \(mem, calls) -> do
-            --     traceM $ mem.unwrap ++ " # " ++ debugShowMemCalls calls
-            -- traceShowM ("asm inputs")
-            -- -- let n = byRefineTag "flushTable" "Kernel_C.flushTable"
-            -- for_ (S.toList (export.funCallsByName M.! WithTag Asm (Ident "flushTable"))) $ \(visit) -> do
-            --     let call = export.funCalls M.! WithTag Asm visit
-            --     for_ call.ins $ \i -> do
-            --         traceM $ debugShowExpr i
-            -- traceShowM ("c inputs")
-            -- -- let n = byRefineTag "flushTable" "Kernel_C.flushTable"
-            -- for_ (S.toList (export.funCallsByName M.! WithTag C (Ident "Kernel_C.flushTable"))) $ \(visit) -> do
-            --     let call = export.funCalls M.! WithTag C visit
-            --     for_ call.ins $ \i -> do
-            --         traceM $ debugShowExpr i
+            traceShowM ("mems")
+            for_ (M.toList export.mems) $ \(mem, calls) -> do
+                traceM $ mem.unwrap ++ " # " ++ debugShowMemCalls calls
+            traceShowM ("asm inputs")
+            -- let n = byRefineTag "flushTable" "Kernel_C.flushTable"
+            for_ (S.toList (export.funCallsByName M.! WithTag Asm (Ident "setMRs_syscall_error"))) $ \(visit) -> do
+                let call = export.funCalls M.! WithTag Asm visit
+                for_ call.ins $ \i -> do
+                    traceM $ debugShowExpr i
+            traceShowM ("c inputs")
+            -- let n = byRefineTag "flushTable" "Kernel_C.flushTable"
+            for_ (S.toList (export.funCallsByName M.! WithTag C (Ident "Kernel_C.setMRs_syscall_error"))) $ \(visit) -> do
+                let call = export.funCalls M.! WithTag C visit
+                for_ call.ins $ \i -> do
+                    traceM $ debugShowExpr i
             error "XXX"
             lift $ logInfo $ show ("init >>> ")
             for_ (M.toList (export.inputEnvs M.! WithTag Asm ())) $ \(name, expr) -> do
@@ -103,14 +103,14 @@ main = withLoggingOpts loggingOpts $ withPushLogContext "x" $ do
                                 d'' <- getFlatExprValue d'
                                 lift $ logInfo $ "v: " ++ debugShowExpr d''
                                 return ()
-                            acc1 <- getFlatExprValue $ flattenExpr pe.env $ acc
-                            acc2 <- getFlatExprValue $ flattenExpr initEnv $ acc
-                            ret <- getFlatExprValue $ flattenExpr pe.env $ varE word32T $ Ident "ret"
-                            r13 <- getFlatExprValue $ flattenExpr pe.env $ varE word32T $ Ident "r13"
-                            lift $ logInfo $ show ("acc1", debugShowExpr acc1)
-                            lift $ logInfo $ show ("acc2", debugShowExpr acc2)
-                            lift $ logInfo $ show ("r13", debugShowExpr r13)
-                            lift $ logInfo $ show ("ret", debugShowExpr ret)
+                            -- acc1 <- getFlatExprValue $ flattenExpr pe.env $ acc
+                            -- acc2 <- getFlatExprValue $ flattenExpr initEnv $ acc
+                            -- ret <- getFlatExprValue $ flattenExpr pe.env $ varE word32T $ Ident "ret"
+                            -- r13 <- getFlatExprValue $ flattenExpr pe.env $ varE word32T $ Ident "r13"
+                            -- lift $ logInfo $ show ("acc1", debugShowExpr acc1)
+                            -- lift $ logInfo $ show ("acc2", debugShowExpr acc2)
+                            -- lift $ logInfo $ show ("r13", debugShowExpr r13)
+                            -- lift $ logInfo $ show ("ret", debugShowExpr ret)
                             -- let e = memAccE (varE memT (Ident "stack")) (bvadd r13 #x0000000c)
                         return ()
 
@@ -154,7 +154,8 @@ thisPath = CheckPath
     }
   where
     -- name = "cleanInvalidateL1Caches"
-    name = "unmapPageTable"
+    name = "replyFromKernel_error"
+    -- name = "unmapPageTable"
 
 loggingOpts :: LoggingOpts
 loggingOpts = LoggingOpts
