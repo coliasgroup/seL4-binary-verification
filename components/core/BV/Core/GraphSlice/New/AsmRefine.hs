@@ -28,8 +28,8 @@ areMemCallsCompatible lookupSig lookupPairingId callsOpt = case sequenceA callsO
     Just calls ->
         let hasMem cFunName =
                 any
-                    (asmRefineIsMemHook lookupSig (WithTag C cFunName) FunctionSignatureDirectionIn)
-                    (zipWith const [0..] (lookupSig (WithTag C cFunName)).input)
+                    (asmRefineIsMemHook lookupSig (WithTag C cFunName) FunctionSignatureDirectionOut)
+                    (zipWith const [0..] (lookupSig (WithTag C cFunName)).output)
             cCastCalls = M.fromList $ catMaybes
                 [ let pairingId = lookupPairingId (WithTag Asm asmFunName)
                       cFunName = pairingId.c
