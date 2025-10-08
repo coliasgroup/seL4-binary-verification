@@ -2,6 +2,7 @@ module BV.Core.GraphSlice.New.MemCalls
     ( MemCalls
     , addMemCall
     , addUnboundedMemCalls
+    , debugShowMemCalls
     , emptyMemCalls
     , memCallsRangesOverlap
     , mergeMemCalls
@@ -11,6 +12,7 @@ module BV.Core.GraphSlice.New.MemCalls
 import BV.Core.Types
 
 import Data.Function (on)
+import Data.List (intercalate)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import GHC.Generics (Generic)
@@ -63,3 +65,14 @@ mergeMemCalls xs ys =
 memCallsRangesOverlap :: MemCallsRange -> MemCallsRange -> Bool
 memCallsRangesOverlap lhs rhs =
     maybe True (lhs.min <=) rhs.max && maybe True (rhs.min <=) lhs.max
+
+debugShowMemCallsRange :: MemCallsRange -> String
+debugShowMemCallsRange range = show range.min ++ ".." ++ (case range.max of
+    Nothing -> ""
+    Just n -> "=" ++ show n)
+
+debugShowMemCalls :: MemCalls -> String
+debugShowMemCalls calls = intercalate ", "
+    [ fname.unwrap ++ ": " ++ debugShowMemCallsRange range
+    | (fname, range) <- M.toList calls
+    ]

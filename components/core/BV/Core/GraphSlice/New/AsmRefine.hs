@@ -29,7 +29,7 @@ areMemCallsCompatible lookupSig lookupPairingId callsOpt = case sequenceA callsO
         let hasMem cFunName =
                 any
                     (asmRefineIsMemHook lookupSig (WithTag C cFunName) FunctionSignatureDirectionIn)
-                    (zipWith const [0..] (lookupSig (WithTag C cFunName)).output)
+                    (zipWith const [0..] (lookupSig (WithTag C cFunName)).input)
             cCastCalls = M.fromList $ catMaybes
                 [ let pairingId = lookupPairingId (WithTag Asm asmFunName)
                       cFunName = pairingId.c
@@ -51,8 +51,8 @@ asmRefineIsMemHook lookupSig fun direction i =
     sig = lookupSig fun
     isInstFun = any (== NameTy (Ident "inst_ident") tokenT) sig.input -- HACK
     memName = case fun.tag of
+        _ | isInstFun -> "mem"
         Asm -> "mem"
-        C | isInstFun -> "mem"
         C -> "Mem"
 
 asmRefineIsStackHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool

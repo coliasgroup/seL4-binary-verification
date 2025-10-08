@@ -147,8 +147,13 @@ applyWhenM c f = if c then f else return
 
 --
 
+-- TODO add %D for concise debug
 formatArgSimple :: (a -> String) -> a -> P.FieldFormatter
 formatArgSimple pretty a fmt =
     if P.fmtChar (P.vFmt 'P' fmt) == 'P'
     then P.formatString (pretty a) (fmt { P.fmtChar = 's', P.fmtPrecision = Nothing })
     else P.errorBadFormat (P.fmtChar fmt)
+
+-- TODO debugShow class, with D wrapper for printf
+
+-- TODO (++ " " ++)
