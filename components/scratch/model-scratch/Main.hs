@@ -59,8 +59,67 @@ main = withLoggingOpts loggingOpts $ withPushLogContext "x" $ do
     runGraphSliceSolverInteractSimple' solverConfig $ do
         runAsmRefineGraphSliceT graphSliceInput $ do
             goal <- interpretCheck check
-            r <- testHyp goal
-            traceShowM ("r", r)
+            export <- getExport
+            let acc = memAccE word32T (varE word32T "r13" `plusE` word32E 0x0000000c) (varE memT "stack")
+            let initEnv = export.inputEnvs M.! WithTag Asm ()
+            _ <- convertExpr $ flattenExpr initEnv $ acc
+            x <- testHyp $ notE goal
+            traceShowM ("r", x)
+            -- traceShowM ("mems")
+            -- for_ (M.toList export.mems) $ \(mem, calls) -> do
+            --     traceM $ mem.unwrap ++ " # " ++ debugShowMemCalls calls
+            -- traceShowM ("asm inputs")
+            -- -- let n = byRefineTag "flushTable" "Kernel_C.flushTable"
+            -- for_ (S.toList (export.funCallsByName M.! WithTag Asm (Ident "flushTable"))) $ \(visit) -> do
+            --     let call = export.funCalls M.! WithTag Asm visit
+            --     for_ call.ins $ \i -> do
+            --         traceM $ debugShowExpr i
+            -- traceShowM ("c inputs")
+            -- -- let n = byRefineTag "flushTable" "Kernel_C.flushTable"
+            -- for_ (S.toList (export.funCallsByName M.! WithTag C (Ident "Kernel_C.flushTable"))) $ \(visit) -> do
+            --     let call = export.funCalls M.! WithTag C visit
+            --     for_ call.ins $ \i -> do
+            --         traceM $ debugShowExpr i
+            -- error "XXX"
+            lift $ logInfo $ show ("init >>> ")
+            for_ (M.toList (export.inputEnvs M.! WithTag Asm ())) $ \(name, expr) -> do
+                when (isWordT expr.ty) $ do
+                    v <- getFlatExprValue expr
+                    lift $ logInfo $ show ("init", name.unwrap, debugShowExpr v)
+            lift $ logInfo $ show ("<<< init")
+            for_ (M.toList export.arcPcEnvs) $ \(vt, inner) -> do
+                for_ (M.toList inner) $ \(n, pe) -> do
+                    when (n == Err) $ do
+                        v <- getFlatExprValue $ pe.pc
+                        unless (v == falseE) $ do
+                            lift $ logInfo $ show ("visit", debugShowVisit vt.value)
+                            lift $ logInfo $ show ("pc", debugShowExpr v)
+                            node <- askProblem <&> view (#nodes % expectingAt (nodeAddrOf vt.value.nodeId))
+                            let NodeCond condNode = node
+                            let cond = condNode.expr
+                            let disj = splitDisjunction cond
+                            for_ disj $ \d -> do
+                                lift $ logInfo $ "d: " ++ debugShowExpr d
+                                let d' = flattenExpr pe.env d
+                                d'' <- getFlatExprValue d'
+                                lift $ logInfo $ "v: " ++ debugShowExpr d''
+                                return ()
+                            acc1 <- getFlatExprValue $ flattenExpr pe.env $ acc
+                            acc2 <- getFlatExprValue $ flattenExpr initEnv $ acc
+                            ret <- getFlatExprValue $ flattenExpr pe.env $ varE word32T $ Ident "ret"
+                            r13 <- getFlatExprValue $ flattenExpr pe.env $ varE word32T $ Ident "r13"
+                            lift $ logInfo $ show ("acc1", debugShowExpr acc1)
+                            lift $ logInfo $ show ("acc2", debugShowExpr acc2)
+                            lift $ logInfo $ show ("r13", debugShowExpr r13)
+                            lift $ logInfo $ show ("ret", debugShowExpr ret)
+                            -- let e = memAccE (varE memT (Ident "stack")) (bvadd r13 #x0000000c)
+                        return ()
+
+                        -- case pcEnvOpt of
+                        --     Nothing -> lift $ logInfo $ show ("nothing")
+                        --     Just pcEnv -> do
+                        --         v <- getFlatExprValue $ pcEnv.pc
+                        --         lift $ logInfo $ show ("pc", v)
     return ()
 
 thisLookupCheck
