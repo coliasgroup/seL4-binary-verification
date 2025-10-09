@@ -62,8 +62,8 @@ type NameHint = String
 data TState
   = TState
       { names :: Set Ident
+      , cache :: Map FlatExpr FlatExpr
       , defs :: Map Ident FlatExpr
-      , exprCache :: Map FlatExpr FlatExpr
       }
   deriving (Generic)
 
@@ -73,8 +73,8 @@ runGraphSliceFlatTStep = flip evalStateT initState . (.run)
 initState :: TState
 initState = TState
     { names = S.empty
+    , cache = M.empty
     , defs = M.empty
-    , exprCache = M.empty
     }
 
 addVar :: C m => NameHint -> ExprType -> T m NameTy
@@ -104,7 +104,7 @@ cacheExprInline = cacheExprWithInlineHint ExprCommandInlineHintSometimes
 cacheExprWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> FlatExpr -> T m FlatExpr
 cacheExprWithInlineHint inline nameHint expr = case expr.value of
     ExprValueVar _ -> return expr
-    _ -> withMapSlotWith liftPure #exprCache expr $ addDefWithInlineHint inline nameHint expr
+    _ -> withMapSlotWith liftPure #cache expr $ addDefWithInlineHint inline nameHint expr
 
 lookupDef :: C m =>  Ident -> T m (Maybe FlatExpr)
 lookupDef name = liftPure $ use $ #defs % at name

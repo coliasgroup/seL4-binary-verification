@@ -28,7 +28,7 @@ import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans, lift)
-import Data.Foldable (for_, sequenceA_)
+import Data.Foldable (for_)
 import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -105,8 +105,8 @@ data TEnv
 data TState
   = TState
       { names :: Set Ident
-      , exprMap :: Map Ident ExtendedExpr
-      , exprCache :: Map SolverExpr SolverExpr
+      , cache :: Map SolverExpr SolverExpr
+      , flatExprVars :: Map Ident ExtendedExpr
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       }
@@ -136,8 +136,8 @@ initEnv rodataPtrs = TEnv
 initState :: TState
 initState = TState
     { names = S.empty
-    , exprMap = M.empty
-    , exprCache = M.empty
+    , cache = M.empty
+    , flatExprVars = M.empty
     , impliesStackEqCache = M.empty
     , pvalids = M.empty
     }
@@ -221,7 +221,7 @@ cacheExprInline = cacheExprWithInlineHint ExprCommandInlineHintSometimes
 cacheExprWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> SolverExpr -> T m SolverExpr
 cacheExprWithInlineHint inline nameHint expr = case expr.value of
     ExprValueVar _ -> return expr
-    _ -> withMapSlot #exprCache expr $ addDefWithInlineHint inline nameHint expr
+    _ -> withMapSlot #cache expr $ addDefWithInlineHint inline nameHint expr
 
 cachePtr :: C m => SolverExpr -> T m SolverExpr
 cachePtr = cacheExpr "ptr"
@@ -243,18 +243,18 @@ sendFlatExprCommand = \case
             val <- case origVar.ty of
                 ExprTypeHtd -> addHtd origVar.name.unwrap
                 _ -> ExtendedExprExpr <$> addVar origVar.name.unwrap origVar.ty
-            liftPure $ #exprMap %= M.insertWith undefined origVar.name val
+            liftPure $ #flatExprVars %= M.insertWith undefined origVar.name val
     ExprCommandDefine inlineHint origVar origVal -> case origVar.ty of
         ExprTypePms -> return ()
         _ -> do
             val <- convertFlatExprExtended origVal
                 >>= addExtendedDefWithInlineHint inlineHint origVar.name.unwrap
-            liftPure $ #exprMap %= M.insertWith undefined origVar.name val
+            liftPure $ #flatExprVars %= M.insertWith undefined origVar.name val
     ExprCommandAssert expr -> assertSolverExpr =<< convertFlatExpr expr
 
 convertFlatExprExtended :: C m => FlatExpr -> T m ExtendedExpr
 convertFlatExprExtended expr = case expr.value of
-    ExprValueVar name -> liftPure $ use $ #exprMap % expectingAt name
+    ExprValueVar name -> liftPure $ use $ #flatExprVars % expectingAt name
     ExprValueOp op args -> traverse convertFlatExprExtended args >>= convertFlatOpExpr expr.ty op
     _ -> return $ ExtendedExprExpr $ castExpr expr
 
@@ -273,7 +273,7 @@ convertFlatOpExpr exprTy op args =
                 , bottom
                 }
         (OpMemUpdate, ~[m, ExtendedExprExpr p, ExtendedExprExpr v]) ->
-            convertMemUpdate m p v v.ty
+            convertMemUpdate m p v
         (OpMemAcc, ~[m, ExtendedExprExpr p]) ->
             ExtendedExprExpr <$> convertMemAccess exprTy m p
         (OpExt OpExtStackEqualsImplies, ~[ExtendedExprExpr sp1, stack1, ExtendedExprExpr sp2, stack2]) ->
@@ -332,36 +332,29 @@ convertIfThenElse cond xExt yExt = case (xExt, yExt) of
             , bottom = expr
             }
 
-convertMemUpdate :: C m => ExtendedExpr -> SolverExpr -> SolverExpr -> ExprType -> T m ExtendedExpr
-convertMemUpdate extExpr p v ty = case extExpr of
-    ExtendedExprExpr mem -> ExtendedExprExpr <$> convertMemUpdateSimpleExpr mem p v ty
+convertMemUpdate :: C m => ExtendedExpr -> SolverExpr -> SolverExpr -> T m ExtendedExpr
+convertMemUpdate extExpr p v = case extExpr of
+    ExtendedExprExpr mem -> return $ ExtendedExprExpr $ memUpdE p mem v
     ExtendedExprSplitMem splitMem -> ExtendedExprSplitMem <$> do
         p' <- cacheExprInline "memupd_pointer" p
         v' <- cacheExprInline "memupd_val" v
         top <- cacheExprInline "split_mem_top" splitMem.top
         bottom <- cacheExprInline "split_mem_bot" splitMem.bottom
-        topUpd <- convertMemUpdateSimpleExpr top p' v' ty
-        bottomUpd <- convertMemUpdateSimpleExpr bottom p' v' ty
+        let upd mem = memUpdE p' mem v'
         let f = ifThenElseE (splitMem.split `lessEqE` p')
         return $ SplitMemExpr
             { split = splitMem.split
-            , top = f topUpd top
-            , bottom = f bottom bottomUpd
+            , top = f (upd top) top
+            , bottom = f bottom (upd bottom)
             }
 
-convertMemUpdateSimpleExpr :: C m => SolverExpr -> SolverExpr -> SolverExpr -> ExprType -> T m SolverExpr
-convertMemUpdateSimpleExpr mem p v ty@(ExprTypeWord bits) = do
-    p' <- cacheExprInline "memupd_pointer" p
-    return $ memUpdE p' mem v
-
 convertMemAccess :: C m => ExprType -> ExtendedExpr -> SolverExpr -> T m SolverExpr
-convertMemAccess ty@(ExprTypeWord _) extExpr p = case extExpr of
-    ExtendedExprExpr mem -> do
-        return $ memAccE ty p mem
-    ExtendedExprSplitMem splitMem -> do
+convertMemAccess ty extExpr p = case extExpr of
+    ExtendedExprExpr mem -> return $ memAccE ty p mem
+    ExtendedExprSplitMem (SplitMemExpr { split, top, bottom }) -> do
         p' <- cacheExprInline "memacc_pointer" p
-        let f side = convertMemAccess ty (ExtendedExprExpr (side splitMem)) p'
-        ifThenElseE (splitMem.split `lessEqE` p') <$> f (.top) <*> f (.bottom)
+        let acc = memAccE ty p'
+        return $ ifThenElseE (split `lessEqE` p') (acc top) (acc bottom)
 
 convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> ExtendedExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 =
@@ -389,8 +382,8 @@ convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
         addr <- addVar "stack-eq-witness" word32T
         assertSolverExpr $ (addr `bitwiseAndE` machineWordE 3) `eqE` machineWordE 0
         assertSolverExpr $ key.sp `lessEqE` addr
-        let f mem = convertMemAccess word32T mem addr
-        solverExpr <- eqE <$> f key.stack1 <*> f key.stack2
+        let acc stack = convertMemAccess word32T stack addr
+        solverExpr <- eqE <$> acc key.stack1 <*> acc key.stack2
         addDef "stack-eq" solverExpr
     return $ (sp1 `eqE` sp2) `andE` eq
 
