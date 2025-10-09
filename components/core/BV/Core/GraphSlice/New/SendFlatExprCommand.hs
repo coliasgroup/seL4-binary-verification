@@ -30,7 +30,6 @@ import Control.Monad.State (StateT, evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans, lift)
 import Data.Foldable (for_, sequenceA_)
 import Data.Function (on)
-import Data.Functor (void)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
@@ -110,8 +109,6 @@ data TState
       , exprCache :: Map SolverExpr SolverExpr
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
-      , modelVars :: Set Ident
-      , modelExprs :: Map SolverExpr SolverExpr
       }
   deriving (Generic)
 
@@ -143,8 +140,6 @@ initState = TState
     , exprCache = M.empty
     , impliesStackEqCache = M.empty
     , pvalids = M.empty
-    , modelVars = S.empty
-    , modelExprs = M.empty
     }
 
 --
@@ -183,20 +178,11 @@ askRODataPtrs = liftPure $ gview #rodataPtrs
 
 --
 
-isTypeRepresentable :: ExprType -> Bool
-isTypeRepresentable = \case
-    ExprTypeWord _ -> True
-    ExprTypeBool -> True
-    ExprTypeToken -> True
-    _ -> False
-
 addVar :: C m => NameHint -> ExprType -> T m SolverExpr
 addVar nameHint ty = do
     name <- takeFreshName nameHint
     let var = NameTy name ty
     send $ ExprCommandDeclare var
-    when (isTypeRepresentable ty) $ do
-        liftPure $ #modelVars %= S.insert name
     return $ varFromNameTyE var
 
 addDef :: C m => NameHint -> SolverExpr -> T m SolverExpr
@@ -207,8 +193,6 @@ addDefWithInlineHint inline nameHint expr = do
     name <- takeFreshName nameHint
     let var = NameTy name expr.ty
     send $ ExprCommandDefine inline var expr
-    when (isTypeRepresentable expr.ty) $ do
-        liftPure $ #modelVars %= S.insert name
     return $ varFromNameTyE var
 
 addExtendedDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> ExtendedExpr -> T m ExtendedExpr
@@ -241,14 +225,6 @@ cacheExprWithInlineHint inline nameHint expr = case expr.value of
 
 cachePtr :: C m => SolverExpr -> T m SolverExpr
 cachePtr = cacheExpr "ptr"
-
-noteModelExpr :: C m => SolverExpr -> T m ()
-noteModelExpr expr = void $ withMapSlot #modelExprs expr $ addDef "query" expr
-
-maybeNoteModelExpr :: C m => SolverExpr -> [SolverExpr] -> T m ()
-maybeNoteModelExpr expr subexprs =
-    when (isTypeRepresentable expr.ty && not (all (isTypeRepresentable . (.ty)) subexprs)) $ do
-        noteModelExpr expr
 
 assertSolverExpr :: C m => SolverExpr -> T m ()
 assertSolverExpr = send . ExprCommandAssert
@@ -286,8 +262,8 @@ convertFlatExpr :: C m => FlatExpr -> T m SolverExpr
 convertFlatExpr expr = viewExpecting #_ExtendedExprExpr <$> convertFlatExprExtended expr
 
 convertFlatOpExpr :: C m => ExprType -> Op -> [ExtendedExpr] -> T m ExtendedExpr
-convertFlatOpExpr exprTy op args = do
-    expr <- case (op, args) of
+convertFlatOpExpr exprTy op args =
+    case (op, args) of
         (OpIfThenElse, ~[ExtendedExprExpr cond, x, y]) ->
             return $ convertIfThenElse cond x y
         (OpExt OpExtSplitMem, ~[ExtendedExprExpr split, ExtendedExprExpr top, ExtendedExprExpr bottom]) ->
@@ -330,11 +306,6 @@ convertFlatOpExpr exprTy op args = do
             return $ ExtendedExprExpr trueE
         _ ->
             return $ ExtendedExprExpr $ Expr exprTy $ ExprValueOp op $ map (viewExpecting #_ExtendedExprExpr) args
-    sequenceA_ $
-        maybeNoteModelExpr
-            <$> preview #_ExtendedExprExpr expr
-            <*> traverse (preview #_ExtendedExprExpr) args
-    return expr
 
 convertIfThenElse :: SolverExpr -> ExtendedExpr -> ExtendedExpr -> ExtendedExpr
 convertIfThenElse cond xExt yExt = case (xExt, yExt) of
@@ -381,22 +352,12 @@ convertMemUpdate extExpr p v ty = case extExpr of
 convertMemUpdateSimpleExpr :: C m => SolverExpr -> SolverExpr -> SolverExpr -> ExprType -> T m SolverExpr
 convertMemUpdateSimpleExpr mem p v ty@(ExprTypeWord bits) = do
     p' <- cacheExprInline "memupd_pointer" p
-    case bits of
-        8 -> do
-            let aligned = p' `bitwiseAndE` word32E 0xfffffffd
-            noteModelExpr aligned
-            noteModelExpr $ memAccE word32T aligned mem
-        _ -> do
-            noteModelExpr $ memAccE ty p' mem
     return $ memUpdE p' mem v
 
 convertMemAccess :: C m => ExprType -> ExtendedExpr -> SolverExpr -> T m SolverExpr
 convertMemAccess ty@(ExprTypeWord _) extExpr p = case extExpr of
     ExtendedExprExpr mem -> do
-        let v = memAccE ty p mem
-        noteModelExpr p
-        noteModelExpr v
-        return v
+        return $ memAccE ty p mem
     ExtendedExprSplitMem splitMem -> do
         p' <- cacheExprInline "memacc_pointer" p
         let f side = convertMemAccess ty (ExtendedExprExpr (side splitMem)) p'
