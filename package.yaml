@@ -207,6 +207,7 @@ internal-libraries:
       - BV.Search.Core
       - BV.Search.Core.GraphSlice
       - BV.Search.Core.Solver
+      - BV.Search.Core.Solver.Simple
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:logging

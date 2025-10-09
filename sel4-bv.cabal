@@ -265,9 +265,12 @@ library search-core
       BV.Search.Core
       BV.Search.Core.GraphSlice
       BV.Search.Core.Solver
+      BV.Search.Core.Solver.Simple
   other-modules:
       BV.Search.Core.Inlining
       BV.Search.Core.Inlining.All
+      BV.Search.Core.Solver.Common
+      BV.Search.Core.Solver.Old
       BV.Search.Core.StackBounds
       BV.Search.Core.StackBounds.All
   hs-source-dirs:

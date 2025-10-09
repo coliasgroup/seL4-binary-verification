@@ -6,8 +6,10 @@ module BV.Search.Core.Inlining
     , discoverInlineScript
     ) where
 
-import BV.Search.Core.GraphSlice
-import BV.Search.Core.Solver
+-- import BV.Search.Core.GraphSlice
+
+import BV.Core.GraphSlice.Old
+import BV.Search.Core.Solver.Old
 
 import BV.Core.Stages
 import BV.Core.Types
