@@ -362,7 +362,7 @@ convertStackEqualsImplies sp1 stack1 sp2 stack2 =
     then return trueE
     else do
         let ExtendedExprSplitMem splitMem2 = stack2
-        -- ensureM $ splitMem2.split == sp2 -- TODO
+        ensureM $ splitMem2.split == sp2
         let eq = case stack1 of
                 ExtendedExprExpr s ->
                     splitMem2.top `eqE` s

@@ -381,8 +381,8 @@ registerMem name calls = liftPure $ #mems %= M.insertWith undefined name calls
 registerStack :: TaggedC t n m => Ident -> m ()
 registerStack name = liftPure $ #stacks %= S.insert name
 
-addSplitStackVars :: C t m => ExprEnv -> NameHint -> TaggedT t m FlatExpr
-addSplitStackVars env nameHint = do
+addSplitStackVarsLazy :: C t m => NameHint -> TaggedT t m (ExprEnv -> FlatExpr)
+addSplitStackVarsLazy nameHint = do
     tag <- askTag
     top <- liftFlat $ addVar (nameHint ++ "_top") memT
     bottom <- liftFlat $ addVar (nameHint ++ "_bot") memT
@@ -390,7 +390,7 @@ addSplitStackVars env nameHint = do
     registerStack bottom.name
     stackPointerHook <- askHook #stackPointer
     let graphStackPointer = stackPointerHook tag
-    return $ splitMemE
+    return $ \env -> splitMemE
         (flattenExpr env graphStackPointer)
         (varFromNameTyE top)
         (varFromNameTyE bottom)
@@ -493,22 +493,24 @@ getInputEnv = withMapSlotTagged #inputEnvs () $ do
 getLoopPcEnv :: C t m => ExprEnv -> Visit -> TaggedT t m PcEnv
 getLoopPcEnv preLoopEnv visit = do
     nonConsts <- filterM (fmap not . isConstM) (toList (exprEnvVars preLoopEnv))
-    newVars <- fmap M.fromList $ for nonConsts $ \preLoopVar -> (preLoopVar.name,) <$> do
+    newVarsLazy <- fmap M.fromList $ for nonConsts $ \preLoopVar -> (preLoopVar.name,) <$> do
         let preLoopVal = preLoopEnv ! preLoopVar.name
         isStack <- getIsExprStack preLoopVal
         isMem <- getIsExprMem preLoopVal
         let postLoopNameHint = printf "%P_after_loop_at_%P" preLoopVar.name visit.nodeId
         if isStack
-            then addSplitStackVars preLoopEnv postLoopNameHint
+            then addSplitStackVarsLazy postLoopNameHint
             else do
                 postLoopVar <- liftFlat $ addVar postLoopNameHint preLoopVar.ty
                 when isMem $ do
                     memCalls <- getExprMemCalls preLoopVal >>= addLoopMemCalls visitAddr
                     registerMem postLoopVar.name memCalls
-                return $ varFromNameTyE postLoopVar
+                return $ const $ varFromNameTyE postLoopVar
+    let newVars = newVarsLazy <&> ($ postLoopEnv)
+        postLoopEnv = M.union newVars preLoopEnv
     pc <- liftFlat $ varFromNameTyE <$>
         addVar (printf "pc_of_loop_at_%P" visit.nodeId) boolT
-    return $ PcEnv pc (M.union newVars preLoopEnv)
+    return $ PcEnv pc postLoopEnv
   where
     visitAddr = nodeAddrOf visit.nodeId
     isConstM var = do
@@ -594,17 +596,17 @@ emitNode visit = do
                 return [(callNode.next, PcEnv pc env')]
 
 getCallNodeEnv :: C t m => Visit -> ExprEnv -> CallNode -> TaggedT t m ExprEnv
-getCallNodeEnv visit env callNode = do
-    let ins = map (flattenExpr env) callNode.input
+getCallNodeEnv visit preCallEnv callNode = do
+    let ins = map (flattenExpr preCallEnv) callNode.input
     funName <- askWithTag callNode.functionName
     isMemHook <- askHook #isMem
     isStackHook <- askHook #isStack
-    newVars <- fmap M.fromList $ for (zip [0..] callNode.output) $ \(i, sigVar) -> (sigVar.name,) <$> do
+    newVarsLazy <- fmap M.fromList $ for (zip [0..] callNode.output) $ \(i, sigVar) -> (sigVar.name,) <$> do
         let isMem = isMemHook funName FunctionSignatureDirectionOut i
         let isStack = isStackHook funName FunctionSignatureDirectionOut i
         let nameHint = localName visit sigVar.name
         if isStack
-            then addSplitStackVars env nameHint
+            then addSplitStackVarsLazy nameHint
             else do
                 envVar <- liftFlat $ addVar nameHint sigVar.ty
                 when isMem $ do
@@ -615,17 +617,19 @@ getCallNodeEnv visit env callNode = do
                             ]
                     memCalls <- getExprMemCalls memInExpr
                     registerMem envVar.name (addMemCall callNode.functionName memCalls)
-                return $ varFromNameTyE envVar
+                return $ const $ varFromNameTyE envVar
+    let newVars = newVarsLazy <&> ($ postCallEnv)
+        postCallEnv = M.union newVars preCallEnv
     successVar <- liftFlat $ addVar (successName visit callNode.functionName) boolT
     let info = FunCallInfo
             { ins
-            , outs = [ newVars ! out.name | out <- callNode.output ]
+            , outs = [ postCallEnv ! out.name | out <- callNode.output ]
             , success = varFromNameTyE successVar
             }
     key <- askWithTag visit
     liftPure $ #funCalls %= M.insertWith undefined key info
     liftPure $ #funCallsByName %= M.insertWith (<>) funName (S.singleton visit)
-    return $ M.union newVars env
+    return postCallEnv
 
 isSyntacticConstant :: C t m => NameTy -> NodeAddr -> TaggedT t m Bool
 isSyntacticConstant var split = do
