@@ -7,6 +7,7 @@ module BV.Search.Core.Inlining
     ) where
 
 -- import BV.Search.Core.GraphSlice
+-- import BV.Search.Core.Solver
 
 import BV.Core.GraphSlice.Old
 import BV.Search.Core.Solver.Old
