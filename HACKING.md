@@ -1,6 +1,6 @@
 # Hacking
 
-Building this project requires either [GHC](https://www.haskell.org/ghc/) (tested with 9.10.2) and
+Building this project requires either [GHC](https://www.haskell.org/ghc/) (tested with 9.10.3) and
 [Cabal](https://www.haskell.org/cabal/), or [Stack](https://docs.haskellstack.org).
 
 Additional tools useful for development include:

@@ -1,11 +1,11 @@
 let
   path =
     let
-      rev = "a48741b083d4f36dd79abd9f760c84da6b4dc0e5"; # nixpkgs-unstable
+      rev = "4df1b885d76a54e1aa1a318f8d16fd6005b6401f"; # nixpkgs-unstable
     in
       builtins.fetchTarball {
         url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
-        sha256 = "sha256:1in67kl5x9a0v3y0yw6fibpx1797k1d4s3nd2zfq5bwp7343ia84";
+        sha256 = "sha256:09225bj114bvg3j5v36a60gwq7hz8gcgy0nbfagq7b65gjwn25dy";
       };
 in
 

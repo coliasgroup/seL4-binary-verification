@@ -5,7 +5,7 @@
 }:
 
 let
-  ghcVersion = "9102";
+  ghcVersion = "9103";
 
   ghc = pkgs.haskell.compiler."ghc${ghcVersion}";
 
@@ -44,7 +44,7 @@ pkgs.mkShell {
 
     sonolar
 
-  ] ++ lib.optionals pkgs.hostPlatform.isLinux [
+  ] ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
     inotify-tools
 
     # broken on darwin

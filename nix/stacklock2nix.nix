@@ -1,11 +1,11 @@
 let
   path =
     let
-      rev = "108f6ab6d0208e3842443bea26dfd72b37d82f28";
+      rev = "27c7a46f9a4c73d3aef95d4a011213af0ce1e700";
     in
       builtins.fetchTarball {
         url = "https://github.com/cdepillabout/stacklock2nix/archive/${rev}.tar.gz";
-        sha256 = "sha256:0vrhwqm6gwrqmjd4gm8ylwv1yvl0ngx7yx07wwxhwhmjfg32j26r";
+        sha256 = "sha256:06p9bvgqchwwhb1a0bqh0j02zp05pg8ldx15vgiy4csls083ahb4";
       };
 in
 
