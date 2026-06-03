@@ -14,19 +14,19 @@ exe="cabal run sel4-bv-cli --"
 # Three options for $worker_args:
 
 # Embedded worker
-workers_arg="--num-solver-cores 8"
+worker_args="--num-solver-cores 8"
 
 # External workers via SSH on localhost
-# workers_arg="--workers $here/workers.local.yaml"
+# worker_args="--workers $here/workers.local.yaml"
 
 # External workers via SSH on remote hosts (requires Nix-built $exe, see above)
-# workers_arg="--workers $here/workers.remote.yaml"
+# worker_args="--workers $here/workers.remote.yaml"
 
 mkdir -p $tmp
 
 $exe \
     check \
-    $workers_arg \
+    $worker_args \
     --solvers $here/solvers.yaml \
     --num-eval-cores 8 \
     --sqlite-cache $tmp/cache.sqlite \
