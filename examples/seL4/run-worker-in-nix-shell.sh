@@ -11,4 +11,4 @@ mkdir -p $tmp
 
 logfile=$tmp/log.$(date +%s).$RANDOM.txt
 
-(cd $toplevel && nix-shell --run "cabal run sel4-bv-cli -- $*") 2> >(tee $logfile >&2)
+(cd $toplevel && nix-shell --run "\$(cabal list-bin sel4-bv-cli) $*") 2> >(tee $logfile >&2)
