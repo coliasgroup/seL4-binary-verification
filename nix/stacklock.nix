@@ -55,10 +55,10 @@ stacklock2nix {
 
   all-cabal-hashes =
     let
-      rev = "80353e038683cd23b4e3432c8c10c960c5891f63";
+      rev = "56a8e992cb300266eb6d1a181884bd765309d9be";
     in
       fetchurl {
         url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/${rev}.tar.gz";
-        sha256 = "sha256-4K4jNjD9WAgMQGZDMZmnimPhkDDZymbhhKtteETw+0k=";
+        sha256 = "sha256-4K4nNjD9WAgMQGZDMZmnimPhkDDZymbhhKtteETw+0k=";
       };
 }
