@@ -8,7 +8,7 @@ module BV.Search.Core.Inlining
 
 -- import BV.Search.Core.GraphSlice
 
-import BV.Core.GraphSlice.Old
+import BV.Core.GraphSlice.New
 import BV.Search.Core.Solver.Old
 
 import BV.Core.Stages

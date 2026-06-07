@@ -3,7 +3,7 @@ module BV.Search.Core.Solver.Old
     , testHyp
     ) where
 
-import BV.Core.GraphSlice.Old
+import BV.Core.GraphSlice.New
 
 import BV.Search.Core.Solver.Common
 
