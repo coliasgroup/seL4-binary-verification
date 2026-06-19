@@ -29,6 +29,7 @@ module BV.Core.Types.Program
     , VarUpdate (..)
     , fromListOfNamed
     , fromNotSplit
+    , lookupNamed
     , prettyNodeAddr
     , prettyNodeId
     , toListOfNamed
@@ -78,6 +79,9 @@ fromListOfNamed = M.fromList . map (\Named { name, value } -> (name, value))
 
 withNamed :: (Ident -> a -> b) -> Named a -> b
 withNamed f (Named named value) = f named value
+
+lookupNamed :: (Ident -> a) -> Ident -> Named a
+lookupNamed f name = Named name (f name)
 
 data NameTy
   = NameTy
