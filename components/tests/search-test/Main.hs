@@ -1,5 +1,8 @@
 {-# LANGUAGE ImplicitParams #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-missing-fields #-}
+
 module Main
     ( main
     ) where
@@ -8,11 +11,13 @@ import BV.ConcreteSyntax
 import BV.Core.Prelude
 import BV.Core.Types
 import BV.Core.Types.Extras.Aggregate
+import BV.Core.Types.Extras.Program (signatureOfFunction)
 import BV.Logging
 import BV.Search.Core
 import BV.Search.System.Core
 import BV.SMTLIB2.Monad
 import BV.System.Core
+import BV.System.Core.Utils.Logging (withPushLogContextPairing)
 import BV.System.Utils.SemGate
 import BV.System.Utils.UnliftIO.Async
 import BV.TargetDir (TargetDir (TargetDir))
@@ -22,10 +27,12 @@ import BV.Test.Utils.Paths (defaultTestTargetDir)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Map as M
 import qualified Data.Set as S
+import qualified Data.Text.Lazy as TL
 import Optics
 import System.FilePath ((<.>), (</>))
 import Test.Tasty
 import Test.Tasty.HUnit
+import Text.Printf (printf)
 
 main :: IO ()
 main = bvMain $ \opts ->
@@ -33,6 +40,7 @@ main = bvMain $ \opts ->
      in testGroup "Tests"
             [ testCase "inlining" testInlining
             , testCase "stack-bounds" testStackBounds
+            , testCase "proof-scripts" testProofScripts
             ]
 
 testInlining :: (?opts :: CustomOpts) => IO ()
@@ -59,7 +67,7 @@ testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
 testStackBounds :: (?opts :: CustomOpts) => IO ()
 testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
     stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForFastTests
-    let preparedInput = prepareDiscoverStackBoundsInput $ DiscoverAllStacFullDiscoverStackBoundsInputkBoundsInput
+    let preparedInput = prepareDiscoverStackBoundsInput $ DiscoverAllStackFullDiscoverStackBoundsInputkBoundsInput
             { programs = stagesInput.programs
             , objDumpInfo = stagesInput.objDumpInfo
             , rodata = stagesInput.rodata
@@ -76,23 +84,58 @@ testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
     checkMatch "StackBounds" "txt" bounds reference
     return ()
 
+testProofScripts :: (?opts :: CustomOpts) => IO ()
+testProofScripts = withLoggingOpts (loggingOpts ?opts "proof-scripts.log") $ do
+    let targetsArg = map Ident ?opts.proofScriptSearchTargets
+    let targetsExcludeArg = map Ident ?opts.proofScriptSearchTargetsExclude
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForSlowTests
+    let defaultTargets = map (viewAtTag Asm) $ M.keys stagesInput.proofScripts.unwrap
+    let targets = filter (`notElem` targetsExcludeArg) $ case targetsArg of
+            [] -> defaultTargets
+            xs -> xs
+    let stagesOutput = stages stagesInput
+    let lookupFunction (WithTag _ funName) = stagesOutput.intermediate.functions.functions M.! funName
+    let lookupSig = signatureOfFunction . lookupFunction
+    solverGate <- liftIO $ newSemGate =<< numThreads
+    targetGate <- liftIO $ newSemGate =<< numThreads
+    forConcurrentlyUnliftIO_ targets $ \target -> applySemGate targetGate 1 $ do
+        let [pairingId] =
+                [ pid
+                | pid <- M.keys stagesOutput.intermediate.pairings.unwrap
+                , pid.asm == target
+                ]
+        withPushLogContextPairing pairingId $ do
+            let input = DiscoverProofScriptInput
+                    { graphSliceInput = stagesOutput.intermediate.graphSliceInput M.! pairingId
+                    , pairings = stagesOutput.intermediate.pairings
+                    , lookupSig
+                    }
+            let expected = stagesInput.proofScripts.unwrap M.! pairingId
+            actual <- discoverProofScript' (applySemGate solverGate) solversConfig input
+                >>= assertSuccess
+            let actualTxt = writeBVContents actual
+            logInfo $ printf "found proof script: %s" (TL.unpack actualTxt)
+            checkMatch "proof-script" "txt" actual expected
+    return ()
+
 --
 
 assertSuccess :: (MonadIO m, Show e) => Either e a -> m a
 assertSuccess = either (liftIO . assertFailure . show) return
 
-checkMatchWith :: (?opts :: CustomOpts, MonadIO m, Eq a, WriteBVFile c a) => (a -> a -> Either String ()) -> String -> String -> a -> a -> m ()
-checkMatchWith cmp fname ext actual expected = liftIO $ do
+checkMatchWith :: (?opts :: CustomOpts, MonadIO m, MonadLogger m, WriteBVFile c a) => (a -> a -> Either String ()) -> String -> String -> a -> a -> m ()
+checkMatchWith cmp fname ext actual expected = do
     case cmp actual expected of
         Right () -> return ()
         Left msg -> do
             let mismatchDumpDir = mismatchOutDirOf ?opts </> fname
-            ensureDir mismatchDumpDir
-            writeBVFile (mismatchDumpDir </> "actual" <.> ext) actual
-            writeBVFile (mismatchDumpDir </> "expected" <.> ext) expected
-            assertBool ("mismatch: " ++ msg) False
+            liftIO $ ensureDir mismatchDumpDir
+            liftIO $ writeBVFile (mismatchDumpDir </> "actual" <.> ext) actual
+            liftIO $ writeBVFile (mismatchDumpDir </> "expected" <.> ext) expected
+            logError $ "mismatch: " ++ msg
+            liftIO $ assertFailure "mismatch"
 
-checkMatch :: (?opts :: CustomOpts, MonadIO m, Eq a, WriteBVFile c a) => String -> String -> a -> a -> m ()
+checkMatch :: (?opts :: CustomOpts, MonadIO m, MonadLogger m, Eq a, WriteBVFile c a) => String -> String -> a -> a -> m ()
 checkMatch = checkMatchWith $ \x y ->
     if x == y
     then Right ()
@@ -137,3 +180,28 @@ solverConfig = OnlineSolverConfig
         }
     , timeout = solverTimeoutFromSeconds 30
     }
+
+solversConfig :: SolversConfig
+solversConfig = SolversConfig
+    { online = Just solverConfig
+    , offline = OfflineSolversConfig
+        { groups =
+            [ defaultGroup
+                & #commandName .~ "yices"
+                & #command .~ SolverCommand "yices-smt2" ["--incremental"] -- TODO "--mode=one-shot" is apparently slow with ":produce-models"
+            , defaultGroup
+                & #commandName .~ "bitwuzla"
+                & #command .~ SolverCommand "bitwuzla" []
+            ]
+        , timeout = solverTimeoutFromSeconds 6000
+        }
+    }
+  where
+    defaultGroup =
+        OfflineSolverGroupConfig
+            { scopes = [SolverScopeAll, SolverScopeHyp]
+            , modelConfigs =
+                [ ModelConfig MemoryModeWord8
+                , ModelConfig MemoryModeWord32
+                ]
+            }

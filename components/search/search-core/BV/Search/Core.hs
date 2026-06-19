@@ -1,5 +1,6 @@
 module BV.Search.Core
-    ( DiscoverAllInlineScriptsInput (..)
+    ( module BV.Search.Core.ProofScript
+    , DiscoverAllInlineScriptsInput (..)
     , DiscoverInlineScriptInput (..)
     , DiscoverStackBoundsInput (..)
     , FullDiscoverStackBoundsInput (..)
@@ -11,5 +12,6 @@ module BV.Search.Core
 
 import BV.Search.Core.Inlining
 import BV.Search.Core.Inlining.All
+import BV.Search.Core.ProofScript
 import BV.Search.Core.StackBounds
 import BV.Search.Core.StackBounds.All

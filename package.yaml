@@ -99,6 +99,7 @@ internal-libraries:
       - aeson
       - attoparsec
       - attoparsec-aeson
+      - resourcet
   
   network-transport-static:
     visibility: public
@@ -195,7 +196,6 @@ internal-libraries:
       - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
-      - sel4-bv:search-core
       - sel4-bv:concrete-syntax
       - sel4-bv:utils
       - sel4-bv:system-utils
@@ -211,11 +211,18 @@ internal-libraries:
       - BV.Search.Core.GraphSlice
       - BV.Search.Core.Solver
       - BV.Search.Core.Solver.Simple
+      - BV.Search.Core.Solver.Parallel
     dependencies:
       - sel4-bv:smtlib2
+      - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
+      - sel4-bv:system-core
+      - sel4-bv:system-utils
+      - sel4-bv:system
       - sel4-bv:utils
+      # external
+      - resourcet
 
   search-system-core:
     visibility: public
@@ -231,6 +238,8 @@ internal-libraries:
       - sel4-bv:utils
       - sel4-bv:system-utils
       - sel4-bv:system-core
+      # external
+      - resourcet
 
   system:
     visibility: public
@@ -241,7 +250,6 @@ internal-libraries:
       - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
-      - sel4-bv:search-core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       - sel4-bv:utils

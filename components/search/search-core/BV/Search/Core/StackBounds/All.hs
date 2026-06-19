@@ -15,7 +15,7 @@ import GHC.Generics (Generic)
 import Optics
 
 data FullDiscoverStackBoundsInput
-  = DiscoverAllStacFullDiscoverStackBoundsInputkBoundsInput
+  = DiscoverAllStackFullDiscoverStackBoundsInputkBoundsInput
       { programs :: ByTag' Program
       , objDumpInfo :: ObjDumpInfo
       , rodata :: ROData

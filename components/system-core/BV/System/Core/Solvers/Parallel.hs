@@ -12,6 +12,8 @@ module BV.System.Core.Solvers.Parallel
     , getHypAtIndex
     , numParallelSolvers
     , numParallelSolversForSingleCheck
+    , offlineSolverConfigsForScope
+    , offlineSolverConfigsForSingleCheck
     , prettySolverScope
     , runParellelOfflineSolvers
     , runParellelOfflineSolversForSingleCheck

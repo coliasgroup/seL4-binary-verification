@@ -9,6 +9,7 @@ import BV.TargetDir
 import BV.Test.Utils.Paths (defaultGraphRefineDir, defaultOutDir,
                             defaultTestTargetDir)
 
+import Data.List.Extra (splitOn)
 import Data.Proxy (Proxy (Proxy))
 import Data.Typeable (Typeable)
 import Test.Tasty
@@ -24,6 +25,8 @@ data CustomOpts
       , defaultTargetDirForSlowTests :: TargetDir
       , defaultTargetDirForTestsRequiringTrace :: TargetDir
       , graphRefineDir :: FilePath
+      , proofScriptSearchTargets :: [String]
+      , proofScriptSearchTargetsExclude :: [String]
       }
 
 defaultCustomOpts :: CustomOpts
@@ -36,6 +39,8 @@ defaultCustomOpts = CustomOpts
     , defaultTargetDirForSlowTests
     , defaultTargetDirForTestsRequiringTrace
     , graphRefineDir
+    , proofScriptSearchTargets
+    , proofScriptSearchTargetsExclude
     }
   where
     OutDir outDir = defaultValue
@@ -46,6 +51,8 @@ defaultCustomOpts = CustomOpts
     DefaultTargetDirForSlowTests defaultTargetDirForSlowTests = defaultValue
     DefaultTargetDirForTestsRequiringTrace defaultTargetDirForTestsRequiringTrace = defaultValue
     GraphRefineDir graphRefineDir = defaultValue
+    ProofScriptSearchTargets proofScriptSearchTargets = defaultValue
+    ProofScriptSearchTargetsExclude proofScriptSearchTargetsExclude = defaultValue
 
 defaultMainWithOpts :: (CustomOpts -> TestTree) -> IO ()
 defaultMainWithOpts f = defaultMainWithIngredients ingredients $
@@ -57,6 +64,8 @@ defaultMainWithOpts f = defaultMainWithIngredients ingredients $
     askOption $ \(DefaultTargetDirForSlowTests defaultTargetDirForSlowTests) ->
     askOption $ \(DefaultTargetDirForTestsRequiringTrace defaultTargetDirForTestsRequiringTrace) ->
     askOption $ \(GraphRefineDir graphRefineDir) ->
+    askOption $ \(ProofScriptSearchTargets proofScriptSearchTargets) ->
+    askOption $ \(ProofScriptSearchTargetsExclude proofScriptSearchTargetsExclude) ->
     do
         let opts = CustomOpts
                 { outDir
@@ -67,6 +76,8 @@ defaultMainWithOpts f = defaultMainWithIngredients ingredients $
                 , defaultTargetDirForSlowTests
                 , defaultTargetDirForTestsRequiringTrace
                 , graphRefineDir
+                , proofScriptSearchTargets
+                , proofScriptSearchTargetsExclude
                 }
         f opts
   where
@@ -79,6 +90,8 @@ defaultMainWithOpts f = defaultMainWithIngredients ingredients $
             , Option (Proxy :: Proxy DefaultTargetDirForFastTests)
             , Option (Proxy :: Proxy DefaultTargetDirForSlowTests)
             , Option (Proxy :: Proxy GraphRefineDir)
+            , Option (Proxy :: Proxy ProofScriptSearchTargets)
+            , Option (Proxy :: Proxy ProofScriptSearchTargetsExclude)
             ] : defaultIngredients
 
 newtype OutDir
@@ -163,6 +176,30 @@ instance IsOption GraphRefineDir where
   parseValue = pure . GraphRefineDir
   optionName = return "graph-refine-dir"
   optionHelp = return "Graph refine"
+
+newtype ProofScriptSearchTargets
+  = ProofScriptSearchTargets [String]
+  deriving (Eq, Ord, Typeable)
+
+instance IsOption ProofScriptSearchTargets where
+  defaultValue = ProofScriptSearchTargets []
+  parseValue = pure . ProofScriptSearchTargets . \case
+    "" -> []
+    s -> splitOn "," s
+  optionName = return "proof-script-search-targets"
+  optionHelp = return "Proof script search targets"
+
+newtype ProofScriptSearchTargetsExclude
+  = ProofScriptSearchTargetsExclude [String]
+  deriving (Eq, Ord, Typeable)
+
+instance IsOption ProofScriptSearchTargetsExclude where
+  defaultValue = ProofScriptSearchTargetsExclude []
+  parseValue = pure . ProofScriptSearchTargetsExclude . \case
+    "" -> []
+    s -> splitOn "," s
+  optionName = return "proof-script-search-targets-exclude"
+  optionHelp = return "Proof script search targets to exclude"
 
 testTreeWhen :: Bool -> TestTree -> TestTree
 testTreeWhen cond tree = if cond then tree else testGroup "skipped" []

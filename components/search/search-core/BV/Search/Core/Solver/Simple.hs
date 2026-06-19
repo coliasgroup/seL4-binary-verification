@@ -2,9 +2,9 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Search.Core.Solver.Simple
-    ( GraphSliceSolverFailureReason (..)
-    , GraphSliceSolverInteractSimple
+    ( GraphSliceSolverInteractSimple
     , GraphSliceSolverInteractSimpleFailureInfo (..)
+    , GraphSliceSolverInteractSimpleFailureReason (..)
     , runGraphSliceSolverInteractSimple
     ) where
 
@@ -42,16 +42,16 @@ newtype GraphSliceSolverInteractSimple m a
     , MonadLoggerWithContext
     )
 
-data SimpleState
-  = SimpleState
-      { haveModel :: Bool
-      }
-  deriving (Generic)
-
 data SimpleEnv
   = SimpleEnv
       { timeout :: Maybe SolverTimeout
       , modelConfig :: ModelConfig
+      }
+  deriving (Generic)
+
+data SimpleState
+  = SimpleState
+      { haveModel :: Bool
       }
   deriving (Generic)
 
@@ -63,13 +63,13 @@ instance MonadTrans GraphSliceSolverInteractSimple where
 
 data GraphSliceSolverInteractSimpleFailureInfo
   = GraphSliceSolverInteractSimpleFailureInfo
-      { reason :: GraphSliceSolverFailureReason
+      { reason :: GraphSliceSolverInteractSimpleFailureReason
       }
   deriving (Eq, Generic, Ord, Show)
 
-data GraphSliceSolverFailureReason
-  = GraphSliceSolverTimedOut
-  | GraphSliceSolverAnsweredUnknown SExpr
+data GraphSliceSolverInteractSimpleFailureReason
+  = GraphSliceSolverInteractSimpleFailureReasonTimedOut
+  | GraphSliceSolverInteractSimpleFailureReasonAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 
 runGraphSliceSolverInteractSimple
@@ -107,8 +107,8 @@ checkSatSimple = do
     timeout <- liftPure $ gview #timeout
     r <- lift $ checkSatWithTimeout timeout
     case r of
-        Nothing -> throwReason GraphSliceSolverTimedOut
-        Just (Unknown msg) -> throwReason $ GraphSliceSolverAnsweredUnknown msg
+        Nothing -> throwReason GraphSliceSolverInteractSimpleFailureReasonTimedOut
+        Just (Unknown msg) -> throwReason $ GraphSliceSolverInteractSimpleFailureReasonAnsweredUnknown msg
         Just Sat -> return True
         Just Unsat -> return False
   where

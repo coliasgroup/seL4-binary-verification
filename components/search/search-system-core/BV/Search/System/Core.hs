@@ -1,5 +1,6 @@
 module BV.Search.System.Core
     ( discoverInlineScript'
+    , discoverProofScript'
     , discoverStackBounds'
     , runGraphSliceSolverInteractSimple'
     ) where
@@ -7,14 +8,15 @@ module BV.Search.System.Core
 import BV.Core.Types
 import BV.Logging
 import BV.Search.Core
+import BV.Search.Core.Solver.Parallel
 import BV.Search.Core.Solver.Simple
 import BV.SMTLIB2.Process
 import BV.System.Core
 import BV.System.Core.Utils.Logging (runSolverWithLogging,
                                      withPushLogContextPairing)
 import BV.System.Utils.Stopwatch
-
 import BV.System.Utils.UnliftIO.Async (forConcurrentlyUnliftIOE)
+
 import Control.Concurrent (MVar, modifyMVar, newMVar)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
@@ -23,6 +25,7 @@ import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Reader (MonadReader, ReaderT (runReaderT), ask, mapReaderT)
 import Control.Monad.State (State, runState)
 import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Data.Tuple (swap)
 import Optics
 import Optics.State.Operators ((<<%=))
@@ -67,6 +70,17 @@ discoverStackBounds' throttle config input = do
         -> ExceptT GraphSliceSolverInteractSimpleFailureInfo (ReaderT (MVar Integer) m) (t b)
     forConc xs f = ExceptT $ forConcurrentlyUnliftIOE xs $ \x -> mapReaderT throttle $ runExceptT $ f x
 
+discoverProofScript'
+    :: forall m. (MonadLoggerWithContext m, MonadUnliftIO m, MonadLogger m, MonadMask m)
+    => (forall n a. MonadUnliftIO n => Integer -> n a -> n a) -> SolversConfig -> DiscoverProofScriptInput -> m (Either GraphSliceSolverInteractParallelFailureInfo (ProofScript AsmRefineTag ()))
+discoverProofScript' throttleN config input = do
+    (r, elapsed) <- time $ runSolverCounterT $ runExceptT $ discoverProofScript (runSolverParallel throttleN config) input
+    let msg = case r of
+            Right _ -> "discovered proof script"
+            Left failure -> "failed with " ++ show failure
+    logDebug $ msg ++ makeElapsedSuffix elapsed
+    return r
+
 runSolverCounterT :: MonadIO m => ReaderT (MVar Integer) m a -> m a
 runSolverCounterT m = do
     counter <- liftIO $ newMVar 0
@@ -86,6 +100,17 @@ runSolverSimple config m = do
     i <- atomicState $ simple <<%= (+ 1)
     withPushLogContext ("solver run " ++ show i) $ do
         ExceptT $ lift $ runGraphSliceSolverInteractSimple' config m
+
+runSolverParallel
+    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
+    => (forall n b. MonadUnliftIO n => Integer -> n b -> n b)
+    -> SolversConfig
+    -> GraphSliceSolverInteractParallel (ResourceT m) a
+    -> ExceptT GraphSliceSolverInteractParallelFailureInfo (ReaderT (MVar Integer) m) a
+runSolverParallel throttleN config m = do
+    i <- atomicState $ simple <<%= (+ 1)
+    withPushLogContext ("solver run " ++ show i) $ do
+        ExceptT $ lift $ runResourceT $ runGraphSliceSolverInteractParallel throttleN config m
 
 -- TODO unify with other def
 makeElapsedSuffix :: Elapsed -> String

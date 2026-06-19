@@ -1,4 +1,3 @@
-
 .PHONY: none
 none:
 
@@ -105,3 +104,12 @@ test-inlining: hpack
 test-stack-bounds: hpack
 	cabal test search-test \
 		--test-option=--pattern=stack-bounds
+
+.PHONY: test-proof-scripts-big
+test-proof-scripts-big: hpack
+	cabal test search-test \
+		--test-option=--for-slow=$(test_target_dirs)/big \
+		--test-option=--include-wip \
+		--test-option=--pattern=proof-scripts \
+		--test-option=--proof-script-search-targets=$(T) \
+		--test-option=--proof-script-search-targets-exclude=$(E)

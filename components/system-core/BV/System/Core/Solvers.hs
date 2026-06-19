@@ -18,6 +18,7 @@ module BV.System.Core.Solvers
     , SolversConfig (..)
     , localSolverBackend
     , minNumJobs
+    , offlineSolverConfigsForSingleCheck
     , prettySolverScope
     , runSolvers
     ) where
