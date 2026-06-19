@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module BV.Core.Utils
-    ( maybeFromSingletonList
+    ( compareLength
+    , maybeFromSingletonList
     , whenJustThen
     , whenNothing
     , withMapSlotWith
@@ -31,3 +32,15 @@ maybeFromSingletonList :: [a] -> Maybe a
 maybeFromSingletonList = \case
     [] -> Nothing
     [a] -> Just a
+
+compareLength :: Int -> [a] -> Ordering
+compareLength = go
+  where
+    go n xs = case n `compare` 0 of
+        LT -> GT
+        EQ -> case xs of
+            [] -> EQ
+            _ -> GT
+        GT -> case xs of
+            [] -> LT
+            (_:xs') -> go (n - 1) xs'

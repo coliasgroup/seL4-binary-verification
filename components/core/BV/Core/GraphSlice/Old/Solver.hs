@@ -36,7 +36,7 @@ import BV.Core.Logic
 import BV.Core.Structs
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils (whenNothing, withMapSlotWith)
+import BV.Core.Utils (compareLength, whenNothing, withMapSlotWith)
 import BV.SMTLIB2.SExpr
 import BV.Utils
 
@@ -357,20 +357,13 @@ noteMemDom :: C m => S -> S -> S -> T m ()
 noteMemDom p d md = liftSolver $ #doms %= S.insert (p, d, md)
 
 cacheLargeExpr :: C m => S -> SmtNameHint -> ExprType -> T m S
-cacheLargeExpr s nameHint ty = do
-    nameOpt <- liftSolver $ use $ #cachedExprs % at s
-    case nameOpt of
-        Just name -> return $ nameS name
-        Nothing ->
-            if length (showSExprWithPlaceholders s) < 80
-            then do
-                return s
-            else do
-                name <- addDefNotSplit nameHint (smtExprE ty (NotSplit s))
-                liftSolver $ do
-                    #cachedExprs %= M.insert s name
-                    #cachedExprNames %= S.insert name
-                return $ nameS name
+cacheLargeExpr s nameHint ty =
+    if compareLength 80 (showSExprWithPlaceholders s) == LT
+    then return s
+    else fmap nameS $ withMapSlot #cachedExprs s $ do
+        name <- addDefNotSplit nameHint (smtExprE ty (NotSplit s))
+        liftSolver $ #cachedExprNames %= S.insert name
+        return name
 
 getToken :: C m => Ident -> T m MaybeSplit
 getToken ident = fmap (NotSplit . nameS) $ withMapSlot #tokens ident $ do

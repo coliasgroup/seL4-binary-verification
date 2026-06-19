@@ -20,7 +20,7 @@ import BV.Core.GraphSlice.New.Common
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils (whenNothing, withMapSlotWith)
+import BV.Core.Utils (compareLength, whenNothing, withMapSlotWith)
 import BV.SMTLIB2.SExpr (GenericSExpr (List), isValidSymbolAtomFirstChar,
                          isValidSymbolAtomSubsequentChar)
 
@@ -207,7 +207,7 @@ sendSolverExprCommand = \case
         liftPure $ #nameMap %= M.insertWith undefined var.name name
     ExprCommandDefine inlineHint var val -> do
         s <- convertSolverExpr val
-        if inlineHint == ExprCommandInlineHintSometimes && length (showSExprWithPlaceholders s) < 80
+        if inlineHint == ExprCommandInlineHintSometimes && compareLength 80 (showSExprWithPlaceholders s) == LT
         then do
             liftPure $ #inline %= M.insertWith undefined var.name s
         else do
