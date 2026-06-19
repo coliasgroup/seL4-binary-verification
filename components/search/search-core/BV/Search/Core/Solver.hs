@@ -88,7 +88,7 @@ testHypWhypsWithCacheFast
 testHypWhypsWithCacheFast hyp hyps =
     withCache (testHypWhypsCommon True hyp hyps)
 
-getFlatExprValue :: (Tag t, MonadGraphSliceGetSExprValue m) => FlatExpr -> GraphSliceT t m GraphExpr
+getFlatExprValue :: (Tag t, MonadGraphSliceGetSExprValue m) => FlatExpr -> GraphSliceT t m (Expr c)
 getFlatExprValue expr = do
     sexpr <- withoutSendSExpr $ convertExpr expr
     valueSExpr <- lift $ getSExprValue sexpr
