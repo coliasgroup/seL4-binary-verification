@@ -13,6 +13,7 @@ module BV.Core.Stages.BuildProblem
     , inline
     , inlineAtPoint
     , inlineEntryForPoint
+    , patchNoreturnCallConts
     ) where
 
 import BV.Core.GenerateFreshName
@@ -188,6 +189,7 @@ doAnalysis :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 doAnalysis = do
     forceSimpleLoopReturns
 
+-- TODO apply to inner loops too
 forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 forceSimpleLoopReturns = do
     ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
@@ -295,3 +297,25 @@ inlineInner lookupFun nodeAddr entry = do
                 ]
             }
     insertNode exitNodeAddr exitNode entry.tag Nothing
+
+--
+
+-- TODO move?
+
+patchNoreturnCallConts :: (Tag t, Monad m) => (Ident -> Bool) -> StateT (ProblemBuilder t) m ()
+patchNoreturnCallConts isNoreturn = do
+    modifying (#nodes % traversed % _Just % #node % #_NodeCall) $ \callNode ->
+        callNode & #next %~ (if isNoreturn callNode.functionName then const Err else id)
+    pruneUnreachableNodes
+
+pruneUnreachableNodes :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
+pruneUnreachableNodes = do
+    problem <- gets extractProblem
+    let nodeGraph = makeNodeGraph problem.nodes
+        reachable = S.fromList
+            [ nodeId
+            | side <- toList problem.sides
+            , nodeId <- reachableFrom nodeGraph side.entryPoint
+            ]
+    modify $ #nodes %~ M.filterWithKey
+        (\addr -> maybe True (const (Addr addr `S.member` reachable)))
