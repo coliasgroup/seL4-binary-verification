@@ -65,8 +65,9 @@ testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
             , includeAsmFrom = M.keysSet stagesInput.stackBounds.unwrap
             -- , includeAsmFrom = S.fromList [Ident "handleVMFault"]
             }
+    gate <- liftIO $ newSemGate =<< numThreads
     let f :: DiscoverStackBoundsInput -> LoggingWithContextT IO StackBounds
-        f input = discoverStackBounds' solverConfig input >>= assertSuccess
+        f input = discoverStackBounds' (applySemGate gate 1) solverConfig input >>= assertSuccess
     bounds <- f preparedInput
     let reference = stagesInput.stackBounds & #unwrap %~ flip M.restrictKeys (M.keysSet bounds.unwrap)
     checkMatch "StackBounds" "txt" bounds reference
@@ -99,9 +100,9 @@ checkMatch = checkMatchWith $ \x y ->
 numThreads :: IO Integer
 numThreads =
     return
-        1
+        -- 1
         -- 6
-        -- 16
+        16
 
 loggingOpts :: CustomOpts -> FilePath -> LoggingOpts
 loggingOpts opts fname = LoggingOpts
