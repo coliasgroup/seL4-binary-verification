@@ -1,10 +1,6 @@
 module BV.Core.GraphSlice
-    ( module BV.Core.GraphSlice.Old
+    ( module GraphSlice
     ) where
 
--- module BV.Core.GraphSlice
-    -- ( module BV.Core.GraphSlice.New
-    -- ) where
-
-import BV.Core.GraphSlice.Old
--- import BV.Core.GraphSlice.New
+import BV.Core.GraphSlice.Old as GraphSlice
+-- import BV.Core.GraphSlice.New as GraphSlice
