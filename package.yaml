@@ -122,6 +122,7 @@ internal-libraries:
       - BV.Core.Prelude
       - BV.Core.Stages
       - BV.Core.Structs
+      - BV.Core.Arch
       - BV.Core.Types
       - BV.Core.Types.Extras.DebugShowExpr # TODO
       - BV.Core.Types.Extras.Expr # TODO

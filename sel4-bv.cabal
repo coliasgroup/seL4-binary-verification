@@ -83,6 +83,7 @@ library core
       BV.Core.Prelude
       BV.Core.Stages
       BV.Core.Structs
+      BV.Core.Arch
       BV.Core.Types
       BV.Core.Types.Extras.DebugShowExpr
       BV.Core.Types.Extras.Expr
@@ -93,7 +94,6 @@ library core
       BV.Core.Types.Extras.SExprWithPlaceholders
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
-      BV.Core.Arch
       BV.Core.GenerateFreshName
       BV.Core.Glue
       BV.Core.GraphSlice.New.AsmRefine
