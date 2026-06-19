@@ -634,6 +634,7 @@ getCallNodeEnv visit preCallEnv callNode = do
 isSyntacticConstant :: C t m => NameTy -> NodeAddr -> TaggedT t m Bool
 isSyntacticConstant var split = do
     hasInnerLoop_ <- getHasInnerLoop split
+    -- TODO handle hasInnerLoop case
     if hasInnerLoop_
         then return False
         else do
