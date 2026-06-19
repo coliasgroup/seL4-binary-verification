@@ -55,7 +55,7 @@ testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
 
 testStackBounds :: (?opts :: CustomOpts) => IO ()
 testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
-    stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForSlowTests
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForFastTests
     let preparedInput = prepareDiscoverStackBoundsInput $ DiscoverAllStacFullDiscoverStackBoundsInputkBoundsInput
             { programs = stagesInput.programs
             , objDumpInfo = stagesInput.objDumpInfo
