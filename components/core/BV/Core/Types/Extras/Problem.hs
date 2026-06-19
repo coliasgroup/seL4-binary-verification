@@ -46,6 +46,7 @@ import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 
+-- TODO don't abuse PairingEqSideQuadrant
 type ArgRenames t = PairingEqSideQuadrant t -> Ident -> Ident
 
 problemArgRenames :: Tag t => Problem t -> ByTag t FunctionSignature -> ArgRenames t
