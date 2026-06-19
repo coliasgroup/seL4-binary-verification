@@ -4,7 +4,9 @@ module BV.Core.Types.AsmRefineTag
     ( AsmRefineTag (..)
     , ByAsmRefineTag (..)
     , ByTag'
+    , ConstAsmRefineTag (..)
     , InlineScript'
+    , KnownAsmRefineTag (..)
     , Pairing'
     , PairingId'
     , Problem'
@@ -21,6 +23,7 @@ import BV.Utils (formatArgSimple)
 
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
+import Data.Proxy (Proxy (Proxy))
 import Data.Vector.Binary ()
 import GHC.Generics (Generic)
 import GHC.IsList (fromList)
@@ -31,6 +34,15 @@ data AsmRefineTag
   = Asm
   | C
   deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Show)
+
+class KnownAsmRefineTag (t :: AsmRefineTag) where
+    asmRefineTagVal :: forall proxy. proxy t -> AsmRefineTag
+
+instance KnownAsmRefineTag 'Asm where
+    asmRefineTagVal _ = Asm
+
+instance KnownAsmRefineTag 'C where
+    asmRefineTagVal _ = C
 
 instance Binary AsmRefineTag
 
@@ -76,6 +88,24 @@ data ByAsmRefineTag a
 
 byAsmRefineTag :: ByAsmRefineTag a -> ByTag AsmRefineTag a
 byAsmRefineTag (ByAsmRefineTag { asm, c }) = fromList [asm, c]
+
+--
+
+data ConstAsmRefineTag (t :: AsmRefineTag)
+  = ConstAsmRefineTag
+  deriving (Bounded, Enum, Eq, Generic, NFData, Ord, Show)
+
+instance KnownAsmRefineTag t => PrintfArg (ConstAsmRefineTag t) where
+    formatArg = formatArgSimple prettyTag
+
+instance KnownAsmRefineTag t => Tag (ConstAsmRefineTag t) where
+    prettyTag ConstAsmRefineTag = prettyTag (asmRefineTagVal (Proxy @t))
+    parsePrettyTag s = if parsePrettyTag s == Just (asmRefineTagVal (Proxy @t)) then Just ConstAsmRefineTag else Nothing
+
+instance KnownAsmRefineTag t => HasTagIsAsm (ConstAsmRefineTag t) where
+    tagIsAsm _ = tagIsAsm (asmRefineTagVal (Proxy @t))
+
+instance KnownAsmRefineTag t => StaticTag (ConstAsmRefineTag t)
 
 -- TODO
 
