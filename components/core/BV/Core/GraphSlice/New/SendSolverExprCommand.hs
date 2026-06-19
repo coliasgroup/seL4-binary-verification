@@ -37,7 +37,6 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Data.Set (Set)
 import qualified Data.Set as S
-import Data.String (IsString (..))
 import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics
@@ -93,9 +92,9 @@ data TEnv
 data TState
   = TState
       { names :: Set SmtName
-      , nameMap :: Map Ident SmtName
+      , nameMap :: Map Ident SExprWithPlaceholders
       , inline :: Map Ident SExprWithPlaceholders
-      , smtDerivedOps :: Map (Op, ExprType) SmtName
+      , smtDerivedOps :: Map (Op, ExprType) SExprWithPlaceholders
       }
   deriving (Generic)
 
@@ -124,9 +123,6 @@ type SmtNameHint = String
 newtype SmtName
   = SmtName { unwrap :: String }
   deriving (Eq, Generic, Ord, Show)
-
-instance IsString SmtName where
-    fromString = SmtName
 
 nameS :: SmtName -> SExprWithPlaceholders
 nameS name = symbolS name.unwrap
@@ -159,26 +155,37 @@ initNames = S.fromList $ map SmtName $ join
 
 --
 
-addSmtVar :: C m => SmtNameHint -> ExprType -> T m SmtName
-addSmtVar nameHint ty = do
+addSmtVar
+    :: C m
+    => SmtNameHint
+    -> [SExprWithPlaceholders]
+    -> SExprWithPlaceholders
+    -> T m SExprWithPlaceholders
+addSmtVar nameHint args ret = do
     name <- takeFreshName nameHint
     send $ SMTProofCheckCommandDeclareFun $ SMTProofCheckFunDeclaration
         { name = name.unwrap
-        , args = []
-        , ret = typeToSmt ty
+        , args
+        , ret
         }
-    return name
+    return $ nameS name
 
-addConvertedSmtDef :: C m => SmtNameHint -> ExprType -> SExprWithPlaceholders -> T m SmtName
-addConvertedSmtDef nameHint ty s = do
+addSmtDef
+    :: C m
+    => SmtNameHint
+    -> [(String, SExprWithPlaceholders)]
+    -> SExprWithPlaceholders
+    -> SExprWithPlaceholders
+    -> T m SExprWithPlaceholders
+addSmtDef nameHint args ret body = do
     name <- takeFreshName nameHint
     send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
         { name = name.unwrap
-        , args = []
-        , ret = typeToSmt ty
-        , body = s
+        , args
+        , ret
+        , body
         }
-    return name
+    return $ nameS name
 
 assertSmt :: C m => SExprWithPlaceholders -> T m ()
 assertSmt = send . SMTProofCheckCommandAssert . SMTProofCheckAssertion
@@ -196,23 +203,23 @@ typeToSmt = \case
 sendSolverExprCommand :: C m => SolverExprCommand -> T m ()
 sendSolverExprCommand = \case
     ExprCommandDeclare var -> do
-        name <- addSmtVar var.name.unwrap var.ty
-        liftPure $ #nameMap %= M.insertWith undefined var.name name
+        s <- addSmtVar var.name.unwrap [] (typeToSmt var.ty)
+        liftPure $ #nameMap %= M.insertWith undefined var.name s
     ExprCommandDefine inlineHint var val -> do
-        s <- convertSolverExpr val
-        if inlineHint == ExprCommandInlineHintSometimes && compareLength 80 (showSExprWithPlaceholders s) == LT
+        body <- convertSolverExpr val
+        if inlineHint == ExprCommandInlineHintSometimes && compareLength 80 (showSExprWithPlaceholders body) == LT
         then do
-            liftPure $ #inline %= M.insertWith undefined var.name s
+            liftPure $ #inline %= M.insertWith undefined var.name body
         else do
-            name <- addConvertedSmtDef var.name.unwrap val.ty s
-            liftPure $ #nameMap %= M.insertWith undefined var.name name
+            s <- addSmtDef var.name.unwrap [] (typeToSmt val.ty) body
+            liftPure $ #nameMap %= M.insertWith undefined var.name s
     ExprCommandAssert expr -> convertSolverExpr expr >>= assertSmt
 
 convertSolverExpr :: C m => SolverExpr -> T m SExprWithPlaceholders
 convertSolverExpr expr = case expr.value of
     ExprValueVar var -> do
         altM
-            ((fmap . fmap) nameS $ liftPure $ use $ #nameMap % at var)
+            (liftPure $ use $ #nameMap % at var)
             (liftPure $ use $ #inline % at var)
     ExprValueNum n ->
         return $ intWithWidthS (wordTBits expr.ty) n
@@ -228,7 +235,7 @@ convertSolverExpr expr = case expr.value of
         op' <-
             altM
                 (return (convertSimpleOpWithTypes op expr.ty argTypes))
-                ((fmap . fmap) nameS $ getDerivedOp op expr.ty)
+                (getDerivedOp op expr.ty)
         args' <- traverse convertSolverExpr args
         return $ case args' of
             [] -> op'
@@ -297,7 +304,7 @@ convertSimpleOpWithTypes op ty argTypes = convertSimpleOp op <|> case op of
                 64 -> "store-word64"
     _ -> Nothing
 
-getDerivedOp :: C m => Op -> ExprType -> T m (Maybe SmtName)
+getDerivedOp :: C m => Op -> ExprType -> T m (Maybe SExprWithPlaceholders)
 getDerivedOp op ty = traverse (withMapSlot #smtDerivedOps (op, ty)) $ if
     | op == OpCountLeadingZeroes || op == OpWordReverse -> Just $ do
         let ExprTypeWord bits = ty
@@ -306,9 +313,8 @@ getDerivedOp op ty = traverse (withMapSlot #smtDerivedOps (op, ty)) $ if
         getDerivedRODataOp op
     | otherwise -> Nothing
 
-getDerivedWordOp :: C m => Op -> Integer -> T m SmtName
+getDerivedWordOp :: C m => Op -> Integer -> T m SExprWithPlaceholders
 getDerivedWordOp op bits = do
-    name <- takeFreshName nameHint
     body <- case bits of
         1 -> return $ case op of
             OpCountLeadingZeroes -> iteS ("x" `eqS` binS "0") (binS "1") (binS "0")
@@ -320,8 +326,8 @@ getDerivedWordOp op bits = do
             botOp <- fromJust <$> getDerivedOp op (wordT botBits)
             let top = [ixS "extract" [intS (bits - 1), intS botBits], "x"]
                 bot = [ixS "extract" [intS (botBits - 1), intS (0 :: Integer)], "x"]
-                topApp = [nameS topOp, top]
-                botApp = [nameS botOp, bot]
+                topApp = [topOp, top]
+                botApp = [botOp, bot]
                 topAppExtended = [ixS "zero_extend" [intS botBits], topApp]
                 botAppExtended = [ixS "zero_extend" [intS topBits], botApp]
             return $ case op of
@@ -332,21 +338,14 @@ getDerivedWordOp op bits = do
                         topAppExtended
                 OpWordReverse ->
                     concatS botApp topApp
-    send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
-        { name = name.unwrap
-        , args = [("x", bitVecS bits)]
-        , ret = bitVecS bits
-        , body
-        }
-    return name
+    addSmtDef nameHint [("x", bitVecS bits)] (bitVecS bits) body
   where
     nameHint = case op of
         OpCountLeadingZeroes -> printf "bvclz_%d" bits
         OpWordReverse -> printf "bvrev_%d" bits
 
-getDerivedRODataOp :: C m => Op -> T m SmtName
+getDerivedRODataOp :: C m => Op -> T m SExprWithPlaceholders
 getDerivedRODataOp op = do
-    name <- takeFreshName nameHint
     rodata <- liftPure $ gview #rodata
     body <- case rodata.ranges of
         [] -> return trueS
@@ -357,10 +356,10 @@ getDerivedRODataOp op = do
                         [ loadWord32S "m" (machineWordS p) `eqS` (machineWordS v)
                         | (p, v) <- M.toList rodata.rodata
                         ]
-                return $ andNS eqs `andS` [nameS impliesRODataOp, "m"]
+                return $ andNS eqs `andS` [impliesRODataOp, "m"]
             OpExt OpExtImpliesROData -> do
-                roWitness <- nameS <$> addSmtVar "rodata-witness" word32T
-                roWitnessVal <- nameS <$> addSmtVar "rodata-witness-val" word32T
+                roWitness <- addSmtVar "rodata-witness" [] (typeToSmt word32T)
+                roWitnessVal <- addSmtVar "rodata-witness-val" [] (typeToSmt word32T)
                 assertSmt $ orNS
                     [ andS
                         (machineWordS range.addr `bvuleS` roWitness)
@@ -371,13 +370,7 @@ getDerivedRODataOp op = do
                     (roWitness `bvandS` machineWordS 3)
                     (machineWordS 0)
                 return $ loadWord32S "m" roWitness `eqS` roWitnessVal
-    send $ SMTProofCheckCommandDefineFun $ SMTProofCheckFunDefinition
-        { name = name.unwrap
-        , args = [("m", typeToSmt ExprTypeMem)]
-        , ret = boolS
-        , body
-        }
-    return name
+    addSmtDef nameHint [("m", typeToSmt ExprTypeMem)] boolS body
   where
     nameHint = case op of
         OpExt OpExtROData -> "rodata"
