@@ -24,6 +24,9 @@ module BV.Core.GraphSlice.Old.Core
     , instEqWithEnvs
     , runGraphSliceTStep
     , tryGetNodePcEnv
+    , withAsmStackSplitting
+    , withConstRetAssumptions
+    , withFast
     ) where
 
 import BV.Core.GraphSlice.Old.Solver
@@ -54,7 +57,7 @@ import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Either (isRight)
 import Data.Foldable (for_, toList, traverse_)
 import Data.Functor (void)
-import Data.List (isPrefixOf, sort)
+import Data.List (genericIndex, isPrefixOf, sort)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe)
@@ -126,6 +129,8 @@ data GraphSliceHooks t
   = GraphSliceHooks
       { isStackHook :: VarRepRequestKind -> WithTag t NameTy -> Maybe VarReqRequest
       , addFunAsserts :: AddFunAssertsHook t
+      , fast :: Bool
+      , constRetAssumptions :: WithTag t Ident -> Integer -> Maybe Integer
       }
   deriving (Generic)
 
@@ -168,6 +173,8 @@ defaultGraphSliceHooks :: GraphSliceHooks t
 defaultGraphSliceHooks = GraphSliceHooks
     { isStackHook = \_ _ -> Nothing
     , addFunAsserts = AddFunAssertsHook $ \_ -> return ()
+    , fast = False
+    , constRetAssumptions = \_ _ -> Nothing
     }
 
 asmRefineGraphSliceHooks
@@ -177,9 +184,24 @@ asmRefineGraphSliceHooks
     -> ArgRenames t
     -> GraphSliceHooks t
 asmRefineGraphSliceHooks lookupSig pairings argRenames =
-    defaultGraphSliceHooks
-        & #isStackHook .~ asmRefineIsStackHook argRenames
-        & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
+    withAsmStackSplitting lookupSig argRenames $
+        defaultGraphSliceHooks
+            & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
+
+withAsmStackSplitting
+    :: HasTagIsAsm t
+    => LookupFunctionSignature t
+    -> ArgRenames t
+    -> GraphSliceHooks t
+    -> GraphSliceHooks t
+withAsmStackSplitting _lookupSig argRenames =
+    #isStackHook .~ asmRefineIsStackHook argRenames
+
+withConstRetAssumptions :: (WithTag t Ident -> Integer -> Maybe Integer) -> GraphSliceHooks t -> GraphSliceHooks t
+withConstRetAssumptions constRetAssumptions = #constRetAssumptions .~ constRetAssumptions
+
+withFast :: GraphSliceHooks t -> GraphSliceHooks t
+withFast = #fast .~ True
 
 initState :: TState t
 initState = TState
@@ -303,6 +325,24 @@ askContVisit visit = do
     conts <- askContVisits visit
     let [cont] = conts
     return cont
+
+--
+
+askNonConstOutputs :: C t m => CallNode -> TaggedT t m [NameTy]
+askNonConstOutputs callNode = do
+    funName <- askWithTag callNode.functionName
+    fast <- askHook #fast
+    constRetAssumptions <- askHook #constRetAssumptions
+    return $
+        if not fast
+        then callNode.output
+        else
+            [ out
+            | (i, out) <- zip [0..] callNode.output
+            , not $ case constRetAssumptions funName i of
+                    Just j -> callNode.input `genericIndex` j == varFromNameTyE out
+                    Nothing -> False
+            ]
 
 --
 
@@ -541,7 +581,8 @@ getLoopPcEnv visit = do
   where
     visitAddr = nodeAddrOf visit.nodeId
     isConstM var = do
-        let checkConst = case var.ty of
+        fast <- askHook #fast
+        let checkConst = fast || case var.ty of
                 ExprTypeHtd -> True
                 ExprTypeDom -> True
                 _ -> False
@@ -630,12 +671,13 @@ emitNode visit = do
                     addVar (successName visit callNode.functionName) boolT
                 ins <- liftFlat $ for callNode.input $ \arg -> smtExprE arg.ty <$> convertExpr' (flattenExpr env arg)
                 memCalls <- fmap (addMemCall callNode.functionName) <$> scanMemCalls ins
+                nonConstOutputs <- askNonConstOutputs callNode
                 env' <- addVarReps
                     VarRepRequestKindCall
                     (\name -> localName visit name)
                     memCalls
                     visit
-                    callNode.output
+                    nonConstOutputs
                     env
                 let outs = [ env' ! out.name | out <- callNode.output ]
                 key <- askWithTag visit
@@ -657,10 +699,11 @@ isSyntacticConstant var split = do
             let go (name, addr) = do
                     node <- lift $ lift $ askNode addr
                     predName <- fromMaybe name <$> case node of
-                        NodeCall callNode ->
-                            if NameTy name var.ty `elem` callNode.output
-                            then throwNotConst
-                            else return Nothing
+                        NodeCall callNode -> do
+                            nonConstOutputs <- lift $ lift $ askNonConstOutputs callNode
+                            if NameTy name var.ty `elem` nonConstOutputs
+                                then throwNotConst
+                                else return Nothing
                         NodeBasic basicNode -> do
                             let updateExprs =
                                     [ u.val

@@ -41,6 +41,9 @@ module BV.Core.GraphSlice.Old
     , runGraphSliceT
     , runTagged
     , tryGetNodePcEnv
+    , withAsmStackSplitting
+    , withConstRetAssumptions
+    , withFast
     ) where
 
 import BV.Core.GraphSlice.Old.Core

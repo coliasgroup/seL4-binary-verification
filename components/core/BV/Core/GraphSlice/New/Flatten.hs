@@ -22,6 +22,9 @@ module BV.Core.GraphSlice.New.Flatten
     , getPc
     , runGraphSliceTStep
     , tryGetNodePcEnv
+    , withAsmStackSplitting
+    , withConstRetAssumptions
+    , withFast
     ) where
 
 import BV.Core.GraphSlice.New.AsmRefine
@@ -49,7 +52,7 @@ import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Either (isRight)
 import Data.Foldable (for_, toList, traverse_)
 import Data.Functor (void)
-import Data.List (sort)
+import Data.List (genericIndex, sort)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe)
@@ -62,8 +65,6 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-
--- import Debug.Trace (traceShowM)
 
 --
 
@@ -122,6 +123,8 @@ data GraphSliceHooks t
       , stackPointer :: t -> GraphExpr
       , isMem :: WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
       , addFunAsserts :: AddFunAssertsHook t
+      , fast :: Bool
+      , constRetAssumptions :: WithTag t Ident -> Integer -> Maybe Integer
       }
   deriving (Generic)
 
@@ -164,6 +167,8 @@ defaultGraphSliceHooks = GraphSliceHooks
     , stackPointer = \_ -> undefined
     , isMem = \_ _ _ -> False
     , addFunAsserts = AddFunAssertsHook $ \_ -> return ()
+    , fast = False
+    , constRetAssumptions = \_ _ -> Nothing
     }
 
 asmRefineGraphSliceHooks
@@ -173,11 +178,26 @@ asmRefineGraphSliceHooks
     -> ArgRenames t
     -> GraphSliceHooks t
 asmRefineGraphSliceHooks lookupSig pairings argRenames =
-    defaultGraphSliceHooks
-        & #isStack .~ asmRefineIsStackHook lookupSig
-        & #stackPointer .~ asmRefineStackPointerHook argRenames
-        & #isMem .~ asmRefineIsMemHook lookupSig
-        & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
+    withAsmStackSplitting lookupSig argRenames $
+        defaultGraphSliceHooks
+            & #isMem .~ asmRefineIsMemHook lookupSig
+            & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
+
+withAsmStackSplitting
+    :: HasTagIsAsm t
+    => LookupFunctionSignature t
+    -> ArgRenames t
+    -> GraphSliceHooks t
+    -> GraphSliceHooks t
+withAsmStackSplitting lookupSig argRenames =
+      (#isStack .~ asmRefineIsStackHook lookupSig)
+    . (#stackPointer .~ asmRefineStackPointerHook argRenames)
+
+withConstRetAssumptions :: (WithTag t Ident -> Integer -> Maybe Integer) -> GraphSliceHooks t -> GraphSliceHooks t
+withConstRetAssumptions constRetAssumptions = #constRetAssumptions .~ constRetAssumptions
+
+withFast :: GraphSliceHooks t -> GraphSliceHooks t
+withFast = #fast .~ True
 
 initState :: TState t
 initState = TState
@@ -324,6 +344,21 @@ askContVisit visit = do
     conts <- askContVisits visit
     let [cont] = conts
     return cont
+
+--
+
+askNonConstOutputs :: C t m => CallNode -> TaggedT t m [(Integer, NameTy)]
+askNonConstOutputs callNode = do
+    funName <- askWithTag callNode.functionName
+    fast <- askHook #fast
+    constRetAssumptions <- askHook #constRetAssumptions
+    return
+        [ (i, out)
+        | (i, out) <- zip [0..] callNode.output
+        , not (fast && case constRetAssumptions funName i of
+                Just j -> callNode.input `genericIndex` j == varFromNameTyE out
+                Nothing -> False)
+        ]
 
 --
 
@@ -521,7 +556,9 @@ getLoopPcEnv preLoopEnv visit = do
   where
     visitAddr = nodeAddrOf visit.nodeId
     isConstM var = do
-        let checkConst = case var.ty of
+        -- TODO move check into isSyntacticConstant?
+        fast <- askHook #fast
+        let checkConst = fast || case var.ty of
                 ExprTypeHtd -> True
                 ExprTypeDom -> True
                 _ -> False
@@ -608,7 +645,8 @@ getCallNodeEnv visit preCallEnv callNode = do
     funName <- askWithTag callNode.functionName
     isMemHook <- askHook #isMem
     isStackHook <- askHook #isStack
-    newVarsLazy <- fmap M.fromList $ for (zip [0..] callNode.output) $ \(i, sigVar) -> (sigVar.name,) <$> do
+    nonConstOutputs <- askNonConstOutputs callNode
+    newVarsLazy <- fmap M.fromList $ for nonConstOutputs $ \(i, sigVar) -> (sigVar.name,) <$> do
         let isMem = isMemHook funName FunctionSignatureDirectionOut i
         let isStack = isStackHook funName FunctionSignatureDirectionOut i
         let nameHint = localName visit sigVar.name
@@ -650,10 +688,11 @@ isSyntacticConstant var split = do
             let go (name, addr) = do
                     node <- lift $ lift $ askNode addr
                     predName <- fromMaybe name <$> case node of
-                        NodeCall callNode ->
-                            if NameTy name var.ty `elem` callNode.output
-                            then throwNotConst
-                            else return Nothing
+                        NodeCall callNode -> do
+                            nonConstOutputs <- lift $ lift $ askNonConstOutputs callNode
+                            if NameTy name var.ty `elem` map snd nonConstOutputs
+                                then throwNotConst
+                                else return Nothing
                         NodeBasic basicNode -> do
                             let updateExprs =
                                     [ u.val
