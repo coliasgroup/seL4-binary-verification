@@ -117,8 +117,8 @@ nextReachableUnmatchedCInlinePointsInner
     => S.Set Ident
     -> GraphSliceT AsmRefineTag m [NodeAddr]
 nextReachableUnmatchedCInlinePointsInner =
-    -- nextReachableUnmatchedCInlinePointsInnerIncompat
-    nextReachableUnmatchedCInlinePointsInnerCompat
+    nextReachableUnmatchedCInlinePointsInnerIncompat
+    -- nextReachableUnmatchedCInlinePointsInnerCompat
 
 nextReachableUnmatchedCInlinePointsInnerIncompat
     :: MonadGraphSliceSolverInteract m
