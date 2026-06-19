@@ -56,6 +56,7 @@ dependencies:
   - transformers-base
   - unliftio-core
   - vector
+  - extra # TODO worthy of being here?
 
 internal-libraries:
 

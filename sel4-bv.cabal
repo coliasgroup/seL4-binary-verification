@@ -1,6 +1,6 @@
 cabal-version: 3.0
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.38.3.
 --
 -- see: https://github.com/sol/hpack
 
@@ -51,6 +51,7 @@ library concrete-syntax
     , directory
     , dlist
     , exceptions
+    , extra
     , filepath
     , megaparsec
     , monad-logger
@@ -149,6 +150,7 @@ library core
     , deepseq
     , directory
     , exceptions
+    , extra
     , file-embed
     , filepath
     , monad-logger
@@ -203,6 +205,7 @@ library logging
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -244,6 +247,7 @@ library network-transport-static
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -293,6 +297,7 @@ library search-core
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -335,6 +340,7 @@ library search-system-core
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -391,6 +397,7 @@ library smtlib2
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , megaparsec
     , monad-logger
@@ -432,6 +439,7 @@ library smtlib2-process
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -478,6 +486,7 @@ library system
     , distributed-process
     , distributed-process-async
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -540,6 +549,7 @@ library system-core
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -592,6 +602,7 @@ library system-utils
     , directory
     , distributed-process
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -632,6 +643,7 @@ library target-dir
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -674,6 +686,7 @@ library test-utils
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -721,6 +734,7 @@ library utils
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -757,6 +771,7 @@ executable model-scratch
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -824,6 +839,7 @@ executable sel4-bv-cli
     , distributed-process
     , distributed-process-async
     , exceptions
+    , extra
     , filepath
     , megaparsec
     , monad-logger
@@ -882,6 +898,7 @@ test-suite concrete-syntax-test
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , megaparsec
     , monad-logger
@@ -926,6 +943,7 @@ test-suite core-test
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -974,6 +992,7 @@ test-suite logging-test
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -1015,6 +1034,7 @@ test-suite search-test
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
@@ -1069,6 +1089,7 @@ test-suite smtlib2-test
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , megaparsec
     , monad-logger
@@ -1113,6 +1134,7 @@ test-suite system-test
     , deepseq
     , directory
     , exceptions
+    , extra
     , filepath
     , monad-logger
     , mtl
