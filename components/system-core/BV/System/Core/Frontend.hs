@@ -12,11 +12,14 @@ import BV.System.Utils.Stopwatch
 import BV.System.Utils.UnliftIO.Async
 import BV.Utils (fromIntegerChecked)
 
-import Control.Concurrent (newQSem, signalQSem, waitQSem)
+import Control.Applicative (empty)
+import Control.Concurrent (newEmptyMVar, newQSem, readMVar, signalQSem,
+                           tryPutMVar, waitQSem)
 import Control.Concurrent.STM (newTVarIO, readTVar)
 import Control.Concurrent.STM.TVar (writeTVar)
 import Control.DeepSeq (deepseq)
 import Control.Exception.Safe (bracket_)
+import Control.Monad (when)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
@@ -38,18 +41,26 @@ frontend numEvalCores gate backend config checks = do
     logInfo $ printf "%d groups to check" numGroups
     sem <- liftIO $ newQSem $ fromIntegerChecked numEvalCores
     completedGroups <- liftIO $ newTVarIO (0 :: Integer)
+    failureIndicator <- liftIO $ newEmptyMVar
+    let awaitFailure myPairingId = do
+            failedPairingId <- liftIO $ readMVar failureIndicator
+            when (failedPairingId == myPairingId) $ do
+                runConcurrentlyUnliftIO empty -- TODO hack
     (report, elapsed) <- time . runConcurrentlyUnliftIO $ do
         Report <$> ifor checks.unwrap (\pairingId checksForPairing -> makeConcurrentlyUnliftIO $ do
             withPushLogContextPairing pairingId $ do
-                runConcurrentlyUnliftIOE $ do
+                fmap (either (const Nothing) Just) $ raceUnliftIO (awaitFailure pairingId) $ runConcurrentlyUnliftIOE $ do
                     for_ (checksForPairing ^.. folded % folded) (\subgroup -> makeConcurrentlyUnliftIOE $ do
                         liftIO $ bracket_ (waitQSem sem) (signalQSem sem) $ do
                             subgroup.group.fingerprint `deepseq` return ()
                         withPushLogContextCheckGroup subgroup.group $ do
                             result <- runSolvers gate backend config subgroup
-                            logInfo $ case result of
-                                Right _ -> "success"
-                                Left failure -> "failure: " ++ prettyCheckFailure failure
+                            case result of
+                                Right _ -> logInfo "success"
+                                Left failure -> do
+                                    logWarn $ "failure: " ++ prettyCheckFailure failure
+                                    liftIO $ tryPutMVar failureIndicator pairingId
+                                    return ()
                             n <- liftIO . atomically $ do
                                 n' <- readTVar completedGroups
                                 let n = n' + 1
