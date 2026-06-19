@@ -317,7 +317,7 @@ getFreshIdent nameHint = do
 
 maybeContract :: TaggedC t n m => Visit -> Ident -> FlatExpr -> m FlatExpr
 maybeContract visit name expr@(Expr ty (ExprValueSMTExpr ms)) = case ms of
-    NotSplit sexpr | length (showSExprWithPlaceholders sexpr) > 80 -> withMapSlot #contractions sexpr $ do
+    NotSplit sexpr | compareLength 80 (showSExprWithPlaceholders sexpr) == GT -> withMapSlot #contractions sexpr $ do
         let name' = localNameBefore visit name
         liftFlat $ smtExprE ty <$> addDef name' (smtExprE ty (NotSplit sexpr))
     _ -> return expr
