@@ -107,6 +107,7 @@ data TState
       { names :: Set Ident
       , cache :: Map SolverExpr SolverExpr
       , flatExprVars :: Map Ident ExtendedExpr
+      , tokens :: Map Ident SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
       }
@@ -138,6 +139,7 @@ initState = TState
     { names = S.empty
     , cache = M.empty
     , flatExprVars = M.empty
+    , tokens = M.empty
     , pvalids = M.empty
     , impliesStackEqCache = M.empty
     }
@@ -146,6 +148,7 @@ initState = TState
 
 data ExtendedExpr
   = ExtendedExprExpr SolverExpr
+  | ExtendedExprToken SolverExpr
   | ExtendedExprPms
   | ExtendedExprHtd HtdExpr
   | ExtendedExprSplitMem SplitMemExpr
@@ -197,6 +200,8 @@ addExtendedDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> Exte
 addExtendedDefWithInlineHint inline nameHint = \case
     ExtendedExprExpr expr -> ExtendedExprExpr <$> do
         addDefWithInlineHint inline nameHint expr
+    ExtendedExprToken expr -> ExtendedExprToken <$> do
+        addDefWithInlineHint inline nameHint expr
     ExtendedExprSplitMem splitMem -> ExtendedExprSplitMem <$> do
         let f suffix = addDef (nameHint ++ "_" ++ suffix)
         split <- f "split" splitMem.split
@@ -230,12 +235,16 @@ sendAccumulatedAssertionsInner :: C m => T m ()
 sendAccumulatedAssertionsInner = do
     sendPValidDomAssertions
 
+concreteTokenType :: ExprType
+concreteTokenType = ExprTypeWord 64
+
 --
 
 sendFlatExprCommand :: C m => FlatExprCommand -> T m ()
 sendFlatExprCommand = \case
     ExprCommandDeclare origVar -> do
         val <- case origVar.ty of
+            ExprTypeToken -> ExtendedExprToken <$> addVar origVar.name.unwrap concreteTokenType
             ExprTypePms -> return ExtendedExprPms
             ExprTypeHtd -> addHtd origVar.name.unwrap
             _ -> ExtendedExprExpr <$> addVar origVar.name.unwrap origVar.ty
@@ -249,6 +258,7 @@ sendFlatExprCommand = \case
 convertFlatExprExtended :: C m => FlatExpr -> T m ExtendedExpr
 convertFlatExprExtended expr = case expr.value of
     ExprValueVar name -> liftPure $ use $ #flatExprVars % expectingAt name
+    ExprValueToken tok -> ExtendedExprExpr <$> convertToken tok
     ExprValueOp op args -> traverse convertFlatExprExtended args >>= convertFlatOpExpr expr.ty op
     _ -> return $ ExtendedExprExpr $ castExpr expr
 
@@ -305,6 +315,7 @@ convertFlatOpExpr exprTy op args =
 convertIfThenElse :: SolverExpr -> ExtendedExpr -> ExtendedExpr -> ExtendedExpr
 convertIfThenElse cond xExt yExt = case (xExt, yExt) of
     (ExtendedExprExpr x, ExtendedExprExpr y) -> ExtendedExprExpr $ ite x y
+    (ExtendedExprToken x, ExtendedExprToken y) -> ExtendedExprToken $ ite x y
     (ExtendedExprPms, ExtendedExprPms) -> ExtendedExprPms
     (ExtendedExprHtd x, ExtendedExprHtd y) -> ExtendedExprHtd $ HtdExprIfThenElse cond x y
     (x, y) ->
@@ -382,6 +393,13 @@ convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
         solverExpr <- eqE <$> acc key.stack1 <*> acc key.stack2
         addDef "stack-eq" solverExpr
     return $ (sp1 `eqE` sp2) `andE` eq
+
+convertToken :: C m => Ident -> T m SolverExpr
+convertToken tok = withMapSlot #tokens tok $ do
+    n <- liftPure $ use $ #tokens % to M.size
+    addDef
+        ("token_" ++ tok.unwrap)
+        (numE concreteTokenType (toInteger n))
 
 addHtd :: C m => NameHint -> T m ExtendedExpr
 addHtd nameHint = do
