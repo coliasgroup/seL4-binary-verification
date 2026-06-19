@@ -274,7 +274,10 @@ library search-core
   other-modules:
       BV.Search.Core.Inlining
       BV.Search.Core.Inlining.All
+      BV.Search.Core.ProofScript
+      BV.Search.Core.ProofScript.Impl
       BV.Search.Core.Solver.Common
+      BV.Search.Core.Solver.Parallel
       BV.Search.Core.StackBounds
       BV.Search.Core.StackBounds.All
       BV.Search.Core.StackBounds.Base

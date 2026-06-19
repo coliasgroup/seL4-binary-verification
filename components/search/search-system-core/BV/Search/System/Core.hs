@@ -2,6 +2,7 @@ module BV.Search.System.Core
     ( discoverInlineScript'
     , discoverStackBounds'
     , runGraphSliceSolverInteractSimple'
+    , discoverProofScript'
     ) where
 
 import BV.Core.Types
@@ -13,8 +14,8 @@ import BV.System.Core
 import BV.System.Core.Utils.Logging (runSolverWithLogging,
                                      withPushLogContextPairing)
 import BV.System.Utils.Stopwatch
-
 import BV.System.Utils.UnliftIO.Async (forConcurrentlyUnliftIOE)
+
 import Control.Concurrent (MVar, modifyMVar, newMVar)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
@@ -66,6 +67,17 @@ discoverStackBounds' throttle config input = do
         -> (a -> ExceptT GraphSliceSolverInteractSimpleFailureInfo (ReaderT (MVar Integer) m) b)
         -> ExceptT GraphSliceSolverInteractSimpleFailureInfo (ReaderT (MVar Integer) m) (t b)
     forConc xs f = ExceptT $ forConcurrentlyUnliftIOE xs $ \x -> mapReaderT throttle $ runExceptT $ f x
+
+discoverProofScript'
+    :: forall m. (MonadLoggerWithContext m, MonadUnliftIO m, MonadLogger m, MonadMask m)
+    => OnlineSolverConfig -> DiscoverProofScriptInput -> m (Either GraphSliceSolverInteractSimpleFailureInfo (ProofScript AsmRefineTag ()))
+discoverProofScript' config input = do
+    (r, elapsed) <- time $ runSolverCounterT $ runExceptT $ discoverProofScript (runSolverSimple config) input
+    let msg = case r of
+            Right _ -> "discovered bounds"
+            Left failure -> "failed with " ++ show failure
+    logDebug $ msg ++ makeElapsedSuffix elapsed
+    return r
 
 runSolverCounterT :: MonadIO m => ReaderT (MVar Integer) m a -> m a
 runSolverCounterT m = do

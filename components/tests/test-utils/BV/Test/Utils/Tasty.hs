@@ -13,6 +13,7 @@ import Data.Proxy (Proxy (Proxy))
 import Data.Typeable (Typeable)
 import Test.Tasty
 import Test.Tasty.Options
+import Data.List.Extra (splitOn)
 
 data CustomOpts
   = CustomOpts
@@ -24,6 +25,7 @@ data CustomOpts
       , defaultTargetDirForSlowTests :: TargetDir
       , defaultTargetDirForTestsRequiringTrace :: TargetDir
       , graphRefineDir :: FilePath
+      , xxxProofScriptSearchTargets :: [String]
       }
 
 defaultCustomOpts :: CustomOpts
@@ -36,6 +38,7 @@ defaultCustomOpts = CustomOpts
     , defaultTargetDirForSlowTests
     , defaultTargetDirForTestsRequiringTrace
     , graphRefineDir
+    , xxxProofScriptSearchTargets
     }
   where
     OutDir outDir = defaultValue
@@ -46,6 +49,7 @@ defaultCustomOpts = CustomOpts
     DefaultTargetDirForSlowTests defaultTargetDirForSlowTests = defaultValue
     DefaultTargetDirForTestsRequiringTrace defaultTargetDirForTestsRequiringTrace = defaultValue
     GraphRefineDir graphRefineDir = defaultValue
+    XXXProofScriptSearchTargets xxxProofScriptSearchTargets = defaultValue
 
 defaultMainWithOpts :: (CustomOpts -> TestTree) -> IO ()
 defaultMainWithOpts f = defaultMainWithIngredients ingredients $
@@ -57,6 +61,7 @@ defaultMainWithOpts f = defaultMainWithIngredients ingredients $
     askOption $ \(DefaultTargetDirForSlowTests defaultTargetDirForSlowTests) ->
     askOption $ \(DefaultTargetDirForTestsRequiringTrace defaultTargetDirForTestsRequiringTrace) ->
     askOption $ \(GraphRefineDir graphRefineDir) ->
+    askOption $ \(XXXProofScriptSearchTargets xxxProofScriptSearchTargets) ->
     do
         let opts = CustomOpts
                 { outDir
@@ -67,6 +72,7 @@ defaultMainWithOpts f = defaultMainWithIngredients ingredients $
                 , defaultTargetDirForSlowTests
                 , defaultTargetDirForTestsRequiringTrace
                 , graphRefineDir
+                , xxxProofScriptSearchTargets
                 }
         f opts
   where
@@ -79,6 +85,7 @@ defaultMainWithOpts f = defaultMainWithIngredients ingredients $
             , Option (Proxy :: Proxy DefaultTargetDirForFastTests)
             , Option (Proxy :: Proxy DefaultTargetDirForSlowTests)
             , Option (Proxy :: Proxy GraphRefineDir)
+            , Option (Proxy :: Proxy XXXProofScriptSearchTargets)
             ] : defaultIngredients
 
 newtype OutDir
@@ -163,6 +170,16 @@ instance IsOption GraphRefineDir where
   parseValue = pure . GraphRefineDir
   optionName = return "graph-refine-dir"
   optionHelp = return "Graph refine"
+
+newtype XXXProofScriptSearchTargets
+  = XXXProofScriptSearchTargets [String]
+  deriving (Eq, Ord, Typeable)
+
+instance IsOption XXXProofScriptSearchTargets where
+  defaultValue = XXXProofScriptSearchTargets []
+  parseValue = pure . XXXProofScriptSearchTargets . splitOn ","
+  optionName = return "xxx"
+  optionHelp = return "xxx"
 
 testTreeWhen :: Bool -> TestTree -> TestTree
 testTreeWhen cond tree = if cond then tree else testGroup "skipped" []

@@ -24,6 +24,7 @@ import Optics
 import System.FilePath ((<.>), (</>))
 import Test.Tasty
 import Test.Tasty.HUnit
+import Data.Foldable (for_)
 
 main :: IO ()
 main = bvMain $ \opts ->
@@ -31,6 +32,7 @@ main = bvMain $ \opts ->
      in testGroup "Tests"
             [ testCase "inlining" testInlining
             , testCase "stack-bounds" testStackBounds
+            , testTreeWhen opts.includeWip $ testCase "proof-scripts" testProofScripts
             ]
 
 testInlining :: (?opts :: CustomOpts) => IO ()
@@ -71,6 +73,34 @@ testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
     bounds <- f preparedInput
     let reference = stagesInput.stackBounds & #unwrap %~ flip M.restrictKeys (M.keysSet bounds.unwrap)
     checkMatch "StackBounds" "txt" bounds reference
+    return ()
+
+testProofScripts :: (?opts :: CustomOpts) => IO ()
+testProofScripts = withLoggingOpts (loggingOpts ?opts "proof-scripts.log") $ do
+    let targets = map Ident ?opts.xxxProofScriptSearchTargets
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForFastTests
+    for_ targets $ \target -> do
+        -- let [pairingId] = [ pid | pid <- stagesInput pid.asm == target ]
+        -- let input = DiscoverProofScriptInput
+        --         { graphSliceInput = 
+
+        --         }
+        undefined
+    -- let preparedInput = prepareDiscoverStackBoundsInput $ DiscoverAllStacFullDiscoverStackBoundsInputkBoundsInput
+    --         { programs = stagesInput.programs
+    --         , objDumpInfo = stagesInput.objDumpInfo
+    --         , rodata = stagesInput.rodata
+    --         , cFunctionPrefix = stagesInput.cFunctionPrefix
+    --         , earlyAsmFunctionFilter = stagesInput.earlyAsmFunctionFilter
+    --         , includeAsmFrom = M.keysSet stagesInput.stackBounds.unwrap
+    --         -- , includeAsmFrom = S.fromList [Ident "handleVMFault"]
+    --         }
+    -- gate <- liftIO $ newSemGate =<< numThreads
+    -- let f :: DiscoverStackBoundsInput -> LoggingWithContextT IO StackBounds
+    --     f input = discoverStackBounds' (applySemGate gate 1) solverConfig input >>= assertSuccess
+    -- bounds <- f preparedInput
+    -- let reference = stagesInput.stackBounds & #unwrap %~ flip M.restrictKeys (M.keysSet bounds.unwrap)
+    -- checkMatch "StackBounds" "txt" bounds reference
     return ()
 
 --
