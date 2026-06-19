@@ -253,20 +253,18 @@ hasInnerLoop nodes loop = not (null (innerLoopsOf nodes loop))
 
 innerLoopsOf :: NodeMap -> Loop -> [Loop]
 innerLoopsOf nodes loop =
-    loopsFrom g entryPoints
+    loopsFrom g $ contsInOuterLoop loop.head
   where
-    entryPoints = nodes ^.. at loop.head % unwrapped % nodeConts
     bodyWithoutHead = S.delete loop.head loop.body
+    contsInOuterLoop src =
+        [ Addr dst
+        | Addr dst <- nodes ^.. at src % unwrapped % nodeConts
+        , dst `S.member` bodyWithoutHead
+        ]
     g = makeNodeGraphFromEdges
-            [ ((), src, dsts)
-            | (src, dsts) <- M.toList (M.fromListWith (<>) edges)
-            ]
-    edges = do
-        ((), Addr src, dsts) <- makeNodeGraphEdges nodes
-        guard $ S.member src bodyWithoutHead
-        Addr dst <- dsts
-        guard $ S.member dst bodyWithoutHead
-        return (Addr src, [Addr dst])
+        [ ((), Addr src, contsInOuterLoop src)
+        | src <- S.toList bodyWithoutHead
+        ]
 
 allInnerLoops :: NodeMap -> LoopData -> [Loop]
 allInnerLoops nodes d = execWriter (go (loopsOf d))
