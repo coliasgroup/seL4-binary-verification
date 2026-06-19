@@ -14,6 +14,7 @@ import BV.SMTLIB2
 import BV.Utils (ensure)
 
 import Text.Printf (printf)
+import Data.Maybe (fromMaybe)
 
 debugShowExpr :: Expr c -> String
 debugShowExpr = showSExpr . debugExprToSExpr
@@ -26,7 +27,7 @@ debugExprToSExpr expr = case expr.value of
          in wordToSExpr bits n
     ExprValueToken tok -> [Atom (keywordAtom "token"), Atom (stringAtom tok.unwrap)]
     ExprValueOp op args ->
-        let Just op' = opToSExpr expr.ty op (map (.ty) args)
+        let op' = fromMaybe (Atom (stringAtom ("?" ++ show op))) $ opToSExpr expr.ty op (map (.ty) args)
             args' = map debugExprToSExpr args
          in case args' of
                 [] -> op'
@@ -84,5 +85,5 @@ opToSExpr ty op argTypes = case op of
     OpMemUpdate -> Just $
         let [_, _, ExprTypeWord bits] = argTypes
          in Atom $ symbolAtom $ "store-word" ++ show bits
-    -- _ -> Nothing
-    _ -> error $ "unhandled: " ++ show op
+    _ -> Nothing
+    -- _ -> error $ "unhandled: " ++ show op
