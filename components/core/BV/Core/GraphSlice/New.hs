@@ -156,12 +156,12 @@ interpretCheck
     -> GraphSliceT t m FlatExpr
 interpretCheck check = interpretHyp check.hyp >>= interpretHypImps check.hyps
 
-interpretHypImps :: (RefineTag t, MonadGraphSliceSendSExpr m) => [Hyp t] -> FlatExpr -> GraphSliceT t m FlatExpr
+interpretHypImps :: (Tag t, MonadGraphSliceSendSExpr m) => [Hyp t] -> FlatExpr -> GraphSliceT t m FlatExpr
 interpretHypImps hyps concl = do
     hyps' <- traverse interpretHyp hyps
     return $ strengthenHyp $ nImpliesE hyps' concl
 
-interpretHyp :: (RefineTag t, MonadGraphSliceSendSExpr m) => Hyp t -> GraphSliceT t m FlatExpr
+interpretHyp :: (Tag t, MonadGraphSliceSendSExpr m) => Hyp t -> GraphSliceT t m FlatExpr
 interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case

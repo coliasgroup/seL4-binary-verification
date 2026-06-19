@@ -55,7 +55,7 @@ testHyp expr = do
     lift $ checkSExprHyp sexpr
 
 testHypWhypsCommon
-    :: (RefineTag t, MonadGraphSliceSolverInteract m)
+    :: (Tag t, MonadGraphSliceSolverInteract m)
     => Bool -> FlatExpr -> [Hyp t] -> StateT (Maybe Cache) (GraphSliceT t m) (Maybe Bool)
 testHypWhypsCommon fast hyp hyps = do
     expr <- lift $ interpretHypImps hyps hyp
@@ -71,19 +71,19 @@ testHypWhypsCommon fast hyp hyps = do
             return $ Just v
 
 testHypWhyps
-    :: (RefineTag t, MonadGraphSliceSolverInteract m)
+    :: (Tag t, MonadGraphSliceSolverInteract m)
     => FlatExpr -> [Hyp t] -> GraphSliceT t m Bool
 testHypWhyps hyp hyps =
     fromJust <$> withoutCache (testHypWhypsCommon False hyp hyps)
 
 testHypWhypsWithCache
-    :: (RefineTag t, MonadGraphSliceSolverInteract m)
+    :: (Tag t, MonadGraphSliceSolverInteract m)
     => FlatExpr -> [Hyp t] -> StateT Cache (GraphSliceT t m) Bool
 testHypWhypsWithCache hyp hyps =
     fromJust <$> withCache (testHypWhypsCommon False hyp hyps)
 
 testHypWhypsWithCacheFast
-    :: (RefineTag t, MonadGraphSliceSolverInteract m)
+    :: (Tag t, MonadGraphSliceSolverInteract m)
     => FlatExpr -> [Hyp t] -> StateT Cache (GraphSliceT t m) (Maybe Bool)
 testHypWhypsWithCacheFast hyp hyps =
     withCache (testHypWhypsCommon True hyp hyps)
