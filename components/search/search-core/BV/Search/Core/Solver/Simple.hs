@@ -119,14 +119,13 @@ checkSatSimple = do
 
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractSimple m) where
     sendCommand s = do
-        hadModel <- liftPure $ #haveModel <<.= False
-        when hadModel $ do
-            lift $ sendSimpleCommandExpectingSuccess $ Pop 1
+        popIfPushed
         modelConfig <- liftPure $ gview #modelConfig
         lift $ sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
 
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractSimple m) where
     checkSExprHyp hyp = do
+        popIfPushed
         modelConfig <- liftPure $ gview #modelConfig
         let sendAssert s =
                 lift $ sendSimpleCommandExpectingSuccess $ Assert $ Assertion $ configureSExpr modelConfig s
@@ -140,6 +139,11 @@ instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSl
         return $ not sat
       where
         split = splitHyp (notS hyp)
+
+popIfPushed :: (MonadSolver m, MonadThrow m) => GraphSliceSolverInteractSimple m ()
+popIfPushed = do
+    hadModel <- liftPure $ #haveModel <<.= False
+    when hadModel $ lift $ sendSimpleCommandExpectingSuccess $ Pop 1
 
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractSimple m) where
     getSExprValue s = do
