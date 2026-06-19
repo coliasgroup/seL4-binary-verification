@@ -53,6 +53,8 @@ import Data.List (sort)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -133,6 +135,7 @@ data TState t
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
       , inductVars :: Map EqHypInduct FlatExpr
       , funCalls :: Map (WithTag t Visit) FunCallInfo
+      , funCallOrder :: Seq (WithTag t Visit)
       , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
       , stacks :: Set Ident
       , mems :: Map Ident MemCalls
@@ -183,6 +186,7 @@ initState = TState
     , arcPcEnvs = M.empty
     , inductVars = M.empty
     , funCalls = M.empty
+    , funCallOrder = Seq.empty
     , funCallsByName = M.empty
     , stacks = S.empty
     , mems = M.empty
@@ -198,6 +202,7 @@ data GraphSliceExport t
       , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
       , inductVars :: Map EqHypInduct FlatExpr
       , funCalls :: Map (WithTag t Visit) FunCallInfo
+      , funCallOrder :: Seq (WithTag t Visit)
       , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
       }
   deriving (Generic)
@@ -209,6 +214,7 @@ getExport = liftPure $ do
     arcPcEnvs <- use #arcPcEnvs
     inductVars <- use #inductVars
     funCalls <- use #funCalls
+    funCallOrder <- use #funCallOrder
     funCallsByName <- use #funCallsByName
     return $ GraphSliceExport
         { inputEnvs
@@ -216,6 +222,7 @@ getExport = liftPure $ do
         , arcPcEnvs
         , inductVars
         , funCalls
+        , funCallOrder
         , funCallsByName
         }
 
@@ -628,6 +635,7 @@ getCallNodeEnv visit preCallEnv callNode = do
             }
     key <- askWithTag visit
     liftPure $ #funCalls %= M.insertWith undefined key info
+    liftPure $ #funCallOrder %= (Seq.|> key)
     liftPure $ #funCallsByName %= M.insertWith (<>) funName (S.singleton visit)
     return postCallEnv
 

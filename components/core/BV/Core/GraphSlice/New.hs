@@ -193,4 +193,4 @@ interpretHyp = \case
 getFunCallVisitsCompat :: Monad m => GraphSliceT t m [WithTag t Visit]
 getFunCallVisitsCompat = do
     export <- getExport
-    return $ M.keys export.funCalls
+    return $ toList export.funCallOrder
