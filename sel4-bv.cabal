@@ -275,9 +275,10 @@ library search-core
       BV.Search.Core.Inlining
       BV.Search.Core.Inlining.All
       BV.Search.Core.Solver.Common
-      BV.Search.Core.Solver.Old
       BV.Search.Core.StackBounds
       BV.Search.Core.StackBounds.All
+      BV.Search.Core.StackBounds.Base
+      BV.Search.Core.StackBounds.C
   hs-source-dirs:
       components/search/search-core
   default-extensions:
