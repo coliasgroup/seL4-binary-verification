@@ -107,24 +107,24 @@ data TState
       { names :: Set Ident
       , cache :: Map SolverExpr SolverExpr
       , flatExprVars :: Map Ident ExtendedExpr
-      , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
+      , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
       }
   deriving (Generic)
-
-data ImpliesStackEqCacheKey
-  = ImpliesStackEqCacheKey
-      { sp :: SolverExpr
-      , stack1 :: ExtendedExpr
-      , stack2 :: ExtendedExpr
-      }
-  deriving (Eq, Generic, Ord)
 
 data PValidKey
   = PValidKey
       { pvKind :: PValidKind
       , pvTy :: PValidType SolverExprContext
       , ptr :: SolverExpr
+      }
+  deriving (Eq, Generic, Ord)
+
+data ImpliesStackEqCacheKey
+  = ImpliesStackEqCacheKey
+      { sp :: SolverExpr
+      , stack1 :: ExtendedExpr
+      , stack2 :: ExtendedExpr
       }
   deriving (Eq, Generic, Ord)
 
@@ -138,8 +138,8 @@ initState = TState
     { names = S.empty
     , cache = M.empty
     , flatExprVars = M.empty
-    , impliesStackEqCache = M.empty
     , pvalids = M.empty
+    , impliesStackEqCache = M.empty
     }
 
 --
@@ -173,9 +173,6 @@ type NameHint = String
 takeFreshName :: C m => NameHint -> T m Ident
 takeFreshName nameHint = liftPure $ zoom #names $ takeFreshNameWith Ident nameHint
 
-askRODataPtrs :: C m => T m [SolverExpr]
-askRODataPtrs = liftPure $ gview #rodataPtrs
-
 --
 
 addVar :: C m => NameHint -> ExprType -> T m SolverExpr
@@ -199,10 +196,8 @@ addExtendedDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> Exte
 addExtendedDefWithInlineHint inline nameHint = \case
     ExtendedExprExpr expr -> ExtendedExprExpr <$> do
         addDefWithInlineHint inline nameHint expr
-    ExtendedExprHtd htd -> ExtendedExprHtd <$> do
-        return htd
     ExtendedExprSplitMem splitMem -> ExtendedExprSplitMem <$> do
-        let f suffix expr = addDef (nameHint ++ "_" ++ suffix) expr
+        let f suffix = addDef (nameHint ++ "_" ++ suffix)
         split <- f "split" splitMem.split
         top <- f "top" splitMem.top
         bottom <- f "bottom" splitMem.bottom
@@ -211,6 +206,7 @@ addExtendedDefWithInlineHint inline nameHint = \case
             , top
             , bottom
             }
+    extExpr -> return extExpr
 
 cacheExpr :: C m => NameHint -> SolverExpr -> T m SolverExpr
 cacheExpr = cacheExprWithInlineHint ExprCommandInlineHintNever
@@ -305,7 +301,8 @@ convertFlatOpExpr exprTy op args =
             ensureM cheatMemDoms
             return $ ExtendedExprExpr trueE
         _ ->
-            return $ ExtendedExprExpr $ Expr exprTy $ ExprValueOp op $ map (viewExpecting #_ExtendedExprExpr) args
+            return $ ExtendedExprExpr $
+                Expr exprTy $ ExprValueOp op $ map (viewExpecting #_ExtendedExprExpr) args
 
 convertIfThenElse :: SolverExpr -> ExtendedExpr -> ExtendedExpr -> ExtendedExpr
 convertIfThenElse cond xExt yExt = case (xExt, yExt) of
@@ -391,7 +388,7 @@ addHtd :: C m => NameHint -> T m ExtendedExpr
 addHtd nameHint = do
     name <- takeFreshName nameHint
     liftPure $ #pvalids %= M.insertWith undefined name M.empty
-    return $ ExtendedExprHtd (HtdExprIdent name)
+    return $ ExtendedExprHtd $ HtdExprIdent name
 
 addPValidExpr :: C m => HtdExpr -> PValidKey -> T m SolverExpr
 addPValidExpr = go
@@ -438,7 +435,7 @@ addPValid htd key = do
 
 addRODataPValids :: C m => Ident -> T m ()
 addRODataPValids htd = do
-    rodataPtrs <- askRODataPtrs
+    rodataPtrs <- liftPure $ gview #rodataPtrs
     for_ rodataPtrs $ \(Expr (ExprTypePtr roTy) (ExprValueNum roAddr)) -> do
         ptr <- cachePtr $ machineWordE roAddr
         let key = PValidKey
