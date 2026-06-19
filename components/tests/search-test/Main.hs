@@ -7,6 +7,7 @@ module Main
 import BV.ConcreteSyntax
 import BV.Core.Prelude
 import BV.Core.Types
+import BV.Core.Types.Extras.Aggregate
 import BV.Logging
 import BV.Search.Core
 import BV.Search.System.Core
@@ -16,7 +17,6 @@ import BV.System.Utils.SemGate
 import BV.System.Utils.UnliftIO.Async
 import BV.Test.Utils
 
-import Control.Monad (unless)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -49,7 +49,8 @@ testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
             discoverInlineScript' solverConfig input >>= assertSuccess
     scripts <- runConcurrentlyUnliftIO $ InlineScripts <$> traverse f allInput
     let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
-    checkMatch "inline-scripts" "json" scripts reference
+    let check = checkMatchWith $ \x y -> over _Left show $ inlineScriptMapsEquivalent x y
+    check "inline-scripts" "json" scripts reference
     return ()
 
 testStackBounds :: (?opts :: CustomOpts) => IO ()
@@ -76,14 +77,22 @@ testStackBounds = withLoggingOpts (loggingOpts ?opts "stack-bounds.log") $ do
 assertSuccess :: (MonadIO m, Show e) => Either e a -> m a
 assertSuccess = either (liftIO . assertFailure . show) return
 
+checkMatchWith :: (?opts :: CustomOpts, MonadIO m, Eq a, WriteBVFile c a) => (a -> a -> Either String ()) -> String -> String -> a -> a -> m ()
+checkMatchWith cmp fname ext actual expected = liftIO $ do
+    case cmp actual expected of
+        Right () -> return ()
+        Left msg -> do
+            let mismatchDumpDir = mismatchOutDirOf ?opts </> fname
+            ensureDir mismatchDumpDir
+            writeBVFile (mismatchDumpDir </> "actual" <.> ext) actual
+            writeBVFile (mismatchDumpDir </> "expected" <.> ext) expected
+            assertBool ("mismatch: " ++ msg) False
+
 checkMatch :: (?opts :: CustomOpts, MonadIO m, Eq a, WriteBVFile c a) => String -> String -> a -> a -> m ()
-checkMatch fname ext actual expected = liftIO $ do
-    unless (actual == expected) $ do
-        let mismatchDumpDir = mismatchOutDirOf ?opts </> fname
-        ensureDir mismatchDumpDir
-        writeBVFile (mismatchDumpDir </> "actual" <.> ext) actual
-        writeBVFile (mismatchDumpDir </> "expected" <.> ext) expected
-        assertBool "eq" False
+checkMatch = checkMatchWith $ \x y ->
+    if x == y
+    then Right ()
+    else Left "not equal"
 
 --
 

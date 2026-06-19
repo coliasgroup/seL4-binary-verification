@@ -131,6 +131,7 @@ internal-libraries:
       - BV.Core.Types.Extras.ProofCheck # TODO
       - BV.Core.Types.Extras.SExprToExpr # TODO
       - BV.Core.Types.Extras.SExprWithPlaceholders # TODO
+      - BV.Core.Types.Extras.Aggregate # TODO
       - BV.Core.Utils.IncludeExcludeFilter
     dependencies:
       - sel4-bv:smtlib2

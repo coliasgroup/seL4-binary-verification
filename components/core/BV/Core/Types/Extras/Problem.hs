@@ -11,6 +11,7 @@ module BV.Core.Types.Extras.Problem
     , analyzeProblem
     , analyzeProblemFromPartial
     , augmentProblem
+    , inlineScriptsEquivalent
     , innerLoopsOf
     , isReachableFrom
     , loopBodyOf
@@ -34,7 +35,7 @@ import BV.Utils
 import Control.Monad (guard)
 import Control.Monad.Writer (execWriter, tell)
 import Data.Foldable (toList)
-import Data.Function (applyWhen)
+import Data.Function (applyWhen, on)
 import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
 import Data.List (find)
@@ -287,3 +288,12 @@ computePreds problem nodeTag = withTags problem.sides <&> \(WithTag tag _) nodeI
           ]
         | (nodeAddr, node) <- M.toList problem.nodes
         ]
+
+---
+
+inlineScriptsEquivalent :: Tag t => InlineScript t -> InlineScript t -> Bool
+inlineScriptsEquivalent = (==) `on` f
+  where
+    f script =
+        let s = S.fromList script
+         in ensure (S.size s == length script) s

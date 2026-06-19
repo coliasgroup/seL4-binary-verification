@@ -92,6 +92,7 @@ library core
       BV.Core.Types.Extras.ProofCheck
       BV.Core.Types.Extras.SExprToExpr
       BV.Core.Types.Extras.SExprWithPlaceholders
+      BV.Core.Types.Extras.Aggregate
       BV.Core.Utils.IncludeExcludeFilter
   other-modules:
       BV.Core.GenerateFreshName

@@ -1,5 +1,6 @@
 module BV.Core.Types.Extras
-    ( module BV.Core.Types.Extras.DebugShowExpr
+    ( module BV.Core.Types.Extras.Aggregate
+    , module BV.Core.Types.Extras.DebugShowExpr
     , module BV.Core.Types.Extras.Expr
     , module BV.Core.Types.Extras.Pairing
     , module BV.Core.Types.Extras.Problem
@@ -9,6 +10,7 @@ module BV.Core.Types.Extras
     , module BV.Core.Types.Extras.SExprWithPlaceholders
     ) where
 
+import BV.Core.Types.Extras.Aggregate
 import BV.Core.Types.Extras.DebugShowExpr
 import BV.Core.Types.Extras.Expr
 import BV.Core.Types.Extras.Pairing
