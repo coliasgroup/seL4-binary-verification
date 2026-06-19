@@ -20,7 +20,7 @@ import BV.Core.GraphSlice.New.Common
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils (compareLength, whenNothing, withMapSlotWith)
+import BV.Core.Utils (compareLength, withMapSlotWith)
 import BV.SMTLIB2.SExpr (GenericSExpr (List), isValidSymbolAtomFirstChar,
                          isValidSymbolAtomSubsequentChar)
 
@@ -31,7 +31,7 @@ import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
 import Control.Monad.RWS (lift)
 import Control.Monad.State (StateT, evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans)
-import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
+import Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
@@ -40,7 +40,6 @@ import qualified Data.Set as S
 import Data.String (IsString (..))
 import Data.Void (Void)
 import GHC.Generics (Generic)
-import GHC.Stack (HasCallStack)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
@@ -160,14 +159,6 @@ initNames = S.fromList $ map SmtName $ join
 
 --
 
-typeToSmt :: ExprType -> S
-typeToSmt = \case
-    ExprTypeWord bits -> bitVecS bits
-    ExprTypeWordArray { len, bits } -> ["Array", bitVecS len, bitVecS bits]
-    ExprTypeBool -> boolS
-    ExprTypeMem -> memSortS
-    ExprTypeDom -> memDomSortS
-
 addSmtVar :: C m => SmtNameHint -> ExprType -> T m SmtName
 addSmtVar nameHint ty = do
     name <- takeFreshName nameHint
@@ -189,6 +180,17 @@ addConvertedSmtDef nameHint ty s = do
         }
     return name
 
+assertSmt :: C m => SExprWithPlaceholders -> T m ()
+assertSmt = send . SMTProofCheckCommandAssert . SMTProofCheckAssertion
+
+typeToSmt :: ExprType -> S
+typeToSmt = \case
+    ExprTypeWord bits -> bitVecS bits
+    ExprTypeWordArray { len, bits } -> ["Array", bitVecS len, bitVecS bits]
+    ExprTypeBool -> boolS
+    ExprTypeMem -> memSortS
+    ExprTypeDom -> memDomSortS
+
 --
 
 sendSolverExprCommand :: C m => SolverExprCommand -> T m ()
@@ -204,19 +206,17 @@ sendSolverExprCommand = \case
         else do
             name <- addConvertedSmtDef var.name.unwrap val.ty s
             liftPure $ #nameMap %= M.insertWith undefined var.name name
-    ExprCommandAssert expr -> do
-        s <- convertSolverExpr expr
-        send $ SMTProofCheckCommandAssert $ SMTProofCheckAssertion s
+    ExprCommandAssert expr -> convertSolverExpr expr >>= assertSmt
 
-convertSolverExpr :: HasCallStack => C m => SolverExpr -> T m SExprWithPlaceholders
+convertSolverExpr :: C m => SolverExpr -> T m SExprWithPlaceholders
 convertSolverExpr expr = case expr.value of
     ExprValueVar var -> do
-        fmap fromJust $ runMaybeT $
-            nameS <$> MaybeT (liftPure $ use $ #nameMap % at var)
-                <|> MaybeT (liftPure $ use $ #inline % at var)
-    ExprValueNum n -> do
+        altM
+            ((fmap . fmap) nameS $ liftPure $ use $ #nameMap % at var)
+            (liftPure $ use $ #inline % at var)
+    ExprValueNum n ->
         return $ intWithWidthS (wordTBits expr.ty) n
-    ExprValueOp OpCountTrailingZeroes ~[arg] -> do
+    ExprValueOp OpCountTrailingZeroes ~[arg] ->
         convertSolverExpr $ clzE (wordReverseE arg)
     ExprValueOp op ~[arg] | op == OpWordCast || op == OpWordCastSigned -> do
         let signed = op == OpWordCastSigned
@@ -225,15 +225,17 @@ convertSolverExpr expr = case expr.value of
         convertWordCast signed fromBits toBits <$> convertSolverExpr arg
     ExprValueOp op args -> do
         let argTypes = map (.ty) args
-        opOpt' <- runMaybeT $
-            hoistMaybe (convertSimpleOpWithTypes op expr.ty argTypes)
-                <|> nameS <$> MaybeT (getDerivedOp op expr.ty)
-        op' <- whenNothing opOpt' $ do
-            error $ "could not convert op: " ++ show op
+        op' <-
+            altM
+                (return (convertSimpleOpWithTypes op expr.ty argTypes))
+                ((fmap . fmap) nameS $ getDerivedOp op expr.ty)
         args' <- traverse convertSolverExpr args
         return $ case args' of
             [] -> op'
             _ -> List $ [op'] ++ args'
+
+altM :: Monad m => m (Maybe a) -> m (Maybe a) -> m a
+altM x y = fmap fromJust $ runMaybeT $ MaybeT x <|> MaybeT y
 
 convertWordCast :: Bool -> Integer -> Integer -> SExprWithPlaceholders -> SExprWithPlaceholders
 convertWordCast signed fromBits toBits arg = if
@@ -306,16 +308,14 @@ getDerivedOp op ty = traverse (withMapSlot #smtDerivedOps (op, ty)) $ if
 
 getDerivedWordOp :: C m => Op -> Integer -> T m SmtName
 getDerivedWordOp op bits = do
-    name <- takeFreshName $ case op of
-        OpCountLeadingZeroes -> printf "bvclz_%d" bits
-        OpWordReverse -> printf "bvrev_%d" bits
+    name <- takeFreshName nameHint
     body <- case bits of
         1 -> return $ case op of
             OpCountLeadingZeroes -> iteS ("x" `eqS` binS "0") (binS "1") (binS "0")
             OpWordReverse -> "x"
         _ -> do
             let botBits = bits `div` 2
-            let topBits = bits - botBits
+                topBits = bits - botBits
             topOp <- fromJust <$> getDerivedOp op (wordT topBits)
             botOp <- fromJust <$> getDerivedOp op (wordT botBits)
             let top = [ixS "extract" [intS (bits - 1), intS botBits], "x"]
@@ -339,16 +339,17 @@ getDerivedWordOp op bits = do
         , body
         }
     return name
+  where
+    nameHint = case op of
+        OpCountLeadingZeroes -> printf "bvclz_%d" bits
+        OpWordReverse -> printf "bvrev_%d" bits
 
 getDerivedRODataOp :: C m => Op -> T m SmtName
 getDerivedRODataOp op = do
-    name <- takeFreshName $ case op of
-        OpExt OpExtROData -> "rodata"
-        OpExt OpExtImpliesROData -> "implies-rodata"
+    name <- takeFreshName nameHint
     rodata <- liftPure $ gview #rodata
     body <- case rodata.ranges of
-        [] -> do
-            return trueS
+        [] -> return trueS
         _ -> case op of
             OpExt OpExtROData -> do
                 impliesRODataOp <- fromJust <$> getDerivedOp (OpExt OpExtImpliesROData) boolT
@@ -360,13 +361,13 @@ getDerivedRODataOp op = do
             OpExt OpExtImpliesROData -> do
                 roWitness <- nameS <$> addSmtVar "rodata-witness" word32T
                 roWitnessVal <- nameS <$> addSmtVar "rodata-witness-val" word32T
-                send $ SMTProofCheckCommandAssert $ SMTProofCheckAssertion $ orNS
+                assertSmt $ orNS
                     [ andS
                         (machineWordS range.addr `bvuleS` roWitness)
                         (roWitness `bvuleS` machineWordS (range.addr + range.size - 1))
                     | range <- rodata.ranges
                     ]
-                send $ SMTProofCheckCommandAssert $ SMTProofCheckAssertion $ eqS
+                assertSmt $ eqS
                     (roWitness `bvandS` machineWordS 3)
                     (machineWordS 0)
                 return $ loadWord32S "m" roWitness `eqS` roWitnessVal
@@ -377,3 +378,7 @@ getDerivedRODataOp op = do
         , body
         }
     return name
+  where
+    nameHint = case op of
+        OpExt OpExtROData -> "rodata"
+        OpExt OpExtImpliesROData -> "implies-rodata"
