@@ -492,6 +492,22 @@ getNodePcEnvInner check unprunedVisit = runMaybeT $ do
         warmPcEnvCache visit
         getNodePcEnvRaw visit
 
+-- TODO try without
+warmPcEnvCache :: C t m => Visit -> TaggedT t m ()
+warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
+  where
+    go 0 prevChain _ = return prevChain
+    go i prevChain curVisit = do
+        let f prev = do
+                checkGenerality prev
+                key <- lift $ askWithTag prev
+                present <- lift $ liftPure $ use $ #nodePcEnvs % to (M.member key)
+                return $ not present && prev.restrs == curVisit.restrs
+        runExceptT (lift (askPredVisits curVisit) >>= filterM f) >>= \case
+            Right (v:_) -> go (i - 1) (v:prevChain) v
+            _ -> return prevChain
+    iters = 5000 :: Integer
+
 getNodePcEnvRaw :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getNodePcEnvRaw visit = do
     side <- askProblemSide
@@ -571,6 +587,49 @@ addLoopMemCalls split memCalls = do
     let fnames = S.fromList $ nodes ^.. folded % #_NodeCall % #functionName
     return $ foldl (flip addUnboundedMemCalls) memCalls (toList fnames)
 
+isSyntacticConstant :: C t m => NameTy -> NodeAddr -> TaggedT t m Bool
+isSyntacticConstant var split = do
+    hasInnerLoop_ <- getHasInnerLoop split
+    -- TODO handle hasInnerLoop case
+    if hasInnerLoop_
+        then return False
+        else do
+            loopSet <- askLoopBody split
+            let go (name, addr) = do
+                    node <- lift $ lift $ askNode addr
+                    predName <- fromMaybe name <$> case node of
+                        NodeCall callNode -> do
+                            nonConstOutputs <- lift $ lift $ askNonConstOutputs callNode
+                            if NameTy name var.ty `elem` map snd nonConstOutputs
+                                then throwNotConst
+                                else return Nothing
+                        NodeBasic basicNode -> do
+                            let updateExprs =
+                                    [ u.val
+                                    | u <- basicNode.varUpdates
+                                    , u.var == NameTy name var.ty
+                                    ]
+                            case updateExprs of
+                                [] -> return Nothing
+                                [Expr _ (ExprValueVar ident)] -> return $ Just ident
+                                [_] -> throwNotConst
+                        _ -> return Nothing
+                    preds <- lift $ lift $ S.intersection loopSet <$> askPreds (Addr addr)
+                    for_ preds $ \predAddr -> do
+                        let predVar = (predName, predAddr)
+                        safe <- get
+                        unless (predVar `S.member` safe) $ do
+                            when (predAddr == split) throwNotConst
+                            go predVar
+                            modify $ S.insert predVar
+            isRight <$>
+                runExceptT
+                    (evalStateT
+                        (go (var.name, split))
+                        (S.singleton (var.name, split)))
+  where
+    throwNotConst = throwError ()
+
 getArcPcEnvs :: C t m => NodeAddr -> Visit -> TaggedT t m [PcEnv]
 getArcPcEnvs pred_ visit = do
     r <- runExceptT $ do
@@ -591,22 +650,6 @@ getArcPcEnv prev nodeId = runMaybeT $ do
         MaybeT $ getNodePcEnv prev
         lift $ emitNode prev
     hoistMaybe $ pcEnvs !? nodeId
-
--- TODO try without
-warmPcEnvCache :: C t m => Visit -> TaggedT t m ()
-warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
-  where
-    go 0 prevChain _ = return prevChain
-    go i prevChain curVisit = do
-        let f prev = do
-                checkGenerality prev
-                key <- lift $ askWithTag prev
-                present <- lift $ liftPure $ use $ #nodePcEnvs % to (M.member key)
-                return $ not present && prev.restrs == curVisit.restrs
-        runExceptT (lift (askPredVisits curVisit) >>= filterM f) >>= \case
-            Right (v:_) -> go (i - 1) (v:prevChain) v
-            _ -> return prevChain
-    iters = 5000 :: Integer
 
 emitNode :: C t m => Visit -> TaggedT t m (Map NodeId PcEnv)
 emitNode visit = do
@@ -676,49 +719,6 @@ getCallNodeEnv visit preCallEnv callNode = do
     liftPure $ #funCallOrder %= (Seq.|> key)
     liftPure $ #funCallsByName %= M.insertWith (<>) funName (S.singleton visit)
     return postCallEnv
-
-isSyntacticConstant :: C t m => NameTy -> NodeAddr -> TaggedT t m Bool
-isSyntacticConstant var split = do
-    hasInnerLoop_ <- getHasInnerLoop split
-    -- TODO handle hasInnerLoop case
-    if hasInnerLoop_
-        then return False
-        else do
-            loopSet <- askLoopBody split
-            let go (name, addr) = do
-                    node <- lift $ lift $ askNode addr
-                    predName <- fromMaybe name <$> case node of
-                        NodeCall callNode -> do
-                            nonConstOutputs <- lift $ lift $ askNonConstOutputs callNode
-                            if NameTy name var.ty `elem` map snd nonConstOutputs
-                                then throwNotConst
-                                else return Nothing
-                        NodeBasic basicNode -> do
-                            let updateExprs =
-                                    [ u.val
-                                    | u <- basicNode.varUpdates
-                                    , u.var == NameTy name var.ty
-                                    ]
-                            case updateExprs of
-                                [] -> return Nothing
-                                [Expr _ (ExprValueVar ident)] -> return $ Just ident
-                                [_] -> throwNotConst
-                        _ -> return Nothing
-                    preds <- lift $ lift $ S.intersection loopSet <$> askPreds (Addr addr)
-                    for_ preds $ \predAddr -> do
-                        let predVar = (predName, predAddr)
-                        safe <- get
-                        unless (predVar `S.member` safe) $ do
-                            when (predAddr == split) throwNotConst
-                            go predVar
-                            modify $ S.insert predVar
-            isRight <$>
-                runExceptT
-                    (evalStateT
-                        (go (var.name, split))
-                        (S.singleton (var.name, split)))
-  where
-    throwNotConst = throwError ()
 
 getFunCallInfo :: C t m => Visit -> TaggedT t m FunCallInfo
 getFunCallInfo unprunedVisit = do
