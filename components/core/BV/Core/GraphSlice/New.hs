@@ -54,6 +54,7 @@ import BV.Core.GraphSlice.New.Tagged
 import BV.Core.Logic (eqHandlingRelWrapper, strengthenHyp)
 import BV.Core.Types
 import BV.Core.Types.Extras
+import BV.Utils (ensure)
 
 import Control.Monad ((>=>))
 import Control.Monad.Writer (runWriter)
@@ -82,8 +83,10 @@ runGraphSliceT hooks input =
     . runGraphSliceFlatTStep
     . runGraphSliceTStep input.problem hooks
   where
-    structs = (M.!) $ M.unionsWith undefined $
+    -- TODO scope structs with tag and use `M.unionsWith undefined`
+    structs = (M.!) $ M.unionsWith ensureEq $
         rodataStructsOf input.rodata : toList input.structs
+    ensureEq x y = ensure (x == y) x
 
 rodataPtrsFromROData :: ROData -> [Expr c]
 rodataPtrsFromROData rodata =
