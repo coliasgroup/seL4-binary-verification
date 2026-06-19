@@ -830,14 +830,14 @@ areMemCallsCompatible lookupSig lookupPairingId callsOpt = case sequenceA callsO
                 in memCallsRangesOverlap cCast cActual
          in all compat $ S.toList $ M.keysSet calls.right <> M.keysSet cCastCalls
 
-asmRefineIsStackHook :: t ~ AsmRefineTag => ArgRenames t -> VarRepRequestKind -> WithTag t NameTy -> Maybe VarReqRequest
+asmRefineIsStackHook :: HasTagIsAsm t => ArgRenames t -> VarRepRequestKind -> WithTag t NameTy -> Maybe VarReqRequest
 asmRefineIsStackHook argRenames kind var =
     if cond then Just req else Nothing
   where
-    quadrant = PairingEqSideQuadrant Asm PairingEqDirectionIn
+    quadrant = PairingEqSideQuadrant var.tag PairingEqDirectionIn
     spName = argRenames quadrant (Ident "r13")
     cond = and
-        [ var.tag == Asm
+        [ tagIsAsm var.tag
         , var.value.ty == ExprTypeMem
         , "stack" `isPrefixOf` var.value.name.unwrap
         , kind /= VarRepRequestKindInit

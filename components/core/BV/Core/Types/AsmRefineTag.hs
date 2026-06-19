@@ -5,6 +5,7 @@ module BV.Core.Types.AsmRefineTag
     , ByAsmRefineTag (..)
     , ByTag'
     , ConstAsmRefineTag (..)
+    , HasTagIsAsm (..)
     , InlineScript'
     , KnownAsmRefineTag (..)
     , Pairing'
@@ -88,6 +89,12 @@ data ByAsmRefineTag a
 
 byAsmRefineTag :: ByAsmRefineTag a -> ByTag AsmRefineTag a
 byAsmRefineTag (ByAsmRefineTag { asm, c }) = fromList [asm, c]
+
+class Tag t => HasTagIsAsm t where
+    tagIsAsm :: t -> Bool
+
+instance HasTagIsAsm AsmRefineTag where
+    tagIsAsm = (==) Asm
 
 --
 

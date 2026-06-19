@@ -11,6 +11,7 @@ import BV.Core.GraphSlice.New.MemCalls
 
 import BV.Core.Types
 import BV.Core.Types.Extras
+import BV.Utils (ensure)
 
 import Data.List (genericIndex)
 import qualified Data.Map as M
@@ -55,16 +56,16 @@ asmRefineIsMemHook lookupSig fun direction i =
         Asm -> "mem"
         C -> "Mem"
 
-asmRefineIsStackHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
+asmRefineIsStackHook :: HasTagIsAsm t => LookupFunctionSignature t -> WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
 asmRefineIsStackHook lookupSig fun direction i =
-    fun.tag == Asm && genericIndex (viewFunctionSignatureDirection direction (lookupSig fun)) i == asmStackVar
+    tagIsAsm fun.tag && genericIndex (viewFunctionSignatureDirection direction (lookupSig fun)) i == asmStackVar
 
 asmStackVar :: NameTy
 asmStackVar = NameTy (Ident "stack") memT
 
-asmRefineStackPointerHook :: ArgRenames AsmRefineTag -> AsmRefineTag -> GraphExpr
-asmRefineStackPointerHook argRenames tag = case tag of
-    Asm -> varE machineWordT $
+asmRefineStackPointerHook :: HasTagIsAsm t => ArgRenames t -> t -> GraphExpr
+asmRefineStackPointerHook argRenames tag =
+    ensure (tagIsAsm tag) $ varE machineWordT $
         argRenames
         (PairingEqSideQuadrant tag PairingEqDirectionIn)
         (Ident "r13")
