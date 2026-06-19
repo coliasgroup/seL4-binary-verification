@@ -146,6 +146,7 @@ initState = TState
 
 data ExtendedExpr
   = ExtendedExprExpr SolverExpr
+  | ExtendedExprPms
   | ExtendedExprHtd HtdExpr
   | ExtendedExprSplitMem SplitMemExpr
   deriving (Eq, Generic, Ord, Show)
@@ -233,19 +234,16 @@ sendAccumulatedAssertionsInner = do
 
 sendFlatExprCommand :: C m => FlatExprCommand -> T m ()
 sendFlatExprCommand = \case
-    ExprCommandDeclare origVar -> case origVar.ty of
-        ExprTypePms -> return ()
-        _ -> do
-            val <- case origVar.ty of
-                ExprTypeHtd -> addHtd origVar.name.unwrap
-                _ -> ExtendedExprExpr <$> addVar origVar.name.unwrap origVar.ty
-            liftPure $ #flatExprVars %= M.insertWith undefined origVar.name val
-    ExprCommandDefine inlineHint origVar origVal -> case origVar.ty of
-        ExprTypePms -> return ()
-        _ -> do
-            val <- convertFlatExprExtended origVal
-                >>= addExtendedDefWithInlineHint inlineHint origVar.name.unwrap
-            liftPure $ #flatExprVars %= M.insertWith undefined origVar.name val
+    ExprCommandDeclare origVar -> do
+        val <- case origVar.ty of
+            ExprTypePms -> return ExtendedExprPms
+            ExprTypeHtd -> addHtd origVar.name.unwrap
+            _ -> ExtendedExprExpr <$> addVar origVar.name.unwrap origVar.ty
+        liftPure $ #flatExprVars %= M.insertWith undefined origVar.name val
+    ExprCommandDefine inlineHint origVar origVal -> do
+        val <- convertFlatExprExtended origVal
+            >>= addExtendedDefWithInlineHint inlineHint origVar.name.unwrap
+        liftPure $ #flatExprVars %= M.insertWith undefined origVar.name val
     ExprCommandAssert expr -> assertSolverExpr =<< convertFlatExpr expr
 
 convertFlatExprExtended :: C m => FlatExpr -> T m ExtendedExpr
@@ -307,6 +305,7 @@ convertFlatOpExpr exprTy op args =
 convertIfThenElse :: SolverExpr -> ExtendedExpr -> ExtendedExpr -> ExtendedExpr
 convertIfThenElse cond xExt yExt = case (xExt, yExt) of
     (ExtendedExprExpr x, ExtendedExprExpr y) -> ExtendedExprExpr $ ite x y
+    (ExtendedExprPms, ExtendedExprPms) -> ExtendedExprPms
     (ExtendedExprHtd x, ExtendedExprHtd y) -> ExtendedExprHtd $ HtdExprIfThenElse cond x y
     (x, y) ->
         let xs = trivSplit x
