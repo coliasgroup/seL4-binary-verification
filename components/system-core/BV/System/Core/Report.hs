@@ -16,6 +16,9 @@ import BV.System.Core.Types
 import Data.Foldable (toList)
 import Data.List (intersperse)
 import qualified Data.Map as M
+import Data.Maybe (isNothing)
+import Data.Monoid.Extra (mwhen)
+import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
 import Text.Printf (printf)
@@ -74,17 +77,22 @@ prettyCheckFailure err =
 
 data Report
   = Report
-      { unwrap :: M.Map PairingId' CheckResult
+      { unwrap :: M.Map PairingId' (Maybe CheckResult)
       }
   deriving (Eq, Generic, Ord, Show)
 
 displayReport :: Report -> (Bool, String)
 displayReport report =
-    if M.null failed
-    then (False, "All checks passed\n")
+    if M.null failed && S.null skipped
+    then (True, "All checks passed\n")
     else
-        let failures = flip foldMap (M.toList failed) $ \(pairingId, err) ->
-                "Check failure for " <> prettyPairingId pairingId <> ": " <> prettyCheckFailure err <> "\n"
-         in (True, failures <> "Some checks failed\n")
+        let failedMsg =
+                let perFailure = flip foldMap (M.toList failed) $ \(pairingId, err) ->
+                        "Check failure for " <> prettyPairingId pairingId <> ": " <> prettyCheckFailure err <> "\n"
+                 in perFailure <> "Some checks failed\n"
+            skippedMsg = "Some checks skipped\n"
+            msg = mwhen (not (M.null failed)) failedMsg <> mwhen (not (S.null skipped)) skippedMsg
+         in (False, msg)
   where
-    failed = M.mapMaybe (preview _Left) report.unwrap
+    failed = M.mapMaybe (preview (_Just % _Left)) report.unwrap
+    skipped = M.keysSet $ M.filter isNothing report.unwrap
