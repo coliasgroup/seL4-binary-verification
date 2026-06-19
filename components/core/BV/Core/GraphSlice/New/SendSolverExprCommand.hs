@@ -96,7 +96,6 @@ data TState
       { names :: Set SmtName
       , nameMap :: Map Ident SmtName
       , inline :: Map Ident SExprWithPlaceholders
-      , tokens :: Map Ident SmtName
       , smtDerivedOps :: Map (Op, ExprType) SmtName
       }
   deriving (Generic)
@@ -111,7 +110,6 @@ initState = TState
     { names = initNames
     , nameMap = M.empty
     , inline = M.empty
-    , tokens = M.empty
     , smtDerivedOps = M.empty
     }
 
@@ -169,10 +167,6 @@ typeToSmt = \case
     ExprTypeBool -> boolS
     ExprTypeMem -> memSortS
     ExprTypeDom -> memDomSortS
-    ExprTypeToken -> typeToSmt concreteTokenType
-
-concreteTokenType :: ExprType
-concreteTokenType = ExprTypeWord 64
 
 addSmtVar :: C m => SmtNameHint -> ExprType -> T m SmtName
 addSmtVar nameHint ty = do
@@ -183,9 +177,6 @@ addSmtVar nameHint ty = do
         , ret = typeToSmt ty
         }
     return name
-
-addSmtDef :: C m => SmtNameHint -> SolverExpr -> T m SmtName
-addSmtDef nameHint val = convertSolverExpr val >>= addConvertedSmtDef nameHint val.ty
 
 addConvertedSmtDef :: C m => SmtNameHint -> ExprType -> SExprWithPlaceholders -> T m SmtName
 addConvertedSmtDef nameHint ty s = do
@@ -225,8 +216,6 @@ convertSolverExpr expr = case expr.value of
                 <|> MaybeT (liftPure $ use $ #inline % at var)
     ExprValueNum n -> do
         return $ intWithWidthS (wordTBits expr.ty) n
-    ExprValueToken tok -> do
-        getToken tok
     ExprValueOp OpCountTrailingZeroes ~[arg] -> do
         convertSolverExpr $ clzE (wordReverseE arg)
     ExprValueOp op ~[arg] | op == OpWordCast || op == OpWordCastSigned -> do
@@ -245,13 +234,6 @@ convertSolverExpr expr = case expr.value of
         return $ case args' of
             [] -> op'
             _ -> List $ [op'] ++ args'
-
-getToken :: C m => Ident -> T m SExprWithPlaceholders
-getToken ident = fmap nameS $ withMapSlot #tokens ident $ do
-    n <- liftPure $ use $ #tokens % to M.size
-    addSmtDef
-        ("token_" ++ ident.unwrap)
-        (numE concreteTokenType (toInteger n))
 
 convertWordCast :: Bool -> Integer -> Integer -> SExprWithPlaceholders -> SExprWithPlaceholders
 convertWordCast signed fromBits toBits arg = if
