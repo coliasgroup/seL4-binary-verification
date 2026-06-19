@@ -63,14 +63,21 @@ prettyCheckFailure err =
   where
     prettySource = case err.source of
         CheckFailureSourceCheck check ->
-            "check " <> prettyCheckFingerprintShort check.fingerprint <> " @{" <> prettyProofCheckMeta check <> "}"
+            printf "check %s (index %d in group %s) @{%s}"
+                (prettyCheckFingerprintShort check.fingerprint)
+                check.indexInGroup.unwrap
+                (prettyCheckGroupFingerprintShort check.group.fingerprint)
+                (prettyProofCheckMeta check)
         CheckFailureSourceCheckSubgroup subgroup ->
-            "check subgroup " <> prettyCheckSubgroupIdShort (takeSubgroupId subgroup) <> " (checks "
-            <> mconcat (intersperse ","
-                [ prettyCheckFingerprintShort check.fingerprint <> " @{" <> prettyProofCheckMeta check <> "}"
-                | check <- toList subgroup.checks
-                ])
-            <> ")"
+            printf "check subgroup %s (checks %s)"
+                (prettyCheckSubgroupIdShort (takeSubgroupId subgroup))
+                (mconcat (intersperse ","
+                    [ printf "%s (index %d) @{%s}"
+                        (prettyCheckFingerprintShort check.fingerprint)
+                        check.indexInGroup.unwrap
+                        (prettyProofCheckMeta check)
+                    | check <- toList subgroup.checks
+                    ]))
     prettyCause = case err.cause of
         SomeSolverAnsweredSat solverId -> prettyCheckFailureCauseSolverId solverId ++ " answered sat"
         AllSolversTimedOutOrAnsweredUnknown -> "all solvers timed out or answered unknown"
