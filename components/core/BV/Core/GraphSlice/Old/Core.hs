@@ -649,8 +649,8 @@ emitNode visit = do
 
 isSyntacticConstant :: C t m => NameTy -> NodeAddr -> TaggedT t m Bool
 isSyntacticConstant var split = do
-    hasInnerLoop <- getHasInnerLoop split
-    if hasInnerLoop
+    hasInnerLoop_ <- getHasInnerLoop split
+    if hasInnerLoop_
         then return False
         else do
             loopSet <- askLoopBody split

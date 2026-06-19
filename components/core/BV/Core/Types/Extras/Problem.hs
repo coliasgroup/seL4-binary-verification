@@ -11,6 +11,7 @@ module BV.Core.Types.Extras.Problem
     , analyzeProblem
     , analyzeProblemFromPartial
     , augmentProblem
+    , hasInnerLoop
     , inlineScriptsEquivalent
     , innerLoopsOf
     , isReachableFrom
@@ -246,6 +247,9 @@ loopHeadOf n d = (.head) <$> loopContainingOf d n
 
 loopBodyOf :: NodeAddr -> LoopData -> S.Set NodeAddr
 loopBodyOf n d = (fromJust (loopContainingOf d n)).body
+
+hasInnerLoop :: NodeMap -> Loop -> Bool
+hasInnerLoop nodes loop = not (null (innerLoopsOf nodes loop))
 
 innerLoopsOf :: NodeMap -> Loop -> [Loop]
 innerLoopsOf nodes loop =
