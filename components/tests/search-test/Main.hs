@@ -35,7 +35,7 @@ main = bvMain $ \opts ->
 
 testInlining :: (?opts :: CustomOpts) => IO ()
 testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
-    stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForSlowTests
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForFastTests
     let allInput = prepareAllDiscoverInlineScriptInput $ DiscoverAllInlineScriptsInput
             { programs = stagesInput.programs
             , objDumpInfo = stagesInput.objDumpInfo
