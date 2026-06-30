@@ -259,6 +259,7 @@ instance Binary (Expr c)
 data ExprType
   = ExprTypeBool
   | ExprTypeMem
+  | ExprTypeStack
   | ExprTypeDom
   | ExprTypeHtd
   | ExprTypePms
@@ -355,7 +356,7 @@ data OpExt
   | OpExtStackEqualsImplies
   | OpExtStackWrapper
   | OpExtEqSelectiveWrapper
-  | OpExtSplitMem
+  | OpExtMarkedStack
   deriving (Eq, Generic, NFData, Ord, Show)
 
 instance Binary OpExt

@@ -112,11 +112,7 @@ runAsmRefineGraphSliceT
     -> m a
 runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
   where
-    hooks = asmRefineGraphSliceHooks input.lookupSig input.pairings argRenames
-    argRenames =
-        problemArgRenames input.repGraphInput.problem $
-            input.lookupSig <$>
-                withTags (pairingIdOfProblem input.repGraphInput.problem)
+    hooks = asmRefineGraphSliceHooks input.lookupSig input.pairings
 
 --
 

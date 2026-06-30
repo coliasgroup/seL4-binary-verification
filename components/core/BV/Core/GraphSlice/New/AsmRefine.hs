@@ -4,14 +4,12 @@ module BV.Core.GraphSlice.New.AsmRefine
     ( areMemCallsCompatible
     , asmRefineIsMemHook
     , asmRefineIsStackHook
-    , asmRefineStackPointerHook
     ) where
 
 import BV.Core.GraphSlice.New.MemCalls
 
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Utils (ensure)
 
 import Data.List (genericIndex)
 import qualified Data.Map as M
@@ -62,10 +60,3 @@ asmRefineIsStackHook lookupSig fun direction i =
 
 asmStackVar :: NameTy
 asmStackVar = NameTy (Ident "stack") memT
-
-asmRefineStackPointerHook :: HasTagIsAsm t => ArgRenames t -> t -> GraphExpr
-asmRefineStackPointerHook argRenames tag =
-    ensure (tagIsAsm tag) $ varE machineWordT $
-        argRenames
-        (PairingEqSideQuadrant tag PairingEqDirectionIn)
-        (Ident "r13")

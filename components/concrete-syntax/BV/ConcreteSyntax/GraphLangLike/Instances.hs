@@ -171,6 +171,7 @@ instance ParseInLine ExprType where
         case w of
             "Bool" -> return ExprTypeBool
             "Mem" -> return ExprTypeMem
+            "Stack" -> return ExprTypeStack
             "Dom" -> return ExprTypeDom
             "HTD" -> return ExprTypeHtd
             "PMS" -> return ExprTypePms
@@ -236,7 +237,7 @@ instance ParseInLine Op where
         "ImpliesROData" -> Right (OpExt OpExtImpliesROData)
         "ImpliesStackEquals" -> Right (OpExt OpExtImpliesStackEquals)
         "StackEqualsImplies" -> Right (OpExt OpExtStackEqualsImplies)
-        "SplitMem" -> Right (OpExt OpExtSplitMem)
+        "MarkedStack" -> Right (OpExt OpExtMarkedStack)
         w -> Left $ "invalid operation: " ++ w
 
 --
@@ -305,6 +306,7 @@ instance BuildInLine ExprType where
     buildInLine a = case a of
         ExprTypeBool -> "Bool"
         ExprTypeMem -> "Mem"
+        ExprTypeStack -> "Stack"
         ExprTypeDom -> "Dom"
         ExprTypeHtd -> "HTD"
         ExprTypePms -> "PMS"
@@ -370,7 +372,7 @@ instance BuildInLine Op where
         OpExt OpExtStackEquals -> "StackEquals"
         OpExt OpExtImpliesStackEquals -> "ImpliesStackEquals"
         OpExt OpExtStackEqualsImplies -> "StackEqualsImplies"
-        OpExt OpExtSplitMem -> "SplitMem"
+        OpExt OpExtMarkedStack -> "MarkedStack"
 
 --
 

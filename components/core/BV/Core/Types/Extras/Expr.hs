@@ -22,18 +22,21 @@ module BV.Core.Types.Extras.Expr
     , isBoolT
     , isMachineWordT
     , isMemT
+    , isStackT
     , isWordT
     , lessE
     , lessEqE
     , machineWordE
     , machineWordT
     , machineWordVarE
+    , markedStackE
     , memAccE
     , memT
     , memUpdE
     , minusE
     , modulusE
     , nImpliesE
+    , nameFromVarE
     , nameTyFromVarE
     , negE
     , notE
@@ -43,7 +46,7 @@ module BV.Core.Types.Extras.Expr
     , pointerE
     , rodataE
     , smtExprE
-    , splitMemE
+    , stackT
     , stackWrapperE
     , structT
     , timesE
@@ -81,6 +84,9 @@ word32T = wordT 32
 memT :: ExprType
 memT = ExprTypeMem
 
+stackT :: ExprType
+stackT = ExprTypeStack
+
 tokenT :: ExprType
 tokenT = ExprTypeToken
 
@@ -103,6 +109,9 @@ isMachineWordT = isWordWithSizeT archWordSizeBits
 
 isMemT :: ExprType -> Bool
 isMemT = is #_ExprTypeMem
+
+isStackT :: ExprType -> Bool
+isStackT = is #_ExprTypeStack
 
 --
 
@@ -254,6 +263,9 @@ varFromNameTyE arg = varE arg.ty arg.name
 nameTyFromVarE :: Expr c -> NameTy
 nameTyFromVarE (Expr ty (ExprValueVar name)) = NameTy name ty
 
+nameFromVarE :: Expr c -> Ident
+nameFromVarE (Expr _ (ExprValueVar name)) = name
+
 memAccE :: ExprType -> Expr c -> Expr c -> Expr c
 memAccE ty addr mem =
     ensureType_ isMemT mem .
@@ -337,9 +349,7 @@ getMemAccess = afolding $ \expr -> case expr.value of
 
 -- experimental
 
-splitMemE :: Expr c -> Expr c -> Expr c -> Expr c
-splitMemE addr top bottom =
-    ensureType_ (isWordWithSizeT archWordSizeBits) addr .
-    ensureType_ isMemT top .
-    ensureType_ isMemT bottom $
-        Expr top.ty (opV (OpExt OpExtSplitMem) [addr, top, bottom])
+markedStackE :: Expr c -> Expr c
+markedStackE stack =
+    ensureType_ ((||) <$> isStackT <*> isMemT) stack $
+        Expr memT (opV (OpExt OpExtMarkedStack) [stack])
