@@ -30,7 +30,7 @@ main = bvMain $ \opts ->
     let ?opts = opts
      in testGroup "Tests"
             [ testCase "inlining" testInlining
-            , testTreeWhen opts.includeWip $ testCase "stack-bounds" testStackBounds
+            , testCase "stack-bounds" testStackBounds
             ]
 
 testInlining :: (?opts :: CustomOpts) => IO ()
