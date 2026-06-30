@@ -110,6 +110,7 @@ data TState
       , tokens :: Map Ident SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
+      , splitMemVars :: Map Ident FlatExpr
       }
   deriving (Generic)
 
@@ -142,6 +143,7 @@ initState = TState
     , tokens = M.empty
     , pvalids = M.empty
     , impliesStackEqCache = M.empty
+    , splitMemVars = M.empty
     }
 
 --
