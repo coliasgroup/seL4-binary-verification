@@ -13,8 +13,8 @@ import BV.Core.Types
 import BV.SMTLIB2
 import BV.Utils (ensure)
 
-import Text.Printf (printf)
 import Data.Maybe (fromMaybe)
+import Text.Printf (printf)
 
 debugShowExpr :: Expr c -> String
 debugShowExpr = showSExpr . debugExprToSExpr
