@@ -2,6 +2,7 @@
 
 module BV.Core.Utils
     ( compareLength
+    , foldAssocBalanced
     , maybeFromSingletonList
     , whenJustThen
     , whenNothing
@@ -10,6 +11,7 @@ module BV.Core.Utils
 
 import Control.Monad.State (State)
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT), hoistMaybe)
+import Data.Function (on)
 import qualified Data.Map as M
 import Optics (Lens', at, use, (%))
 import Optics.State.Operators ((%=))
@@ -44,3 +46,9 @@ compareLength = go
         GT -> case xs of
             [] -> LT
             (_:xs') -> go (n - 1) xs'
+
+foldAssocBalanced :: (a -> a -> a) -> [a] -> a
+foldAssocBalanced f = go
+  where
+    go [x] = x
+    go xs = uncurry (f `on` go) (splitAt (length xs `div` 2) xs)
