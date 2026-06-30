@@ -1,13 +1,5 @@
 resolver: lts-24.43
 
-build:
-  library-profiling: true
-  executable-profiling: true
-
-ghc-options:
-  "$everything": -fprof-late
-  sel4-bv: -fprof-auto
-
 nix:
   enable: true
   pure: true

@@ -3,10 +3,4 @@ with-compiler: ghc-9.10.3
 
 multi-repl: True
 
-profiling: True
-profiling-detail: late-toplevel
-
-package sel4-bv
-  profiling-detail: all-functions
-
 import: https://www.stackage.org/lts-24.43/cabal.config
