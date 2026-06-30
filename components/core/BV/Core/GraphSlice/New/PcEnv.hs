@@ -12,6 +12,7 @@ import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 import BV.Core.Types
 import BV.Core.Types.Extras
 
+import Data.Function (on)
 import Data.List (nub)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -43,14 +44,8 @@ mergePcEnvs unfilteredPcEnvs = PcEnv pc env
 foldAssocBalanced :: (a -> a -> a) -> [a] -> a
 foldAssocBalanced f = go
   where
-    go xs =
-        let n = length xs
-         in if n >= 4
-            then
-                let (lhs, rhs) = splitAt (n `div` 2) xs
-                 in f (go lhs) (go rhs)
-            else
-                foldr1 f xs
+    go [x] = x
+    go xs = uncurry (f `on` go) (splitAt (length xs `div` 2) xs)
 
 mergeEnvs :: [PcEnv] -> ExprEnv
 mergeEnvs envs = fmap (mergeValPcList . M.toList) varValPcMap
