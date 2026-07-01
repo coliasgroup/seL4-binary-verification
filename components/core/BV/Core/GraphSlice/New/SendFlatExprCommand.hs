@@ -320,26 +320,14 @@ convertIfThenElse cond xExt yExt = case (xExt, yExt) of
     (ExtendedExprToken x, ExtendedExprToken y) -> ExtendedExprToken $ ite x y
     (ExtendedExprPms, ExtendedExprPms) -> ExtendedExprPms
     (ExtendedExprHtd x, ExtendedExprHtd y) -> ExtendedExprHtd $ HtdExprIfThenElse cond x y
-    (x, y) ->
-        let xs = trivSplit x
-            ys = trivSplit y
-         in ExtendedExprSplitMem $ SplitMemExpr
-                { split =
-                    if xs.split == ys.split
-                    then xs.split
-                    else (ite `on` (.split)) xs ys
-                , top = (ite `on` (.top)) xs ys
-                , bottom = (ite `on` (.bottom)) xs ys
-                }
-  where
-    ite = ifThenElseE cond
-    trivSplit = \case
-        ExtendedExprSplitMem splitMem -> splitMem
-        ExtendedExprExpr expr -> SplitMemExpr
-            { split = machineWordE 0
-            , top = expr
-            , bottom = expr
-            }
+    (ExtendedExprSplitMem x, ExtendedExprSplitMem y) -> ExtendedExprSplitMem $ SplitMemExpr
+        { split =
+            if x.split == y.split
+            then x.split
+            else (ifThenElseE cond `on` (.split)) x y
+        , top = (ifThenElseE cond `on` (.top)) x y
+        , bottom = (ifThenElseE cond `on` (.bottom)) x y
+        }
 
 convertMemUpdate :: C m => ExtendedExpr -> SolverExpr -> SolverExpr -> T m ExtendedExpr
 convertMemUpdate extExpr p v = case extExpr of
