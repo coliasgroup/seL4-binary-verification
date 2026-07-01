@@ -21,7 +21,7 @@ import BV.Core.Structs (StructsT, mapStructsT, runStructsT)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils (withMapSlotWith)
-import BV.Utils (ensureM, expectingAt, viewExpecting)
+import BV.Utils (ensure, ensureM, expectingAt, viewExpecting)
 
 import Control.Monad (unless, when)
 import Control.Monad.Identity (Identity (runIdentity))
@@ -110,6 +110,7 @@ data TState
       , tokens :: Map Ident SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
+      , defs :: Map Ident SolverExpr
       , splitMemVars :: Map Ident (Maybe SolverExpr)
       , splitMemDefs :: Map Ident SolverExpr
       }
@@ -144,6 +145,7 @@ initState = TState
     , tokens = M.empty
     , pvalids = M.empty
     , impliesStackEqCache = M.empty
+    , defs = M.empty
     , splitMemVars = M.empty
     , splitMemDefs = M.empty
     }
@@ -196,6 +198,7 @@ addDef = addDefWithInlineHint ExprCommandInlineHintNever
 addDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> SolverExpr -> T m SolverExpr
 addDefWithInlineHint inline nameHint expr = do
     name <- takeFreshName nameHint
+    liftPure $ #defs %= M.insertWith undefined name expr
     let var = NameTy name expr.ty
     send $ ExprCommandDefine inline var expr
     return $ varFromNameTyE var
@@ -384,9 +387,31 @@ convertMemAccess ty extExpr p = case extExpr of
         let acc = memAccE ty p'
         return $ ifThenElseE (split `lessEqE` p') (acc top) (acc bottom)
 
+ensureDeferredSplitDefined :: C m => SolverExpr -> SolverExpr -> T m ()
+ensureDeferredSplitDefined = go
+  where
+    go sp split = do
+        sp' <- follow #defs sp
+        split' <- follow #splitMemDefs split
+        case (sp'.value, split'.value) of
+            (ExprValueOp OpIfThenElse [spCond, spL, spR]
+                , ExprValueOp OpIfThenElse [splitCond, splitL, splitR]) -> do
+                    ensureM $ spCond == splitCond
+                    go spL splitL
+                    go spR splitR
+            (_, ExprValueVar splitName) -> do
+                let f (Just curOpt) = ensure (maybe True (== sp') curOpt) (Just (Just sp'))
+                liftPure $ #splitMemVars %= M.alter f splitName
+    follow l expr = case expr.value of
+        ExprValueVar name -> liftPure (use (l % at name)) >>= \case
+            Just expr' -> follow l expr'
+            Nothing -> return expr
+        _ -> return expr
+
 convertStackEqualsImplies :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
-    -- TODO define deferred
+    ensureDeferredSplitDefined sp1 stack1.split
+    ensureDeferredSplitDefined sp2 stack2.split
     return $
         if sp1 == sp2 && stack1 == stack2
         then trueE
@@ -394,7 +419,8 @@ convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
 
 convertImpliesStackEquals :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
-    -- TODO define deferred
+    ensureDeferredSplitDefined sp1 stack1.split
+    ensureDeferredSplitDefined sp2 stack2.split
     let key = ImpliesStackEqCacheKey
             { sp = sp1
             , stack1
