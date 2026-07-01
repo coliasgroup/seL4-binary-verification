@@ -393,17 +393,18 @@ getIsExprStack =
         ExprValueVar name -> liftFlat (lookupDef name) >>= maybe (return False) go
     ensureEq x y = ensure (x == y) x
 
-getIsExprWith :: TaggedC t n m => (Ident -> m Bool) -> FlatExpr -> m Bool
-getIsExprWith f expr = do
-    if isMemT expr.ty then getMemBasis ensureEq lookupName expr else return False
-  where
-    ensureEq x y = ensure (x == y) x
-    lookupName name = liftFlat (lookupDef name) >>= \case
-        Just def -> Right <$> return def
-        Nothing -> Left <$> f name
-
 getIsExprMem :: TaggedC t n m => FlatExpr -> m Bool
-getIsExprMem = getIsExprWith $ \name -> liftPure $ use $ #mems % to (name `M.member`)
+getIsExprMem =
+    \expr -> if isMemT expr.ty then go expr else return False
+  where
+    go expr' = case expr'.value of
+        ExprValueOp OpMemUpdate [m, _, _] -> go m
+        ExprValueOp OpIfThenElse [_, l, r] -> ensureEq <$> go l <*> go r
+        ExprValueOp (OpExt OpExtMarkedStack) _ -> return False
+        ExprValueVar name -> liftFlat (lookupDef name) >>= \case
+            Just def -> go def
+            Nothing -> liftPure $ use $ #mems % to (name `M.member`)
+    ensureEq x y = ensure (x == y) x
 
 getExprMemCalls :: TaggedC t n m => FlatExpr -> m MemCalls
 getExprMemCalls = fmap (foldl1 mergeMemCalls) . getMemBasis (<>) lookupMem

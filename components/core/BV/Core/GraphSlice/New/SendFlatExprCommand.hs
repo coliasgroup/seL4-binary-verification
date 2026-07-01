@@ -21,8 +21,9 @@ import BV.Core.Structs (StructsT, mapStructsT, runStructsT)
 import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Core.Utils (withMapSlotWith)
-import BV.Utils (ensure, ensureM, expectingAt, viewExpecting)
+import BV.Utils (ensureM, expectingAt, viewExpecting)
 
+import Control.Applicative ((<|>))
 import Control.Monad (unless, when)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
@@ -37,7 +38,7 @@ import qualified Data.Set as S
 import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((%=))
+import Optics.State.Operators ((%%=), (%=))
 
 -- import Debug.Trace (traceShowM)
 
@@ -400,8 +401,11 @@ ensureDeferredSplitDefined = go
                     go spL splitL
                     go spR splitR
             (_, ExprValueVar splitName) -> do
-                let f (Just curOpt) = ensure (maybe True (== sp') curOpt) (Just (Just sp'))
-                liftPure $ #splitMemVars %= M.alter f splitName
+                prevOpt <- liftPure $ #splitMemVars % expectingAt splitName %%=
+                    \curOpt -> (curOpt, curOpt <|> Just sp')
+                case prevOpt of
+                    Just prev -> ensureM $ prev == sp'
+                    Nothing -> assertSolverExpr $ split' `eqE` sp'
     follow l expr = case expr.value of
         ExprValueVar name -> liftPure (use (l % at name)) >>= \case
             Just expr' -> follow l expr'
