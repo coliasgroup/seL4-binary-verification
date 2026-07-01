@@ -398,6 +398,12 @@ ensureDeferredSplitDefined = go
         case (sp'.value, split'.value) of
             (ExprValueOp OpIfThenElse [spCond, spL, spR]
                 , ExprValueOp OpIfThenElse [splitCond, splitL, splitR]) -> do
+                    when (spCond /= splitCond) $ do
+                        traceM $ "spCond /= splitCond"
+                        traceM $ "sp'"
+                        traceM $ debugShowExpr sp'
+                        traceM $ "split'"
+                        traceM $ debugShowExpr split'
                     ensureM $ spCond == splitCond
                     go spL splitL
                     go spR splitR
@@ -406,13 +412,13 @@ ensureDeferredSplitDefined = go
                     \curOpt -> (curOpt, curOpt <|> Just sp')
                 case prevOpt of
                     Just prev -> do
-                        -- ensureM $ prev == sp'
                         when (prev /= sp') $ do
+                            traceM $ "prev /= sp'"
                             traceM $ "prev"
                             traceM $ debugShowExpr prev
                             traceM $ "sp"
                             traceM $ debugShowExpr sp'
-                        -- ensureM $ prev == sp'
+                        ensureM $ prev == sp'
                     Nothing -> assertSolverExpr $ split' `eqE` sp'
     follow l expr = case expr.value of
         ExprValueVar name -> liftPure (use (l % at name)) >>= \case
@@ -423,7 +429,7 @@ ensureDeferredSplitDefined = go
 convertStackEqualsImplies :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
     ensureDeferredSplitDefined sp1 stack1.split
-    ensureDeferredSplitDefined sp2 stack2.split
+    -- ensureDeferredSplitDefined sp2 stack2.split
     return $
         if sp1 == sp2 && stack1 == stack2
         then trueE
@@ -432,7 +438,7 @@ convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
 convertImpliesStackEquals :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
     ensureDeferredSplitDefined sp1 stack1.split
-    ensureDeferredSplitDefined sp2 stack2.split
+    -- ensureDeferredSplitDefined sp2 stack2.split
     let key = ImpliesStackEqCacheKey
             { sp = sp1
             , stack1
