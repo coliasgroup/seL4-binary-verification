@@ -111,6 +111,7 @@ data TState
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
       , splitMemVars :: Map Ident (Maybe SolverExpr)
+      , splitMemDefs :: Map Ident SolverExpr
       }
   deriving (Generic)
 
@@ -144,6 +145,7 @@ initState = TState
     , pvalids = M.empty
     , impliesStackEqCache = M.empty
     , splitMemVars = M.empty
+    , splitMemDefs = M.empty
     }
 
 --
@@ -204,16 +206,8 @@ addExtendedDefWithInlineHint inline nameHint = \case
         addDefWithInlineHint inline nameHint expr
     ExtendedExprToken expr -> ExtendedExprToken <$> do
         addDefWithInlineHint inline nameHint expr
-    ExtendedExprSplitMem splitMem -> ExtendedExprSplitMem <$> do
-        let f suffix = addDef (nameHint ++ "_" ++ suffix)
-        split <- f "split" splitMem.split
-        top <- f "top" splitMem.top
-        bottom <- f "bottom" splitMem.bottom
-        return $ SplitMemExpr
-            { split
-            , top
-            , bottom
-            }
+    ExtendedExprSplitMem expr -> ExtendedExprSplitMem <$> do
+        addSplitMemDef nameHint expr
     extExpr -> return extExpr
 
 cacheExpr :: C m => NameHint -> SolverExpr -> T m SolverExpr
@@ -246,18 +240,7 @@ sendFlatExprCommand :: C m => FlatExprCommand -> T m ()
 sendFlatExprCommand = \case
     ExprCommandDeclare origVar -> do
         val <- case origVar.ty of
-            ExprTypeStack -> ExtendedExprSplitMem <$> do
-                let f suffix = addVar (origVar.name.unwrap ++ "_" ++ suffix)
-                split <- f "split_deferred" machineWordT
-                top <- f "top" memT
-                bottom <- f "bottom" memT
-                let splitName = (nameTyFromVarE split).name -- TODO clunky
-                liftPure $ #splitMemVars %= M.insertWith undefined splitName Nothing
-                return $ SplitMemExpr
-                    { split
-                    , top
-                    , bottom
-                    }
+            ExprTypeStack -> ExtendedExprSplitMem <$> addSplitMemVar origVar.name.unwrap
             ExprTypeToken -> ExtendedExprToken <$> addVar origVar.name.unwrap concreteTokenType
             ExprTypePms -> return ExtendedExprPms
             ExprTypeHtd -> addHtd origVar.name.unwrap
@@ -268,6 +251,34 @@ sendFlatExprCommand = \case
             >>= addExtendedDefWithInlineHint inlineHint origVar.name.unwrap
         liftPure $ #flatExprVars %= M.insertWith undefined origVar.name val
     ExprCommandAssert expr -> assertSolverExpr =<< convertFlatExpr expr
+
+addSplitMemVar :: C m => NameHint -> T m SplitMemExpr
+addSplitMemVar nameHint = do
+    let f suffix = addVar (nameHint ++ "_" ++ suffix)
+    split <- f "split_deferred" machineWordT
+    top <- f "top" memT
+    bottom <- f "bottom" memT
+    let splitName = (nameTyFromVarE split).name -- TODO clunky
+    liftPure $ #splitMemVars %= M.insertWith undefined splitName Nothing
+    return $ SplitMemExpr
+        { split
+        , top
+        , bottom
+        }
+
+addSplitMemDef :: C m => NameHint -> SplitMemExpr -> T m SplitMemExpr
+addSplitMemDef nameHint splitMem = do
+    let f suffix = addDef (nameHint ++ "_" ++ suffix)
+    split <- f "split" splitMem.split
+    top <- f "top" splitMem.top
+    bottom <- f "bottom" splitMem.bottom
+    let splitName = (nameTyFromVarE split).name -- TODO clunky
+    liftPure $ #splitMemDefs %= M.insertWith undefined splitName splitMem.split
+    return $ SplitMemExpr
+        { split
+        , top
+        , bottom
+        }
 
 convertFlatExprExtended :: C m => FlatExpr -> T m ExtendedExpr
 convertFlatExprExtended expr = case expr.value of
