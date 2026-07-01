@@ -10,7 +10,6 @@ module BV.Core.Types.Extras.Expr
     , bitwiseAndE
     , boolE
     , boolT
-    , isStackT
     , castCToAsmE
     , castE
     , clzE
@@ -23,12 +22,14 @@ module BV.Core.Types.Extras.Expr
     , isBoolT
     , isMachineWordT
     , isMemT
+    , isStackT
     , isWordT
     , lessE
     , lessEqE
     , machineWordE
     , machineWordT
     , machineWordVarE
+    , markedStackE
     , memAccE
     , memT
     , memUpdE
@@ -42,9 +43,9 @@ module BV.Core.Types.Extras.Expr
     , orE
     , plusE
     , pointerE
-    , stackT
     , rodataE
     , smtExprE
+    , stackT
     , stackWrapperE
     , structT
     , timesE
@@ -58,7 +59,6 @@ module BV.Core.Types.Extras.Expr
     , wordReverseE
     , wordT
     , wordTBits
-    , markedStackE
     ) where
 
 import BV.Core.Arch (archWordSizeBits)
