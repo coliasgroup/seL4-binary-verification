@@ -110,7 +110,7 @@ data TState
       , tokens :: Map Ident SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
-      , splitMemVars :: Map Ident (Maybe FlatExpr)
+      , splitMemVars :: Map Ident (Maybe SolverExpr)
       }
   deriving (Generic)
 
@@ -246,6 +246,18 @@ sendFlatExprCommand :: C m => FlatExprCommand -> T m ()
 sendFlatExprCommand = \case
     ExprCommandDeclare origVar -> do
         val <- case origVar.ty of
+            ExprTypeStack -> ExtendedExprSplitMem <$> do
+                let f suffix = addVar (origVar.name.unwrap ++ "_" ++ suffix)
+                split <- f "split_deferred" machineWordT
+                top <- f "top" memT
+                bottom <- f "bottom" memT
+                let splitName = (nameTyFromVarE split).name -- TODO clunky
+                liftPure $ #splitMemVars %= M.insertWith undefined splitName Nothing
+                return $ SplitMemExpr
+                    { split
+                    , top
+                    , bottom
+                    }
             ExprTypeToken -> ExtendedExprToken <$> addVar origVar.name.unwrap concreteTokenType
             ExprTypePms -> return ExtendedExprPms
             ExprTypeHtd -> addHtd origVar.name.unwrap
@@ -272,15 +284,8 @@ convertFlatOpExpr exprTy op args =
     case (op, args) of
         (OpIfThenElse, ~[ExtendedExprExpr cond, x, y]) ->
             return $ convertIfThenElse cond x y
-        (OpExt OpExtMarkedStack, ~[ExtendedExprExpr var]) ->
-            ExtendedExprSplitMem <$> do
-                let nameTy = nameTyFromVarE var
-                liftPure $ #splitMemVars %= M.insertWith undefined name M.empty
-                return $ ExtendedExprSplitMem $ SplitMemExpr
-                    { split
-                    , top
-                    , bottom
-                    }
+        (OpExt OpExtMarkedStack, ~[stack]) ->
+            return stack
         (OpMemUpdate, ~[m, ExtendedExprExpr p, ExtendedExprExpr v]) ->
             convertMemUpdate m p v
         (OpMemAcc, ~[m, ExtendedExprExpr p]) ->
