@@ -390,41 +390,28 @@ convertMemAccess ty extExpr p = case extExpr of
         return $ ifThenElseE (split `lessEqE` p') (acc top) (acc bottom)
 
 ensureDeferredSplitDefined :: C m => SolverExpr -> SolverExpr -> T m ()
-ensureDeferredSplitDefined = go
+ensureDeferredSplitDefined sp split = do
+    splitVar <- follow split
+    let splitVarName = (nameTyFromVarE splitVar).name
+    prevOpt <- liftPure $ #splitMemVars % expectingAt splitVarName %%=
+        \curOpt -> (curOpt, curOpt <|> Just sp)
+    case prevOpt of
+        Just prev -> do
+            when (prev /= sp) $ do
+                traceM $ "prev /= sp'"
+                traceM $ "prev"
+                traceM $ debugShowExpr prev
+                traceM $ "sp"
+                traceM $ debugShowExpr sp
+            ensureM $ prev == sp
+            error "already defined"
+        Nothing -> assertSolverExpr $ splitVar `eqE` sp
   where
-    go sp split = do
-        sp' <- follow #defs sp
-        split' <- follow #splitMemDefs split
-        case (sp'.value, split'.value) of
-            (ExprValueOp OpIfThenElse [spCond, spL, spR]
-                , ExprValueOp OpIfThenElse [splitCond, splitL, splitR]) -> do
-                    when (spCond /= splitCond) $ do
-                        traceM $ "spCond /= splitCond"
-                        traceM $ "sp'"
-                        traceM $ debugShowExpr sp'
-                        traceM $ "split'"
-                        traceM $ debugShowExpr split'
-                    ensureM $ spCond == splitCond
-                    go spL splitL
-                    go spR splitR
-            (_, ExprValueVar splitName) -> do
-                prevOpt <- liftPure $ #splitMemVars % expectingAt splitName %%=
-                    \curOpt -> (curOpt, curOpt <|> Just sp')
-                case prevOpt of
-                    Just prev -> do
-                        when (prev /= sp') $ do
-                            traceM $ "prev /= sp'"
-                            traceM $ "prev"
-                            traceM $ debugShowExpr prev
-                            traceM $ "sp"
-                            traceM $ debugShowExpr sp'
-                        ensureM $ prev == sp'
-                    Nothing -> assertSolverExpr $ split' `eqE` sp'
-    follow l expr = case expr.value of
-        ExprValueVar name -> liftPure (use (l % at name)) >>= \case
-            Just expr' -> follow l expr'
+    -- TODO necessary?
+    follow expr = case expr.value of
+        ExprValueVar name -> liftPure (use (#splitMemDefs % at name)) >>= \case
+            Just expr' -> follow expr'
             Nothing -> return expr
-        _ -> return expr
 
 convertStackEqualsImplies :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
