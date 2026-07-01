@@ -389,8 +389,8 @@ convertMemAccess ty extExpr p = case extExpr of
         let acc = memAccE ty p'
         return $ ifThenElseE (split `lessEqE` p') (acc top) (acc bottom)
 
-ensureDeferredSplitDefined :: C m => SolverExpr -> SolverExpr -> T m ()
-ensureDeferredSplitDefined sp split = do
+ensureDeferredSplitDefinedRhs :: C m => SolverExpr -> SolverExpr -> T m ()
+ensureDeferredSplitDefinedRhs sp split = do
     splitVar <- follow split
     let splitVarName = (nameTyFromVarE splitVar).name
     prevOpt <- liftPure $ #splitMemVars % expectingAt splitVarName %%=
@@ -413,9 +413,25 @@ ensureDeferredSplitDefined sp split = do
             Just expr' -> follow expr'
             Nothing -> return expr
 
+ensureDeferredSplitDefinedLhs :: C m => SolverExpr -> T m ()
+ensureDeferredSplitDefinedLhs split = do
+    undefined
+--     splitVar <- follow split
+--     let splitVarName = (nameTyFromVarE splitVar).name
+--     _prevOpt <- liftPure $ #splitMemVars % expectingAt splitVarName %%=
+--         \curOpt -> (curOpt, curOpt <|> Just (machineWordE 0))
+--     return ()
+--   where
+--     -- TODO necessary?
+--     follow expr = case expr.value of
+--         ExprValueVar name -> liftPure (use (#defs % at name)) >>= \case
+--             Just expr' -> follow expr'
+--             Nothing -> return expr
+
 convertStackEqualsImplies :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
-    ensureDeferredSplitDefined sp2 stack2.split
+    ensureDeferredSplitDefinedRhs sp2 stack2.split
+    ensureDeferredSplitDefinedLhs stack1.split
     return $
         if sp1 == sp2 && stack1 == stack2
         then trueE
@@ -428,6 +444,8 @@ convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
 
 convertImpliesStackEquals :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
+    ensureDeferredSplitDefinedLhs stack1.split
+    ensureDeferredSplitDefinedLhs stack2.split
     let key = ImpliesStackEqCacheKey
             { sp = sp1
             , stack1
