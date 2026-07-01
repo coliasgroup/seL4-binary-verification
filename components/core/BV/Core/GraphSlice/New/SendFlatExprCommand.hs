@@ -125,8 +125,8 @@ data PValidKey
 data ImpliesStackEqCacheKey
   = ImpliesStackEqCacheKey
       { sp :: SolverExpr
-      , stack1 :: ExtendedExpr
-      , stack2 :: ExtendedExpr
+      , stack1 :: SplitMemExpr
+      , stack2 :: SplitMemExpr
       }
   deriving (Eq, Generic, Ord)
 
@@ -282,9 +282,19 @@ convertFlatOpExpr exprTy op args =
             convertMemUpdate m p v
         (OpMemAcc, ~[m, ExtendedExprExpr p]) ->
             ExtendedExprExpr <$> convertMemAccess exprTy m p
-        (OpExt OpExtStackEqualsImplies, ~[ExtendedExprExpr sp1, stack1, ExtendedExprExpr sp2, stack2]) ->
+        (OpExt OpExtStackEqualsImplies,
+                ~[ ExtendedExprExpr sp1
+                , ExtendedExprSplitMem stack1
+                , ExtendedExprExpr sp2
+                , ExtendedExprSplitMem stack2
+                ]) ->
             ExtendedExprExpr <$> convertStackEqualsImplies sp1 stack1 sp2 stack2
-        (OpExt OpExtImpliesStackEquals, ~[ExtendedExprExpr sp1, stack1, ExtendedExprExpr sp2, stack2]) ->
+        (OpExt OpExtImpliesStackEquals,
+                ~[ ExtendedExprExpr sp1
+                , ExtendedExprSplitMem stack1
+                , ExtendedExprExpr sp2
+                , ExtendedExprSplitMem stack2
+                ]) ->
             ExtendedExprExpr <$> convertImpliesStackEquals sp1 stack1 sp2 stack2
         (OpPArrayValid, ~[ExtendedExprHtd htd, ExtendedExprExpr tyExpr, ExtendedExprExpr ptrExpr, ExtendedExprExpr len]) ->
             ExtendedExprExpr <$> do
@@ -355,23 +365,17 @@ convertMemAccess ty extExpr p = case extExpr of
         let acc = memAccE ty p'
         return $ ifThenElseE (split `lessEqE` p') (acc top) (acc bottom)
 
-convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> ExtendedExpr -> T m SolverExpr
-convertStackEqualsImplies sp1 stack1 sp2 stack2 =
-    if sp1 == sp2 && stack1 == stack2
-    then return trueE
-    else do
-        let ExtendedExprSplitMem splitMem2 = stack2
-        ensureM $ splitMem2.split == sp2
-        let eq = case stack1 of
-                ExtendedExprExpr s ->
-                    splitMem2.top `eqE` s
-                ExtendedExprSplitMem splitMem1 ->
-                    (splitMem1.split `lessEqE` splitMem2.split)
-                        `impliesE` (splitMem2.top `eqE` splitMem1.top)
-        return $ (sp1 `eqE` sp2) `andE` eq
+convertStackEqualsImplies :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
+convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
+    -- TODO define deferred
+    return $
+        if sp1 == sp2 && stack1 == stack2
+        then trueE
+        else (sp1 `eqE` sp2) `andE` (stack1.top `eqE` stack1.bottom)
 
-convertImpliesStackEquals :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> ExtendedExpr -> T m SolverExpr
+convertImpliesStackEquals :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
+    -- TODO define deferred
     let key = ImpliesStackEqCacheKey
             { sp = sp1
             , stack1
@@ -381,7 +385,7 @@ convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
         addr <- addVar "stack-eq-witness" word32T
         assertSolverExpr $ (addr `bitwiseAndE` machineWordE 3) `eqE` machineWordE 0
         assertSolverExpr $ key.sp `lessEqE` addr
-        let acc stack = convertMemAccess word32T stack addr
+        let acc stack = convertMemAccess word32T (ExtendedExprSplitMem stack) addr
         solverExpr <- eqE <$> acc key.stack1 <*> acc key.stack2
         addDef "stack-eq" solverExpr
     return $ (sp1 `eqE` sp2) `andE` eq
