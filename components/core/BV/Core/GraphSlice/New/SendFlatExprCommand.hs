@@ -404,7 +404,7 @@ ensureDeferredSplitDefined sp split = do
                 traceM $ "sp"
                 traceM $ debugShowExpr sp
             ensureM $ prev == sp
-            error "already defined"
+            -- error "already defined" -- TODO
         Nothing -> assertSolverExpr $ splitVar `eqE` sp
   where
     -- TODO necessary?
