@@ -110,7 +110,7 @@ data TState
       , tokens :: Map Ident SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
-      , splitMemVars :: Map Ident FlatExpr
+      , splitMemVars :: Map Ident (Maybe FlatExpr)
       }
   deriving (Generic)
 
@@ -272,29 +272,32 @@ convertFlatOpExpr exprTy op args =
     case (op, args) of
         (OpIfThenElse, ~[ExtendedExprExpr cond, x, y]) ->
             return $ convertIfThenElse cond x y
-        (OpExt OpExtSplitMem, ~[ExtendedExprExpr split, ExtendedExprExpr top, ExtendedExprExpr bottom]) ->
-            return $ ExtendedExprSplitMem $ SplitMemExpr
-                { split
-                , top
-                , bottom
-                }
+        (OpExt OpExtMarkedStack, ~[ExtendedExprExpr var]) ->
+            ExtendedExprSplitMem <$> do
+                let nameTy = nameTyFromVarE var
+                liftPure $ #splitMemVars %= M.insertWith undefined name M.empty
+                return $ ExtendedExprSplitMem $ SplitMemExpr
+                    { split
+                    , top
+                    , bottom
+                    }
         (OpMemUpdate, ~[m, ExtendedExprExpr p, ExtendedExprExpr v]) ->
             convertMemUpdate m p v
         (OpMemAcc, ~[m, ExtendedExprExpr p]) ->
             ExtendedExprExpr <$> convertMemAccess exprTy m p
         (OpExt OpExtStackEqualsImplies,
                 ~[ ExtendedExprExpr sp1
-                , ExtendedExprSplitMem stack1
-                , ExtendedExprExpr sp2
-                , ExtendedExprSplitMem stack2
-                ]) ->
+                 , ExtendedExprSplitMem stack1
+                 , ExtendedExprExpr sp2
+                 , ExtendedExprSplitMem stack2
+                 ]) ->
             ExtendedExprExpr <$> convertStackEqualsImplies sp1 stack1 sp2 stack2
         (OpExt OpExtImpliesStackEquals,
                 ~[ ExtendedExprExpr sp1
-                , ExtendedExprSplitMem stack1
-                , ExtendedExprExpr sp2
-                , ExtendedExprSplitMem stack2
-                ]) ->
+                 , ExtendedExprSplitMem stack1
+                 , ExtendedExprExpr sp2
+                 , ExtendedExprSplitMem stack2
+                 ]) ->
             ExtendedExprExpr <$> convertImpliesStackEquals sp1 stack1 sp2 stack2
         (OpPArrayValid, ~[ExtendedExprHtd htd, ExtendedExprExpr tyExpr, ExtendedExprExpr ptrExpr, ExtendedExprExpr len]) ->
             ExtendedExprExpr <$> do

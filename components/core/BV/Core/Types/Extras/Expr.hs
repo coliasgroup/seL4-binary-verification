@@ -10,6 +10,7 @@ module BV.Core.Types.Extras.Expr
     , bitwiseAndE
     , boolE
     , boolT
+    , isStackT
     , castCToAsmE
     , castE
     , clzE
@@ -41,9 +42,9 @@ module BV.Core.Types.Extras.Expr
     , orE
     , plusE
     , pointerE
+    , stackT
     , rodataE
     , smtExprE
-    , splitMemE
     , stackWrapperE
     , structT
     , timesE
@@ -57,6 +58,7 @@ module BV.Core.Types.Extras.Expr
     , wordReverseE
     , wordT
     , wordTBits
+    , markedStackE
     ) where
 
 import BV.Core.Arch (archWordSizeBits)
@@ -81,6 +83,9 @@ word32T = wordT 32
 memT :: ExprType
 memT = ExprTypeMem
 
+stackT :: ExprType
+stackT = ExprTypeStack
+
 tokenT :: ExprType
 tokenT = ExprTypeToken
 
@@ -103,6 +108,9 @@ isMachineWordT = isWordWithSizeT archWordSizeBits
 
 isMemT :: ExprType -> Bool
 isMemT = is #_ExprTypeMem
+
+isStackT :: ExprType -> Bool
+isStackT = is #_ExprTypeStack
 
 --
 
@@ -337,9 +345,7 @@ getMemAccess = afolding $ \expr -> case expr.value of
 
 -- experimental
 
-splitMemE :: Expr c -> Expr c -> Expr c -> Expr c
-splitMemE addr top bottom =
-    ensureType_ (isWordWithSizeT archWordSizeBits) addr .
-    ensureType_ isMemT top .
-    ensureType_ isMemT bottom $
-        Expr top.ty (opV (OpExt OpExtSplitMem) [addr, top, bottom])
+markedStackE :: Expr c -> Expr c
+markedStackE stack =
+    ensureType_ isStackT stack $
+        Expr stack.ty (opV (OpExt OpExtMarkedStack) [stack])

@@ -65,6 +65,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
+import Data.Function (applyWhen)
 
 --
 
@@ -389,7 +390,7 @@ getIsExprStack =
     go expr' = case expr'.value of
         ExprValueOp OpMemUpdate [m, _, _] -> go m
         ExprValueOp OpIfThenElse [_, l, r] -> ensureEq <$> go l <*> go r
-        ExprValueOp (OpExt OpExtSplitMem) _ -> return True
+        ExprValueOp (OpExt OpExtMarkedStack) _ -> return True
         ExprValueVar name -> liftFlat (lookupDef name) >>= maybe (return False) go
     ensureEq x y = ensure (x == y) x
 
@@ -420,21 +421,10 @@ getMemBasis f lookupName = go
     go expr = case expr.value of
         ExprValueOp OpMemUpdate [m, _, _] -> go m
         ExprValueOp OpIfThenElse [_, l, r] -> f <$> go l <*> go r
-        ExprValueOp (OpExt OpExtSplitMem) [_, top, bottom] -> f <$> go top <*> go bottom
         ExprValueVar name -> lookupName name >>= either return go
 
 registerMem :: TaggedC t n m => Ident -> MemCalls -> m ()
 registerMem name calls = liftPure $ #mems %= M.insertWith undefined name calls
-
-addSplitStackVars :: C t m => NameHint -> TaggedT t m FlatExpr
-addSplitStackVars nameHint = do
-    split <- liftFlat $ addVar (nameHint ++ "_split_deferred") machineWordT
-    top <- liftFlat $ addVar (nameHint ++ "_top") memT
-    bottom <- liftFlat $ addVar (nameHint ++ "_bot") memT
-    return $ splitMemE
-        (varFromNameTyE split)
-        (varFromNameTyE top)
-        (varFromNameTyE bottom)
 
 --
 
@@ -543,12 +533,9 @@ getInputEnv = withMapSlotTagged #inputEnvs () $ do
         let isMem = isMemHook funName FunctionSignatureDirectionIn i
         let isStack = isStackHook funName FunctionSignatureDirectionIn i
         let nameHint = printf "%P_init" sigVar.name
-        if isStack
-            then addSplitStackVars nameHint
-            else do
-                envVar <- liftFlat $ addVar nameHint sigVar.ty
-                when isMem $ registerMem envVar.name emptyMemCalls
-                return $ varFromNameTyE envVar
+        envVar <- liftFlat $ applyWhen isStack markedStackE $ addVar nameHint sigVar.ty
+        when isMem $ registerMem envVar.name emptyMemCalls
+        return $ varFromNameTyE envVar
 
 getLoopPcEnv :: C t m => ExprEnv -> Visit -> TaggedT t m PcEnv
 getLoopPcEnv preLoopEnv visit = do
