@@ -428,8 +428,7 @@ ensureDeferredSplitDefined = go
 
 convertStackEqualsImplies :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
-    ensureDeferredSplitDefined sp1 stack1.split
-    -- ensureDeferredSplitDefined sp2 stack2.split
+    ensureDeferredSplitDefined sp2 stack2.split
     return $
         if sp1 == sp2 && stack1 == stack2
         then trueE
@@ -437,8 +436,6 @@ convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
 
 convertImpliesStackEquals :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
-    ensureDeferredSplitDefined sp1 stack1.split
-    -- ensureDeferredSplitDefined sp2 stack2.split
     let key = ImpliesStackEqCacheKey
             { sp = sp1
             , stack1
