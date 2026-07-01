@@ -347,5 +347,5 @@ getMemAccess = afolding $ \expr -> case expr.value of
 
 markedStackE :: Expr c -> Expr c
 markedStackE stack =
-    ensureType_ isStackT stack $
+    ensureType_ ((||) <$> isStackT <*> isMemT) stack $
         Expr memT (opV (OpExt OpExtMarkedStack) [stack])

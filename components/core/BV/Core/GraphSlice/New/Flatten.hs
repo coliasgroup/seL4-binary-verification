@@ -430,6 +430,10 @@ addSplitStackVars :: C t m => NameHint -> TaggedT t m FlatExpr
 addSplitStackVars nameHint = do
     liftFlat $ markedStackE . varFromNameTyE <$> addVar nameHint stackT
 
+addStackVar :: C t m => NameHint -> TaggedT t m FlatExpr
+addStackVar nameHint = do
+    liftFlat $ markedStackE . varFromNameTyE <$> addVar nameHint memT
+
 --
 
 pruneVisit :: C t m => Visit -> TaggedT t m (Maybe Visit)
@@ -538,7 +542,7 @@ getInputEnv = withMapSlotTagged #inputEnvs () $ do
         let isStack = isStackHook funName FunctionSignatureDirectionIn i
         let nameHint = printf "%P_init" sigVar.name
         if isStack
-            then addSplitStackVars nameHint
+            then addStackVar nameHint
             else do
                 envVar <- liftFlat $ addVar nameHint sigVar.ty
                 when isMem $ registerMem envVar.name emptyMemCalls
