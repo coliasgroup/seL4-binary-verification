@@ -383,15 +383,15 @@ contractPcEnv visit (PcEnv pc env) = do
 --
 
 getIsExprStack :: TaggedC t n m => FlatExpr -> m Bool
-getIsExprStack expr = do
-    if isMemT expr.ty then go expr else return False
+getIsExprStack =
+    \expr -> if isMemT expr.ty then go expr else return False
   where
-    ensureEq x y = ensure (x == y) x
     go expr' = case expr'.value of
         ExprValueOp OpMemUpdate [m, _, _] -> go m
         ExprValueOp OpIfThenElse [_, l, r] -> ensureEq <$> go l <*> go r
         ExprValueOp (OpExt OpExtSplitMem) _ -> return True
         ExprValueVar name -> liftFlat (lookupDef name) >>= maybe (return False) go
+    ensureEq x y = ensure (x == y) x
 
 getIsExprWith :: TaggedC t n m => (Ident -> m Bool) -> FlatExpr -> m Bool
 getIsExprWith f expr = do
@@ -428,7 +428,7 @@ registerMem name calls = liftPure $ #mems %= M.insertWith undefined name calls
 
 addSplitStackVars :: C t m => NameHint -> TaggedT t m FlatExpr
 addSplitStackVars nameHint = do
-    split <- liftFlat $ addVar (nameHint ++ "_split") machineWordT
+    split <- liftFlat $ addVar (nameHint ++ "_split_deferred") machineWordT
     top <- liftFlat $ addVar (nameHint ++ "_top") memT
     bottom <- liftFlat $ addVar (nameHint ++ "_bot") memT
     return $ splitMemE
