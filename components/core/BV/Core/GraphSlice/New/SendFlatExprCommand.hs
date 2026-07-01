@@ -39,6 +39,7 @@ import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=))
+import Debug.Trace (traceM)
 
 -- import Debug.Trace (traceShowM)
 
@@ -404,7 +405,14 @@ ensureDeferredSplitDefined = go
                 prevOpt <- liftPure $ #splitMemVars % expectingAt splitName %%=
                     \curOpt -> (curOpt, curOpt <|> Just sp')
                 case prevOpt of
-                    Just prev -> ensureM $ prev == sp'
+                    Just prev -> do
+                        -- ensureM $ prev == sp'
+                        when (prev /= sp') $ do
+                            traceM $ "prev"
+                            traceM $ debugShowExpr prev
+                            traceM $ "sp"
+                            traceM $ debugShowExpr sp'
+                        -- ensureM $ prev == sp'
                     Nothing -> assertSolverExpr $ split' `eqE` sp'
     follow l expr = case expr.value of
         ExprValueVar name -> liftPure (use (l % at name)) >>= \case
