@@ -419,7 +419,7 @@ convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
     return $
         if sp1 == sp2 && stack1 == stack2
         then trueE
-        else (sp1 `eqE` sp2) `andE` (stack1.top `eqE` stack2.bottom)
+        else (sp1 `eqE` sp2) `andE` (stack1.top `eqE` stack2.top)
 
 convertImpliesStackEquals :: C m => SolverExpr -> SplitMemExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
