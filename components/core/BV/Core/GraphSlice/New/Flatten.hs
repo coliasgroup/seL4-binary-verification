@@ -65,7 +65,6 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
 import Text.Printf (printf)
-import Data.Function (applyWhen)
 
 --
 
@@ -426,6 +425,10 @@ getMemBasis f lookupName = go
 registerMem :: TaggedC t n m => Ident -> MemCalls -> m ()
 registerMem name calls = liftPure $ #mems %= M.insertWith undefined name calls
 
+addSplitStackVars :: C t m => NameHint -> TaggedT t m FlatExpr
+addSplitStackVars nameHint = do
+    liftFlat $ markedStackE . varFromNameTyE <$> addVar nameHint stackT
+
 --
 
 pruneVisit :: C t m => Visit -> TaggedT t m (Maybe Visit)
@@ -533,9 +536,12 @@ getInputEnv = withMapSlotTagged #inputEnvs () $ do
         let isMem = isMemHook funName FunctionSignatureDirectionIn i
         let isStack = isStackHook funName FunctionSignatureDirectionIn i
         let nameHint = printf "%P_init" sigVar.name
-        envVar <- liftFlat $ applyWhen isStack markedStackE $ addVar nameHint sigVar.ty
-        when isMem $ registerMem envVar.name emptyMemCalls
-        return $ varFromNameTyE envVar
+        if isStack
+            then addSplitStackVars nameHint
+            else do
+                envVar <- liftFlat $ addVar nameHint sigVar.ty
+                when isMem $ registerMem envVar.name emptyMemCalls
+                return $ varFromNameTyE envVar
 
 getLoopPcEnv :: C t m => ExprEnv -> Visit -> TaggedT t m PcEnv
 getLoopPcEnv preLoopEnv visit = do
