@@ -324,10 +324,12 @@ convertIfThenElse cond xExt yExt = case (xExt, yExt) of
         { split =
             if x.split == y.split
             then x.split
-            else (ifThenElseE cond `on` (.split)) x y
-        , top = (ifThenElseE cond `on` (.top)) x y
-        , bottom = (ifThenElseE cond `on` (.bottom)) x y
+            else (ite `on` (.split)) x y
+        , top = (ite `on` (.top)) x y
+        , bottom = (ite `on` (.bottom)) x y
         }
+  where
+    ite = ifThenElseE cond
 
 convertMemUpdate :: C m => ExtendedExpr -> SolverExpr -> SolverExpr -> T m ExtendedExpr
 convertMemUpdate extExpr p v = case extExpr of
