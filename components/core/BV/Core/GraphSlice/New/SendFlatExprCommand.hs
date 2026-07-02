@@ -40,6 +40,7 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=))
 import Debug.Trace (traceM)
+import Data.Maybe (isJust)
 
 -- import Debug.Trace (traceShowM)
 
@@ -112,9 +113,7 @@ data TState
       , tokens :: Map Ident SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
-      , defs :: Map Ident SolverExpr
-      , splitMemVars :: Map Ident (Maybe SolverExpr)
-      , splitMemDefs :: Map Ident SolverExpr
+      , deferredSplitVars :: Set Ident
       }
   deriving (Generic)
 
@@ -147,9 +146,7 @@ initState = TState
     , tokens = M.empty
     , pvalids = M.empty
     , impliesStackEqCache = M.empty
-    , defs = M.empty
-    , splitMemVars = M.empty
-    , splitMemDefs = M.empty
+    , deferredSplitVars = S.empty
     }
 
 --
@@ -200,7 +197,6 @@ addDef = addDefWithInlineHint ExprCommandInlineHintNever
 addDefWithInlineHint :: C m => ExprCommandInlineHint -> NameHint -> SolverExpr -> T m SolverExpr
 addDefWithInlineHint inline nameHint expr = do
     name <- takeFreshName nameHint
-    liftPure $ #defs %= M.insertWith undefined name expr
     let var = NameTy name expr.ty
     send $ ExprCommandDefine inline var expr
     return $ varFromNameTyE var
@@ -263,8 +259,8 @@ addSplitMemVar nameHint = do
     split <- f "split_deferred" machineWordT
     top <- f "top" memT
     bottom <- f "bottom" memT
-    let splitName = (nameTyFromVarE split).name -- TODO clunky
-    liftPure $ #splitMemVars %= M.insertWith undefined splitName Nothing
+    let splitName = nameFromVarE split -- TODO clunky
+    liftPure $ #deferredSplitVars %= S.insert splitName
     return $ SplitMemExpr
         { split
         , top
@@ -277,8 +273,6 @@ addSplitMemDef nameHint splitMem = do
     split <- f "split" splitMem.split
     top <- f "top" splitMem.top
     bottom <- f "bottom" splitMem.bottom
-    let splitName = (nameTyFromVarE split).name -- TODO clunky
-    liftPure $ #splitMemDefs %= M.insertWith undefined splitName splitMem.split
     return $ SplitMemExpr
         { split
         , top
@@ -399,33 +393,23 @@ convertMemAccess ty extExpr p = case extExpr of
         let acc = memAccE ty p'
         return $ ifThenElseE (split `lessEqE` p') (acc top) (acc bottom)
 
-ensureDeferredSplitDefinedRhs :: C m => SolverExpr -> SolverExpr -> T m ()
-ensureDeferredSplitDefinedRhs sp split = do
-    splitVar <- follow split
-    let splitVarName = (nameTyFromVarE splitVar).name
-    prevOpt <- liftPure $ #splitMemVars % expectingAt splitVarName %%=
-        \curOpt -> (curOpt, curOpt <|> Just sp)
-    case prevOpt of
-        Just prev -> do
-            when (prev /= sp) $ do
-                traceM $ "prev /= sp'"
-                traceM $ "prev"
-                traceM $ debugShowExpr prev
-                traceM $ "sp"
-                traceM $ debugShowExpr sp
-            ensureM $ prev == sp
-            -- error "already defined" -- TODO
-        Nothing -> assertSolverExpr $ splitVar `eqE` sp
-  where
-    -- TODO necessary?
-    follow expr = case expr.value of
-        ExprValueVar name -> liftPure (use (#splitMemDefs % at name)) >>= \case
-            Just expr' -> follow expr'
-            Nothing -> return expr
+defineDeferredSplitVar :: C m => SolverExpr -> SolverExpr -> T m ()
+defineDeferredSplitVar sp split = do
+    let splitName = nameFromVarE split
+    wasPresent <- liftPure $ #deferredSplitVars % at splitName %%=
+        \curOpt -> (isJust curOpt, Nothing)
+    ensureM wasPresent
+    assertSolverExpr $ split `eqE` sp
+
+ensureNoDeferredSplitVars :: C m => T m ()
+ensureNoDeferredSplitVars = do
+    empty <- liftPure $ use $ #deferredSplitVars % to S.null
+    ensureM empty
 
 convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
-    ensureDeferredSplitDefinedRhs sp2 stack2.split
+    defineDeferredSplitVar sp2 stack2.split
+    ensureNoDeferredSplitVars
     return $
         if sp1 == sp2 && stack1 == ExtendedExprSplitMem stack2
         then trueE

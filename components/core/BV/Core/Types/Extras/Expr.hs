@@ -37,6 +37,7 @@ module BV.Core.Types.Extras.Expr
     , modulusE
     , nImpliesE
     , nameTyFromVarE
+    , nameFromVarE
     , negE
     , notE
     , numE
@@ -261,6 +262,9 @@ varFromNameTyE arg = varE arg.ty arg.name
 
 nameTyFromVarE :: Expr c -> NameTy
 nameTyFromVarE (Expr ty (ExprValueVar name)) = NameTy name ty
+
+nameFromVarE :: Expr c -> Ident
+nameFromVarE (Expr _ (ExprValueVar name)) = name
 
 memAccE :: ExprType -> Expr c -> Expr c -> Expr c
 memAccE ty addr mem =
