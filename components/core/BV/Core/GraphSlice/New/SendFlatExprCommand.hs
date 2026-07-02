@@ -285,10 +285,9 @@ addSplitMemDef nameHint splitMem = do
         }
 
 ensureNoUnconstrainedSplitVars :: C m => T m ()
-ensureNoUnconstrainedSplitVars = liftPure $ do
-    error "fkdjslfjkdslj"
-    lhsSplitVars <- use #lhsSplitVars
-    deferredSplitVars <- use #deferredSplitVars
+ensureNoUnconstrainedSplitVars = do
+    lhsSplitVars <- liftPure $ use #lhsSplitVars
+    deferredSplitVars <- liftPure $ use #deferredSplitVars
     -- let missing = S.intersection lhsSplitVars $ M.keysSet $ M.filter isNothing deferredSplitVars
     let missing = M.keysSet $ M.filter isNothing deferredSplitVars
     when (not (S.null missing)) $ do
