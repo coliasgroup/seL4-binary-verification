@@ -32,16 +32,13 @@ import Data.Foldable (for_)
 import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (isNothing)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=))
-import Data.Maybe (isJust, isNothing)
-import Debug.Trace (traceShowM)
-
--- import Debug.Trace (traceShowM)
 
 -- TODO explicitly weaken pvalid ops in strengthenHyp
 
@@ -289,9 +286,6 @@ ensureNoUnconstrainedSplitVars = do
     lhsSplitVars <- liftPure $ use #lhsSplitVars
     deferredSplitVars <- liftPure $ use #deferredSplitVars
     let missing = S.intersection lhsSplitVars $ M.keysSet $ M.filter isNothing deferredSplitVars
-    -- let missing = M.keysSet $ M.filter isNothing deferredSplitVars
-    when (not (S.null missing)) $ do
-        traceShowM missing
     ensureM $ S.null missing
 
 convertFlatExprExtended :: C m => FlatExpr -> T m ExtendedExpr

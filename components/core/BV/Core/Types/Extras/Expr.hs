@@ -36,8 +36,8 @@ module BV.Core.Types.Extras.Expr
     , minusE
     , modulusE
     , nImpliesE
-    , nameTyFromVarE
     , nameFromVarE
+    , nameTyFromVarE
     , negE
     , notE
     , numE
