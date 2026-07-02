@@ -229,6 +229,7 @@ assertSolverExpr = send . ExprCommandAssert
 
 sendAccumulatedAssertionsInner :: C m => T m ()
 sendAccumulatedAssertionsInner = do
+    ensureNoUnconstrainedSplitVars
     sendPValidDomAssertions
 
 concreteTokenType :: ExprType
@@ -279,6 +280,11 @@ addSplitMemDef nameHint splitMem = do
         , bottom
         , deps = splitMem.deps
         }
+
+ensureNoUnconstrainedSplitVars :: C m => T m ()
+ensureNoUnconstrainedSplitVars = do
+    haveUnconstrained <- liftPure $ use $ #deferredSplitVars % to (M.null . M.filter isNothing)
+    ensureM haveUnconstrained
 
 convertFlatExprExtended :: C m => FlatExpr -> T m ExtendedExpr
 convertFlatExprExtended expr = case expr.value of
