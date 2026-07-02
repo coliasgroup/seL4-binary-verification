@@ -23,7 +23,6 @@ import BV.Core.Types.Extras
 import BV.Core.Utils (withMapSlotWith)
 import BV.Utils (ensureM, expectingAt, viewExpecting)
 
-import Control.Applicative ((<|>))
 import Control.Monad (unless, when)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
@@ -39,7 +38,6 @@ import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=))
-import Debug.Trace (traceM)
 import Data.Maybe (isJust)
 
 -- import Debug.Trace (traceShowM)
@@ -169,6 +167,7 @@ data SplitMemExpr
       { split :: SolverExpr
       , top :: SolverExpr
       , bottom :: SolverExpr
+      , deps :: Set Ident
       }
   deriving (Eq, Generic, Ord, Show)
 
@@ -265,6 +264,7 @@ addSplitMemVar nameHint = do
         { split
         , top
         , bottom
+        , deps = S.singleton (nameFromVarE split) -- TODO clunky
         }
 
 addSplitMemDef :: C m => NameHint -> SplitMemExpr -> T m SplitMemExpr
@@ -277,6 +277,7 @@ addSplitMemDef nameHint splitMem = do
         { split
         , top
         , bottom
+        , deps = splitMem.deps
         }
 
 convertFlatExprExtended :: C m => FlatExpr -> T m ExtendedExpr
@@ -358,6 +359,7 @@ convertIfThenElse cond xExt yExt = case (xExt, yExt) of
                     else (ite `on` (.split)) xs ys
                 , top = (ite `on` (.top)) xs ys
                 , bottom = (ite `on` (.bottom)) xs ys
+                , deps = xs.deps <> ys.deps
                 }
   where
     ite = ifThenElseE cond
@@ -367,6 +369,7 @@ convertIfThenElse cond xExt yExt = case (xExt, yExt) of
             { split = machineWordE 0
             , top = expr
             , bottom = expr
+            , deps = S.empty
             }
 
 convertMemUpdate :: C m => ExtendedExpr -> SolverExpr -> SolverExpr -> T m ExtendedExpr
@@ -383,6 +386,7 @@ convertMemUpdate extExpr p v = case extExpr of
             { split = splitMem.split
             , top = f (upd top) top
             , bottom = f bottom (upd bottom)
+            , deps = splitMem.deps
             }
 
 convertMemAccess :: C m => ExprType -> ExtendedExpr -> SolverExpr -> T m SolverExpr
@@ -401,15 +405,17 @@ defineDeferredSplitVar sp split = do
     ensureM wasPresent
     assertSolverExpr $ split `eqE` sp
 
-ensureNoDeferredSplitVars :: C m => T m ()
-ensureNoDeferredSplitVars = do
-    empty <- liftPure $ use $ #deferredSplitVars % to S.null
-    ensureM empty
+ensureNoDeferredSplitVars :: C m => ExtendedExpr -> T m ()
+ensureNoDeferredSplitVars = \case
+    ExtendedExprSplitMem splitMem -> do
+        deferredDeps <- liftPure $ use $ #deferredSplitVars % to (S.intersection splitMem.deps)
+        ensureM $ S.null deferredDeps
+    _ -> return ()
 
 convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
     defineDeferredSplitVar sp2 stack2.split
-    ensureNoDeferredSplitVars
+    ensureNoDeferredSplitVars stack1
     return $
         if sp1 == sp2 && stack1 == ExtendedExprSplitMem stack2
         then trueE
