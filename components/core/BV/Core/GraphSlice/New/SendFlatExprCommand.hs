@@ -288,8 +288,8 @@ ensureNoUnconstrainedSplitVars :: C m => T m ()
 ensureNoUnconstrainedSplitVars = do
     lhsSplitVars <- liftPure $ use #lhsSplitVars
     deferredSplitVars <- liftPure $ use #deferredSplitVars
-    let missing = S.intersection lhsSplitVars $ M.keysSet $ M.filter isNothing deferredSplitVars
-    -- let missing = M.keysSet $ M.filter isNothing deferredSplitVars
+    -- let missing = S.intersection lhsSplitVars $ M.keysSet $ M.filter isNothing deferredSplitVars
+    let missing = M.keysSet $ M.filter isNothing deferredSplitVars
     when (not (S.null missing)) $ do
         traceShowM missing
     ensureM $ S.null missing
