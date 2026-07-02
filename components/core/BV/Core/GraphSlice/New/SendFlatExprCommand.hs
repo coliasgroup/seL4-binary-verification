@@ -288,8 +288,8 @@ ensureNoUnconstrainedSplitVars :: C m => T m ()
 ensureNoUnconstrainedSplitVars = do
     lhsSplitVars <- liftPure $ use #lhsSplitVars
     deferredSplitVars <- liftPure $ use #deferredSplitVars
-    -- let missing = S.intersection lhsSplitVars $ M.keysSet $ M.filter isNothing deferredSplitVars
-    let missing = M.keysSet $ M.filter isNothing deferredSplitVars
+    let missing = S.intersection lhsSplitVars $ M.keysSet $ M.filter isNothing deferredSplitVars
+    -- let missing = M.keysSet $ M.filter isNothing deferredSplitVars
     when (not (S.null missing)) $ do
         traceShowM missing
     ensureM $ S.null missing
@@ -420,17 +420,16 @@ defineDeferredSplitVar sp split = do
         ensureM $ prev == sp
     assertSolverExpr $ split `eqE` sp
 
--- ensureNoDeferredSplitVars :: C m => ExtendedExpr -> T m ()
--- ensureNoDeferredSplitVars = \case
---     ExtendedExprSplitMem splitMem -> do
---         deferredDeps <- liftPure $ use $ #deferredSplitVars % to (S.intersection splitMem.deps . M.keysSet . M.filter isNothing)
---         ensureM $ S.null deferredDeps
---     _ -> return ()
+ensureRHSNotInLHSDeps :: C m => Ident -> ExtendedExpr -> T m ()
+ensureRHSNotInLHSDeps split2 = \case
+    ExtendedExprSplitMem stack1 -> do
+        ensureM $ split2 `S.notMember` stack1.deps
+    _ -> return ()
 
 convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
     defineDeferredSplitVar sp2 stack2.split
-    -- ensureNoDeferredSplitVars stack1
+    ensureRHSNotInLHSDeps (nameFromVarE stack2.split) stack1
     return $
         if sp1 == sp2 && stack1 == ExtendedExprSplitMem stack2
         then trueE
