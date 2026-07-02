@@ -38,7 +38,7 @@ import Data.Void (Void)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%%=), (%=))
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 
 -- import Debug.Trace (traceShowM)
 
@@ -111,7 +111,7 @@ data TState
       , tokens :: Map Ident SolverExpr
       , pvalids :: Map Ident (Map PValidKey SolverExpr)
       , impliesStackEqCache :: Map ImpliesStackEqCacheKey SolverExpr
-      , deferredSplitVars :: Set Ident
+      , deferredSplitVars :: Map Ident (Maybe SolverExpr)
       }
   deriving (Generic)
 
@@ -144,7 +144,7 @@ initState = TState
     , tokens = M.empty
     , pvalids = M.empty
     , impliesStackEqCache = M.empty
-    , deferredSplitVars = S.empty
+    , deferredSplitVars = M.empty
     }
 
 --
@@ -259,7 +259,7 @@ addSplitMemVar nameHint = do
     top <- f "top" memT
     bottom <- f "bottom" memT
     let splitName = nameFromVarE split -- TODO clunky
-    liftPure $ #deferredSplitVars %= S.insert splitName
+    liftPure $ #deferredSplitVars %= M.insertWith undefined splitName Nothing
     return $ SplitMemExpr
         { split
         , top
@@ -400,15 +400,16 @@ convertMemAccess ty extExpr p = case extExpr of
 defineDeferredSplitVar :: C m => SolverExpr -> SolverExpr -> T m ()
 defineDeferredSplitVar sp split = do
     let splitName = nameFromVarE split
-    wasPresent <- liftPure $ #deferredSplitVars % at splitName %%=
-        \curOpt -> (isJust curOpt, Nothing)
-    ensureM wasPresent
+    prevOpt <- liftPure $ #deferredSplitVars % expectingAt splitName %%=
+        \curOpt -> (curOpt, Just sp)
+    for_ prevOpt $ \prev -> do
+        ensureM $ prev == sp
     assertSolverExpr $ split `eqE` sp
 
 ensureNoDeferredSplitVars :: C m => ExtendedExpr -> T m ()
 ensureNoDeferredSplitVars = \case
     ExtendedExprSplitMem splitMem -> do
-        deferredDeps <- liftPure $ use $ #deferredSplitVars % to (S.intersection splitMem.deps)
+        deferredDeps <- liftPure $ use $ #deferredSplitVars % to (S.intersection splitMem.deps . M.keysSet . M.filter isNothing)
         ensureM $ S.null deferredDeps
     _ -> return ()
 
