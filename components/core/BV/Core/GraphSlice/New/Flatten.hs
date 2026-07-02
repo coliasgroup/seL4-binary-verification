@@ -426,13 +426,10 @@ getMemBasis f lookupName = go
 registerMem :: TaggedC t n m => Ident -> MemCalls -> m ()
 registerMem name calls = liftPure $ #mems %= M.insertWith undefined name calls
 
-addSplitStackVars :: C t m => NameHint -> TaggedT t m FlatExpr
-addSplitStackVars nameHint = do
-    liftFlat $ markedStackE . varFromNameTyE <$> addVar nameHint stackT
-
-addStackVar :: C t m => NameHint -> TaggedT t m FlatExpr
-addStackVar nameHint = do
-    liftFlat $ markedStackE . varFromNameTyE <$> addVar nameHint memT
+addStackVar :: C t m => Bool -> NameHint -> TaggedT t m FlatExpr
+addStackVar split nameHint = do
+    let ty = if split then stackT else memT
+    liftFlat $ markedStackE . varFromNameTyE <$> addVar nameHint ty
 
 --
 
@@ -542,7 +539,7 @@ getInputEnv = withMapSlotTagged #inputEnvs () $ do
         let isStack = isStackHook funName FunctionSignatureDirectionIn i
         let nameHint = printf "%P_init" sigVar.name
         if isStack
-            then addStackVar nameHint
+            then addStackVar False nameHint
             else do
                 envVar <- liftFlat $ addVar nameHint sigVar.ty
                 when isMem $ registerMem envVar.name emptyMemCalls
@@ -557,7 +554,7 @@ getLoopPcEnv preLoopEnv visit = do
         isMem <- getIsExprMem preLoopVal
         let postLoopNameHint = printf "%P_after_loop_at_%P" preLoopVar.name visit.nodeId
         if isStack
-            then addSplitStackVars postLoopNameHint
+            then addStackVar True postLoopNameHint
             else do
                 postLoopVar <- liftFlat $ addVar postLoopNameHint preLoopVar.ty
                 when isMem $ do
@@ -693,7 +690,7 @@ getCallNodeEnv visit preCallEnv callNode = do
         let isStack = isStackHook funName FunctionSignatureDirectionOut i
         let nameHint = localName visit sigVar.name
         if isStack
-            then addSplitStackVars nameHint
+            then addStackVar True nameHint
             else do
                 envVar <- liftFlat $ addVar nameHint sigVar.ty
                 when isMem $ do
