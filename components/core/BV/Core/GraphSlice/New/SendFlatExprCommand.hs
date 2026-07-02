@@ -253,41 +253,6 @@ sendFlatExprCommand = \case
         liftPure $ #flatExprVars %= M.insertWith undefined origVar.name val
     ExprCommandAssert expr -> assertSolverExpr =<< convertFlatExpr expr
 
-addSplitMemVar :: C m => NameHint -> T m SplitMemExpr
-addSplitMemVar nameHint = do
-    let f suffix = addVar (nameHint ++ "_" ++ suffix)
-    split <- f "split_deferred" machineWordT
-    top <- f "top" memT
-    bottom <- f "bottom" memT
-    let splitName = nameFromVarE split -- TODO clunky
-    liftPure $ #deferredSplitVars %= M.insertWith undefined splitName Nothing
-    return $ SplitMemExpr
-        { split
-        , top
-        , bottom
-        , deps = S.singleton (nameFromVarE split) -- TODO clunky
-        }
-
-addSplitMemDef :: C m => NameHint -> SplitMemExpr -> T m SplitMemExpr
-addSplitMemDef nameHint splitMem = do
-    let f suffix = addDef (nameHint ++ "_" ++ suffix)
-    split <- f "split" splitMem.split
-    top <- f "top" splitMem.top
-    bottom <- f "bottom" splitMem.bottom
-    return $ SplitMemExpr
-        { split
-        , top
-        , bottom
-        , deps = splitMem.deps
-        }
-
-ensureNoUnconstrainedSplitVars :: C m => T m ()
-ensureNoUnconstrainedSplitVars = do
-    lhsSplitVars <- liftPure $ use #lhsSplitVars
-    deferredSplitVars <- liftPure $ use #deferredSplitVars
-    let missing = S.intersection lhsSplitVars $ M.keysSet $ M.filter isNothing deferredSplitVars
-    ensureM $ S.null missing
-
 convertFlatExprExtended :: C m => FlatExpr -> T m ExtendedExpr
 convertFlatExprExtended expr = case expr.value of
     ExprValueVar name -> liftPure $ use $ #flatExprVars % expectingAt name
@@ -405,25 +370,10 @@ convertMemAccess ty extExpr p = case extExpr of
         let acc = memAccE ty p'
         return $ ifThenElseE (split `lessEqE` p') (acc top) (acc bottom)
 
-defineDeferredSplitVar :: C m => SolverExpr -> SolverExpr -> T m ()
-defineDeferredSplitVar sp split = do
-    let splitName = nameFromVarE split
-    prevOpt <- liftPure $ #deferredSplitVars % expectingAt splitName %%=
-        \curOpt -> (curOpt, Just sp)
-    for_ prevOpt $ \prev -> do
-        ensureM $ prev == sp
-    assertSolverExpr $ split `eqE` sp
-
-ensureRHSNotInLHSDeps :: C m => Ident -> ExtendedExpr -> T m ()
-ensureRHSNotInLHSDeps split2 = \case
-    ExtendedExprSplitMem stack1 -> do
-        ensureM $ split2 `S.notMember` stack1.deps
-    _ -> return ()
-
 convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
 convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
     defineDeferredSplitVar sp2 stack2.split
-    ensureRHSNotInLHSDeps (nameFromVarE stack2.split) stack1
+    checkDeferredSplitVarDeps (nameFromVarE stack2.split) stack1
     return $
         if sp1 == sp2 && stack1 == ExtendedExprSplitMem stack2
         then trueE
@@ -435,6 +385,21 @@ convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
                         (stack1Split.split `lessEqE` stack2.split)
                             `impliesE` (stack1Split.top `eqE` stack2.top)
              in (sp1 `eqE` sp2) `andE` eq
+
+defineDeferredSplitVar :: C m => SolverExpr -> SolverExpr -> T m ()
+defineDeferredSplitVar sp split = do
+    let splitName = nameFromVarE split
+    prevOpt <- liftPure $ #deferredSplitVars % expectingAt splitName %%=
+        \curOpt -> (curOpt, Just sp)
+    for_ prevOpt $ \prev -> do
+        ensureM $ prev == sp
+    assertSolverExpr $ split `eqE` sp
+
+checkDeferredSplitVarDeps :: C m => Ident -> ExtendedExpr -> T m ()
+checkDeferredSplitVarDeps split2 = \case
+    ExtendedExprSplitMem stack1 -> do
+        ensureM $ split2 `S.notMember` stack1.deps
+    _ -> return ()
 
 convertImpliesStackEquals :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> ExtendedExpr -> T m SolverExpr
 convertImpliesStackEquals sp1 stack1 sp2 stack2 = do
@@ -458,6 +423,41 @@ convertToken tok = withMapSlot #tokens tok $ do
     addDef
         ("token_" ++ tok.unwrap)
         (numE concreteTokenType (toInteger n))
+
+addSplitMemVar :: C m => NameHint -> T m SplitMemExpr
+addSplitMemVar nameHint = do
+    let f suffix = addVar (nameHint ++ "_" ++ suffix)
+    split <- f "split_deferred" machineWordT
+    top <- f "top" memT
+    bottom <- f "bottom" memT
+    let splitName = nameFromVarE split -- TODO clunky
+    liftPure $ #deferredSplitVars %= M.insertWith undefined splitName Nothing
+    return $ SplitMemExpr
+        { split
+        , top
+        , bottom
+        , deps = S.singleton (nameFromVarE split) -- TODO clunky
+        }
+
+addSplitMemDef :: C m => NameHint -> SplitMemExpr -> T m SplitMemExpr
+addSplitMemDef nameHint splitMem = do
+    let f suffix = addDef (nameHint ++ "_" ++ suffix)
+    split <- f "split" splitMem.split
+    top <- f "top" splitMem.top
+    bottom <- f "bottom" splitMem.bottom
+    return $ SplitMemExpr
+        { split
+        , top
+        , bottom
+        , deps = splitMem.deps
+        }
+
+ensureNoUnconstrainedSplitVars :: C m => T m ()
+ensureNoUnconstrainedSplitVars = do
+    lhsSplitVars <- liftPure $ use #lhsSplitVars
+    deferredSplitVars <- liftPure $ use #deferredSplitVars
+    let missing = S.intersection lhsSplitVars $ M.keysSet $ M.filter isNothing deferredSplitVars
+    ensureM $ S.null missing
 
 addHtd :: C m => NameHint -> T m ExtendedExpr
 addHtd nameHint = do
