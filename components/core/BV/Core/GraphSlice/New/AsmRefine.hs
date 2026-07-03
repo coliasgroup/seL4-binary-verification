@@ -2,7 +2,6 @@
 
 module BV.Core.GraphSlice.New.AsmRefine
     ( areMemCallsCompatible
-    , asmRefineIsMemHook
     , asmRefineIsStackHook
     ) where
 
@@ -13,46 +12,24 @@ import BV.Core.Types.Extras
 
 import Data.List (genericIndex)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 
 areMemCallsCompatible
-    :: t ~ AsmRefineTag
-    => LookupFunctionSignature t
-    -> (WithTag t Ident -> PairingId t)
-    -> ByTag t (Maybe MemCalls)
+    :: RefineTag t
+    => (WithTag t Ident -> PairingId t)
+    -> ByTag t MemCalls
     -> Bool
-areMemCallsCompatible lookupSig lookupPairingId callsOpt = case sequenceA callsOpt of
-    Nothing -> True
-    Just calls ->
-        let hasMem cFunName =
-                any
-                    (asmRefineIsMemHook lookupSig (WithTag C cFunName) FunctionSignatureDirectionOut)
-                    (zipWith const [0..] (lookupSig (WithTag C cFunName)).output)
-            cCastCalls = M.fromList $ catMaybes
-                [ let pairingId = lookupPairingId (WithTag Asm asmFunName)
-                      cFunName = pairingId.c
-                   in if hasMem cFunName
-                      then Just (cFunName, asmCallsForFun)
-                      else Nothing
-                | (asmFunName, asmCallsForFun) <- M.toList calls.asm
-                ]
-            compat cFunName =
-                let cCast = M.findWithDefault zeroMemCallsRange cFunName cCastCalls
-                    cActual = M.findWithDefault zeroMemCallsRange cFunName calls.c
-                 in memCallsRangesOverlap cCast cActual
-         in all compat $ S.toList $ M.keysSet calls.c <> M.keysSet cCastCalls
-
-asmRefineIsMemHook :: t ~ AsmRefineTag => LookupFunctionSignature t -> WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
-asmRefineIsMemHook lookupSig fun direction i =
-    genericIndex (viewFunctionSignatureDirection direction sig) i == NameTy (Ident memName) memT
-  where
-    sig = lookupSig fun
-    isInstFun = any (== NameTy (Ident "inst_ident") tokenT) sig.input -- HACK
-    memName = case fun.tag of
-        _ | isInstFun -> "mem"
-        Asm -> "mem"
-        C -> "Mem"
+areMemCallsCompatible lookupPairingId calls =
+    let cCastCalls = M.fromList
+            [ let pairingId = lookupPairingId (WithTag leftTag asmFunName)
+               in (getRight pairingId, asmCallsForFun)
+            | (asmFunName, asmCallsForFun) <- M.toList (getLeft calls)
+            ]
+        compat cFunName =
+            let cCast = M.findWithDefault zeroMemCallsRange cFunName cCastCalls
+                cActual = M.findWithDefault zeroMemCallsRange cFunName (getRight calls)
+             in memCallsRangesOverlap cCast cActual
+     in all compat $ S.toList $ M.keysSet (getRight calls) <> M.keysSet cCastCalls
 
 asmRefineIsStackHook :: HasTagIsAsm t => LookupFunctionSignature t -> WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
 asmRefineIsStackHook lookupSig fun direction i =
