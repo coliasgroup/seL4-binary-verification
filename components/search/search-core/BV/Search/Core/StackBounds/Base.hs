@@ -179,10 +179,6 @@ runGraphSlice
 runGraphSlice input tag problem m = runGraphSliceT hooks repGraphInput m
   where
     lookupSig (WithTag _ name) = signatureOfFunction $ input.lookupFunction $ WithTag tag name
-    argRenames =
-        problemArgRenames problem $
-            lookupSig <$>
-                withTags (pairingIdOfProblem problem)
     repGraphInput = GraphSliceInput
         { structs = byTagFromN (length problem.sides) $ const $ viewAtTag tag input.structs
         , rodata = input.rodata
@@ -190,7 +186,7 @@ runGraphSlice input tag problem m = runGraphSliceT hooks repGraphInput m
         }
     hooks = (if tag == Asm then withAsmHooks else id) $ withFast defaultGraphSliceHooks
     withAsmHooks =
-        withAsmStackSplitting lookupSig argRenames .
+        withAsmStackSplitting lookupSig .
             withConstRetAssumptions constRets
     constRets callee i =
         let sig = lookupSig callee

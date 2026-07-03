@@ -120,7 +120,6 @@ data TEnv t
 data GraphSliceHooks t
   = GraphSliceHooks
       { isStack :: WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
-      , stackPointer :: t -> GraphExpr
       , isMem :: WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
       , addFunAsserts :: AddFunAssertsHook t
       , fast :: Bool
@@ -163,7 +162,6 @@ initEnv problem hooks = TEnv
 defaultGraphSliceHooks :: GraphSliceHooks t
 defaultGraphSliceHooks = GraphSliceHooks
     { isStack = \_ _ _ -> False
-    , stackPointer = \_ -> undefined
     , isMem = \_ _ _ -> False
     , addFunAsserts = AddFunAssertsHook $ \_ -> return ()
     , fast = False
@@ -174,10 +172,9 @@ asmRefineGraphSliceHooks
     :: t ~ AsmRefineTag
     => LookupFunctionSignature t
     -> Pairings t
-    -> ArgRenames t
     -> GraphSliceHooks t
-asmRefineGraphSliceHooks lookupSig pairings argRenames =
-    withAsmStackSplitting lookupSig argRenames $
+asmRefineGraphSliceHooks lookupSig pairings =
+    withAsmStackSplitting lookupSig $
         defaultGraphSliceHooks
             & #isMem .~ asmRefineIsMemHook lookupSig
             & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
@@ -185,12 +182,9 @@ asmRefineGraphSliceHooks lookupSig pairings argRenames =
 withAsmStackSplitting
     :: HasTagIsAsm t
     => LookupFunctionSignature t
-    -> ArgRenames t
     -> GraphSliceHooks t
     -> GraphSliceHooks t
-withAsmStackSplitting lookupSig argRenames =
-      (#isStack .~ asmRefineIsStackHook lookupSig)
-    . (#stackPointer .~ asmRefineStackPointerHook argRenames)
+withAsmStackSplitting lookupSig = #isStack .~ asmRefineIsStackHook lookupSig
 
 withConstRetAssumptions :: (WithTag t Ident -> Integer -> Maybe Integer) -> GraphSliceHooks t -> GraphSliceHooks t
 withConstRetAssumptions constRetAssumptions = #constRetAssumptions .~ constRetAssumptions
