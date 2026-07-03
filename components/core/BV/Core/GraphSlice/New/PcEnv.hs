@@ -2,11 +2,14 @@
 
 module BV.Core.GraphSlice.New.PcEnv
     ( ExprEnv
+    , ExtPcEnv (..)
     , PcEnv (..)
     , exprEnvVars
+    , extPcEnvPcEnv
     , mergePcEnvs
     ) where
 
+import BV.Core.GraphSlice.New.MemCalls
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
 
 import BV.Core.Types
@@ -32,19 +35,34 @@ data PcEnv
       }
   deriving (Eq, Generic, Ord, Show)
 
-mergePcEnvs :: [PcEnv] -> PcEnv
-mergePcEnvs unfilteredPcEnvs = PcEnv pc env
+data ExtPcEnv
+  = ExtPcEnv
+      { pc :: FlatExpr
+      , env :: ExprEnv
+      , calls :: MemCalls
+      }
+  deriving (Eq, Generic, Ord, Show)
+
+extPcEnvPcEnv :: ExtPcEnv -> PcEnv
+extPcEnvPcEnv pcEnv = PcEnv
+    { pc = pcEnv.pc
+    , env = pcEnv.env
+    }
+
+mergePcEnvs :: [ExtPcEnv] -> ExtPcEnv
+mergePcEnvs unfilteredPcEnvs = ExtPcEnv pc env calls
   where
     pcEnvs = filter (\pcEnv -> pcEnv.pc /= falseE) unfilteredPcEnvs
     pc = case pcEnvs of
             [] -> falseE
             _ -> foldAssocBalanced orE (nub (pcEnvs ^.. folded % #pc))
     env = mergeEnvs pcEnvs
+    calls = foldl mergeMemCalls emptyMemCalls (map (.calls) pcEnvs)
 
-mergeEnvs :: [PcEnv] -> ExprEnv
+mergeEnvs :: [ExtPcEnv] -> ExprEnv
 mergeEnvs envs = fmap (mergeValPcList . M.toList) varValPcMap
   where
-    varValPcList = concat $ flip map envs $ \(PcEnv pc env) ->
+    varValPcList = concat $ flip map envs $ \(ExtPcEnv pc env _) ->
         [ (var, val, pc)
         | (var, val) <- M.toList env
         ]
