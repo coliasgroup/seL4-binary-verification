@@ -41,4 +41,5 @@ $exe \
     --target-dir $here/target-dir \
     --file-log $tmp/log.txt \
     --file-log-level debug \
+    --include-function write_it_asid_pool \
     "$@"
