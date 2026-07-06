@@ -149,7 +149,6 @@ data TState t
       , condVars :: Map MaybeSplit Ident
       , contractions :: Map SExprWithPlaceholders FlatExpr
       , extraProblemNames :: S.Set Ident
-      , hasInnerLoop :: Map (WithTag t NodeAddr) Bool
       , funCalls :: M.Map (WithTag t Visit) FunCallInfo
       , funCallsByName :: M.Map (WithTag t Ident) [Visit]
       , funCallOrder :: Seq.Seq (WithTag t Visit)
@@ -215,7 +214,6 @@ initState = TState
     , condVars = M.empty
     , contractions = M.empty
     , extraProblemNames = S.empty
-    , hasInnerLoop = M.empty
     , funCalls = M.empty
     , funCallsByName = M.empty
     , funCallOrder = Seq.empty
@@ -286,21 +284,6 @@ askIsNonTriviallyReachableFrom from to_ = do
 
 askLoopData :: C t m => TaggedT t m LoopData
 askLoopData = liftPure $ gview $ #analysis % #loopData
-
-askLoopHead :: C t m => NodeAddr -> TaggedT t m (Maybe NodeAddr)
-askLoopHead n = loopHeadOf n <$> askLoopData
-
-askLoopBody :: C t m => NodeAddr -> TaggedT t m (S.Set NodeAddr)
-askLoopBody n = loopBodyOf n <$> askLoopData
-
-askLoopContaining :: C t m => NodeAddr -> TaggedT t m Loop
-askLoopContaining n = fromJust . flip loopContainingOf n <$> askLoopData
-
-getHasInnerLoop :: C t m => NodeAddr -> TaggedT t m Bool
-getHasInnerLoop loopHead = withMapSlotTagged #hasInnerLoop loopHead $ do
-    p <- liftPure $ gview #problem
-    loop <- askLoopContaining loopHead
-    return $ not $ null $ innerLoopsOf p.nodes loop
 
 askFunName :: C t m => Visit -> TaggedT t m Ident
 askFunName v = view (expecting #_NodeCall % #functionName) <$> askNode (nodeAddrOf v.nodeId)
@@ -422,11 +405,12 @@ data TooGeneral
 
 checkGenerality :: C t m => Visit -> ExceptT TooGeneral (TaggedT t m) ()
 checkGenerality visit = void $ runMaybeT $ do
+    loopData <- lift $ lift $ askLoopData
     nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
-    loopId <- MaybeT $ lift $ askLoopHead nodeAddr
+    loop <- hoistMaybe $ outermostLoopContaining loopData nodeAddr
     ifor_ visit.restrs $ \addr vc -> do
-        loopIdOpt' <- lift $ lift $ askLoopHead addr
-        when (loopIdOpt' == Just loopId && isOptionsVC vc) $ do
+        let loopOpt' = outermostLoopContaining loopData addr
+        when (fmap (.head) loopOpt' == Just loop.head && isOptionsVC vc) $ do
             throwError $ TooGeneral { split = addr }
 
 --
@@ -566,10 +550,11 @@ addInputEnvs = do
 
 getLoopPcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getLoopPcEnv visit = do
+    loop <- askLoopData <&> \loopData -> fromJust $ outermostLoopContaining loopData visitAddr
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ M.insert visitAddr (numberVC 0)
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
-        memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
-        nonConsts <- filterM (fmap not . isConstM) [ NameTy name ty | (name, Expr ty _) <- M.toList prevEnv ]
+        memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls loop
+        nonConsts <- filterM (fmap not . flip isConstM loop) [ NameTy name ty | (name, Expr ty _) <- M.toList prevEnv ]
         env <- addVarReps
             VarRepRequestKindLoop
             (\ident -> printf "%P_after_loop_at_%P" ident visit.nodeId)
@@ -582,18 +567,17 @@ getLoopPcEnv visit = do
         return $ PcEnv pc env
   where
     visitAddr = nodeAddrOf visit.nodeId
-    isConstM var = do
+    isConstM var loop = do
         fast <- askHook #fast
         let checkConst = fast || case var.ty of
                 ExprTypeHtd -> True
                 ExprTypeDom -> True
                 _ -> False
-        if checkConst then isSyntacticConstant var visitAddr else return False
+        if checkConst then isSyntacticConstant var loop visitAddr else return False
 
-addLoopMemCalls :: C t m => NodeAddr -> MemCallsIfKnown -> TaggedT t m MemCallsIfKnown
-addLoopMemCalls split = traverse $ \memCalls -> do
-    nodeAddrs <- askLoopBody split
-    node <- traverse askNode (toList nodeAddrs)
+addLoopMemCalls :: C t m => Loop -> MemCallsIfKnown -> TaggedT t m MemCallsIfKnown
+addLoopMemCalls loop = traverse $ \memCalls -> do
+    node <- traverse askNode (toList loop.members)
     let fnames = S.fromList $ node ^.. folded % #_NodeCall % #functionName
     return $ foldl (flip addUnboundedMemCalls) memCalls (toList fnames)
 
@@ -691,13 +675,11 @@ emitNode visit = do
                 addFunAsserts visit
                 return [(callNode.next, PcEnv pc env')]
 
-isSyntacticConstant :: C t m => NameTy -> NodeAddr -> TaggedT t m Bool
-isSyntacticConstant var split = do
-    hasInnerLoop_ <- getHasInnerLoop split
-    if hasInnerLoop_
+isSyntacticConstant :: C t m => NameTy -> Loop -> NodeAddr -> TaggedT t m Bool
+isSyntacticConstant var loop split = do
+    if loopIsComplex loop
         then return False
         else do
-            loopSet <- askLoopBody split
             let go (name, addr) = do
                     node <- lift $ lift $ askNode addr
                     predName <- fromMaybe name <$> case node of
@@ -717,7 +699,7 @@ isSyntacticConstant var split = do
                                 [Expr _ (ExprValueVar ident)] -> return $ Just ident
                                 [_] -> throwNotConst
                         _ -> return Nothing
-                    preds <- lift $ lift $ S.intersection loopSet <$> askPreds (Addr addr)
+                    preds <- lift $ lift $ S.intersection loop.members <$> askPreds (Addr addr)
                     for_ preds $ \predAddr -> do
                         let predVar = (predName, predAddr)
                         safe <- get

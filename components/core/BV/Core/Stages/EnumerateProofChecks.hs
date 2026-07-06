@@ -71,15 +71,11 @@ askEntryPoints = gview $ #problem % #sides % to (fmap (.entryPoint))
 askNodeGraph :: MonadReader (Env t) m => m NodeGraph
 askNodeGraph = gview $ #analysis % #nodeGraph
 
-askLoopHead :: (Tag t, MonadReader (Env t) m) => WithTag t NodeAddr -> m (Maybe (WithTag t NodeAddr))
-askLoopHead n = fmap (WithTag n.tag) . loopHeadOf n.value <$> gview (#analysis % #loopData)
+askLoopData :: MonadReader (Env t) m => m LoopData
+askLoopData = gview $ #analysis % #loopData
 
-askLoopHeads :: (Tag t, MonadReader (Env t) m) => m [WithTag t NodeAddr]
-askLoopHeads = do
-    loopData <- gview $ #analysis % #loopData
-    nodeTag <- gview $ #analysis % #nodeTag
-    let withNodeTag n = WithTag (nodeTag n) n
-    return $ map withNodeTag $ loopHeadsOf loopData
+askNodeTagMap :: MonadReader (Env t) m => m (NodeAddr -> t)
+askNodeTagMap = gview $ #analysis % #nodeTag
 
 askArgRenames :: MonadReader (Env t) m => m (ArgRenames t)
 askArgRenames = gview #argRenames
@@ -315,13 +311,17 @@ applyRestrOthers = getLoopsToSplit >>= traverse_ splitLoop
 
 getLoopsToSplit :: MonadChecks t m => m [WithTag t NodeAddr]
 getLoopsToSplit = do
+    loopData <- askLoopData
+    nodeTag <- askNodeTagMap
     restrs <- getRestrs
-    loopHeadsWithSplit <- fmap catMaybes $ for restrs $ \restr -> askLoopHead (fmap (.nodeAddr) restr)
-    loopHeads <- askLoopHeads
+    let taggedLoopHead loop = WithTag (nodeTag loop.head) loop.head
+    let loopHeadsWithSplit = catMaybes $ restrs <&> \restr ->
+            taggedLoopHead <$> outermostLoopContaining loopData restr.value.nodeAddr
+    let loopHeads = taggedLoopHead <$> loopData.outermostLoops
     let loopHeadsWithoutSplit = (S.difference `on` S.fromList) loopHeads loopHeadsWithSplit
     g <- askNodeGraph
     let pruneWith restr = applyWhen (not (hasZeroVC restr.value.visitCount)) $
-            -- restr node must be visited, so loop heads must be  from restr (or on another tag)
+            -- restr node must be visited, so loop heads must be from restr (or on another tag)
             S.filter $ \loopHeadWithoutSplit ->
                 loopHeadWithoutSplit.tag /= restr.tag
                     || isReachableFrom g (Addr restr.value.nodeAddr) (Addr loopHeadWithoutSplit.value)
