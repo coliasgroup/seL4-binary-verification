@@ -142,13 +142,13 @@ checkVisits = (#hyps % traversed `adjoin` #hyp) % hypVisits
 
 --
 
-debugShowVisit :: VisitCompat -> String
+debugShowVisit :: Visit -> String
 debugShowVisit visit = prettyNodeId visit.nodeId ++ ":" ++ debugShowRestrs visit.restrs
 
-debugShowRestrs :: [Restr] -> String
-debugShowRestrs restrs = "[" ++ intercalate "," (map f restrs) ++ "]"
+debugShowRestrs :: M.Map NodeAddr VisitCount -> String
+debugShowRestrs restrs = "[" ++ intercalate "," (map f (M.toList restrs)) ++ "]"
   where
-    f restr = prettyNodeAddr restr.nodeAddr ++ "=" ++ debugShowVisitCount restr.visitCount
+    f (addr, vc) = prettyNodeAddr addr ++ "=" ++ debugShowVisitCount vc
 
 debugShowVisitCount :: VisitCount -> String
 debugShowVisitCount vc =

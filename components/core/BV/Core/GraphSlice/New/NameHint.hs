@@ -16,22 +16,23 @@ import BV.Core.Types
 import Data.Char (isAlpha)
 import Data.List (intercalate, tails)
 import Data.List.Split (splitOn)
+import qualified Data.Map as M
 import Optics
 import Text.Printf (printf)
 
-localNameBefore :: VisitCompat -> Ident -> NameHint
+localNameBefore :: Visit -> Ident -> NameHint
 localNameBefore visit var = printf "%P_v_at_%s" var (nodeCountName visit)
 
-localName ::VisitCompat ->  Ident -> NameHint
+localName ::Visit ->  Ident -> NameHint
 localName visit var = printf "%P_after_%s" var (nodeCountName visit)
 
-condName :: VisitCompat -> NameHint
+condName :: Visit -> NameHint
 condName visit = printf "cond_at_%s" (nodeCountName visit)
 
-pathCondName :: Tag t => WithTag t VisitCompat -> NameHint
+pathCondName :: Tag t => WithTag t Visit -> NameHint
 pathCondName (WithTag tag visit) = printf "path_cond_to_%s_%P" (nodeCountName visit) tag
 
-successName :: VisitCompat -> Ident -> NameHint
+successName :: Visit -> Ident -> NameHint
 successName visit fname =
     printf "%s_success_at_%s" name (nodeCountName visit)
   where
@@ -45,12 +46,12 @@ successName visit fname =
         ]
     bits = splitOn "." fname.unwrap
 
-nodeCountName :: VisitCompat -> NameHint
+nodeCountName :: Visit -> NameHint
 nodeCountName visit = intercalate "_" $
     [ prettyNodeId visit.nodeId
     ] ++
-    [ printf "%P=%s" restr.nodeAddr (visitCountName restr.visitCount)
-    | restr <- visit.restrs
+    [ printf "%P=%s" addr (visitCountName vc)
+    | (addr, vc) <- M.toList visit.restrs
     ]
 
 visitCountName :: VisitCount -> String

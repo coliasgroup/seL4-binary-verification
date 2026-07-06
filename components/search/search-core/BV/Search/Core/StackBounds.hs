@@ -19,7 +19,7 @@ import BV.Core.Types.Extras.Expr (andE, eqE, falseE, ifThenElseE, minusE, notE,
                                   trueE, varE, word32E, word32T)
 import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.Program (signatureOfFunction)
-import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcFalseH)
+import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcFalseH, visitToCompat)
 import BV.Logging
 import BV.Utils (ensure, ensureM, expecting)
 
@@ -141,12 +141,12 @@ discoverStackBounds run forConcurrently input = do
         let spVar = varE word32T spName
         let visitOf = defaultVisit p.analysis.loopData . Addr
         let spPreservationHyps =
-                [ let f = eqSideH spVar . withAsmTag . visitOf
+                [ let f = eqSideH spVar . withAsmTag . visitToCompat . visitOf
                    in f addr `eqH` f cont
                 | (addr, NodeCall (CallNode { next = Addr cont })) <- M.toList p.problem.nodes
                 ]
         spOffsets <- runGraphSliceAsm p.problem $ runTagged asmTag $ do
-            PcEnv _ entryEnv <- fromJust <$> getNodePcEnv (VisitCompat side.entryPoint [])
+            PcEnv _ entryEnv <- fromJust <$> getNodePcEnv (Visit side.entryPoint M.empty)
             let spInit = flattenExpr entryEnv spVar
             symbolicOffsets <- flip mapMaybeM (M.keys p.problem.nodes) $ \addr -> do
                 opt <- getNodePcEnv (visitOf addr)
@@ -218,7 +218,7 @@ discoverStackBounds run forConcurrently input = do
                                     let new = pc `andE` flattenExpr inpEnv calleeIdentCond
                                     -- Note that graph-refine adds mk_not_callable_hyps here
                                     covered <- liftUntagged $ testHypWhyps (notE new)
-                                        [ pcFalseH (withAsmTag (visitOf Err))
+                                        [ pcFalseH (withAsmTag (visitToCompat (visitOf Err)))
                                         , eqSideH callerIdentCond (withAsmTag entryVis)
                                             `eqH` eqSideH trueE (withAsmTag entryVis)
                                         ]

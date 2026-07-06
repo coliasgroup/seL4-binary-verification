@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE MultiWayIf #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module BV.Core.Types.Extras.ProofCheck
     ( SimpleVisitCountView (..)
     , contVisits
@@ -14,7 +16,6 @@ module BV.Core.Types.Extras.ProofCheck
     , eqInductSingleH
     , eqSideH
     , eqWithIfAtH
-    , fromMapVC
     , fromRestrKindVC
     , fromSimpleVC
     , hasZeroVC
@@ -31,12 +32,11 @@ module BV.Core.Types.Extras.ProofCheck
     , pcTrueH
     , predVisits
     , splitVisitAt
-    , toMapVC
     , toSimpleVC
     , trueIfAt
     , upToVC
-    , withMapVC
-    , withMapVCF
+    , visitFromCompat
+    , visitToCompat
     ) where
 
 import BV.Core.Types
@@ -45,7 +45,7 @@ import BV.Core.Types.Extras.Program (nodeAddrOf)
 import BV.Utils (ensure)
 
 import Control.DeepSeq (NFData)
-import Control.Monad.Identity (Identity (Identity, runIdentity))
+import Control.Monad (guard)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, mapMaybe)
 import GHC.Generics (Generic)
@@ -113,57 +113,50 @@ incrVC incr = (#numbers %~ f) . (#offsets %~ f)
   where
     f = filter (>= 0) . map (+ incr)
 
-withMapVC :: (M.Map NodeAddr VisitCount -> M.Map NodeAddr VisitCount) -> [Restr] -> [Restr]
-withMapVC f = runIdentity . withMapVCF (Identity . f)
+splitVisitAt :: NodeAddr -> Visit -> [Visit]
+splitVisitAt split visit =
+    enumerateSimpleVCs (visit.restrs M.! split) <&> \(SimpleVisitCountViewOffset i) ->
+        visit & #restrs %~ M.insert split (offsetVC i)
 
-withMapVCF :: Functor f => (M.Map NodeAddr VisitCount -> f (M.Map NodeAddr VisitCount)) -> [Restr] -> f [Restr]
-withMapVCF f = fmap fromMapVC . f . toMapVC
-
-toMapVC :: [Restr] -> M.Map NodeAddr VisitCount
-toMapVC restrs = ensure check m
-  where
-    m = M.fromList [ (restr.nodeAddr, restr.visitCount) | restr <- restrs ]
-    check = M.size m == length restrs
-
-fromMapVC :: M.Map NodeAddr VisitCount -> [Restr]
-fromMapVC = map f . M.toList
-  where
-    f (nodeAddr, visitCount) = Restr { nodeAddr, visitCount }
-
-splitVisitAt :: NodeAddr -> VisitCompat -> [VisitCompat]
-splitVisitAt split visit = ensure (isOptionsVC splitVC)
-    [ visit & #restrs .~ fromMapVC (M.insert split (fromSimpleVC simpleVC) restrsMap)
-    | simpleVC <- enumerateSimpleVCs splitVC
-    ]
-  where
-    restrsMap = toMapVC visit.restrs
-    splitVC = restrsMap M.! split
-
-predVisits :: VisitCompat -> [NodeAddr] -> [VisitCompat]
+predVisits :: Visit -> [NodeAddr] -> [Visit]
 predVisits visit = mapMaybe f
   where
-    f pred_ = VisitCompat (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
+    f pred_ = Visit (Addr pred_) <$> incrVCs (-1) pred_ visit.restrs
 
-contVisits :: VisitCompat -> [NodeId] -> [VisitCompat]
+contVisits :: Visit -> [NodeId] -> [Visit]
 contVisits visit conts =
-    [ VisitCompat
+    [ Visit
         { nodeId = cont
-        , restrs = fromJust $ incrVCs visit.restrs addr 1
+        , restrs = fromJust $ incrVCs 1 (nodeAddrOf visit.nodeId) visit.restrs
         }
     | cont <- conts
     ]
-  where
-    addr = nodeAddrOf visit.nodeId
 
-incrVCs :: [Restr] -> NodeAddr -> Integer -> Maybe [Restr]
-incrVCs restrs n incr = if
-    | n `M.notMember` restrsMap -> Just restrs
-    | isEmptyVC vcNew -> Nothing
-    | otherwise -> Just (fromMapVC (M.insert n vcNew restrsMap))
-  where
-    restrsMap = toMapVC restrs
-    vcOld = restrsMap M.! n
-    vcNew = incrVC incr vcOld
+incrVCs :: Integer -> NodeAddr -> M.Map NodeAddr VisitCount -> Maybe (M.Map NodeAddr VisitCount)
+incrVCs incr = M.alterF $ \case
+    Nothing -> return Nothing
+    Just vc ->
+        let vc' = incrVC incr vc
+         in do guard $ isEmptyVC vc'
+               return (Just vc')
+
+visitFromCompat :: VisitCompat -> Visit
+visitFromCompat compat = Visit
+    { nodeId = compat.nodeId
+    , restrs = M.fromListWith (error "repeat")
+        [ (restr.nodeAddr, restr.visitCount)
+        | restr <- compat.restrs
+        ]
+    }
+
+visitToCompat :: Visit -> VisitCompat
+visitToCompat visit = VisitCompat
+    { nodeId = visit.nodeId
+    , restrs =
+        [ Restr addr vc
+        | (addr, vc) <- M.toList visit.restrs
+        ]
+    }
 
 --
 

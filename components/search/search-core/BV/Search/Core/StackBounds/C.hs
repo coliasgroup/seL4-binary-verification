@@ -14,7 +14,8 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr (andE, eqE, falseE, isWordT, notE, trueE,
                                   varFromNameTyE)
 import BV.Core.Types.Extras.Problem
-import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcTrueH)
+import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcTrueH, visitFromCompat,
+                                        visitToCompat)
 import BV.Logging
 import BV.Utils (ensureM, expecting, expectingAt)
 
@@ -153,7 +154,7 @@ modelStuff p assns deepestTag deepestFunName = do
                     ]
             let entryVis = VisitCompat deepestSide.entryPoint []
             stable <- run p.problem $ runTagged deepestTag $ do
-                pcEnv <- fromJust <$> getNodePcEnv entryVis
+                pcEnv <- fromJust <$> getNodePcEnv (visitFromCompat entryVis)
                 liftUntagged (testHypWhyps falseE assns) >>= ensureM . not
                 candidates <- for wordArgs $ \(renamed, orig) -> do
                     let argFlat = flattenExpr pcEnv.env $ varFromNameTyE renamed
@@ -172,14 +173,14 @@ functionLinkAssns
     -> WithTag (FunTag t) NodeAddr
     -> FunTag t
     -> [Hyp (FunTag t)]
-functionLinkAssns p callSite newTag = pcTrueH callVis : eqHyps
+functionLinkAssns p callSite newTag = pcTrueH (visitToCompat <$> callVis) : eqHyps
   where
     newSide = viewAtTag newTag p.problem.sides
     entryVis = WithTag newTag $ VisitCompat newSide.entryPoint []
     callVis = WithTag callSite.tag $ defaultVisit p.analysis.loopData (Addr callSite.value)
     callNode = p.problem ^. #nodes % expectingAt callSite.value % expecting #_NodeCall
     eqHyps =
-        [ eqSideH callInput callVis `eqH` eqSideH entryInput entryVis
+        [ eqSideH callInput (visitToCompat <$> callVis) `eqH` eqSideH entryInput entryVis
         | (callInput, entryInput) <- zip callNode.input (map varFromNameTyE newSide.input)
         , case callInput.ty of
             ExprTypeWord {} -> True
