@@ -158,18 +158,18 @@ asmArgSeq cSig = take numCArgs $ regArgSeq ++ stackArgSeq
         ]
 
 defaultVisit :: LoopData -> NodeId -> Visit
-defaultVisit loopData n = Visit n (general ++ specific)
+defaultVisit loopData n = Visit n (general <> specific)
   where
     headOpt = case n of
         Addr addr -> loopHeadOf addr loopData
         _ -> Nothing
-    general =
-        [ Restr h (numberVC 0 <> offsetVC 1)
+    general = M.fromList
+        [ (h, numberVC 0 <> offsetVC 1)
         | h <- loopHeadsOf loopData
         , Just h /= headOpt
         ]
-    specific =
-        [ Restr h (offsetVC 1)
+    specific = M.fromList
+        [ (h, offsetVC 1)
         | Just h <- return headOpt
         ]
 

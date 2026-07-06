@@ -18,6 +18,7 @@ import Control.Monad.State (MonadState, StateT (StateT), evalStateT)
 import Control.Monad.Writer (WriterT, execWriterT, mapWriterT, tell)
 import Data.Foldable (for_, traverse_)
 import Data.Function (applyWhen, on)
+import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, mapMaybe)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -41,8 +42,8 @@ pruneProofCheck :: RefineTag t => ProblemAnalysis t -> ProofCheck t a -> ProofCh
 pruneProofCheck analysis = over checkVisits pruneVisitWithTag
   where
     pruneVisitWithTag (WithTag tag (Visit nodeId restrs)) =
-        WithTag tag (Visit nodeId (filter (testRestr tag) restrs))
-    testRestr tag (Restr nodeAddr _) = analysis.nodeTag nodeAddr == tag
+        WithTag tag (Visit nodeId (M.filterWithKey (testRestr tag) restrs))
+    testRestr tag nodeAddr _ = analysis.nodeTag nodeAddr == tag
 
 data Env t
   = Env
@@ -171,7 +172,7 @@ getRestrsForTag _t = mapMaybe f <$> use #restrs
     f x = Just x.value
 
 getVisitWithTag :: MonadChecks t m => t -> NodeId -> m (WithTag t Visit)
-getVisitWithTag tag n = WithTag tag . Visit n <$> getRestrsForTag tag
+getVisitWithTag tag n = WithTag tag . Visit n . restrsToMap <$> getRestrsForTag tag
 
 collect :: MonadChecks t m => CheckWriter t m () -> m (NodeProofChecks t)
 collect = execWriterT
@@ -205,9 +206,9 @@ instantiatePairingEqs direction = branch $ do
             visit <- case side.quadrant.direction of
                 PairingEqDirectionIn -> do
                     entryPoint <- viewAtTag tag <$> askEntryPoints
-                    return $ Visit entryPoint []
+                    return $ Visit entryPoint M.empty
                 PairingEqDirectionOut -> do
-                    Visit Ret <$> getRestrsForTag tag
+                    Visit Ret . restrsToMap <$> getRestrsForTag tag
             let renamedExpr = renameVars (renames side.quadrant) side.expr
             return $ eqSideH renamedExpr (WithTag tag visit)
     for eqs $ \PairingEq { lhs, rhs } -> eqH <$> eqSide lhs <*> eqSide rhs

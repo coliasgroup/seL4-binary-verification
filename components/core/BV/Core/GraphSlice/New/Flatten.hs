@@ -52,7 +52,7 @@ import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Either (isRight)
 import Data.Foldable (for_, toList, traverse_)
 import Data.Functor (void)
-import Data.List (genericIndex, sort)
+import Data.List (genericIndex)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe)
@@ -392,10 +392,10 @@ addStackVar split nameHint = do
 pruneVisit :: C t m => Visit -> TaggedT t m (Maybe Visit)
 pruneVisit visit = runMaybeT $
     forOf #restrs visit $ \restrs ->
-        fmap (sort . concat) $ for restrs $ \restr -> do
-            reachable <- lift $ askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
-            guard $ reachable || hasZeroVC restr.visitCount
-            return [ restr | reachable ]
+        fmap (M.fromList . concat) $ for (M.toList restrs) $ \(addr, vc) -> do
+            reachable <- lift $ askIsNonTriviallyReachableFrom addr visit.nodeId
+            guard $ reachable || hasZeroVC vc
+            return [ (addr, vc) | reachable ]
 
 pruneVisits :: C t m => [Visit] -> TaggedT t m [Visit]
 pruneVisits visits = catMaybes <$> traverse pruneVisit visits
@@ -410,10 +410,10 @@ checkGenerality :: C t m => Visit -> ExceptT TooGeneral (TaggedT t m) ()
 checkGenerality visit = void $ runMaybeT $ do
     nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
     loopId <- MaybeT $ lift $ askLoopHead nodeAddr
-    for_ visit.restrs $ \restr -> do
-        loopIdOpt' <- lift $ lift $ askLoopHead restr.nodeAddr
-        when (loopIdOpt' == Just loopId && isOptionsVC restr.visitCount) $ do
-            throwError $ TooGeneral { split = restr.nodeAddr }
+    ifor_ visit.restrs $ \addr vc -> do
+        loopIdOpt' <- lift $ lift $ askLoopHead addr
+        when (loopIdOpt' == Just loopId && isOptionsVC vc) $ do
+            throwError $ TooGeneral { split = addr }
 
 --
 
@@ -466,14 +466,14 @@ getNodePcEnvRaw visit = do
     side <- askProblemSide
     let isEntryPoint = visit.nodeId == side.entryPoint
     let isPostLoop = or
-            [ Addr restr.nodeAddr == visit.nodeId && restr.visitCount == offsetVC 0
-            | restr <- visit.restrs
+            [ Addr addr == visit.nodeId && vc == offsetVC 0
+            | (addr, vc) <- M.toList visit.restrs
             ]
     if  | isEntryPoint -> do
             env <- getInputEnv
             return $ Just $ ExtPcEnv trueE env emptyMemCalls
         | isPostLoop -> do
-            let preLoopVisit = visit & #restrs %~ withMapVC (M.insert (nodeAddrOf visit.nodeId) (numberVC 0))
+            let preLoopVisit = visit & #restrs %~ M.insert (nodeAddrOf visit.nodeId) (numberVC 0)
             preLoopEnvOpt <- getNodePcEnvExt preLoopVisit
             for preLoopEnvOpt (getLoopPcEnv visit)
         | otherwise -> do
