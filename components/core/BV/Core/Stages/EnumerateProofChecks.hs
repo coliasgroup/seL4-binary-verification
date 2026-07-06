@@ -18,6 +18,7 @@ import Control.Monad.State (MonadState, StateT (StateT), evalStateT)
 import Control.Monad.Writer (WriterT, execWriterT, mapWriterT, tell)
 import Data.Foldable (for_, traverse_)
 import Data.Function (applyWhen, on)
+import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, mapMaybe)
 import qualified Data.Set as S
 import Data.Traversable (for)
@@ -40,9 +41,9 @@ enumerateProofChecks problem sigs pairing proofScript =
 pruneProofCheck :: RefineTag t => ProblemAnalysis t -> ProofCheck t a -> ProofCheck t a
 pruneProofCheck analysis = over checkVisits pruneVisitWithTag
   where
-    pruneVisitWithTag (WithTag tag (VisitCompat nodeId restrs)) =
-        WithTag tag (VisitCompat nodeId (filter (testRestr tag) restrs))
-    testRestr tag (Restr nodeAddr _) = analysis.nodeTag nodeAddr == tag
+    pruneVisitWithTag (WithTag tag (Visit nodeId restrs)) =
+        WithTag tag (Visit nodeId (M.filterWithKey (testRestr tag) restrs))
+    testRestr tag nodeAddr _ = analysis.nodeTag nodeAddr == tag
 
 data Env t
   = Env
@@ -170,8 +171,8 @@ getRestrsForTag _t = mapMaybe f <$> use #restrs
     -- f x = if x.tag == t then Just x.value else Nothing
     f x = Just x.value
 
-getVisitWithTag :: MonadChecks t m => t -> NodeId -> m (WithTag t VisitCompat)
-getVisitWithTag tag n = WithTag tag . VisitCompat n <$> getRestrsForTag tag
+getVisitWithTag :: MonadChecks t m => t -> NodeId -> m (WithTag t Visit)
+getVisitWithTag tag n = WithTag tag . Visit n . restrsToMap <$> getRestrsForTag tag
 
 collect :: MonadChecks t m => CheckWriter t m () -> m (NodeProofChecks t)
 collect = execWriterT
@@ -205,9 +206,9 @@ instantiatePairingEqs direction = branch $ do
             visit <- case side.quadrant.direction of
                 PairingEqDirectionIn -> do
                     entryPoint <- viewAtTag tag <$> askEntryPoints
-                    return $ VisitCompat entryPoint []
+                    return $ Visit entryPoint M.empty
                 PairingEqDirectionOut -> do
-                    VisitCompat Ret <$> getRestrsForTag tag
+                    Visit Ret . restrsToMap <$> getRestrsForTag tag
             let renamedExpr = renameVars (renames side.quadrant) side.expr
             return $ eqSideH renamedExpr (WithTag tag visit)
     for eqs $ \PairingEq { lhs, rhs } -> eqH <$> eqSide lhs <*> eqSide rhs
@@ -326,7 +327,7 @@ getLoopsToSplit = do
                     || isReachableFrom g (Addr restr.value.nodeAddr) (Addr loopHeadWithoutSplit.value)
     return $ S.toList $ foldr pruneWith loopHeadsWithoutSplit restrs
 
-getVisitToRestrPointAfter :: MonadChecks t m => RestrProofNode t a -> VisitCount -> m (WithTag t VisitCompat)
+getVisitToRestrPointAfter :: MonadChecks t m => RestrProofNode t a -> VisitCount -> m (WithTag t Visit)
 getVisitToRestrPointAfter restrNode vc = branchRestrs $ do
     restrict1L restrNode.tag $ Restr restrNode.point vc
     getVisitWithTag restrNode.tag (Addr restrNode.point)
@@ -391,11 +392,11 @@ assumeNonRErrForSplitNode splitNode = branchRestrs $ do
     applyRestrOthers
     assume1L =<< pcFalseH <$> getVisitWithTag rightTag Err
 
-getSplitVisitsAt :: MonadChecks t m => VisitCount -> SplitProofNode t () -> m (ByTag t (WithTag t VisitCompat))
+getSplitVisitsAt :: MonadChecks t m => VisitCount -> SplitProofNode t () -> m (ByTag t (WithTag t Visit))
 getSplitVisitsAt vc splitNode =
     traverse (getSplitVisitAt vc) (withTags splitNode.details)
 
-getSplitVisitAt :: MonadChecks t m => VisitCount -> WithTag t SplitProofNodeDetails -> m (WithTag t VisitCompat)
+getSplitVisitAt :: MonadChecks t m => VisitCount -> WithTag t SplitProofNodeDetails -> m (WithTag t Visit)
 getSplitVisitAt vc (WithTag tag details) = branch $ do
     restrict1L tag $
         Restr details.split $
@@ -517,14 +518,14 @@ assumeNonRErrForSingleRevInductNode node = branchRestrs $ do
     applyRestrOthers
     assume1R =<< pcFalseH <$> getVisitWithTag rightTag Err
 
-getSingleRevInductVisitAt :: MonadChecks t m => VisitCount -> SingleRevInductProofNode t () -> m (WithTag t VisitCompat)
+getSingleRevInductVisitAt :: MonadChecks t m => VisitCount -> SingleRevInductProofNode t () -> m (WithTag t Visit)
 getSingleRevInductVisitAt = getSingleRevInductVisitAtInner True
 
 -- HACK to match graph-refine
-getSingleRevInductVisitAtR :: MonadChecks t m => VisitCount -> SingleRevInductProofNode t () -> m (WithTag t VisitCompat)
+getSingleRevInductVisitAtR :: MonadChecks t m => VisitCount -> SingleRevInductProofNode t () -> m (WithTag t Visit)
 getSingleRevInductVisitAtR = getSingleRevInductVisitAtInner False
 
-getSingleRevInductVisitAtInner :: MonadChecks t m => Bool -> VisitCount -> SingleRevInductProofNode t () -> m (WithTag t VisitCompat)
+getSingleRevInductVisitAtInner :: MonadChecks t m => Bool -> VisitCount -> SingleRevInductProofNode t () -> m (WithTag t Visit)
 getSingleRevInductVisitAtInner left vc node = branch $ do
     (if left then restrict1L else restrict1R) node.tag $ Restr node.point vc
     getVisitWithTag node.tag (Addr node.point)

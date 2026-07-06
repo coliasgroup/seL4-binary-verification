@@ -4,7 +4,7 @@ module BV.Core.Stages.GroupProofChecks
 
 import BV.Core.Stages.EnumerateProofChecks (pruneProofCheck)
 import BV.Core.Types
-import BV.Core.Types.Extras (ProblemAnalysis)
+import BV.Core.Types.Extras (ProblemAnalysis, restrsFromMap)
 
 import Control.DeepSeq (NFData)
 import Data.Foldable (toList)
@@ -41,12 +41,12 @@ newtype CheckGroupKey
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-groupKey :: Tag t => ProofCheck t a -> Set (WithTag t VisitCompat)
+groupKey :: Tag t => ProofCheck t a -> Set (WithTag t Visit)
 groupKey check = S.fromList (check ^.. checkVisits)
 
-compatKey :: Tag t => Set (WithTag t VisitCompat) -> CheckGroupKey
+compatKey :: Tag t => Set (WithTag t Visit) -> CheckGroupKey
 compatKey visits = CheckGroupKey $ sort
-    [ ((prettyNodeId visit.nodeId, map compatRestr visit.restrs), prettyTag tag)
+    [ ((prettyNodeId visit.nodeId, map compatRestr (restrsFromMap visit.restrs)), prettyTag tag)
     | WithTag tag visit <- S.toList visits
     ]
 

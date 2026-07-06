@@ -19,7 +19,7 @@ import BV.Core.Types.Extras.Expr (andE, eqE, falseE, ifThenElseE, minusE, notE,
                                   trueE, varE, word32E, word32T)
 import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.Program (signatureOfFunction)
-import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcFalseH, visitToCompat)
+import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcFalseH)
 import BV.Logging
 import BV.Utils (ensure, ensureM, expecting)
 
@@ -141,7 +141,7 @@ discoverStackBounds run forConcurrently input = do
         let spVar = varE word32T spName
         let visitOf = defaultVisit p.analysis.loopData . Addr
         let spPreservationHyps =
-                [ let f = eqSideH spVar . withAsmTag . visitToCompat . visitOf
+                [ let f = eqSideH spVar . withAsmTag . visitOf
                    in f addr `eqH` f cont
                 | (addr, NodeCall (CallNode { next = Addr cont })) <- M.toList p.problem.nodes
                 ]
@@ -197,7 +197,7 @@ discoverStackBounds run forConcurrently input = do
                         , calleeName `M.notMember` asmIdents
                         ]
                 let side = viewAtTag asmTag p.problem.sides
-                let entryVis = VisitCompat side.entryPoint []
+                let entryVis = Visit side.entryPoint M.empty
                 let visitOf = defaultVisit p.analysis.loopData
                 let toCheck =
                         [ (callsiteAddr, callsiteNode, calleeIdent, calleeIdentCond)
@@ -218,7 +218,7 @@ discoverStackBounds run forConcurrently input = do
                                     let new = pc `andE` flattenExpr inpEnv calleeIdentCond
                                     -- Note that graph-refine adds mk_not_callable_hyps here
                                     covered <- liftUntagged $ testHypWhyps (notE new)
-                                        [ pcFalseH (withAsmTag (visitToCompat (visitOf Err)))
+                                        [ pcFalseH (withAsmTag (visitOf Err))
                                         , eqSideH callerIdentCond (withAsmTag entryVis)
                                             `eqH` eqSideH trueE (withAsmTag entryVis)
                                         ]

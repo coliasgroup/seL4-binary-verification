@@ -434,8 +434,8 @@ getNodePcEnvExt = runIdentityT . getNodePcEnvInner (const (return ()))
 getNodePcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getNodePcEnv = (fmap . fmap) extPcEnvPcEnv . getNodePcEnvExt
 
-tryGetNodePcEnv :: C t m => VisitCompat -> TaggedT t m (Either TooGeneral (Maybe ExtPcEnv))
-tryGetNodePcEnv = runExceptT . getNodePcEnvInner checkGenerality . visitFromCompat
+tryGetNodePcEnv :: C t m => Visit -> TaggedT t m (Either TooGeneral (Maybe ExtPcEnv))
+tryGetNodePcEnv = runExceptT . getNodePcEnvInner checkGenerality
 
 getNodePcEnvInner :: (C t m, MonadTrans trans) => (Visit -> trans (TaggedT t m) ()) -> Visit -> trans (TaggedT t m) (Maybe ExtPcEnv)
 getNodePcEnvInner check unprunedVisit = runMaybeT $ do
@@ -723,7 +723,7 @@ getFunAssert visits = do
         lowLevelInfoByTag <- for (withTags visits) $ \key ->
             liftPure $ use $ #funCalls % expectingAt key
         let info = augmentFunCallInfo <$> sigs <*> lowLevelInfoByTag
-        rpc <- fmap fromJust <$> runTagged rightTag $ getNodePcEnvExt visits.right
+        rpc <- runTagged rightTag $ getPc visits.right
         let instEqs eqs =
                 [ eqHandlingRelWrapper
                     (flattenExpr (envForQuadrant eq.lhs.quadrant info) eq.lhs.expr)
@@ -731,7 +731,7 @@ getFunAssert visits = do
                 | eq <- eqs
                 ]
         return $ impliesE
-            (foldr1 andE (instEqs pairing.inEqs ++ [rpc.pc]))
+            (foldr1 andE (instEqs pairing.inEqs ++ [rpc]))
             (foldr1 andE (instEqs pairing.outEqs ++ [info.right.success `impliesE` info.left.success]))
   where
     envForQuadrant (PairingEqSideQuadrant t direction) = view $ atTag t % directionLabel

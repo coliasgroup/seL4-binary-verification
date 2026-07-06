@@ -505,19 +505,16 @@ getInductVar induct =
   where
     ty = word32T
 
-getPc :: C t m => VisitCompat -> TaggedT t m FlatExpr
+getPc :: C t m => Visit -> TaggedT t m FlatExpr
 getPc visit = getNodePcEnv visit >>= \case
     Nothing -> return falseE
     Just (PcEnv pc _) -> liftFlat $ convertInnerExpr pc
 
-getNodePcEnv :: C t m => VisitCompat -> TaggedT t m (Maybe PcEnv)
-getNodePcEnv = runIdentityT . getNodePcEnvInner (const (return ())) . visitFromCompat
+getNodePcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
+getNodePcEnv = runIdentityT . getNodePcEnvInner (const (return ()))
 
-getNodePcEnvInternal :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
-getNodePcEnvInternal = runIdentityT . getNodePcEnvInner (const (return ()))
-
-tryGetNodePcEnv :: C t m => VisitCompat -> TaggedT t m (Either TooGeneral (Maybe PcEnv))
-tryGetNodePcEnv = runExceptT . getNodePcEnvInner checkGenerality . visitFromCompat
+tryGetNodePcEnv :: C t m => Visit -> TaggedT t m (Either TooGeneral (Maybe PcEnv))
+tryGetNodePcEnv visit = runExceptT (getNodePcEnvInner checkGenerality visit)
 
 getNodePcEnvInner :: (C t m, MonadTrans trans) => (Visit -> trans (TaggedT t m) ()) -> Visit -> trans (TaggedT t m) (Maybe PcEnv)
 getNodePcEnvInner check unprunedVisit = runMaybeT $ do
@@ -569,7 +566,7 @@ addInputEnvs = do
 
 getLoopPcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getLoopPcEnv visit = do
-    prevPcEnvOpt <- getNodePcEnvInternal $ visit & #restrs %~ M.insert visitAddr (numberVC 0)
+    prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ M.insert visitAddr (numberVC 0)
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         nonConsts <- filterM (fmap not . isConstM) [ NameTy name ty | (name, Expr ty _) <- M.toList prevEnv ]
@@ -617,12 +614,12 @@ getArcPcEnv :: C t m => Visit -> Visit -> TaggedT t m (Maybe PcEnv)
 getArcPcEnv prev visit = runMaybeT $ do
     key <- lift $ askWithTag prev
     pcEnvs <- withMapSlotWithMapping lift #arcPcEnvs key $ do
-        MaybeT $ getNodePcEnvInternal prev
+        MaybeT $ getNodePcEnv prev
         lift $ emitNode prev
     hoistMaybe $ pcEnvs !? visit.nodeId
 
 warmPcEnvCache :: C t m => Visit -> TaggedT t m ()
-warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnvInternal
+warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnv
   where
     go 0 prevChain _ = return prevChain
     go i prevChain curVisit = do
@@ -638,7 +635,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnvInternal
 
 emitNode :: C t m => Visit -> TaggedT t m (M.Map NodeId PcEnv)
 emitNode visit = do
-    pcEnv@(PcEnv pc env) <- fromJust <$> getNodePcEnvInternal visit
+    pcEnv@(PcEnv pc env) <- fromJust <$> getNodePcEnv visit
     let nodeAddr = nodeAddrOf visit.nodeId
     node <- askNode nodeAddr
     M.fromList <$>
@@ -744,7 +741,7 @@ getFunCallInfo unprunedVisit = do
     key <- askWithTag visit
     opt <- liftPure $ use $ #funCalls % at key
     whenNothing opt $ do
-        askContVisit visit >>= getNodePcEnvInternal
+        askContVisit visit >>= getNodePcEnv
         liftPure $ use $ #funCalls % expectingAt key
 
 instEqWithEnvs :: forall t n m. TaggedC t n m => (GraphExpr, ExprEnv) -> (GraphExpr, ExprEnv) -> m FlatExpr
@@ -817,7 +814,7 @@ getFunAssert visits = do
         lowLevelInfoByTag <- for (withTags visits) $ \key ->
             liftPure $ use $ #funCalls % expectingAt key
         let info = augmentFunCallInfo <$> sigs <*> lowLevelInfoByTag
-        pcs <- for (withTags visits) $ \visit -> fmap ((.pc) . fromJust)$ runTagged visit.tag $ getNodePcEnvInternal visit.value
+        pcs <- for (withTags visits) $ \visit -> runTagged visit.tag $ getPc visit.value
         let instEqs eqs = for eqs $ \eq ->
                 instEqWithEnvs
                     (eq.lhs.expr, envForQuadrant eq.lhs.quadrant info)

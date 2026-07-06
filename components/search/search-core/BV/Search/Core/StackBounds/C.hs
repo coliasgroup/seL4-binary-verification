@@ -14,8 +14,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr (andE, eqE, falseE, isWordT, notE, trueE,
                                   varFromNameTyE)
 import BV.Core.Types.Extras.Problem
-import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcTrueH, visitFromCompat,
-                                        visitToCompat)
+import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcTrueH)
 import BV.Logging
 import BV.Utils (ensureM, expecting, expectingAt)
 
@@ -152,9 +151,9 @@ modelStuff p assns deepestTag deepestFunName = do
                     | (renamed, orig) <- zip deepestSide.input deepestFun.input
                     , isWordT renamed.ty
                     ]
-            let entryVis = VisitCompat deepestSide.entryPoint []
+            let entryVis = Visit deepestSide.entryPoint M.empty
             stable <- run p.problem $ runTagged deepestTag $ do
-                pcEnv <- fromJust <$> getNodePcEnv (visitFromCompat entryVis)
+                pcEnv <- fromJust <$> getNodePcEnv entryVis
                 liftUntagged (testHypWhyps falseE assns) >>= ensureM . not
                 candidates <- for wordArgs $ \(renamed, orig) -> do
                     let argFlat = flattenExpr pcEnv.env $ varFromNameTyE renamed
@@ -173,14 +172,14 @@ functionLinkAssns
     -> WithTag (FunTag t) NodeAddr
     -> FunTag t
     -> [Hyp (FunTag t)]
-functionLinkAssns p callSite newTag = pcTrueH (visitToCompat <$> callVis) : eqHyps
+functionLinkAssns p callSite newTag = pcTrueH callVis : eqHyps
   where
     newSide = viewAtTag newTag p.problem.sides
-    entryVis = WithTag newTag $ VisitCompat newSide.entryPoint []
+    entryVis = WithTag newTag $ Visit newSide.entryPoint M.empty
     callVis = WithTag callSite.tag $ defaultVisit p.analysis.loopData (Addr callSite.value)
     callNode = p.problem ^. #nodes % expectingAt callSite.value % expecting #_NodeCall
     eqHyps =
-        [ eqSideH callInput (visitToCompat <$> callVis) `eqH` eqSideH entryInput entryVis
+        [ eqSideH callInput callVis `eqH` eqSideH entryInput entryVis
         | (callInput, entryInput) <- zip callNode.input (map varFromNameTyE newSide.input)
         , case callInput.ty of
             ExprTypeWord {} -> True

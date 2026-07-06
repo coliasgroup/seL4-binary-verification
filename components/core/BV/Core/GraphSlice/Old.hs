@@ -108,10 +108,10 @@ assertExpr = liftInner . assertFact
 convertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m SExprWithPlaceholders
 convertExpr = liftInner . convertExprNotSplit
 
-getPcWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t VisitCompat -> GraphSliceT t m FlatExpr
+getPcWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m FlatExpr
 getPcWithTag (WithTag tag visit) = fmap castExpr $ runTagged tag $ getPc visit
 
-getNodePcEnvWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t VisitCompat -> GraphSliceT t m (Maybe PcEnv)
+getNodePcEnvWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m (Maybe PcEnv)
 getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
 
 addAccumulatedAssertions :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ()

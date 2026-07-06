@@ -11,6 +11,7 @@ import BV.ConcreteSyntax.GraphLangLike.Building
 import BV.ConcreteSyntax.GraphLangLike.Parsing
 import BV.ConcreteSyntax.SExprWithPlaceholders
 import BV.Core.Types
+import BV.Core.Types.Extras.ProofCheck (restrsFromMap, restrsToMap)
 
 import Control.Monad (replicateM)
 import Data.Bits (shiftL, (.|.))
@@ -702,17 +703,17 @@ instance Tag t => ParseInLine (EqHypSide t) where
 instance Tag t => BuildInLine (EqHypSide t) where
     buildInLine side = put side.expr <> putVisitWithTag side.visit
 
-parseVisitWithTagInLine :: Tag t => Parser (WithTag t VisitCompat)
+parseVisitWithTagInLine :: Tag t => Parser (WithTag t Visit)
 parseVisitWithTagInLine = flip WithTag <$> parseInLine <*> parseTagInLine
 
-putVisitWithTag :: Tag t => WithTag t VisitCompat -> LineBuilder
+putVisitWithTag :: Tag t => WithTag t Visit -> LineBuilder
 putVisitWithTag visit = put visit.value <> putTag visit.tag
 
-instance ParseInLine VisitCompat where
-    parseInLine = VisitCompat <$> parseInLine <*> parseInLine
+instance ParseInLine Visit where
+    parseInLine = Visit <$> parseInLine <*> (restrsToMap <$> parseInLine)
 
-instance BuildInLine VisitCompat where
-    buildInLine visit = put visit.nodeId <> put visit.restrs
+instance BuildInLine Visit where
+    buildInLine visit = put visit.nodeId <> put (restrsFromMap visit.restrs)
 
 instance ParseInLine Restr where
     parseInLine = Restr <$> parseInLine <*> parseInLine

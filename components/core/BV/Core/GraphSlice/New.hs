@@ -168,14 +168,14 @@ interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case
                 PcImpHypSideBool v -> return $ fromBoolE v
-                PcImpHypSidePc vt -> getPcWithTag $ visitFromCompat <$> vt
+                PcImpHypSidePc vt -> getPcWithTag vt
         impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
         extEnv <- case eq.induct of
             Just induct -> M.insert (Ident "%n") <$> getInductVar induct
             Nothing -> return id
-        xPcEnvOpt <- getNodePcEnvWithTag $ visitFromCompat <$> eq.lhs.visit
-        yPcEnvOpt <- getNodePcEnvWithTag $ visitFromCompat <$> eq.rhs.visit
+        xPcEnvOpt <- getNodePcEnvWithTag eq.lhs.visit
+        yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
             (Just xPcEnv, Just yPcEnv) -> do
                 let eq' = eqHandlingRelWrapper
@@ -183,8 +183,8 @@ interpretHyp = \case
                         (flattenExpr (extEnv yPcEnv.env) eq.rhs.expr)
                 if ifAt
                     then do
-                        xPc <- getPcWithTag $ visitFromCompat <$> eq.lhs.visit
-                        yPc <- getPcWithTag $ visitFromCompat <$> eq.rhs.visit
+                        xPc <- getPcWithTag eq.lhs.visit
+                        yPc <- getPcWithTag eq.rhs.visit
                         return $ nImpliesE [xPc, yPc] eq'
                     else do
                         return eq'

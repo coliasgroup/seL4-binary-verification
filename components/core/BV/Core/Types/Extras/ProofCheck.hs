@@ -31,12 +31,12 @@ module BV.Core.Types.Extras.ProofCheck
     , pcTrivH
     , pcTrueH
     , predVisits
+    , restrsFromMap
+    , restrsToMap
     , splitVisitAt
     , toSimpleVC
     , trueIfAt
     , upToVC
-    , visitFromCompat
-    , visitToCompat
     ) where
 
 import BV.Core.Types
@@ -115,8 +115,11 @@ incrVC incr = (#numbers %~ f) . (#offsets %~ f)
 
 splitVisitAt :: NodeAddr -> Visit -> [Visit]
 splitVisitAt split visit =
-    enumerateSimpleVCs (visit.restrs M.! split) <&> \(SimpleVisitCountViewOffset i) ->
-        visit & #restrs %~ M.insert split (offsetVC i)
+    ensure (isOptionsVC vc) $
+        enumerateSimpleVCs vc <&> \option ->
+            visit & #restrs %~ M.insert split (fromSimpleVC option)
+  where
+    vc = visit.restrs M.! split
 
 predVisits :: Visit -> [NodeAddr] -> [Visit]
 predVisits visit = mapMaybe f
@@ -132,31 +135,22 @@ contVisits visit conts =
     | cont <- conts
     ]
 
-incrVCs :: Integer -> NodeAddr -> M.Map NodeAddr VisitCount -> Maybe (M.Map NodeAddr VisitCount)
+incrVCs :: Integer -> NodeAddr -> RestrMap -> Maybe (RestrMap)
 incrVCs incr = M.alterF $ \case
     Nothing -> return Nothing
     Just vc ->
         let vc' = incrVC incr vc
-         in do guard $ isEmptyVC vc'
+         in do guard $ not $ isEmptyVC vc'
                return (Just vc')
 
-visitFromCompat :: VisitCompat -> Visit
-visitFromCompat compat = Visit
-    { nodeId = compat.nodeId
-    , restrs = M.fromListWith (error "repeat")
-        [ (restr.nodeAddr, restr.visitCount)
-        | restr <- compat.restrs
-        ]
-    }
+restrsToMap :: [Restr] -> RestrMap
+restrsToMap restrs = M.fromListWith (error "repeat")
+    [ (restr.nodeAddr, restr.visitCount)
+    | restr <- restrs
+    ]
 
-visitToCompat :: Visit -> VisitCompat
-visitToCompat visit = VisitCompat
-    { nodeId = visit.nodeId
-    , restrs =
-        [ Restr addr vc
-        | (addr, vc) <- M.toList visit.restrs
-        ]
-    }
+restrsFromMap :: RestrMap -> [Restr]
+restrsFromMap = map (uncurry Restr) . M.toList
 
 --
 
@@ -210,22 +204,22 @@ eqWithIfAtH ifAt lhs rhs induct = HypEq
         }
     }
 
-trueIfAt :: GraphExpr -> WithTag t VisitCompat -> Hyp t
+trueIfAt :: GraphExpr -> WithTag t Visit -> Hyp t
 trueIfAt expr visit = eqIfAtH (eqSideH expr visit) (eqSideH trueE visit)
 
-pcTrueH :: WithTag t VisitCompat -> Hyp t
+pcTrueH :: WithTag t Visit -> Hyp t
 pcTrueH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSideBool True
     , rhs = PcImpHypSidePc visit
     })
 
-pcFalseH :: WithTag t VisitCompat -> Hyp t
+pcFalseH :: WithTag t Visit -> Hyp t
 pcFalseH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSideBool False
     })
 
-pcTrivH :: WithTag t VisitCompat -> Hyp t
+pcTrivH :: WithTag t Visit -> Hyp t
 pcTrivH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSidePc visit
@@ -234,7 +228,7 @@ pcTrivH visit = HypPcImp (PcImpHyp
 pcImpH :: PcImpHypSide t -> PcImpHypSide t -> Hyp t
 pcImpH lhs rhs = HypPcImp (PcImpHyp { lhs, rhs })
 
-eqSideH :: GraphExpr -> WithTag t VisitCompat -> EqHypSide t
+eqSideH :: GraphExpr -> WithTag t Visit -> EqHypSide t
 eqSideH = EqHypSide
 
 -- HACK integer representation matches graph-refine
