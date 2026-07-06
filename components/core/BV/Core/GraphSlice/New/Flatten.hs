@@ -124,8 +124,10 @@ data GraphSliceHooks t
       }
   deriving (Generic)
 
+type AddFunAssertsHookFn t = forall m. MonadGraphSliceSendSExpr m => Visit -> TaggedT t m ()
+
 newtype AddFunAssertsHook t
-  = AddFunAssertsHook (forall m. MonadGraphSliceSendSExpr m => Visit -> TaggedT t m ())
+  = AddFunAssertsHook (AddFunAssertsHookFn t)
 
 data TState t
   = TState
