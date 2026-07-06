@@ -193,9 +193,9 @@ doAnalysis = do
 forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
 forceSimpleLoopReturns = do
     ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
-    for_ (loopsOf analysis.loopData) $ \loop -> do
+    for_ analysis.loopData.outermostLoops $ \loop -> do
         let tag = analysis.nodeTag loop.head
-        let rets = S.toList $ S.filter (`S.member` loop.body) $ viewAtTag tag analysis.preds (Addr loop.head)
+        let rets = S.toList $ S.filter (`S.member` loop.members) $ viewAtTag tag analysis.preds (Addr loop.head)
         let alreadySimple = [ isNodeNoop (problem.nodes ! ret) | ret <- rets ] == [True]
         unless alreadySimple $ do
             simpleRetNodeAddr <- appendNode (trivialNode (Addr loop.head)) tag Nothing
