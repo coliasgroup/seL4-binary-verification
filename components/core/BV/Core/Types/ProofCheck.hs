@@ -12,6 +12,7 @@ module BV.Core.Types.ProofCheck
     , ProofCheckGroup
     , ProofCheckGroupCheckIndices (..)
     , Restr (..)
+    , Visit (..)
     , VisitCompat (..)
     , VisitCount (..)
     , checkVisits
@@ -27,6 +28,7 @@ import BV.Core.Types.Tag
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import Data.List (intercalate)
+import qualified Data.Map as M
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
@@ -103,6 +105,13 @@ data Restr
   = Restr
       { nodeAddr :: NodeAddr
       , visitCount :: VisitCount
+      }
+  deriving (Eq, Generic, NFData, Ord, Show)
+
+data Visit
+  = Visit
+      { nodeId :: NodeId
+      , restrs :: M.Map NodeAddr VisitCount
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
