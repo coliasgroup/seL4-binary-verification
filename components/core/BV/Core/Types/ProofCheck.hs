@@ -12,6 +12,7 @@ module BV.Core.Types.ProofCheck
     , ProofCheckGroup
     , ProofCheckGroupCheckIndices (..)
     , Restr (..)
+    , RestrMap
     , Visit (..)
     , VisitCount (..)
     , checkVisits
@@ -27,6 +28,7 @@ import BV.Core.Types.Tag
 import Control.DeepSeq (NFData)
 import Data.Binary (Binary)
 import Data.List (intercalate)
+import qualified Data.Map as M
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
@@ -95,9 +97,11 @@ data EqHypInduct
 data Visit
   = Visit
       { nodeId :: NodeId
-      , restrs :: [Restr]
+      , restrs :: RestrMap
       }
   deriving (Eq, Generic, NFData, Ord, Show)
+
+type RestrMap = M.Map NodeAddr VisitCount
 
 data Restr
   = Restr
@@ -136,10 +140,10 @@ checkVisits = (#hyps % traversed `adjoin` #hyp) % hypVisits
 debugShowVisit :: Visit -> String
 debugShowVisit visit = prettyNodeId visit.nodeId ++ ":" ++ debugShowRestrs visit.restrs
 
-debugShowRestrs :: [Restr] -> String
-debugShowRestrs restrs = "[" ++ intercalate "," (map f restrs) ++ "]"
+debugShowRestrs :: RestrMap -> String
+debugShowRestrs restrs = "[" ++ intercalate "," (map f (M.toList restrs)) ++ "]"
   where
-    f restr = prettyNodeAddr restr.nodeAddr ++ "=" ++ debugShowVisitCount restr.visitCount
+    f (addr, vc) = prettyNodeAddr addr ++ "=" ++ debugShowVisitCount vc
 
 debugShowVisitCount :: VisitCount -> String
 debugShowVisitCount vc =

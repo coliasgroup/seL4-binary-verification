@@ -16,6 +16,7 @@ import BV.Core.Types
 import Data.Char (isAlpha)
 import Data.List (intercalate, tails)
 import Data.List.Split (splitOn)
+import qualified Data.Map as M
 import Optics
 import Text.Printf (printf)
 
@@ -49,8 +50,8 @@ nodeCountName :: Visit -> NameHint
 nodeCountName visit = intercalate "_" $
     [ prettyNodeId visit.nodeId
     ] ++
-    [ printf "%P=%s" restr.nodeAddr (visitCountName restr.visitCount)
-    | restr <- visit.restrs
+    [ printf "%P=%s" addr (visitCountName vc)
+    | (addr, vc) <- M.toList visit.restrs
     ]
 
 visitCountName :: VisitCount -> String

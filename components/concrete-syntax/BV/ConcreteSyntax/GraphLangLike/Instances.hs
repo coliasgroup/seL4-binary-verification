@@ -11,6 +11,7 @@ import BV.ConcreteSyntax.GraphLangLike.Building
 import BV.ConcreteSyntax.GraphLangLike.Parsing
 import BV.ConcreteSyntax.SExprWithPlaceholders
 import BV.Core.Types
+import BV.Core.Types.Extras.ProofCheck (restrsFromMap, restrsToMap)
 
 import Control.Monad (replicateM)
 import Data.Bits (shiftL, (.|.))
@@ -709,10 +710,10 @@ putVisitWithTag :: Tag t => WithTag t Visit -> LineBuilder
 putVisitWithTag visit = put visit.value <> putTag visit.tag
 
 instance ParseInLine Visit where
-    parseInLine = Visit <$> parseInLine <*> parseInLine
+    parseInLine = Visit <$> parseInLine <*> (restrsToMap <$> parseInLine)
 
 instance BuildInLine Visit where
-    buildInLine visit = put visit.nodeId <> put visit.restrs
+    buildInLine visit = put visit.nodeId <> put (restrsFromMap visit.restrs)
 
 instance ParseInLine Restr where
     parseInLine = Restr <$> parseInLine <*> parseInLine

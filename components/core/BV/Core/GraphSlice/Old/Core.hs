@@ -57,7 +57,7 @@ import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Data.Either (isRight)
 import Data.Foldable (for_, toList, traverse_)
 import Data.Functor (void)
-import Data.List (genericIndex, isPrefixOf, sort)
+import Data.List (genericIndex, isPrefixOf)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, fromMaybe)
@@ -406,10 +406,10 @@ scanMemCalls tyVals = do
 pruneVisit :: C t m => Visit -> TaggedT t m (Maybe Visit)
 pruneVisit visit = runMaybeT $
     forOf #restrs visit $ \restrs ->
-        fmap (sort . concat) $ for restrs $ \restr -> do
-            reachable <- lift $ askIsNonTriviallyReachableFrom restr.nodeAddr visit.nodeId
-            guard $ reachable || hasZeroVC restr.visitCount
-            return $ [ restr | reachable ]
+        fmap (M.fromList . concat) $ for (M.toList restrs) $ \(addr, vc) -> do
+            reachable <- lift $ askIsNonTriviallyReachableFrom addr visit.nodeId
+            guard $ reachable || hasZeroVC vc
+            return [ (addr, vc) | reachable ]
 
 pruneVisits :: C t m => [Visit] -> TaggedT t m [Visit]
 pruneVisits visits = catMaybes <$> traverse pruneVisit visits
@@ -424,10 +424,10 @@ checkGenerality :: C t m => Visit -> ExceptT TooGeneral (TaggedT t m) ()
 checkGenerality visit = void $ runMaybeT $ do
     nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
     loopId <- MaybeT $ lift $ askLoopHead nodeAddr
-    for_ visit.restrs $ \restr -> do
-        loopIdOpt' <- lift $ lift $ askLoopHead restr.nodeAddr
-        when (loopIdOpt' == Just loopId && isOptionsVC restr.visitCount) $ do
-            throwError $ TooGeneral { split = restr.nodeAddr }
+    ifor_ visit.restrs $ \addr vc -> do
+        loopIdOpt' <- lift $ lift $ askLoopHead addr
+        when (loopIdOpt' == Just loopId && isOptionsVC vc) $ do
+            throwError $ TooGeneral { split = addr }
 
 --
 
@@ -529,8 +529,8 @@ getNodePcEnvRaw visit = do
     liftPure (use $ #inpEnvs % at visit.nodeId) >>= \case
         Just env -> return $ Just $ PcEnv trueE env
         Nothing -> do
-            let f restr = Addr restr.nodeAddr == visit.nodeId && restr.visitCount == offsetVC 0
-            if any f visit.restrs
+            let f (addr, vc) = Addr addr == visit.nodeId && vc == offsetVC 0
+            if any f (M.toList visit.restrs)
                 then getLoopPcEnv visit
                 else do
                     arcPcEnvs <- toListOf (folded % folded) <$> do
@@ -558,7 +558,7 @@ addInputEnvs = do
             VarRepRequestKindInit
             (\name -> name.unwrap ++ "_init")
             (Just M.empty)
-            (Visit side.entryPoint [])
+            (Visit side.entryPoint M.empty)
             side.input
             M.empty
         liftPure $ #inpEnvs %= M.insert side.entryPoint env
@@ -566,7 +566,7 @@ addInputEnvs = do
 
 getLoopPcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getLoopPcEnv visit = do
-    prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ withMapVC (M.insert visitAddr (numberVC 0))
+    prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ M.insert visitAddr (numberVC 0)
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls visitAddr
         nonConsts <- filterM (fmap not . isConstM) [ NameTy name ty | (name, Expr ty _) <- M.toList prevEnv ]

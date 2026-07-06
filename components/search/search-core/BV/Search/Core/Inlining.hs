@@ -128,7 +128,7 @@ nextReachableUnmatchedCInlinePointsInnerIncompat matchedC = runTagged C $ do
     p <- askProblem
     g <- askNodeGraph
     loops <- allInnerLoops p.nodes <$> askLoopData
-    let limits = [ Restr loop.head (doubleRangeVC 3 3) | loop <- loops ]
+    let limits = M.fromList [(loop.head, doubleRangeVC 3 3) | loop <- loops ]
     for_ (reachableFrom g p.sides.c.entryPoint) $ \n -> tryGetNodePcEnv $ Visit n limits
     funCallVisits <- liftUntagged getFunCallVisitsCompat
     let unmatchedByAddr = foldl (M.unionWith S.union) M.empty
@@ -153,7 +153,7 @@ nextReachableUnmatchedCInlinePointsInnerCompat matchedC = runTagged C $ do
     p <- askProblem
     g <- askNodeGraph
     loops <- allInnerLoops p.nodes <$> askLoopData
-    let limits = [ Restr loop.head (doubleRangeVC 3 3) | loop <- loops ]
+    let limits = M.fromList [ (loop.head, doubleRangeVC 3 3) | loop <- loops ]
     let reachable = reachableFrom g p.sides.c.entryPoint
     let f n = void $ tryGetNodePcEnv $ Visit n limits
     -- HACK order matches graph-refine
