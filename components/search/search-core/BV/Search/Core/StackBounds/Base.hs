@@ -160,7 +160,8 @@ asmArgSeq cSig = take numCArgs $ regArgSeq ++ stackArgSeq
 defaultVisit :: LoopData -> NodeId -> Visit
 defaultVisit loopData n = Visit n (general <> specific)
   where
-    loopOpt = preview #_Addr n >>= \addr -> M.lookup addr loopData.heads
+    -- TODO handle inner loops too
+    loopOpt = preview #_Addr n >>= outermostLoopContaining loopData
     general = M.fromList
         [ (loop.head, numberVC 0 <> offsetVC 1)
         | loop <- loopData.outermostLoops

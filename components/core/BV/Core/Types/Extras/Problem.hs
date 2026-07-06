@@ -35,7 +35,7 @@ import Data.Foldable (toList)
 import Data.Function (applyWhen, on)
 import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
-import Data.List (find, sort)
+import Data.List (find, sortOn)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
@@ -189,7 +189,7 @@ data LoopData
       , heads :: M.Map NodeAddr Loop
       , members :: M.Map NodeAddr Loop
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Generic)
 
 data Loop
   = Loop
@@ -198,7 +198,7 @@ data Loop
       , parent :: Maybe Loop
       , children :: [Loop]
       }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Generic)
 
 makeLoopData :: Tag t => Problem t -> NodeGraph -> LoopData
 makeLoopData problem nodeGraph = LoopData
@@ -212,7 +212,7 @@ makeLoopData problem nodeGraph = LoopData
   where
     outermostLoops = go nodeGraph Nothing $ toListOf (folded % #entryPoint) problem.sides
     allLoops = flattenLoops outermostLoops
-    go g parent entryPoints = sort
+    go g parent entryPoints = sortOn (.head)
         [ let toNodeAddr = nodeAddrOf . g.vertexToNodeId
               loop = Loop
                 { head = toNodeAddr h

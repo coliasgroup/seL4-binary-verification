@@ -395,9 +395,10 @@ checkGenerality :: C t m => Visit -> ExceptT TooGeneral (TaggedT t m) ()
 checkGenerality visit = void $ runMaybeT $ do
     loopData <- lift $ lift $ askLoopData
     nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
-    loopId <- hoistMaybe $ M.lookup nodeAddr loopData.heads
+    loop <- hoistMaybe $ outermostLoopContaining loopData nodeAddr
     ifor_ visit.restrs $ \addr vc -> do
-        when (M.lookup addr loopData.heads == Just loopId && isOptionsVC vc) $ do
+        let loopOpt = outermostLoopContaining loopData addr
+        when (fmap (.head) loopOpt == Just loop.head && isOptionsVC vc) $ do
             throwError $ TooGeneral { split = addr }
 
 --
@@ -488,7 +489,8 @@ getInputEnv = withMapSlotTagged #inputEnvs () $ do
 
 getLoopPcEnv :: C t m => Visit -> ExtPcEnv -> TaggedT t m ExtPcEnv
 getLoopPcEnv visit preLoopPcEnv = do
-    loop <- askLoopData <&> \loopData -> loopData.heads M.! visitAddr
+    loop <- askLoopData <&> \loopData ->
+        fromJust (outermostLoopContaining loopData visitAddr) & #head .~ visitAddr
     nonConsts <- filterM (fmap not . flip isConstM loop) (toList (exprEnvVars preLoopPcEnv.env))
     newVars <- fmap M.fromList $ for nonConsts $ \preLoopVar -> (preLoopVar.name,) <$> do
         let preLoopVal = preLoopPcEnv.env ! preLoopVar.name
