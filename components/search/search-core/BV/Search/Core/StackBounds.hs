@@ -146,7 +146,7 @@ discoverStackBounds run forConcurrently input = do
                 | (addr, NodeCall (CallNode { next = Addr cont })) <- M.toList p.problem.nodes
                 ]
         spOffsets <- runGraphSliceAsm p.problem $ runTagged asmTag $ do
-            PcEnv _ entryEnv <- fromJust <$> getNodePcEnv (Visit side.entryPoint [])
+            PcEnv _ entryEnv <- fromJust <$> getNodePcEnv (VisitCompat side.entryPoint [])
             let spInit = flattenExpr entryEnv spVar
             symbolicOffsets <- flip mapMaybeM (M.keys p.problem.nodes) $ \addr -> do
                 opt <- getNodePcEnv (visitOf addr)
@@ -197,7 +197,7 @@ discoverStackBounds run forConcurrently input = do
                         , calleeName `M.notMember` asmIdents
                         ]
                 let side = viewAtTag asmTag p.problem.sides
-                let entryVis = Visit side.entryPoint []
+                let entryVis = VisitCompat side.entryPoint []
                 let visitOf = defaultVisit p.analysis.loopData
                 let toCheck =
                         [ (callsiteAddr, callsiteNode, calleeIdent, calleeIdentCond)

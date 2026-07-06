@@ -19,19 +19,19 @@ import Data.List.Split (splitOn)
 import Optics
 import Text.Printf (printf)
 
-localNameBefore :: Visit -> Ident -> NameHint
+localNameBefore :: VisitCompat -> Ident -> NameHint
 localNameBefore visit var = printf "%P_v_at_%s" var (nodeCountName visit)
 
-localName ::Visit ->  Ident -> NameHint
+localName ::VisitCompat ->  Ident -> NameHint
 localName visit var = printf "%P_after_%s" var (nodeCountName visit)
 
-condName :: Visit -> NameHint
+condName :: VisitCompat -> NameHint
 condName visit = printf "cond_at_%s" (nodeCountName visit)
 
-pathCondName :: Tag t => WithTag t Visit -> NameHint
+pathCondName :: Tag t => WithTag t VisitCompat -> NameHint
 pathCondName (WithTag tag visit) = printf "path_cond_to_%s_%P" (nodeCountName visit) tag
 
-successName :: Visit -> Ident -> NameHint
+successName :: VisitCompat -> Ident -> NameHint
 successName visit fname =
     printf "%s_success_at_%s" name (nodeCountName visit)
   where
@@ -45,7 +45,7 @@ successName visit fname =
         ]
     bits = splitOn "." fname.unwrap
 
-nodeCountName :: Visit -> NameHint
+nodeCountName :: VisitCompat -> NameHint
 nodeCountName visit = intercalate "_" $
     [ prettyNodeId visit.nodeId
     ] ++

@@ -151,7 +151,7 @@ modelStuff p assns deepestTag deepestFunName = do
                     | (renamed, orig) <- zip deepestSide.input deepestFun.input
                     , isWordT renamed.ty
                     ]
-            let entryVis = Visit deepestSide.entryPoint []
+            let entryVis = VisitCompat deepestSide.entryPoint []
             stable <- run p.problem $ runTagged deepestTag $ do
                 pcEnv <- fromJust <$> getNodePcEnv entryVis
                 liftUntagged (testHypWhyps falseE assns) >>= ensureM . not
@@ -175,7 +175,7 @@ functionLinkAssns
 functionLinkAssns p callSite newTag = pcTrueH callVis : eqHyps
   where
     newSide = viewAtTag newTag p.problem.sides
-    entryVis = WithTag newTag $ Visit newSide.entryPoint []
+    entryVis = WithTag newTag $ VisitCompat newSide.entryPoint []
     callVis = WithTag callSite.tag $ defaultVisit p.analysis.loopData (Addr callSite.value)
     callNode = p.problem ^. #nodes % expectingAt callSite.value % expecting #_NodeCall
     eqHyps =

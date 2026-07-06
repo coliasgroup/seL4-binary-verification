@@ -702,16 +702,16 @@ instance Tag t => ParseInLine (EqHypSide t) where
 instance Tag t => BuildInLine (EqHypSide t) where
     buildInLine side = put side.expr <> putVisitWithTag side.visit
 
-parseVisitWithTagInLine :: Tag t => Parser (WithTag t Visit)
+parseVisitWithTagInLine :: Tag t => Parser (WithTag t VisitCompat)
 parseVisitWithTagInLine = flip WithTag <$> parseInLine <*> parseTagInLine
 
-putVisitWithTag :: Tag t => WithTag t Visit -> LineBuilder
+putVisitWithTag :: Tag t => WithTag t VisitCompat -> LineBuilder
 putVisitWithTag visit = put visit.value <> putTag visit.tag
 
-instance ParseInLine Visit where
-    parseInLine = Visit <$> parseInLine <*> parseInLine
+instance ParseInLine VisitCompat where
+    parseInLine = VisitCompat <$> parseInLine <*> parseInLine
 
-instance BuildInLine Visit where
+instance BuildInLine VisitCompat where
     buildInLine visit = put visit.nodeId <> put visit.restrs
 
 instance ParseInLine Restr where

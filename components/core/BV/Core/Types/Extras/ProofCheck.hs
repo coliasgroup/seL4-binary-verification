@@ -130,7 +130,7 @@ fromMapVC = map f . M.toList
   where
     f (nodeAddr, visitCount) = Restr { nodeAddr, visitCount }
 
-splitVisitAt :: NodeAddr -> Visit -> [Visit]
+splitVisitAt :: NodeAddr -> VisitCompat -> [VisitCompat]
 splitVisitAt split visit = ensure (isOptionsVC splitVC)
     [ visit & #restrs .~ fromMapVC (M.insert split (fromSimpleVC simpleVC) restrsMap)
     | simpleVC <- enumerateSimpleVCs splitVC
@@ -139,14 +139,14 @@ splitVisitAt split visit = ensure (isOptionsVC splitVC)
     restrsMap = toMapVC visit.restrs
     splitVC = restrsMap M.! split
 
-predVisits :: Visit -> [NodeAddr] -> [Visit]
+predVisits :: VisitCompat -> [NodeAddr] -> [VisitCompat]
 predVisits visit = mapMaybe f
   where
-    f pred_ = Visit (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
+    f pred_ = VisitCompat (Addr pred_) <$> incrVCs visit.restrs pred_ (-1)
 
-contVisits :: Visit -> [NodeId] -> [Visit]
+contVisits :: VisitCompat -> [NodeId] -> [VisitCompat]
 contVisits visit conts =
-    [ Visit
+    [ VisitCompat
         { nodeId = cont
         , restrs = fromJust $ incrVCs visit.restrs addr 1
         }
@@ -217,22 +217,22 @@ eqWithIfAtH ifAt lhs rhs induct = HypEq
         }
     }
 
-trueIfAt :: GraphExpr -> WithTag t Visit -> Hyp t
+trueIfAt :: GraphExpr -> WithTag t VisitCompat -> Hyp t
 trueIfAt expr visit = eqIfAtH (eqSideH expr visit) (eqSideH trueE visit)
 
-pcTrueH :: WithTag t Visit -> Hyp t
+pcTrueH :: WithTag t VisitCompat -> Hyp t
 pcTrueH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSideBool True
     , rhs = PcImpHypSidePc visit
     })
 
-pcFalseH :: WithTag t Visit -> Hyp t
+pcFalseH :: WithTag t VisitCompat -> Hyp t
 pcFalseH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSideBool False
     })
 
-pcTrivH :: WithTag t Visit -> Hyp t
+pcTrivH :: WithTag t VisitCompat -> Hyp t
 pcTrivH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSidePc visit
@@ -241,7 +241,7 @@ pcTrivH visit = HypPcImp (PcImpHyp
 pcImpH :: PcImpHypSide t -> PcImpHypSide t -> Hyp t
 pcImpH lhs rhs = HypPcImp (PcImpHyp { lhs, rhs })
 
-eqSideH :: GraphExpr -> WithTag t Visit -> EqHypSide t
+eqSideH :: GraphExpr -> WithTag t VisitCompat -> EqHypSide t
 eqSideH = EqHypSide
 
 -- HACK integer representation matches graph-refine

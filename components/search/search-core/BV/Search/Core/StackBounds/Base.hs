@@ -157,8 +157,8 @@ asmArgSeq cSig = take numCArgs $ regArgSeq ++ stackArgSeq
         | i <- [0..]
         ]
 
-defaultVisit :: LoopData -> NodeId -> Visit
-defaultVisit loopData n = Visit n (general ++ specific)
+defaultVisit :: LoopData -> NodeId -> VisitCompat
+defaultVisit loopData n = VisitCompat n (general ++ specific)
   where
     headOpt = case n of
         Addr addr -> loopHeadOf addr loopData

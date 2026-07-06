@@ -130,10 +130,10 @@ convertExpr =
     liftInner . liftInner . convertFlatExpr
         >=> liftInner . liftInner . liftInner . convertSolverExpr
 
-getPcWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m FlatExpr
+getPcWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t VisitCompat -> GraphSliceT t m FlatExpr
 getPcWithTag = runWithTag getPc
 
-getNodePcEnvWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m (Maybe PcEnv)
+getNodePcEnvWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t VisitCompat -> GraphSliceT t m (Maybe PcEnv)
 getNodePcEnvWithTag = runWithTag getNodePcEnv
 
 addAccumulatedAssertions :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ()
@@ -192,7 +192,7 @@ interpretHyp = \case
 
 --
 
-getFunCallVisitsCompat :: Monad m => GraphSliceT t m [WithTag t Visit]
+getFunCallVisitsCompat :: Monad m => GraphSliceT t m [WithTag t VisitCompat]
 getFunCallVisitsCompat = do
     export <- getExport
     return $ toList export.funCallOrder

@@ -12,7 +12,7 @@ module BV.Core.Types.ProofCheck
     , ProofCheckGroup
     , ProofCheckGroupCheckIndices (..)
     , Restr (..)
-    , Visit (..)
+    , VisitCompat (..)
     , VisitCount (..)
     , checkVisits
     , debugShowRestrs
@@ -67,7 +67,7 @@ data PcImpHyp t
 
 data PcImpHypSide t
   = PcImpHypSideBool Bool
-  | PcImpHypSidePc (WithTag t Visit)
+  | PcImpHypSidePc (WithTag t VisitCompat)
   deriving (Eq, Generic, NFData, Ord, Show)
 
 data EqHyp t
@@ -81,7 +81,7 @@ data EqHyp t
 data EqHypSide t
   = EqHypSide
       { expr :: GraphExpr
-      , visit :: WithTag t Visit
+      , visit :: WithTag t VisitCompat
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
@@ -92,8 +92,8 @@ data EqHypInduct
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 
-data Visit
-  = Visit
+data VisitCompat
+  = VisitCompat
       { nodeId :: NodeId
       , restrs :: [Restr]
       }
@@ -122,18 +122,18 @@ instance Semigroup VisitCount where
 instance Monoid VisitCount where
     mempty = VisitCount [] []
 
-hypVisits :: Traversal' (Hyp t) (WithTag t Visit)
+hypVisits :: Traversal' (Hyp t) (WithTag t VisitCompat)
 hypVisits =
     (#_HypPcImp % (#lhs `adjoin` #rhs) % #_PcImpHypSidePc)
     `adjoin`
     (#_HypEq % _2 % (#lhs `adjoin` #rhs) % #visit)
 
-checkVisits :: Traversal' (ProofCheck t a) (WithTag t Visit)
+checkVisits :: Traversal' (ProofCheck t a) (WithTag t VisitCompat)
 checkVisits = (#hyps % traversed `adjoin` #hyp) % hypVisits
 
 --
 
-debugShowVisit :: Visit -> String
+debugShowVisit :: VisitCompat -> String
 debugShowVisit visit = prettyNodeId visit.nodeId ++ ":" ++ debugShowRestrs visit.restrs
 
 debugShowRestrs :: [Restr] -> String
