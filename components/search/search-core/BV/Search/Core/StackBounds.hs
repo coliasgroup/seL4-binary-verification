@@ -128,7 +128,7 @@ discoverStackBounds run forConcurrently input = do
         patchNoreturnCallConts asmFunIsNoreturn
         doAnalysis
         intermed <- gets extractProblemWithAnalysis
-        lift $ guard $ not $ any (hasInnerLoop intermed.problem.nodes) (loopsOf intermed.analysis.loopData)
+        lift $ guard $ all (\loop -> null loop.children) intermed.analysis.loopData.outermostLoops
         inlineNoPrePairing asmFunIsPaired lookupAsmFun
         doAnalysis
         gets extractProblemWithAnalysis

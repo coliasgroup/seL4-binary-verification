@@ -1,28 +1,26 @@
 {-# LANGUAGE MultiWayIf #-}
 
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module BV.Core.Types.Extras.Problem
     ( ArgRenames
     , Loop (..)
-    , LoopData
+    , LoopData (..)
     , NodeGraph
     , ProblemAnalysis (..)
     , ProblemWithAnalysis (..)
-    , allInnerLoops
+    , allLoopsOf
     , analyzeProblem
     , analyzeProblemFromPartial
     , augmentProblem
     , hasInnerLoop
     , inlineScriptsEquivalent
     , innerLoopsOf
+    , innermostLoopContaining
     , isReachableFrom
-    , loopBodyOf
-    , loopContainingOf
-    , loopHeadOf
-    , loopHeadsOf
-    , loopsFrom
-    , loopsOf
     , makeNodeGraph
     , makeProblemWithAnalysisLens
+    , outermostLoopContaining
     , pairingIdOfProblem
     , problemArgRenames
     , reachableFrom
@@ -33,13 +31,11 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Program
 import BV.Utils
 
-import Control.Monad (guard)
-import Control.Monad.Writer (execWriter, tell)
 import Data.Foldable (toList)
 import Data.Function (applyWhen, on)
 import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
-import Data.List (find)
+import Data.List (find, sort)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
@@ -177,104 +173,95 @@ nodeTagMap problem nodeGraph =
 --
 
 loopsFromGeneric :: G.Graph -> [Vertex] -> [(Vertex, S.Set Vertex)]
-loopsFromGeneric g entryPoints = do
-    body <- S.fromList . toList <$> G.scc g
-    guard $ S.size body > 1
-    Just h <- return $ find (`S.member` body) inOrder
-    return (h, body)
+loopsFromGeneric g entryPoints =
+    [ (h, body)
+    | scc <- G.scc g
+    , let body = S.fromList (toList scc)
+    , S.size body > 1
+    , let Just h = find (`S.member` body) inOrder
+    ]
   where
     inOrder = foldMap toList $ G.dfs g entryPoints
 
 data LoopData
   = LoopData
-      { heads :: M.Map NodeAddr Loop
-      , members :: M.Map NodeAddr LoopDataForNode
+      { outermostLoops :: [Loop]
+      , heads :: M.Map NodeAddr Loop
+      , members :: M.Map NodeAddr Loop
       }
-  deriving (Eq, Generic, Ord, Show)
-
-data LoopDataForNode
-  = LoopDataForNode
-      { role :: LoopRole
-      , loop :: Loop
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-data LoopRole
-  = LoopRoleHead
-  | LoopRoleBody
   deriving (Eq, Generic, Ord, Show)
 
 data Loop
   = Loop
       { head :: NodeAddr
       , body :: S.Set NodeAddr
+      , parent :: Maybe Loop
+      , children :: [Loop]
       }
   deriving (Eq, Generic, Ord, Show)
 
-loopsFrom :: NodeGraph -> [NodeId] -> [Loop]
-loopsFrom g entryPoints =
-    [ Loop
-        { head = toNodeAddr h
-        , body = S.map toNodeAddr body
-        }
-    | (h, body) <- loopsFromGeneric g.graph (map g.nodeIdToVertex entryPoints)
-    ]
-  where
-    toNodeAddr = nodeAddrOf . g.vertexToNodeId
-
 makeLoopData :: Tag t => Problem t -> NodeGraph -> LoopData
 makeLoopData problem nodeGraph = LoopData
-    { heads = M.fromList [ (loop.head, loop) | loop <- loops ]
-    , members = M.fromList $ flip concatMap loops $ \loop ->
-        [ let role = if n == loop.head then LoopRoleHead else LoopRoleBody
-           in (n, LoopDataForNode role loop)
+    { outermostLoops
+    , heads = M.fromList $ allLoops <&> \loop -> (loop.head, loop)
+    , members = M.fromList $ concat $ allLoops <&> \loop ->
+        [ (n, loop)
         | n <- S.toList loop.body
         ]
     }
   where
-    loops = loopsFrom nodeGraph $ toListOf (folded % #entryPoint) problem.sides
-
-loopsOf :: LoopData -> [Loop]
-loopsOf d = toList d.heads
-
-loopContainingOf :: LoopData -> NodeAddr -> Maybe Loop
-loopContainingOf d n = d ^? #members % at n % _Just % #loop
-
-loopHeadsOf :: LoopData -> [NodeAddr]
-loopHeadsOf = map (.head) . loopsOf
-
-loopHeadOf :: NodeAddr -> LoopData -> Maybe NodeAddr
-loopHeadOf n d = (.head) <$> loopContainingOf d n
-
-loopBodyOf :: NodeAddr -> LoopData -> S.Set NodeAddr
-loopBodyOf n d = (fromJust (loopContainingOf d n)).body
-
-hasInnerLoop :: NodeMap -> Loop -> Bool
-hasInnerLoop nodes loop = not (null (innerLoopsOf nodes loop))
-
-innerLoopsOf :: NodeMap -> Loop -> [Loop]
-innerLoopsOf nodes loop =
-    loopsFrom g $ contsInOuterLoop loop.head
-  where
-    bodyWithoutHead = S.delete loop.head loop.body
-    contsInOuterLoop src =
-        [ Addr dst
-        | Addr dst <- nodes ^.. at src % unwrapped % nodeConts
-        , dst `S.member` bodyWithoutHead
-        ]
-    g = makeNodeGraphFromEdges
-        [ ((), Addr src, contsInOuterLoop src)
-        | src <- S.toList bodyWithoutHead
+    outermostLoops = go nodeGraph Nothing $ toListOf (folded % #entryPoint) problem.sides
+    allLoops = flattenLoops outermostLoops
+    go g parent entryPoints = sort
+        [ let toNodeAddr = nodeAddrOf . g.vertexToNodeId
+              loop = Loop
+                { head = toNodeAddr h
+                , body = S.map toNodeAddr body
+                , parent
+                , children =
+                    let g' = makeNodeGraphFromEdges
+                            [ ((), Addr src, dsts)
+                            | src <- S.toList loop.body
+                            , let dsts =
+                                    [ Addr dst
+                                    | Addr dst <- problem.nodes ^.. at src % unwrapped % nodeConts
+                                    , dst `S.member` loop.body
+                                    , dst /= loop.head
+                                    ]
+                            ]
+                     in go g' (Just loop) [Addr loop.head]
+                }
+          in loop
+        | (h, body) <- loopsFromGeneric g.graph (map g.nodeIdToVertex entryPoints)
         ]
 
-allInnerLoops :: NodeMap -> LoopData -> [Loop]
-allInnerLoops nodes d = execWriter (go (loopsOf d))
+flattenLoops :: [Loop] -> [Loop]
+flattenLoops loops =
+    loops ++
+        concat
+            [ flattenLoops loop.children
+            | loop <- loops
+            ]
+
+allLoopsOf :: LoopData -> [Loop]
+allLoopsOf d = flattenLoops d.outermostLoops
+
+innermostLoopContaining :: LoopData -> NodeAddr -> Maybe Loop
+innermostLoopContaining d n = M.lookup n d.members
+
+outermostLoopContaining :: LoopData -> NodeAddr -> Maybe Loop
+outermostLoopContaining d n = go <$> innermostLoopContaining d n
   where
-    go = \case
-        [] -> return ()
-        loop:loops -> do
-            tell [loop]
-            go (loops ++ innerLoopsOf nodes loop)
+    go loop = maybe loop go loop.parent
+
+--
+
+-- TODO remove
+hasInnerLoop :: Loop -> Bool
+hasInnerLoop loop = not (null (innerLoopsOf loop))
+
+innerLoopsOf :: Loop -> [Loop]
+innerLoopsOf loop = loop.children
 
 --
 

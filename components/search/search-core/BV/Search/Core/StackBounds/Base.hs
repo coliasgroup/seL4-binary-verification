@@ -160,17 +160,15 @@ asmArgSeq cSig = take numCArgs $ regArgSeq ++ stackArgSeq
 defaultVisit :: LoopData -> NodeId -> Visit
 defaultVisit loopData n = Visit n (general <> specific)
   where
-    headOpt = case n of
-        Addr addr -> loopHeadOf addr loopData
-        _ -> Nothing
+    loopOpt = preview #_Addr n >>= \addr -> M.lookup addr loopData.heads
     general = M.fromList
-        [ (h, numberVC 0 <> offsetVC 1)
-        | h <- loopHeadsOf loopData
-        , Just h /= headOpt
+        [ (loop.head, numberVC 0 <> offsetVC 1)
+        | loop <- loopData.outermostLoops
+        , Just loop.head /= (loopOpt ^? #_Just % #head)
         ]
     specific = M.fromList
-        [ (h, offsetVC 1)
-        | Just h <- return headOpt
+        [ (loop.head, offsetVC 1)
+        | Just loop <- return loopOpt
         ]
 
 runGraphSlice
