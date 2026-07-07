@@ -34,6 +34,11 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((.=), (<<.=))
 import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Control.Monad.Trans.Resource (ReleaseKey, release, MonadResource)
+import qualified Data.Text as T
+import Data.Acquire (allocateAcquire)
+
+type StderrSink = T.Text -> IO ()
 
 newtype GraphSliceSolverInteractParallel m a
   = GraphSliceSolverInteractParallel { run :: ExceptT GraphSliceSolverInteractParallelFailureInfo (StateT (ParallelState m) (ReaderT ParallelEnv m)) a }
@@ -48,20 +53,28 @@ newtype GraphSliceSolverInteractParallel m a
 data ParallelEnv
   = ParallelEnv
       { solversConfig :: SolversConfig
+      , stderrSink :: StderrSink
       }
   deriving (Generic)
 
 data ParallelState m
   = ParallelState
       { commands :: [SMTProofCheckCommand]
-      , modelConfig :: ModelConfig
       , ctx :: ParallelStateCtx m
       }
   deriving (Generic)
 
 data ParallelStateCtx m
-  = ParallelStateCtxOnline (SolverContext m)
-  | ParallelStateCtxModel (SolverContext m)
+  = ParallelStateCtxOnline (Ctx m)
+  | ParallelStateCtxModel (Ctx m)
+  deriving (Generic)
+
+data Ctx m
+  = Ctx
+      { ctx :: SolverContext m
+      , modelConfig :: ModelConfig
+      , releaseKey :: ReleaseKey
+      }
   deriving (Generic)
 
 liftPure :: Monad m => StateT (ParallelState m) (Reader ParallelEnv) a -> GraphSliceSolverInteractParallel m a
@@ -82,9 +95,9 @@ data GraphSliceSolverFailureReason
   deriving (Eq, Generic, Ord, Show)
 
 runGraphSliceSolverInteractParallel
-    :: (MonadUnliftIO m, MonadThrow m)
-    => SolversConfig -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
-runGraphSliceSolverInteractParallel solversConfig m = do
+    :: (MonadUnliftIO m, MonadThrow m, MonadResource m)
+    => SolversConfig -> StderrSink -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
+runGraphSliceSolverInteractParallel solversConfig stderrSink m = do
     runReaderT (evalStateT (runExceptT m'.run) initState) env
   where
     m' = do
@@ -92,25 +105,48 @@ runGraphSliceSolverInteractParallel solversConfig m = do
         m
     env = ParallelEnv
         { solversConfig
+        , stderrSink
         }
     initState = ParallelState
         { commands = []
         , ctx = undefined
         }
 
-instance (MonadUnliftIO m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
-    sendCommand s = do
-        undefined
+initCtx :: (MonadUnliftIO m, MonadThrow m, MonadResource m) => StderrSink -> SolversConfig -> m (Ctx m)
+initCtx solversConfig = do
+    allocateAcquire $ acquireSolverContext
+    undefined
+    -- lift $ do
+    --     sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
+    --     sendSimpleCommandExpectingSuccess $ SetOption (ProduceModelsOption True)
+    --     sendSimpleCommandExpectingSuccess $ SetLogic defaultLogic
+    --     traverse_ sendExpectingSuccess (modelConfigPreamble modelConfig)
+  where
+    Just online = solversConfig.online
 
-instance (MonadUnliftIO m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
+instance (MonadUnliftIO m, MonadThrow m, MonadResource m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
+    sendCommand s = do
+        stateCtx <- liftPure $ use #ctx
+        case stateCtx of
+            ParallelStateCtxOnline ctx -> do
+                liftPure $ modifying #commands (++ [s])
+                lift $ flip runSolverT ctx.ctx $ sendSimpleCommandExpectingSuccess $ configureCommand ctx.modelConfig s
+            ParallelStateCtxModel ctx -> do
+                lift $ release ctx.releaseKey
+                solversConfig <- liftPure $ gview #solversConfig
+                stderrSink <- liftPure $ gview #stderrSink
+                ctx' <- lift $ initCtx stderrSink solversConfig
+                liftPure $ #ctx .= ParallelStateCtxOnline ctx'
+                sendCommand s
+
+instance (MonadUnliftIO m, MonadThrow m, MonadResource m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
     checkSExprHyp hyp = do
         undefined
 
-instance (MonadUnliftIO m, MonadThrow m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
+instance (MonadUnliftIO m, MonadThrow m, MonadResource m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
     getSExprValue s = do
         stateCtx <- liftPure $ use #ctx
         let ParallelStateCtxModel ctx = stateCtx
-        modelConfig <- liftPure $ use #modelConfig
-        r <- lift $ flip runSolverT ctx $ getValue [configureSExpr modelConfig s]
+        r <- lift $ flip runSolverT ctx.ctx $ getValue [configureSExpr ctx.modelConfig s]
         let [value] = r
         return value

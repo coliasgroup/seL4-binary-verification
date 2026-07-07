@@ -308,6 +308,7 @@ library search-core
     , optics
     , parallel
     , process
+    , resourcet
     , safe-exceptions
     , sel4-bv:core
     , sel4-bv:logging

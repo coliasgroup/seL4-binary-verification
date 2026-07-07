@@ -161,13 +161,19 @@ runSolver
 runSolver = runSolverWith id
 
 runSolverWith
-    :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
+    :: forall m a. (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
     => (SolverContext m -> SolverContext m) -> (T.Text -> m ()) -> CreateProcess -> SolverT m a -> m a
 runSolverWith modifyCtx stderrSink cmd m = withRunInIO $ \run ->
-    withAcquire (acquireSolverContext (run . stderrSink) cmd) $ \ctx ->
-        monitoringSolverContext ctx $
-            run $
-                runSolverT m (modifyCtx (mapSolverContext liftIO ctx))
+    withAcquire (acquireSolverContext (run . stderrSink) cmd) $ \ctx -> run $
+        runSolverWithContext ctx modifyCtx m
+
+runSolverWithContext
+    :: (MonadIO m, MonadUnliftIO m, MonadThrow m, MonadMask m)
+    => SolverContext IO -> (SolverContext m -> SolverContext m) -> SolverT m a -> m a
+runSolverWithContext ctx modifyCtx m = withRunInIO $ \run ->
+    monitoringSolverContext ctx $
+        run $
+            runSolverT m (modifyCtx (mapSolverContext liftIO ctx))
 
 data SolverProcessException
   = SolverProcessExceptionSource (Either SomeException ())

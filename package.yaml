@@ -217,6 +217,8 @@ internal-libraries:
       - sel4-bv:core
       - sel4-bv:system-core
       - sel4-bv:utils
+      # external
+      - resourcet
 
   search-system-core:
     visibility: public
