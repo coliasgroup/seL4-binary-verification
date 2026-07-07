@@ -1,9 +1,5 @@
 module BV.Utils
-    ( allM
-    , andM
-    , anyM
-    , applyWhenM
-    , compose2
+    ( compose2
     , compose3
     , compose4
     , compose5
@@ -18,24 +14,18 @@ module BV.Utils
     , fromIntegerChecked
     , is
     , mapFilterA
-    , mapFromSetA
-    , orM
-    , setFilterA
     , todo
     , unimplemented
     , unwrapped
     , viewExpecting
-    , whileM
     , (!@)
     ) where
 
-import Control.Monad (filterM, when)
+import Control.Monad (filterM)
 import Data.Either (fromRight)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
-import qualified Data.Set as S
-import Data.Traversable (for)
 import GHC.Stack (HasCallStack)
 import Optics
 import qualified Text.Printf as P
@@ -112,38 +102,8 @@ findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present:
 
 --
 
-allM :: (Monad m, Foldable f) => (a -> m Bool) -> f a -> m Bool
-allM f = foldr (andM . f) (pure True)
-
-anyM :: (Monad m, Foldable f) => (a -> m Bool) -> f a -> m Bool
-anyM f = foldr (orM . f) (pure False)
-
-orM :: Monad m => m Bool -> m Bool -> m Bool
-orM m1 m2 = m1 >>= \x -> if x then return True else m2
-
-andM :: Monad m => m Bool -> m Bool -> m Bool
-andM m1 m2 = m1 >>= \x -> if x then m2 else return False
-
-whileM :: Monad m => m Bool -> m () -> m ()
-whileM cond body = go
-  where
-    go = do
-        p <- cond
-        when p $ do
-            body
-            go
-
-setFilterA :: (Ord a, Applicative f) => (a -> f Bool) -> S.Set a -> f (S.Set a)
-setFilterA f s = S.fromList <$> filterM f (S.toList s)
-
 mapFilterA :: (Ord k, Applicative f) => (a -> f Bool) -> M.Map k a -> f (M.Map k a)
 mapFilterA f m = M.fromList <$> filterM (f . snd) (M.toList m)
-
-mapFromSetA :: (Ord k, Applicative f) => (k -> f a) -> S.Set k -> f (M.Map k a)
-mapFromSetA f s = fmap M.fromList $ for (S.toList s) $ \k -> (k,) <$> f k
-
-applyWhenM :: Monad m => Bool -> (a -> m a) -> a -> m a
-applyWhenM c f = if c then f else return
 
 --
 
