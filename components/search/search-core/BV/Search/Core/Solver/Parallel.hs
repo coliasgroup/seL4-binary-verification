@@ -168,6 +168,24 @@ initCtx config = do
         traverse_ sendExpectingSuccess (modelConfigPreamble modelConfig)
     return this
 
+onboardCtx
+    :: forall m.
+       ( MonadUnliftIO m
+       , MonadThrow m
+       , MonadMask m
+       , MonadResource m
+       , MonadLoggerWithContext m
+       )
+    => [SMTProofCheckCommand]
+    -> CtxSolverConfig
+    -> m Ctx
+onboardCtx commands config = do
+    this <- initCtx config
+    useCtx this $ \modelConfig -> do
+        for_ commands $ \s -> do
+            sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
+    return this
+
 useCtx
    :: ( MonadUnliftIO m
       , MonadThrow m
@@ -196,12 +214,6 @@ useCtxM m = do
     ctx <- liftPure $ use #ctx
     lift $ useCtx ctx m
 
-instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
-    sendCommand s = do
-        returnToOnline
-        useCtxM $ \modelConfig ->
-            sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
-
 returnToOnline
     :: ( MonadUnliftIO m
        , MonadThrow m
@@ -217,16 +229,20 @@ returnToOnline = do
             hadModel <- liftPure $ #ctx % #haveModel <<.= False
             when hadModel $ useCtxM $ \_ -> sendSimpleCommandExpectingSuccess $ Pop 1
         else do
-            onlineConfig <- liftPure $ gview $ #solversConfig % #online % unwrapped
-            ctx <- lift $ initCtx $ CtxSolverConfigOnline onlineConfig
-            liftPure $ #ctx .= ctx
             commands <- liftPure $ use #commands
-            useCtxM $ \modelConfig -> do
-                for_ commands $ \s -> do
-                    sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
+            onlineConfig <- liftPure $ gview $ #solversConfig % #online % unwrapped
+            ctx <- lift $ onboardCtx commands $ CtxSolverConfigOnline onlineConfig
+            liftPure $ #ctx .= ctx
+
+instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
+    sendCommand s = do
+        returnToOnline
+        useCtxM $ \modelConfig ->
+            sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
     checkSExprHyp hyp = do
+        returnToOnline
         undefined
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
