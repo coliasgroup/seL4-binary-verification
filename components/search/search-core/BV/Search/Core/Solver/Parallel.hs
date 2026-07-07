@@ -17,7 +17,7 @@ import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS)
 import BV.Logging
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Monad
-import BV.SMTLIB2.Process (SolverContext, runSolverT)
+import BV.SMTLIB2.Process (SolverContext, runSolverT, SolverT)
 import BV.SMTLIB2.SExpr
 import BV.System.Core (OnlineSolverConfig (..), SolverCommand (..),
                        SolversConfig (..))
@@ -47,6 +47,7 @@ import BV.SMTLIB2 (showSExpr)
 import BV.System.Core.Utils.Logging (augmentSolverContextWithLogging)
 import Control.Monad.IO.Unlift (UnliftIO(..))
 import Control.Monad.IO.Unlift (UnliftIO(..))
+import Data.Maybe (fromJust)
 
 type StderrSink = T.Text -> IO ()
 
@@ -70,18 +71,40 @@ data ParallelState m
   = ParallelState
       { commands :: [SMTProofCheckCommand]
       , ctx :: Ctx
-      , ctxOnline :: Bool
-      , ctxHaveModel :: Bool
       }
   deriving (Generic)
 
 data Ctx
   = Ctx
       { ctx :: SolverContext IO
-      , modelConfig :: ModelConfig
       , releaseKey :: ReleaseKey
+      , config :: CtxSolverConfig
+      , haveModel :: Bool
       }
   deriving (Generic)
+
+data CtxSolverConfig
+  = CtxSolverConfigOnline OnlineSolverConfig
+  | CtxSolverConfigOffline OfflineSolverConfig
+  deriving (Eq, Generic, Ord, Show)
+
+modelConfigOf :: CtxSolverConfig -> ModelConfig
+modelConfigOf = \case
+    CtxSolverConfigOnline config -> config.modelConfig
+    CtxSolverConfigOffline config -> config.modelConfig
+
+procOf :: CtxSolverConfig -> CreateProcess
+procOf = solverProc . \case
+    CtxSolverConfigOnline config -> config.command
+    CtxSolverConfigOffline config -> config.command
+
+withPushSolverConfigLogContext :: MonadLoggerWithContext m => CtxSolverConfig -> m a -> m a
+withPushSolverConfigLogContext = \case
+    CtxSolverConfigOnline _ ->
+        withPushLogContext "online"
+    CtxSolverConfigOffline config ->
+        withPushLogContext "offline" .
+            withPushLogContext ("solver " ++ config.commandName ++ " " ++ prettyModelConfig config.modelConfig)
 
 liftPure :: Monad m => StateT (ParallelState m) (Reader ((ParallelEnv m))) a -> GraphSliceSolverInteractParallel m a
 liftPure = GraphSliceSolverInteractParallel . lift . mapStateT (mapReaderT (return . runIdentity))
@@ -104,12 +127,10 @@ runGraphSliceSolverInteractParallel
     :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m)
     => SolversConfig -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
 runGraphSliceSolverInteractParallel solversConfig m = do
-    ctx <- initCtx solversConfig
+    ctx <- initCtx (CtxSolverConfigOnline (fromJust solversConfig.online))
     let initState = ParallelState
             { commands = []
             , ctx
-            , ctxOnline = True
-            , ctxHaveModel = False
             }
     runReaderT (evalStateT (runExceptT m.run) initState) env
   where
@@ -117,25 +138,49 @@ runGraphSliceSolverInteractParallel solversConfig m = do
         { solversConfig
         }
 
-initCtx :: forall m. (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => SolversConfig -> m Ctx
-initCtx solversConfig = do
+initCtx
+    :: forall m.
+       ( MonadUnliftIO m
+       , MonadThrow m
+       , MonadMask m
+       , MonadResource m
+       , MonadLoggerWithContext m
+       )
+    => CtxSolverConfig
+    -> m Ctx
+initCtx config = do
     UnliftIO run <- askUnliftIO
     (releaseKey, ctx) <- allocateAcquire $
         acquireSolverContext
-            (run . withPushLogContext "stderr" . logInfoGeneric)
-            (solverProc online.command)
-    runSolverWithContext ctx augmentSolverContextWithLogging $ do
+            (run . withPushSolverConfigLogContext config . withPushLogContext "stderr" . logInfoGeneric)
+            (procOf config)
+    let this = Ctx
+            { ctx
+            , releaseKey = releaseKey
+            , config
+            , haveModel = False
+            }
+    useCtx this $ \modelConfig -> do
         sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
         sendSimpleCommandExpectingSuccess $ SetOption (ProduceModelsOption True)
         sendSimpleCommandExpectingSuccess $ SetLogic defaultLogic
-        traverse_ sendExpectingSuccess (modelConfigPreamble online.modelConfig)
-    return $ Ctx
-      { ctx
-      , modelConfig = online.modelConfig
-      , releaseKey = releaseKey
-      }
-  where
-    Just online = solversConfig.online
+        traverse_ sendExpectingSuccess (modelConfigPreamble modelConfig)
+    return this
+
+useCtx
+   :: ( MonadUnliftIO m
+      , MonadThrow m
+      , MonadMask m
+      , MonadResource m
+      , MonadLoggerWithContext m
+      )
+    => Ctx
+    -> (ModelConfig -> SolverT m a)
+    -> m a
+useCtx ctx m = do
+    withPushSolverConfigLogContext ctx.config $
+        runSolverWithContext ctx.ctx augmentSolverContextWithLogging $
+            m (modelConfigOf ctx.config)
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
     sendCommand s = do
