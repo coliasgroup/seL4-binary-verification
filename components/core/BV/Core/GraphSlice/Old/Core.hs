@@ -552,8 +552,7 @@ addInputEnvs = do
 
 getLoopPcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
 getLoopPcEnv visit = do
-    loop <- askLoopData <&> \loopData ->
-        fromJust (outermostLoopContaining loopData visitAddr) & #head .~ visitAddr
+    loop <- askLoopData <&> \loopData -> loopData.heads M.! visitAddr
     prevPcEnvOpt <- getNodePcEnv $ visit & #restrs %~ M.insert visitAddr (numberVC 0)
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
         memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls loop

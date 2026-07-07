@@ -489,8 +489,7 @@ getInputEnv = withMapSlotTagged #inputEnvs () $ do
 
 getLoopPcEnv :: C t m => Visit -> ExtPcEnv -> TaggedT t m ExtPcEnv
 getLoopPcEnv visit preLoopPcEnv = do
-    loop <- askLoopData <&> \loopData ->
-        fromJust (outermostLoopContaining loopData visitAddr) & #head .~ visitAddr
+    loop <- askLoopData <&> \loopData -> loopData.heads M.! visitAddr
     nonConsts <- filterM (fmap not . flip isConstM loop) (toList (exprEnvVars preLoopPcEnv.env))
     newVars <- fmap M.fromList $ for nonConsts $ \preLoopVar -> (preLoopVar.name,) <$> do
         let preLoopVal = preLoopPcEnv.env ! preLoopVar.name
