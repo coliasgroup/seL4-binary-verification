@@ -87,3 +87,15 @@ runGraphSliceSolverInteractParallel solversConfig m = do
     initState = ParallelState
         { haveModel = False
         }
+
+instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
+    sendCommand s = do
+        undefined
+
+instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
+    checkSExprHyp hyp = do
+        undefined
+
+instance (MonadSolver m, MonadThrow m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
+    getSExprValue s = do
+        undefined
