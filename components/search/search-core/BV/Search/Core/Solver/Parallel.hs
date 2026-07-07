@@ -22,13 +22,14 @@ import BV.SMTLIB2.SExpr
 import BV.System.Core (OnlineSolverConfig (..), SolverCommand (..),
                        SolversConfig (..))
 import BV.Utils
+import BV.System.Utils.Stopwatch (Elapsed, elapsedToSeconds)
 
 import BV.SMTLIB2.Process (acquireSolverContext, runSolverWithContext)
 import Control.Monad (when)
 import Control.Monad.Catch (MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError)
 import Control.Monad.Identity (runIdentity)
-import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO, askUnliftIO, UnliftIO (..))
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT (StateT), evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans, lift)
@@ -40,6 +41,12 @@ import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((.=), (<<.=))
 import System.Process (CreateProcess, proc)
+import BV.System.Core (OfflineSolverConfig (..))
+import Text.Printf (printf)
+import BV.SMTLIB2 (showSExpr)
+import BV.System.Core.Utils.Logging (augmentSolverContextWithLogging)
+import Control.Monad.IO.Unlift (UnliftIO(..))
+import Control.Monad.IO.Unlift (UnliftIO(..))
 
 type StderrSink = T.Text -> IO ()
 
@@ -56,8 +63,6 @@ newtype GraphSliceSolverInteractParallel m a
 data ParallelEnv m
   = ParallelEnv
       { solversConfig :: SolversConfig
-      , modifyCtx :: SolverContext m -> SolverContext m
-      , stderrSink :: StderrSink
       }
   deriving (Generic)
 
@@ -99,10 +104,10 @@ data GraphSliceSolverFailureReason
   deriving (Eq, Generic, Ord, Show)
 
 runGraphSliceSolverInteractParallel
-    :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m)
-    => SolversConfig -> (SolverContext m -> SolverContext m) -> StderrSink -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
-runGraphSliceSolverInteractParallel solversConfig modifyCtx stderrSink m = do
-    ctx <- initCtx modifyCtx stderrSink solversConfig
+    :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m)
+    => SolversConfig -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
+runGraphSliceSolverInteractParallel solversConfig m = do
+    ctx <- initCtx solversConfig
     let initState = ParallelState
             { commands = []
             , ctx = ParallelStateCtxOnline ctx
@@ -111,14 +116,16 @@ runGraphSliceSolverInteractParallel solversConfig modifyCtx stderrSink m = do
   where
     env = ParallelEnv
         { solversConfig
-        , modifyCtx
-        , stderrSink
         }
 
-initCtx :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m) => (SolverContext m -> SolverContext m) -> StderrSink -> SolversConfig -> m Ctx
-initCtx modifyCtx stderrSink solversConfig = do
-    (releaseKey, ctx) <- allocateAcquire $ acquireSolverContext stderrSink (solverProc online.command)
-    runSolverWithContext ctx modifyCtx $ do
+initCtx :: forall m. (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => SolversConfig -> m Ctx
+initCtx solversConfig = do
+    UnliftIO run <- askUnliftIO
+    (releaseKey, ctx) <- allocateAcquire $
+        acquireSolverContext
+            (run . withPushLogContext "stderr" . logInfoGeneric)
+            (solverProc online.command)
+    runSolverWithContext ctx augmentSolverContextWithLogging $ do
         sendSimpleCommandExpectingSuccess $ SetOption (PrintSuccessOption True)
         sendSimpleCommandExpectingSuccess $ SetOption (ProduceModelsOption True)
         sendSimpleCommandExpectingSuccess $ SetLogic defaultLogic
@@ -131,35 +138,52 @@ initCtx modifyCtx stderrSink solversConfig = do
   where
     Just online = solversConfig.online
 
-instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
+instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
     sendCommand s = do
         stateCtx <- liftPure $ use #ctx
         case stateCtx of
             ParallelStateCtxOnline ctx -> do
                 liftPure $ modifying #commands (++ [s])
-                modifyCtx <- liftPure $ gview #modifyCtx
-                lift $ runSolverWithContext ctx.ctx modifyCtx $ sendSimpleCommandExpectingSuccess $ configureCommand ctx.modelConfig s
+                lift $ withPushLogContext "online" $ runSolverWithContext ctx.ctx augmentSolverContextWithLogging $ sendSimpleCommandExpectingSuccess $ configureCommand ctx.modelConfig s
             ParallelStateCtxModel ctx -> do
                 lift $ release ctx.releaseKey
-                modifyCtx <- liftPure $ gview #modifyCtx
                 solversConfig <- liftPure $ gview #solversConfig
-                stderrSink <- liftPure $ gview #stderrSink
-                ctx' <- lift $ initCtx modifyCtx stderrSink solversConfig
+                ctx' <- lift $ initCtx solversConfig
                 liftPure $ #ctx .= ParallelStateCtxOnline ctx'
                 sendCommand s
 
-instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
+instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
     checkSExprHyp hyp = do
         undefined
 
-instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
+instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
     getSExprValue s = do
         stateCtx <- liftPure $ use #ctx
         let ParallelStateCtxModel ctx = stateCtx
-        modifyCtx <- liftPure $ gview #modifyCtx
-        r <- lift $ runSolverWithContext ctx.ctx modifyCtx $ getValue [configureSExpr ctx.modelConfig s]
+        r <- lift $ runSolverWithContext ctx.ctx augmentSolverContextWithLogging $ getValue [configureSExpr ctx.modelConfig s]
         let [value] = r
         return value
+
+withPushLogContextOfflineSolver :: MonadLoggerWithContext m => OfflineSolverConfig -> m a -> m a
+withPushLogContextOfflineSolver solver =
+    withPushLogContext ("solver " ++ solver.commandName ++ " " ++ prettyModelConfig solver.modelConfig)
+
+logOfflineSolverResult :: MonadLoggerWithContext m => Maybe SatResult -> Elapsed -> m ()
+logOfflineSolverResult result elapsed = do
+    case result of
+        Nothing -> do
+            logDebug "timeout"
+        Just Sat -> do
+            logDebug $ "answered sat" ++ elapsedSuffix
+        Just Unsat -> do
+            logDebug $ "answered unsat" ++ elapsedSuffix
+        Just (Unknown reason) -> do
+            logDebug $ "answered unknown: " ++ showSExpr reason ++ " " ++ elapsedSuffix
+  where
+    elapsedSuffix = makeElapsedSuffix elapsed
+
+makeElapsedSuffix :: Elapsed -> String
+makeElapsedSuffix elapsed = printf " (%.2fs)" (fromRational (elapsedToSeconds elapsed) :: Double)
 
 -- TODO unify with other def
 solverProc :: SolverCommand -> CreateProcess

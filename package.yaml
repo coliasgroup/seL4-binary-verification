@@ -216,6 +216,8 @@ internal-libraries:
       - sel4-bv:logging
       - sel4-bv:core
       - sel4-bv:system-core
+      - sel4-bv:system-utils
+      - sel4-bv:system
       - sel4-bv:utils
       # external
       - resourcet
@@ -244,7 +246,6 @@ internal-libraries:
       - sel4-bv:smtlib2-process
       - sel4-bv:logging
       - sel4-bv:core
-      - sel4-bv:search-core
       - sel4-bv:concrete-syntax
       - sel4-bv:target-dir
       - sel4-bv:utils
