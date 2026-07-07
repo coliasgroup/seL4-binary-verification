@@ -102,11 +102,8 @@ runGraphSliceSolverInteractParallel
     :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m)
     => SolversConfig -> (SolverContext m -> SolverContext m) -> StderrSink -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
 runGraphSliceSolverInteractParallel solversConfig modifyCtx stderrSink m = do
-    runReaderT (evalStateT (runExceptT m'.run) initState) env
+    runReaderT (evalStateT (runExceptT m.run) initState) env
   where
-    m' = do
-        -- commonSolverSetup
-        m
     env = ParallelEnv
         { solversConfig
         , modifyCtx
