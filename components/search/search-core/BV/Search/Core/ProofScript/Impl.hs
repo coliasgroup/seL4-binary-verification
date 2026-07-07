@@ -1,5 +1,5 @@
 module BV.Search.Core.ProofScript.Impl
-    ( DiscoverProofScriptInput(..)
+    ( DiscoverProofScriptInput (..)
     , discoverProofScript
     ) where
 
@@ -11,7 +11,8 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr (andE, eqE, falseE, ifThenElseE, minusE, notE,
                                   trueE, varE, word32E, word32T)
 import BV.Core.Types.Extras.Problem
-import BV.Core.Types.Extras.Program (signatureOfFunction, FunctionSignature, LookupFunctionSignature)
+import BV.Core.Types.Extras.Program (FunctionSignature, LookupFunctionSignature,
+                                     signatureOfFunction)
 import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcFalseH)
 import BV.Logging
 import BV.Utils (ensure, ensureM, expecting, todo)

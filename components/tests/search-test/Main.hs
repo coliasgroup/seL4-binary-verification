@@ -18,13 +18,13 @@ import BV.System.Utils.UnliftIO.Async
 import BV.Test.Utils
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Foldable (for_)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Optics
 import System.FilePath ((<.>), (</>))
 import Test.Tasty
 import Test.Tasty.HUnit
-import Data.Foldable (for_)
 
 main :: IO ()
 main = bvMain $ \opts ->
@@ -82,7 +82,7 @@ testProofScripts = withLoggingOpts (loggingOpts ?opts "proof-scripts.log") $ do
     for_ targets $ \target -> do
         -- let [pairingId] = [ pid | pid <- stagesInput pid.asm == target ]
         -- let input = DiscoverProofScriptInput
-        --         { graphSliceInput = 
+        --         { graphSliceInput =
 
         --         }
         undefined

@@ -9,11 +9,11 @@ import BV.TargetDir
 import BV.Test.Utils.Paths (defaultGraphRefineDir, defaultOutDir,
                             defaultTestTargetDir)
 
+import Data.List.Extra (splitOn)
 import Data.Proxy (Proxy (Proxy))
 import Data.Typeable (Typeable)
 import Test.Tasty
 import Test.Tasty.Options
-import Data.List.Extra (splitOn)
 
 data CustomOpts
   = CustomOpts

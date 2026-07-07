@@ -18,8 +18,8 @@ import BV.Logging
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Monad
 import BV.SMTLIB2.SExpr
-import BV.Utils
 import BV.System.Core (SolversConfig)
+import BV.Utils
 
 import Control.Monad (when)
 import Control.Monad.Catch (MonadThrow)

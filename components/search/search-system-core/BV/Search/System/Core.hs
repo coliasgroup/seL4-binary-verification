@@ -1,8 +1,8 @@
 module BV.Search.System.Core
     ( discoverInlineScript'
+    , discoverProofScript'
     , discoverStackBounds'
     , runGraphSliceSolverInteractSimple'
-    , discoverProofScript'
     ) where
 
 import BV.Core.Types

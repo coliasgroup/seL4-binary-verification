@@ -2,6 +2,7 @@ module BV.SMTLIB2.Process
     ( SolverContext (..)
     , SolverProcessException (..)
     , SolverT (..)
+    , acquireSolverContext
     , mapSolverContext
     , monitorSolverContext
     , monitoringSolverContext
