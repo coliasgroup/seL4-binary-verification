@@ -102,9 +102,10 @@ runGraphSliceSolverInteractParallel
     :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m)
     => SolversConfig -> (SolverContext m -> SolverContext m) -> StderrSink -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
 runGraphSliceSolverInteractParallel solversConfig modifyCtx stderrSink m = do
+    ctx <- initCtx modifyCtx stderrSink solversConfig
     let initState = ParallelState
             { commands = []
-            , ctx = undefined
+            , ctx = ParallelStateCtxOnline ctx
             }
     runReaderT (evalStateT (runExceptT m.run) initState) env
   where
