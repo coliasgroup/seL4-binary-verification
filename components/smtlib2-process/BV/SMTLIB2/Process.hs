@@ -9,6 +9,7 @@ module BV.SMTLIB2.Process
     , runSolver
     , runSolverT
     , runSolverWith
+    , runSolverWithContext
     ) where
 
 import BV.SMTLIB2 (MonadSolver (..), SExpr, SolverTimeout,
