@@ -20,6 +20,7 @@ import BV.SMTLIB2.Monad
 import BV.SMTLIB2.SExpr
 import BV.System.Core (SolversConfig)
 import BV.Utils
+import BV.SMTLIB2.Process (SolverContext)
 
 import Control.Monad (when)
 import Control.Monad.Catch (MonadThrow)
@@ -34,7 +35,7 @@ import Optics
 import Optics.State.Operators ((.=), (<<.=))
 
 newtype GraphSliceSolverInteractParallel m a
-  = GraphSliceSolverInteractParallel { run :: ExceptT GraphSliceSolverInteractParallelFailureInfo (StateT ParallelState (ReaderT ParallelEnv m)) a }
+  = GraphSliceSolverInteractParallel { run :: ExceptT GraphSliceSolverInteractParallelFailureInfo (StateT (ParallelState m) (ReaderT ParallelEnv m)) a }
   deriving newtype
     ( Applicative
     , Functor
@@ -49,13 +50,19 @@ data ParallelEnv
       }
   deriving (Generic)
 
-data ParallelState
+data ParallelState m
   = ParallelState
-      { haveModel :: Bool
+      { commands :: [SMTProofCheckCommand]
+      , ctx :: ParallelStateCtx m
       }
   deriving (Generic)
 
-liftPure :: Monad m => StateT ParallelState (Reader ParallelEnv) a -> GraphSliceSolverInteractParallel m a
+data ParallelStateCtx m
+  = ParallelStateCtxOnline (SolverContext m)
+  | ParallelStateCtxModel (SolverContext m)
+  deriving (Generic)
+
+liftPure :: Monad m => StateT (ParallelState m) (Reader ParallelEnv) a -> GraphSliceSolverInteractParallel m a
 liftPure = GraphSliceSolverInteractParallel . lift . mapStateT (mapReaderT (return . runIdentity))
 
 instance MonadTrans GraphSliceSolverInteractParallel where
@@ -85,7 +92,8 @@ runGraphSliceSolverInteractParallel solversConfig m = do
         { solversConfig
         }
     initState = ParallelState
-        { haveModel = False
+        { commands = []
+        , ctx = undefined
         }
 
 instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
