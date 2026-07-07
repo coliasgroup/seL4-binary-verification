@@ -16,6 +16,8 @@ module BV.Core.Types.Extras.Problem
     , inlineScriptsEquivalent
     , innermostLoopContaining
     , isReachableFrom
+    , loopIsComplex
+    , loopIsSimple
     , makeNodeGraph
     , makeProblemWithAnalysisLens
     , outermostLoopContaining
@@ -23,8 +25,6 @@ module BV.Core.Types.Extras.Problem
     , problemArgRenames
     , reachableFrom
     , varNamesOfProblem
-    , loopIsSimple
-    , loopIsComplex
     ) where
 
 import BV.Core.Types

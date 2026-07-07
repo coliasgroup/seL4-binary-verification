@@ -14,7 +14,7 @@ import BV.Core.Types
 import BV.Core.Types.Extras.Expr (notE)
 import BV.Core.Types.Extras.Problem
 import BV.Core.Types.Extras.ProofCheck
-import BV.Utils (anyM, expecting, expectingAt, is)
+import BV.Utils (expecting, expectingAt, is)
 
 import Control.Applicative (asum)
 import Control.Monad (filterM, guard, unless)
@@ -23,6 +23,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (runMaybeT)
 import Control.Monad.Writer (execWriterT, tell)
 import Data.Foldable (for_, toList, traverse_)
+import Data.Foldable.Extra (anyM)
 import Data.Functor (void)
 import Data.List (sort)
 import Data.Map (Map)
