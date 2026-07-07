@@ -231,12 +231,12 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
     getSExprValue s = do
-        undefined
-        -- stateCtx <- liftPure $ use #ctx
-        -- let ParallelStateCtxModel ctx = stateCtx
-        -- r <- lift $ runSolverWithContext ctx.ctx augmentSolverContextWithLogging $ getValue [configureSExpr ctx.modelConfig s]
-        -- let [value] = r
-        -- return value
+        haveModel <- liftPure $ use $ #ctx % #haveModel
+        ensureM haveModel
+        useCtxM $ \modelConfig -> do
+            r <- getValue [configureSExpr modelConfig s]
+            let [value] = r
+            return value
 
 withPushLogContextOfflineSolver :: MonadLoggerWithContext m => OfflineSolverConfig -> m a -> m a
 withPushLogContextOfflineSolver solver =
