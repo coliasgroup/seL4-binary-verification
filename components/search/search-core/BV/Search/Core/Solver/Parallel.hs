@@ -198,30 +198,9 @@ useCtxM m = do
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
     sendCommand s = do
-        -- ctx <- liftPure $ use #ctx
-        -- ctxOnline <- liftPure $ use #ctxOnline
-        -- ctxHaveModel <- liftPure $ use #ctxHaveModel
-        -- if ctxOnline
-        --     then do
-        --         if ctxHaveModel
-        --             then do
-        --                 undefined
-        --             else do
-        --                 undefined
-        --     else do
-        --         ensureM ctxHaveModel
-                undefined
-
-            -- ParallelStateCtxOnline { ctx, haveModel } -> do
-            --     liftPure $ modifying #commands (++ [s])
-            --     lift $ withPushLogContext "online" $ runSolverWithContext ctx.ctx augmentSolverContextWithLogging $ sendSimpleCommandExpectingSuccess $ configureCommand ctx.modelConfig s
-            -- ParallelStateCtxModel ctx -> do
-            --     lift $ release ctx.releaseKey
-            --     solversConfig <- liftPure $ gview #solversConfig
-            --     ctx' <- lift $ initCtx solversConfig
-            --     liftPure $ #ctx .= ParallelStateCtxOnline ctx'
-            --     sendCommand s
-
+        returnToOnline
+        useCtxM $ \modelConfig ->
+            sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
 
 returnToOnline
     :: ( MonadUnliftIO m
@@ -243,8 +222,8 @@ returnToOnline = do
             liftPure $ #ctx .= ctx
             commands <- liftPure $ use #commands
             useCtxM $ \modelConfig -> do
-                for_ commands $ \command -> do
-                    sendSimpleCommandExpectingSuccess $ configureCommand modelConfig command
+                for_ commands $ \s -> do
+                    sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
     checkSExprHyp hyp = do
