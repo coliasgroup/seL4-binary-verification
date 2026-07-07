@@ -20,7 +20,7 @@ import BV.SMTLIB2.Monad
 import BV.SMTLIB2.SExpr
 import BV.System.Core (SolversConfig)
 import BV.Utils
-import BV.SMTLIB2.Process (SolverContext)
+import BV.SMTLIB2.Process (SolverContext, runSolverT)
 
 import Control.Monad (when)
 import Control.Monad.Catch (MonadThrow)
@@ -54,6 +54,7 @@ data ParallelEnv
 data ParallelState m
   = ParallelState
       { commands :: [SMTProofCheckCommand]
+      , modelConfig :: ModelConfig
       , ctx :: ParallelStateCtx m
       }
   deriving (Generic)
@@ -97,14 +98,19 @@ runGraphSliceSolverInteractParallel solversConfig m = do
         , ctx = undefined
         }
 
-instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
+instance (MonadUnliftIO m, MonadThrow m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
     sendCommand s = do
         undefined
 
-instance (MonadSolver m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
+instance (MonadUnliftIO m, MonadThrow m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
     checkSExprHyp hyp = do
         undefined
 
-instance (MonadSolver m, MonadThrow m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
+instance (MonadUnliftIO m, MonadThrow m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
     getSExprValue s = do
-        undefined
+        stateCtx <- liftPure $ use #ctx
+        let ParallelStateCtxModel ctx = stateCtx
+        modelConfig <- liftPure $ use #modelConfig
+        r <- lift $ flip runSolverT ctx $ getValue [configureSExpr modelConfig s]
+        let [value] = r
+        return value
