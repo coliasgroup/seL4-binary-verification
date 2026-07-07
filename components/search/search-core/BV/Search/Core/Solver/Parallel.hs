@@ -69,13 +69,10 @@ data ParallelEnv m
 data ParallelState m
   = ParallelState
       { commands :: [SMTProofCheckCommand]
-      , ctx :: ParallelStateCtx m
+      , ctx :: Ctx
+      , ctxOnline :: Bool
+      , ctxHaveModel :: Bool
       }
-  deriving (Generic)
-
-data ParallelStateCtx m
-  = ParallelStateCtxOnline Ctx
-  | ParallelStateCtxModel Ctx
   deriving (Generic)
 
 data Ctx
@@ -110,7 +107,9 @@ runGraphSliceSolverInteractParallel solversConfig m = do
     ctx <- initCtx solversConfig
     let initState = ParallelState
             { commands = []
-            , ctx = ParallelStateCtxOnline ctx
+            , ctx
+            , ctxOnline = True
+            , ctxHaveModel = False
             }
     runReaderT (evalStateT (runExceptT m.run) initState) env
   where
@@ -140,17 +139,39 @@ initCtx solversConfig = do
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
     sendCommand s = do
-        stateCtx <- liftPure $ use #ctx
-        case stateCtx of
-            ParallelStateCtxOnline ctx -> do
-                liftPure $ modifying #commands (++ [s])
-                lift $ withPushLogContext "online" $ runSolverWithContext ctx.ctx augmentSolverContextWithLogging $ sendSimpleCommandExpectingSuccess $ configureCommand ctx.modelConfig s
-            ParallelStateCtxModel ctx -> do
-                lift $ release ctx.releaseKey
-                solversConfig <- liftPure $ gview #solversConfig
-                ctx' <- lift $ initCtx solversConfig
-                liftPure $ #ctx .= ParallelStateCtxOnline ctx'
-                sendCommand s
+        ctx <- liftPure $ use #ctx
+        ctxOnline <- liftPure $ use #ctxOnline
+        ctxHaveModel <- liftPure $ use #ctxHaveModel
+        if ctxOnline
+            then do
+                if ctxHaveModel
+                    then do
+                        undefined
+                    else do
+                        undefined
+            else do
+                ensureM ctxHaveModel
+                undefined
+
+            -- ParallelStateCtxOnline { ctx, haveModel } -> do
+            --     liftPure $ modifying #commands (++ [s])
+            --     lift $ withPushLogContext "online" $ runSolverWithContext ctx.ctx augmentSolverContextWithLogging $ sendSimpleCommandExpectingSuccess $ configureCommand ctx.modelConfig s
+            -- ParallelStateCtxModel ctx -> do
+            --     lift $ release ctx.releaseKey
+            --     solversConfig <- liftPure $ gview #solversConfig
+            --     ctx' <- lift $ initCtx solversConfig
+            --     liftPure $ #ctx .= ParallelStateCtxOnline ctx'
+            --     sendCommand s
+
+
+popIfPushed :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => GraphSliceSolverInteractParallel m ()
+popIfPushed = do
+    ctxOnline <- liftPure $ use #ctxOnline
+    ensureM ctxOnline
+    hadModel <- liftPure $ #ctxHaveModel <<.= False
+    ctx <- liftPure $ use #ctx
+    when hadModel $ lift $ sendSimpleCommandExpectingSuccess $ Pop 1
+
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
     checkSExprHyp hyp = do
@@ -158,11 +179,12 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
     getSExprValue s = do
-        stateCtx <- liftPure $ use #ctx
-        let ParallelStateCtxModel ctx = stateCtx
-        r <- lift $ runSolverWithContext ctx.ctx augmentSolverContextWithLogging $ getValue [configureSExpr ctx.modelConfig s]
-        let [value] = r
-        return value
+        undefined
+        -- stateCtx <- liftPure $ use #ctx
+        -- let ParallelStateCtxModel ctx = stateCtx
+        -- r <- lift $ runSolverWithContext ctx.ctx augmentSolverContextWithLogging $ getValue [configureSExpr ctx.modelConfig s]
+        -- let [value] = r
+        -- return value
 
 withPushLogContextOfflineSolver :: MonadLoggerWithContext m => OfflineSolverConfig -> m a -> m a
 withPushLogContextOfflineSolver solver =
