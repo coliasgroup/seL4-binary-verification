@@ -43,15 +43,15 @@ newtype GraphSliceSolverInteractParallel m a
     , MonadLoggerWithContext
     )
 
-data ParallelState
-  = ParallelState
-      { haveModel :: Bool
-      }
-  deriving (Generic)
-
 data ParallelEnv
   = ParallelEnv
       { solversConfig :: SolversConfig
+      }
+  deriving (Generic)
+
+data ParallelState
+  = ParallelState
+      { haveModel :: Bool
       }
   deriving (Generic)
 

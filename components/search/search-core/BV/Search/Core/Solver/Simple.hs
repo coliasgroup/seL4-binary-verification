@@ -42,16 +42,16 @@ newtype GraphSliceSolverInteractSimple m a
     , MonadLoggerWithContext
     )
 
-data SimpleState
-  = SimpleState
-      { haveModel :: Bool
-      }
-  deriving (Generic)
-
 data SimpleEnv
   = SimpleEnv
       { timeout :: Maybe SolverTimeout
       , modelConfig :: ModelConfig
+      }
+  deriving (Generic)
+
+data SimpleState
+  = SimpleState
+      { haveModel :: Bool
       }
   deriving (Generic)
 
