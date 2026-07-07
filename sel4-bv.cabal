@@ -312,6 +312,7 @@ library search-core
     , sel4-bv:core
     , sel4-bv:logging
     , sel4-bv:smtlib2
+    , sel4-bv:system-core
     , sel4-bv:utils
     , stm
     , text
@@ -564,7 +565,6 @@ library system-core
     , sel4-bv:concrete-syntax
     , sel4-bv:core
     , sel4-bv:logging
-    , sel4-bv:search-core
     , sel4-bv:smtlib2
     , sel4-bv:smtlib2-process
     , sel4-bv:system-utils

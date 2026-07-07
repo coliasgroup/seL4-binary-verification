@@ -19,6 +19,7 @@ import BV.SMTLIB2.Command
 import BV.SMTLIB2.Monad
 import BV.SMTLIB2.SExpr
 import BV.Utils
+import BV.System.Core (SolversConfig)
 
 import Control.Monad (when)
 import Control.Monad.Catch (MonadThrow)
@@ -50,8 +51,7 @@ data ParallelState
 
 data ParallelEnv
   = ParallelEnv
-      { timeout :: Maybe SolverTimeout
-      , modelConfig :: ModelConfig
+      { solversConfig :: SolversConfig
       }
   deriving (Generic)
 
@@ -74,16 +74,15 @@ data GraphSliceSolverFailureReason
 
 runGraphSliceSolverInteractParallel
     :: (MonadSolver m, MonadThrow m)
-    => Maybe SolverTimeout -> ModelConfig -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
-runGraphSliceSolverInteractParallel timeout modelConfig m = do
+    => SolversConfig -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
+runGraphSliceSolverInteractParallel solversConfig m = do
     runReaderT (evalStateT (runExceptT m'.run) initState) env
   where
     m' = do
         -- commonSolverSetup
         m
     env = ParallelEnv
-        { timeout
-        , modelConfig
+        { solversConfig
         }
     initState = ParallelState
         { haveModel = False
