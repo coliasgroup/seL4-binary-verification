@@ -33,6 +33,7 @@ import Data.Foldable (traverse_)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((.=), (<<.=))
+import Control.Monad.IO.Unlift (MonadUnliftIO)
 
 newtype GraphSliceSolverInteractParallel m a
   = GraphSliceSolverInteractParallel { run :: ExceptT GraphSliceSolverInteractParallelFailureInfo (StateT (ParallelState m) (ReaderT ParallelEnv m)) a }
@@ -80,7 +81,7 @@ data GraphSliceSolverFailureReason
   deriving (Eq, Generic, Ord, Show)
 
 runGraphSliceSolverInteractParallel
-    :: (MonadSolver m, MonadThrow m)
+    :: (MonadUnliftIO m, MonadThrow m)
     => SolversConfig -> GraphSliceSolverInteractParallel m a -> m (Either GraphSliceSolverInteractParallelFailureInfo a)
 runGraphSliceSolverInteractParallel solversConfig m = do
     runReaderT (evalStateT (runExceptT m'.run) initState) env
