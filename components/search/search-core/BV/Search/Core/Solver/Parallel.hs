@@ -17,37 +17,35 @@ import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS)
 import BV.Logging
 import BV.SMTLIB2.Command
 import BV.SMTLIB2.Monad
-import BV.SMTLIB2.Process (SolverContext, runSolverT, SolverT)
+import BV.SMTLIB2.Process (SolverContext, SolverT, runSolverT)
 import BV.SMTLIB2.SExpr
 import BV.System.Core (OnlineSolverConfig (..), SolverCommand (..),
                        SolversConfig (..))
-import BV.Utils
 import BV.System.Utils.Stopwatch (Elapsed, elapsedToSeconds)
+import BV.Utils
 
+import BV.SMTLIB2 (showSExpr)
 import BV.SMTLIB2.Process (acquireSolverContext, runSolverWithContext)
+import BV.System.Core (OfflineSolverConfig (..))
+import BV.System.Core.Utils.Logging (augmentSolverContextWithLogging)
 import Control.Monad (when)
 import Control.Monad.Catch (MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError)
 import Control.Monad.Identity (runIdentity)
-import Control.Monad.IO.Unlift (MonadUnliftIO, askUnliftIO, UnliftIO (..))
+import Control.Monad.IO.Unlift (MonadUnliftIO, UnliftIO (..), askUnliftIO)
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT (StateT), evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Resource (MonadResource, ReleaseKey, release)
 import Data.Acquire (allocateAcquire)
-import Data.Foldable (traverse_)
+import Data.Foldable (for_, traverse_)
+import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((.=), (<<.=))
 import System.Process (CreateProcess, proc)
-import BV.System.Core (OfflineSolverConfig (..))
 import Text.Printf (printf)
-import BV.SMTLIB2 (showSExpr)
-import BV.System.Core.Utils.Logging (augmentSolverContextWithLogging)
-import Control.Monad.IO.Unlift (UnliftIO(..))
-import Control.Monad.IO.Unlift (UnliftIO(..))
-import Data.Maybe (fromJust)
 
 type StderrSink = T.Text -> IO ()
 
@@ -87,6 +85,9 @@ data CtxSolverConfig
   = CtxSolverConfigOnline OnlineSolverConfig
   | CtxSolverConfigOffline OfflineSolverConfig
   deriving (Eq, Generic, Ord, Show)
+
+isOnline :: Ctx -> Bool
+isOnline ctx = is #_CtxSolverConfigOnline ctx.config
 
 modelConfigOf :: CtxSolverConfig -> ModelConfig
 modelConfigOf = \case
@@ -182,20 +183,33 @@ useCtx ctx m = do
         runSolverWithContext ctx.ctx augmentSolverContextWithLogging $
             m (modelConfigOf ctx.config)
 
+useCtxM
+   :: ( MonadUnliftIO m
+      , MonadThrow m
+      , MonadMask m
+      , MonadResource m
+      , MonadLoggerWithContext m
+      )
+    => (ModelConfig -> SolverT m a)
+    -> GraphSliceSolverInteractParallel m a
+useCtxM m = do
+    ctx <- liftPure $ use #ctx
+    lift $ useCtx ctx m
+
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
     sendCommand s = do
-        ctx <- liftPure $ use #ctx
-        ctxOnline <- liftPure $ use #ctxOnline
-        ctxHaveModel <- liftPure $ use #ctxHaveModel
-        if ctxOnline
-            then do
-                if ctxHaveModel
-                    then do
-                        undefined
-                    else do
-                        undefined
-            else do
-                ensureM ctxHaveModel
+        -- ctx <- liftPure $ use #ctx
+        -- ctxOnline <- liftPure $ use #ctxOnline
+        -- ctxHaveModel <- liftPure $ use #ctxHaveModel
+        -- if ctxOnline
+        --     then do
+        --         if ctxHaveModel
+        --             then do
+        --                 undefined
+        --             else do
+        --                 undefined
+        --     else do
+        --         ensureM ctxHaveModel
                 undefined
 
             -- ParallelStateCtxOnline { ctx, haveModel } -> do
@@ -209,14 +223,28 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
             --     sendCommand s
 
 
-popIfPushed :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => GraphSliceSolverInteractParallel m ()
-popIfPushed = do
-    ctxOnline <- liftPure $ use #ctxOnline
-    ensureM ctxOnline
-    hadModel <- liftPure $ #ctxHaveModel <<.= False
-    ctx <- liftPure $ use #ctx
-    when hadModel $ lift $ sendSimpleCommandExpectingSuccess $ Pop 1
-
+returnToOnline
+    :: ( MonadUnliftIO m
+       , MonadThrow m
+       , MonadMask m
+       , MonadResource m
+       , MonadLoggerWithContext m
+       )
+    => GraphSliceSolverInteractParallel m ()
+returnToOnline = do
+    online <- liftPure $ use $ #ctx % to isOnline
+    if online
+        then do
+            hadModel <- liftPure $ #ctx % #haveModel <<.= False
+            when hadModel $ useCtxM $ \_ -> sendSimpleCommandExpectingSuccess $ Pop 1
+        else do
+            onlineConfig <- liftPure $ gview $ #solversConfig % #online % unwrapped
+            ctx <- lift $ initCtx $ CtxSolverConfigOnline onlineConfig
+            liftPure $ #ctx .= ctx
+            commands <- liftPure $ use #commands
+            useCtxM $ \modelConfig -> do
+                for_ commands $ \command -> do
+                    sendSimpleCommandExpectingSuccess $ configureCommand modelConfig command
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
     checkSExprHyp hyp = do
