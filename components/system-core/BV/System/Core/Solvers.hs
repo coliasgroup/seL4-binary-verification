@@ -20,6 +20,7 @@ module BV.System.Core.Solvers
     , minNumJobs
     , prettySolverScope
     , runSolvers
+    , offlineSolverConfigsForSingleCheck
     ) where
 
 import BV.Core.Prelude

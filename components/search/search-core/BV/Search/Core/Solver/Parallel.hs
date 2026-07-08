@@ -20,13 +20,13 @@ import BV.SMTLIB2.Monad
 import BV.SMTLIB2.Process (SolverContext, SolverT, runSolverT)
 import BV.SMTLIB2.SExpr
 import BV.System.Core (OnlineSolverConfig (..), SolverCommand (..),
-                       SolversConfig (..))
+                       SolversConfig (..), offlineSolverConfigsForSingleCheck)
 import BV.System.Utils.Stopwatch (Elapsed, elapsedToSeconds)
 import BV.Utils
 
 import BV.SMTLIB2 (showSExpr)
 import BV.SMTLIB2.Process (acquireSolverContext, runSolverWithContext)
-import BV.System.Core (OfflineSolverConfig (..))
+import BV.System.Core (OfflineSolverConfig (..), SolverScope (SolverScopeHyp))
 import BV.System.Core.Utils.Logging (augmentSolverContextWithLogging)
 import Control.Monad (when)
 import Control.Monad.Catch (MonadMask, MonadThrow)
@@ -36,7 +36,7 @@ import Control.Monad.IO.Unlift (MonadUnliftIO, UnliftIO (..), askUnliftIO)
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
 import Control.Monad.State (StateT (StateT), evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans, lift)
-import Control.Monad.Trans.Resource (MonadResource, ReleaseKey, release)
+import Control.Monad.Trans.Resource (MonadResource (liftResourceT), ReleaseKey, release)
 import Data.Acquire (allocateAcquire)
 import Data.Foldable (for_, traverse_)
 import Data.Maybe (fromJust)
@@ -46,6 +46,8 @@ import Optics
 import Optics.State.Operators ((.=), (<<.=), (%=))
 import System.Process (CreateProcess, proc)
 import Text.Printf (printf)
+import BV.System.Utils.UnliftIO.Async (forConcurrentlyUnliftIOE)
+import Data.Traversable (for)
 
 type StderrSink = T.Text -> IO ()
 
@@ -278,7 +280,7 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
                             sendSimpleCommandExpectingSuccess $ configureCommand modelConfig assertion
                         return True
                     Just satCtx -> do
-                        liftPure $ #ctx .= satCtx
+                        liftPure $ #ctx .= (satCtx & #haveModel .~ True)
                         return False
       where
         split = splitHyp (notS hyp)
@@ -288,10 +290,32 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
                 }
         par :: GraphSliceSolverInteractParallel m (Maybe Ctx)
         par = do
-            undefined
-        -- TODO
-        -- set haveModel
-        -- throw if timeout
+            solversConfig <- liftPure $ gview $ #solversConfig % #offline
+            commands <- liftPure $ use #commands
+            let configs = offlineSolverConfigsForSingleCheck solversConfig
+            ctxs <- lift $ for configs $ \config -> initCtx $ CtxSolverConfigOffline config
+            r <- lift $ forConcurrentlyUnliftIOE (zip [0..] ctxs) $ \(i, ctx) -> do
+                useCtx ctx $ \modelConfig -> do
+                    for_ commands $ \s -> do
+                        sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
+                rs <- useCtx ctx $ \modelConfig -> do
+                    sendSimpleCommandExpectingSuccess $ Push 1
+                    for_ split $ \s -> do
+                        sendSimpleCommandExpectingSuccess $ Assert $ Assertion $ configureSExpr modelConfig s
+                    checkSatWithTimeout (Just (ctx ^. #config % expecting #_CtxSolverConfigOffline % #timeout))
+                case rs of
+                    Nothing -> return $ Right ()
+                    Just (Unknown msg) -> return $ Left (Left (GraphSliceSolverAnsweredUnknown ctx.config msg))
+                    Just Sat -> return $ Left (Right (Just i))
+                    Just Unsat -> return $ Left (Right Nothing)
+            case r of
+                Right _ -> throwReason $ GraphSliceSolverTimedOut
+                Left (Left reason) -> throwReason reason
+                Left (Right satOpt) -> do
+                    for_ (zip [0..] ctxs) $ \(i, ctx) -> do
+                        when (satOpt /= Just i) $ do
+                            lift $ liftResourceT $ release ctx.releaseKey
+                    return $ satOpt <&> \i -> ctxs !! i
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
     getSExprValue s = do
