@@ -24,7 +24,7 @@ import BV.System.Core (OfflineSolverConfig (..), OnlineSolverConfig (..),
                        SolverCommand (..), SolversConfig (..),
                        offlineSolverConfigsForSingleCheck)
 import BV.System.Core.Utils.Logging (augmentSolverContextWithLogging)
-import BV.System.Utils.Stopwatch (Elapsed, elapsedToSeconds)
+import BV.System.Utils.Stopwatch (Elapsed, elapsedToSeconds, time)
 import BV.System.Utils.UnliftIO.Async (forConcurrentlyUnliftIOE)
 import BV.Utils
 
@@ -298,11 +298,12 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
                 useCtx ctx $ \modelConfig -> do
                     for_ commands $ \s -> do
                         sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
-                rs <- useCtx ctx $ \modelConfig -> do
+                (rs, elapsed) <- time $ useCtx ctx $ \modelConfig -> do
                     sendSimpleCommandExpectingSuccess $ Push 1
                     for_ split $ \s -> do
                         sendSimpleCommandExpectingSuccess $ Assert $ Assertion $ configureSExpr modelConfig s
                     checkSatWithTimeout (Just (ctx ^. #config % expecting #_CtxSolverConfigOffline % #timeout))
+                logOfflineSolverResult rs elapsed
                 case rs of
                     Nothing -> return $ Right ()
                     Just (Unknown msg) -> return $ Left (Left (GraphSliceSolverAnsweredUnknown ctx.config msg))
