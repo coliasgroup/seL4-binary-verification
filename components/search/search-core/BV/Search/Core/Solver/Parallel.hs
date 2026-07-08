@@ -243,7 +243,35 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSolverInteract (GraphSliceSolverInteractParallel m) where
     checkSExprHyp hyp = do
         returnToOnline
-        undefined
+        config <- liftPure $ use $ #ctx % #config % expecting #_CtxSolverConfigOnline
+        let timeout = config.timeout
+        let sendAssert modelConfig s =
+                sendSimpleCommandExpectingSuccess $ Assert $ Assertion $ configureSExpr modelConfig s
+        r <- useCtxM $ \modelConfig -> do
+            sendSimpleCommandExpectingSuccess $ Push 1
+            traverse_ (sendAssert modelConfig) split
+            checkSatWithTimeout (Just timeout)
+        satResult <- case r of
+            Nothing -> return Nothing
+            Just (Unknown msg) -> throwReason $ GraphSliceSolverAnsweredUnknown msg
+            Just Sat -> return $ Just True
+            Just Unsat -> return $ Just False
+        case satResult of
+            Just sat -> do
+                liftPure $ #ctx % #haveModel .= sat
+                when (not sat) $ do
+                    useCtxM $ \modelConfig -> do
+                        sendSimpleCommandExpectingSuccess $ Pop 1
+                        sendAssert modelConfig $ notS (andNS split)
+                return $ not sat
+            Nothing -> do
+                undefined
+      where
+        split = splitHyp (notS hyp)
+        throwReason reason =
+            GraphSliceSolverInteractParallel $ throwError $ GraphSliceSolverInteractParallelFailureInfo
+                { reason
+                }
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
     getSExprValue s = do
