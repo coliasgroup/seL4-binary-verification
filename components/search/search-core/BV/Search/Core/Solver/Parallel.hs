@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Search.Core.Solver.Parallel
-    ( GraphSliceSolverFailureReason (..)
+    ( GraphSliceSolverInteractParallelFailureReason (..)
     , GraphSliceSolverInteractParallel
     , GraphSliceSolverInteractParallelFailureInfo (..)
     , runGraphSliceSolverInteractParallel
@@ -117,11 +117,11 @@ instance MonadTrans GraphSliceSolverInteractParallel where
 
 data GraphSliceSolverInteractParallelFailureInfo
   = GraphSliceSolverInteractParallelFailureInfo
-      { reason :: GraphSliceSolverFailureReason
+      { reason :: GraphSliceSolverInteractParallelFailureReason
       }
   deriving (Eq, Generic, Ord, Show)
 
-data GraphSliceSolverFailureReason
+data GraphSliceSolverInteractParallelFailureReason
   = GraphSliceSolverTimedOut
   | GraphSliceSolverAnsweredUnknown CtxSolverConfig SExpr
   deriving (Eq, Generic, Ord, Show)

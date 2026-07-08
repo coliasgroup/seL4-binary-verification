@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Search.Core.Solver.Simple
-    ( GraphSliceSolverFailureReason (..)
+    ( GraphSliceSolverInteractSimpleFailureReason (..)
     , GraphSliceSolverInteractSimple
     , GraphSliceSolverInteractSimpleFailureInfo (..)
     , runGraphSliceSolverInteractSimple
@@ -63,11 +63,11 @@ instance MonadTrans GraphSliceSolverInteractSimple where
 
 data GraphSliceSolverInteractSimpleFailureInfo
   = GraphSliceSolverInteractSimpleFailureInfo
-      { reason :: GraphSliceSolverFailureReason
+      { reason :: GraphSliceSolverInteractSimpleFailureReason
       }
   deriving (Eq, Generic, Ord, Show)
 
-data GraphSliceSolverFailureReason
+data GraphSliceSolverInteractSimpleFailureReason
   = GraphSliceSolverTimedOut
   | GraphSliceSolverAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
