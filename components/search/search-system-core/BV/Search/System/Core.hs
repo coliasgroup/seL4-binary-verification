@@ -76,7 +76,7 @@ discoverProofScript'
 discoverProofScript' config input = do
     (r, elapsed) <- time $ runSolverCounterT $ runExceptT $ discoverProofScript (runSolverParallel config) input
     let msg = case r of
-            Right _ -> "discovered bounds"
+            Right _ -> "discovered proof script"
             Left failure -> "failed with " ++ show failure
     logDebug $ msg ++ makeElapsedSuffix elapsed
     return r
