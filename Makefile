@@ -116,5 +116,4 @@ test-inlining-focused: hpack
 .PHONY: test-stack-bounds
 test-stack-bounds: hpack
 	cabal test search-test \
-		--test-option=--include-wip \
 		--test-option=--pattern=stack-bounds
