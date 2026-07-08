@@ -122,9 +122,15 @@ data GraphSliceSolverInteractParallelFailureInfo
   deriving (Eq, Generic, Ord, Show)
 
 data GraphSliceSolverInteractParallelFailureReason
-  = GraphSliceSolverTimedOut
-  | GraphSliceSolverAnsweredUnknown CtxSolverConfig SExpr
+  = GraphSliceSolverInteractParallelFailureReasonTimedOut
+  | GraphSliceSolverInteractParallelFailureReasonAnsweredUnknown CtxSolverConfig SExpr
   deriving (Eq, Generic, Ord, Show)
+
+
+-- data GraphSliceSolverAnsweredUnknown
+--   = CtxSolverConfigOnline OnlineSolverConfig
+--   | CtxSolverConfigOffline OfflineSolverConfig
+--   deriving (Eq, Generic, Ord, Show)
 
 runGraphSliceSolverInteractParallel
     :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m)
@@ -255,7 +261,7 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
             checkSatWithTimeout (Just timeout)
         satResult <- case r of
             Nothing -> return Nothing
-            Just (Unknown msg) -> throwReason $ GraphSliceSolverAnsweredUnknown (CtxSolverConfigOnline config) msg
+            Just (Unknown msg) -> throwReason $ GraphSliceSolverInteractParallelFailureReasonAnsweredUnknown (CtxSolverConfigOnline config) msg
             Just Sat -> return $ Just True
             Just Unsat -> return $ Just False
         case satResult of
@@ -306,11 +312,11 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
                 logOfflineSolverResult rs elapsed
                 case rs of
                     Nothing -> return $ Right ()
-                    Just (Unknown msg) -> return $ Left (Left (GraphSliceSolverAnsweredUnknown ctx.config msg))
+                    Just (Unknown msg) -> return $ Left (Left (GraphSliceSolverInteractParallelFailureReasonAnsweredUnknown ctx.config msg))
                     Just Sat -> return $ Left (Right (Just i))
                     Just Unsat -> return $ Left (Right Nothing)
             case r of
-                Right _ -> throwReason $ GraphSliceSolverTimedOut
+                Right _ -> throwReason $ GraphSliceSolverInteractParallelFailureReasonTimedOut
                 Left (Left reason) -> throwReason reason
                 Left (Right satOpt) -> do
                     for_ (zip [0..] ctxs) $ \(i, ctx) -> do

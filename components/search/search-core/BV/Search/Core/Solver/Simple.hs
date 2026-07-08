@@ -68,8 +68,8 @@ data GraphSliceSolverInteractSimpleFailureInfo
   deriving (Eq, Generic, Ord, Show)
 
 data GraphSliceSolverInteractSimpleFailureReason
-  = GraphSliceSolverTimedOut
-  | GraphSliceSolverAnsweredUnknown SExpr
+  = GraphSliceSolverInteractSimpleFailureReasonTimedOut
+  | GraphSliceSolverInteractSimpleFailureReasonAnsweredUnknown SExpr
   deriving (Eq, Generic, Ord, Show)
 
 runGraphSliceSolverInteractSimple
@@ -107,8 +107,8 @@ checkSatSimple = do
     timeout <- liftPure $ gview #timeout
     r <- lift $ checkSatWithTimeout timeout
     case r of
-        Nothing -> throwReason GraphSliceSolverTimedOut
-        Just (Unknown msg) -> throwReason $ GraphSliceSolverAnsweredUnknown msg
+        Nothing -> throwReason GraphSliceSolverInteractSimpleFailureReasonTimedOut
+        Just (Unknown msg) -> throwReason $ GraphSliceSolverInteractSimpleFailureReasonAnsweredUnknown msg
         Just Sat -> return True
         Just Unsat -> return False
   where
