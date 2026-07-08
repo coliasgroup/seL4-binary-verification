@@ -15,20 +15,19 @@ import BV.Core.ModelConfig
 import BV.Core.Types
 import BV.Core.Types.Extras.SExprWithPlaceholders (andNS, notS)
 import BV.Logging
+import BV.SMTLIB2 (showSExpr)
 import BV.SMTLIB2.Command
-import BV.SMTLIB2.Monad
-import BV.SMTLIB2.Process (SolverContext, SolverT, runSolverT)
+import BV.SMTLIB2.Process (SolverContext, SolverT, acquireSolverContext,
+                           runSolverWithContext)
 import BV.SMTLIB2.SExpr
-import BV.System.Core (OnlineSolverConfig (..), SolverCommand (..),
-                       SolversConfig (..), offlineSolverConfigsForSingleCheck)
+import BV.System.Core (OfflineSolverConfig (..), OnlineSolverConfig (..),
+                       SolverCommand (..), SolversConfig (..),
+                       offlineSolverConfigsForSingleCheck)
+import BV.System.Core.Utils.Logging (augmentSolverContextWithLogging)
 import BV.System.Utils.Stopwatch (Elapsed, elapsedToSeconds)
+import BV.System.Utils.UnliftIO.Async (forConcurrentlyUnliftIOE)
 import BV.Utils
 
-import BV.SMTLIB2 (showSExpr)
-import BV.SMTLIB2.Process (acquireSolverContext, runSolverWithContext)
-import BV.System.Core (OfflineSolverConfig (..), SolverScope (SolverScopeHyp))
-import BV.System.Core.Utils.Logging (augmentSolverContextWithLogging)
-import BV.System.Utils.UnliftIO.Async (forConcurrentlyUnliftIOE)
 import Control.Monad (when)
 import Control.Monad.Catch (MonadMask, MonadThrow)
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT, throwError)
