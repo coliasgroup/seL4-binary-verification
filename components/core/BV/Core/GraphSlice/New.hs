@@ -112,7 +112,7 @@ runAsmRefineGraphSliceT
     -> m a
 runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
   where
-    hooks = asmRefineGraphSliceHooks input.lookupSig input.pairings
+    hooks = asmRefineGraphSliceHooks input.lookupSig input.pairings undefined
 
 --
 

@@ -168,18 +168,20 @@ asmRefineGraphSliceHooks
     :: t ~ AsmRefineTag
     => LookupFunctionSignature t
     -> Pairings t
+    -> ArgRenames t
     -> GraphSliceHooks t
-asmRefineGraphSliceHooks lookupSig pairings =
-    withAsmStackSplitting lookupSig $
+asmRefineGraphSliceHooks lookupSig pairings argRenames =
+    withAsmStackSplitting lookupSig argRenames $
         defaultGraphSliceHooks
             & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
 
 withAsmStackSplitting
     :: HasTagIsAsm t
     => LookupFunctionSignature t
+    -> ArgRenames t
     -> GraphSliceHooks t
     -> GraphSliceHooks t
-withAsmStackSplitting lookupSig = #isStack .~ asmRefineIsStackHook lookupSig
+withAsmStackSplitting lookupSig _argRenames = #isStack .~ asmRefineIsStackHook lookupSig
 
 withConstRetAssumptions :: (WithTag t Ident -> Integer -> Maybe Integer) -> GraphSliceHooks t -> GraphSliceHooks t
 withConstRetAssumptions constRetAssumptions = #constRetAssumptions .~ constRetAssumptions
