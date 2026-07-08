@@ -212,6 +212,7 @@ library logging
     , optics
     , parallel
     , process
+    , resourcet
     , safe-exceptions
     , stm
     , text
@@ -271,13 +272,13 @@ library search-core
       BV.Search.Core.GraphSlice
       BV.Search.Core.Solver
       BV.Search.Core.Solver.Simple
+      BV.Search.Core.Solver.Parallel
   other-modules:
       BV.Search.Core.Inlining
       BV.Search.Core.Inlining.All
       BV.Search.Core.ProofScript
       BV.Search.Core.ProofScript.Impl
       BV.Search.Core.Solver.Common
-      BV.Search.Core.Solver.Parallel
       BV.Search.Core.StackBounds
       BV.Search.Core.StackBounds.All
       BV.Search.Core.StackBounds.Base
@@ -356,6 +357,7 @@ library search-system-core
     , optics
     , parallel
     , process
+    , resourcet
     , safe-exceptions
     , sel4-bv:core
     , sel4-bv:logging

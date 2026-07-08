@@ -8,6 +8,7 @@ module BV.Search.System.Core
 import BV.Core.Types
 import BV.Logging
 import BV.Search.Core
+import BV.Search.Core.Solver.Parallel
 import BV.Search.Core.Solver.Simple
 import BV.SMTLIB2.Process
 import BV.System.Core
@@ -24,6 +25,7 @@ import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Reader (MonadReader, ReaderT (runReaderT), ask, mapReaderT)
 import Control.Monad.State (State, runState)
 import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Data.Tuple (swap)
 import Optics
 import Optics.State.Operators ((<<%=))
@@ -70,9 +72,9 @@ discoverStackBounds' throttle config input = do
 
 discoverProofScript'
     :: forall m. (MonadLoggerWithContext m, MonadUnliftIO m, MonadLogger m, MonadMask m)
-    => OnlineSolverConfig -> DiscoverProofScriptInput -> m (Either GraphSliceSolverInteractSimpleFailureInfo (ProofScript AsmRefineTag ()))
+    => SolversConfig -> DiscoverProofScriptInput -> m (Either GraphSliceSolverInteractParallelFailureInfo (ProofScript AsmRefineTag ()))
 discoverProofScript' config input = do
-    (r, elapsed) <- time $ runSolverCounterT $ runExceptT $ discoverProofScript (runSolverSimple config) input
+    (r, elapsed) <- time $ runSolverCounterT $ runExceptT $ discoverProofScript (runSolverParallel config) input
     let msg = case r of
             Right _ -> "discovered bounds"
             Left failure -> "failed with " ++ show failure
@@ -98,6 +100,16 @@ runSolverSimple config m = do
     i <- atomicState $ simple <<%= (+ 1)
     withPushLogContext ("solver run " ++ show i) $ do
         ExceptT $ lift $ runGraphSliceSolverInteractSimple' config m
+
+runSolverParallel
+    :: (MonadUnliftIO m, MonadLoggerWithContext m, MonadMask m)
+    => SolversConfig
+    -> GraphSliceSolverInteractParallel (ResourceT m) a
+    -> ExceptT GraphSliceSolverInteractParallelFailureInfo (ReaderT (MVar Integer) m) a
+runSolverParallel config m = do
+    i <- atomicState $ simple <<%= (+ 1)
+    withPushLogContext ("solver run " ++ show i) $ do
+        ExceptT $ lift $ runResourceT $ runGraphSliceSolverInteractParallel config m
 
 -- TODO unify with other def
 makeElapsedSuffix :: Elapsed -> String

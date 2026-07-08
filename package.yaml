@@ -99,6 +99,7 @@ internal-libraries:
       - aeson
       - attoparsec
       - attoparsec-aeson
+      - resourcet
   
   network-transport-static:
     visibility: public
@@ -210,6 +211,7 @@ internal-libraries:
       - BV.Search.Core.GraphSlice
       - BV.Search.Core.Solver
       - BV.Search.Core.Solver.Simple
+      - BV.Search.Core.Solver.Parallel
     dependencies:
       - sel4-bv:smtlib2
       - sel4-bv:smtlib2-process
@@ -236,6 +238,8 @@ internal-libraries:
       - sel4-bv:utils
       - sel4-bv:system-utils
       - sel4-bv:system-core
+      # external
+      - resourcet
 
   system:
     visibility: public

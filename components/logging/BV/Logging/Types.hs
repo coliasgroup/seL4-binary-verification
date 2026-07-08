@@ -28,6 +28,7 @@ import Control.Monad.Logger (Loc, LogLevel (..), LogSource, LogStr,
 import Control.Monad.Reader (MonadTrans, ReaderT, mapReaderT, runReaderT,
                              withReaderT)
 import Control.Monad.State (StateT, mapStateT)
+import Control.Monad.Trans.Resource (ResourceT, transResourceT)
 import Data.Aeson.Types
 import Data.Binary (Binary)
 import qualified Data.Text as T
@@ -58,6 +59,10 @@ instance MonadLoggerWithContext m => MonadLoggerWithContext (StateT s m) where
 instance MonadLoggerWithContext m => MonadLoggerWithContext (ExceptT e m) where
     withPushLogContexts = mapExceptT . withPushLogContexts
     withCleanLogContext = mapExceptT withCleanLogContext
+
+instance MonadLoggerWithContext m => MonadLoggerWithContext (ResourceT m) where
+    withPushLogContexts = transResourceT . withPushLogContexts
+    withCleanLogContext = transResourceT withCleanLogContext
 
 --
 
