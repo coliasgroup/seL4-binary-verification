@@ -43,7 +43,7 @@ import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((.=), (<<.=))
+import Optics.State.Operators ((.=), (<<.=), (%=))
 import System.Process (CreateProcess, proc)
 import Text.Printf (printf)
 
@@ -237,6 +237,7 @@ returnToOnline = do
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceSendSExpr (GraphSliceSolverInteractParallel m) where
     sendCommand s = do
         returnToOnline
+        liftPure $ #commands %= (++ [s])
         useCtxM $ \modelConfig ->
             sendSimpleCommandExpectingSuccess $ configureCommand modelConfig s
 
@@ -245,11 +246,10 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
         returnToOnline
         config <- liftPure $ use $ #ctx % #config % expecting #_CtxSolverConfigOnline
         let timeout = config.timeout
-        let sendAssert modelConfig s =
-                sendSimpleCommandExpectingSuccess $ Assert $ Assertion $ configureSExpr modelConfig s
         r <- useCtxM $ \modelConfig -> do
             sendSimpleCommandExpectingSuccess $ Push 1
-            traverse_ (sendAssert modelConfig) split
+            for_ split $ \s -> do
+                sendSimpleCommandExpectingSuccess $ Assert $ Assertion $ configureSExpr modelConfig s
             checkSatWithTimeout (Just timeout)
         satResult <- case r of
             Nothing -> return Nothing
@@ -260,18 +260,25 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
             Just sat -> do
                 liftPure $ #ctx % #haveModel .= sat
                 when (not sat) $ do
+                    let assertion = SMTProofCheckCommandAssert $ SMTProofCheckAssertion $ notS (andNS split)
+                    liftPure $ #commands %= (++ [assertion])
                     useCtxM $ \modelConfig -> do
                         sendSimpleCommandExpectingSuccess $ Pop 1
-                        sendAssert modelConfig $ notS (andNS split)
+                        sendSimpleCommandExpectingSuccess $ configureCommand modelConfig assertion
                 return $ not sat
             Nothing -> do
-                undefined
+                modelCtxOpt <- par
+                case modelCtxOpt of
+                    Nothing -> do
+                        undefined
       where
         split = splitHyp (notS hyp)
         throwReason reason =
             GraphSliceSolverInteractParallel $ throwError $ GraphSliceSolverInteractParallelFailureInfo
                 { reason
                 }
+        par :: GraphSliceSolverInteractParallel m (Maybe Ctx)
+        par = undefined
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
     getSExprValue s = do
