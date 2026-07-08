@@ -270,7 +270,16 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
                 modelCtxOpt <- par
                 case modelCtxOpt of
                     Nothing -> do
-                        undefined
+                        returnToOnline
+                        let assertion = SMTProofCheckCommandAssert $ SMTProofCheckAssertion $ notS (andNS split)
+                        liftPure $ #commands %= (++ [assertion])
+                        useCtxM $ \modelConfig -> do
+                            sendSimpleCommandExpectingSuccess $ Pop 1
+                            sendSimpleCommandExpectingSuccess $ configureCommand modelConfig assertion
+                        return True
+                    Just satCtx -> do
+                        liftPure $ #ctx .= satCtx
+                        return False
       where
         split = splitHyp (notS hyp)
         throwReason reason =
@@ -279,6 +288,9 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
                 }
         par :: GraphSliceSolverInteractParallel m (Maybe Ctx)
         par = undefined
+        -- TODO
+        -- set haveModel
+        -- throw if timeout
 
 instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m) => MonadGraphSliceGetSExprValue (GraphSliceSolverInteractParallel m) where
     getSExprValue s = do
