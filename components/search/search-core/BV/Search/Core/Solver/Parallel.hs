@@ -121,7 +121,7 @@ data GraphSliceSolverInteractParallelFailureInfo
 
 data GraphSliceSolverFailureReason
   = GraphSliceSolverTimedOut
-  | GraphSliceSolverAnsweredUnknown SExpr
+  | GraphSliceSolverAnsweredUnknown CtxSolverConfig SExpr
   deriving (Eq, Generic, Ord, Show)
 
 runGraphSliceSolverInteractParallel
@@ -253,7 +253,7 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
             checkSatWithTimeout (Just timeout)
         satResult <- case r of
             Nothing -> return Nothing
-            Just (Unknown msg) -> throwReason $ GraphSliceSolverAnsweredUnknown msg
+            Just (Unknown msg) -> throwReason $ GraphSliceSolverAnsweredUnknown (CtxSolverConfigOnline config) msg
             Just Sat -> return $ Just True
             Just Unsat -> return $ Just False
         case satResult of
@@ -287,7 +287,8 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
                 { reason
                 }
         par :: GraphSliceSolverInteractParallel m (Maybe Ctx)
-        par = undefined
+        par = do
+            undefined
         -- TODO
         -- set haveModel
         -- throw if timeout
