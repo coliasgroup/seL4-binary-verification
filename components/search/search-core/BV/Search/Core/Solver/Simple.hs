@@ -2,9 +2,9 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Search.Core.Solver.Simple
-    ( GraphSliceSolverInteractSimpleFailureReason (..)
-    , GraphSliceSolverInteractSimple
+    ( GraphSliceSolverInteractSimple
     , GraphSliceSolverInteractSimpleFailureInfo (..)
+    , GraphSliceSolverInteractSimpleFailureReason (..)
     , runGraphSliceSolverInteractSimple
     ) where
 

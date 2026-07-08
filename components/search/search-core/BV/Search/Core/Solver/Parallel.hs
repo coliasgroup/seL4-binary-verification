@@ -2,9 +2,9 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module BV.Search.Core.Solver.Parallel
-    ( GraphSliceSolverInteractParallelFailureReason (..)
-    , GraphSliceSolverInteractParallel
+    ( GraphSliceSolverInteractParallel
     , GraphSliceSolverInteractParallelFailureInfo (..)
+    , GraphSliceSolverInteractParallelFailureReason (..)
     , runGraphSliceSolverInteractParallel
     ) where
 
