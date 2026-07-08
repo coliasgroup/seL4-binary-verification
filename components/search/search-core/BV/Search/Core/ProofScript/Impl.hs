@@ -6,31 +6,14 @@ module BV.Search.Core.ProofScript.Impl
 import BV.Search.Core.GraphSlice
 import BV.Search.Core.Solver
 
-import BV.Core.Stages
 import BV.Core.Types
-import BV.Core.Types.Extras.Expr (andE, eqE, falseE, ifThenElseE, minusE, notE,
-                                  trueE, varE, word32E, word32T)
 import BV.Core.Types.Extras.Problem
-import BV.Core.Types.Extras.Program (FunctionSignature, LookupFunctionSignature,
-                                     signatureOfFunction)
-import BV.Core.Types.Extras.ProofCheck (eqH, eqSideH, pcFalseH)
+import BV.Core.Types.Extras.Program (LookupFunctionSignature)
 import BV.Logging
-import BV.Utils (ensure, ensureM, expecting, todo)
+import BV.Utils (todo)
 
-import Control.DeepSeq (NFData)
-import qualified Data.Array as A
-import Data.Foldable (toList)
-import Data.Function (applyWhen)
-import Data.Graph (Graph, Vertex)
-import qualified Data.Graph as G
-import Data.List (findIndex, genericIndex)
-import qualified Data.Map as M
-import Data.Maybe (fromJust)
-import Data.Proxy (Proxy (Proxy))
-import qualified Data.Set as S
 import GHC.Generics (Generic)
-import Optics
-import Text.Printf (PrintfArg (formatArg), printf)
+import Text.Printf (printf)
 
 data DiscoverProofScriptInput
   = DiscoverProofScriptInput

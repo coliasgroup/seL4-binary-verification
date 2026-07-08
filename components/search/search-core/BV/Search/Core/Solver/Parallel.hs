@@ -123,14 +123,13 @@ data GraphSliceSolverInteractParallelFailureInfo
 
 data GraphSliceSolverInteractParallelFailureReason
   = GraphSliceSolverInteractParallelFailureReasonTimedOut
-  | GraphSliceSolverInteractParallelFailureReasonAnsweredUnknown CtxSolverConfig SExpr
+  | GraphSliceSolverInteractParallelFailureReasonAnsweredUnknown GraphSliceSolverInteractParallelSolverId SExpr
   deriving (Eq, Generic, Ord, Show)
 
-
--- data GraphSliceSolverAnsweredUnknown
---   = CtxSolverConfigOnline OnlineSolverConfig
---   | CtxSolverConfigOffline OfflineSolverConfig
---   deriving (Eq, Generic, Ord, Show)
+data GraphSliceSolverInteractParallelSolverId
+  = GraphSliceSolverInteractParallelSolverIdOnline
+  | GraphSliceSolverInteractParallelSolverIdOffline String ModelConfig
+  deriving (Eq, Generic, Ord, Show)
 
 runGraphSliceSolverInteractParallel
     :: (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLoggerWithContext m)
@@ -261,7 +260,10 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
             checkSatWithTimeout (Just timeout)
         satResult <- case r of
             Nothing -> return Nothing
-            Just (Unknown msg) -> throwReason $ GraphSliceSolverInteractParallelFailureReasonAnsweredUnknown (CtxSolverConfigOnline config) msg
+            Just (Unknown msg) -> throwReason $
+                GraphSliceSolverInteractParallelFailureReasonAnsweredUnknown
+                    GraphSliceSolverInteractParallelSolverIdOnline
+                    msg
             Just Sat -> return $ Just True
             Just Unsat -> return $ Just False
         case satResult of
@@ -312,7 +314,12 @@ instance (MonadUnliftIO m, MonadThrow m, MonadMask m, MonadResource m, MonadLogg
                 logOfflineSolverResult rs elapsed
                 case rs of
                     Nothing -> return $ Right ()
-                    Just (Unknown msg) -> return $ Left (Left (GraphSliceSolverInteractParallelFailureReasonAnsweredUnknown ctx.config msg))
+                    Just (Unknown msg) ->
+                        let offlineConfig = ctx ^. #config % expecting #_CtxSolverConfigOffline
+                            solverId = GraphSliceSolverInteractParallelSolverIdOffline
+                                offlineConfig.commandName
+                                offlineConfig.modelConfig
+                         in return $ Left (Left (GraphSliceSolverInteractParallelFailureReasonAnsweredUnknown solverId msg))
                     Just Sat -> return $ Left (Right (Just i))
                     Just Unsat -> return $ Left (Right Nothing)
             case r of
