@@ -18,9 +18,9 @@ module BV.System.Core.Solvers
     , SolversConfig (..)
     , localSolverBackend
     , minNumJobs
+    , offlineSolverConfigsForSingleCheck
     , prettySolverScope
     , runSolvers
-    , offlineSolverConfigsForSingleCheck
     ) where
 
 import BV.Core.Prelude
