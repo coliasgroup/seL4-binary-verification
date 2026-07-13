@@ -7,8 +7,10 @@ module BV.System.Utils.UnliftIO.Async
     , concurrentlyUnliftIOE
     , concurrentlyUnliftIOE_
     , concurrentlyUnliftIO_
+    , forConcurrentlyUnliftIO
     , forConcurrentlyUnliftIOE
     , forConcurrentlyUnliftIOE_
+    , forConcurrentlyUnliftIO_
     , makeConcurrentlyUnliftIO
     , makeConcurrentlyUnliftIOE
     , raceUnliftIO
@@ -22,8 +24,9 @@ import BV.System.Utils.Async
 import Control.Applicative (Alternative)
 import Control.Concurrent.Async (Concurrently (Concurrently),
                                  ConcurrentlyE (ConcurrentlyE), concurrently,
-                                 concurrentlyE, concurrently_, race, race_,
-                                 runConcurrently, runConcurrentlyE)
+                                 concurrentlyE, concurrently_, forConcurrently,
+                                 forConcurrently_, race, race_, runConcurrently,
+                                 runConcurrentlyE)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, UnliftIO, askUnliftIO, unliftIO,
                                 withRunInIO)
@@ -48,6 +51,12 @@ makeConcurrentlyUnliftIO m = ConcurrentlyUnliftIO . ReaderT $ \unliftIO' -> Conc
 
 runConcurrentlyUnliftIO :: MonadUnliftIO m => ConcurrentlyUnliftIO m a -> m a
 runConcurrentlyUnliftIO m = askUnliftIO >>= liftIO . runConcurrently . runReaderT m.unwrap
+
+forConcurrentlyUnliftIO :: (MonadUnliftIO m, Traversable t) => t a -> (a -> m b) -> m (t b)
+forConcurrentlyUnliftIO t f = withRunInIO $ \run -> forConcurrently t (run . f)
+
+forConcurrentlyUnliftIO_ :: (MonadUnliftIO m, Traversable t) => t a -> (a -> m b) -> m ()
+forConcurrentlyUnliftIO_ t f = withRunInIO $ \run -> forConcurrently_ t (run . f)
 
 newtype ConcurrentlyUnliftIOE m e a
   = ConcurrentlyUnliftIOE { unwrap :: ReaderT (UnliftIO m) (ConcurrentlyE e) a }
