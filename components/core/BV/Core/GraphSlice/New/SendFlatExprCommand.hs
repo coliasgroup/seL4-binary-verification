@@ -278,7 +278,7 @@ convertFlatOpExpr exprTy op args =
                 ~[ ExtendedExprExpr sp1
                  , stack1
                  , ExtendedExprExpr sp2
-                 , ExtendedExprSplitMem stack2
+                 , stack2
                  ]) ->
             ExtendedExprExpr <$> convertStackEqualsImplies sp1 stack1 sp2 stack2
         (OpExt OpExtImpliesStackEquals,
@@ -370,14 +370,15 @@ convertMemAccess ty extExpr p = case extExpr of
         let acc = memAccE ty p'
         return $ ifThenElseE (split `lessEqE` p') (acc top) (acc bottom)
 
-convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> SplitMemExpr -> T m SolverExpr
-convertStackEqualsImplies sp1 stack1 sp2 stack2 = do
-    defineDeferredSplitVar sp2 stack2.split
-    checkDeferredSplitVarDeps (nameFromVarE stack2.split) stack1
-    return $
-        if sp1 == sp2 && stack1 == ExtendedExprSplitMem stack2
-        then trueE
-        else
+convertStackEqualsImplies :: C m => SolverExpr -> ExtendedExpr -> SolverExpr -> ExtendedExpr -> T m SolverExpr
+convertStackEqualsImplies sp1 stack1 sp2 stack2Ext =
+    if sp1 == sp2 && stack1 == stack2Ext
+    then return trueE
+    else do
+        let ExtendedExprSplitMem stack2 = stack2Ext
+        defineDeferredSplitVar sp2 stack2.split
+        checkDeferredSplitVarDeps (nameFromVarE stack2.split) stack1
+        return $
             let eq = case stack1 of
                     ExtendedExprExpr stack1Expr ->
                         stack2.top `eqE` stack1Expr
