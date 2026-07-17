@@ -16,6 +16,7 @@ module BV.Core.GraphSlice.Old.Core
     , asmRefineGraphSliceHooks
     , defaultGraphSliceHooks
     , flattenExpr
+    , getExport
     , getFunCallInfo
     , getFunCallVisitsCompat
     , getInductVar
@@ -33,6 +34,7 @@ import BV.Core.GraphSlice.Old.Solver
 
 import BV.Core.GraphSlice.New (FlatExpr)
 import BV.Core.GraphSlice.New.Common
+import BV.Core.GraphSlice.New.Flatten (GraphSliceExport (..))
 import BV.Core.GraphSlice.New.MemCalls
 import BV.Core.GraphSlice.New.NameHint
 import BV.Core.GraphSlice.New.PcEnv
@@ -871,4 +873,15 @@ asmRefineIsStackHook argRenames kind var =
         ]
     req = VarRepRequestSplitMem
         { addr = varE word32T spName
+        }
+
+--
+
+getExport :: Monad m => GraphSliceT t m (GraphSliceExport t)
+getExport = liftPure $ do
+    nodePcEnvs <- use #nodePcEnvs
+    arcPcEnvs <- use #arcPcEnvs
+    return $ GraphSliceExport
+        { nodePcEnvs
+        , arcPcEnvs
         }

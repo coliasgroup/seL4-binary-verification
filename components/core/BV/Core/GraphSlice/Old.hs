@@ -181,8 +181,3 @@ interpretHyp = \case
                         return eq'
             _ -> do
                 return $ fromBoolE ifAt
-
---
-
-getExport :: Monad m => GraphSliceT t m (GraphSliceExport t)
-getExport = undefined
