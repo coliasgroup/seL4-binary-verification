@@ -715,7 +715,7 @@ isSyntacticConstant var loop split = do
   where
     throwNotConst = throwError ()
 
-getFunCallInfo :: (C t m, MonadError TooGeneral m) => Visit -> TaggedT t m FunCallInfo
+getFunCallInfo :: C t m => Visit -> TaggedT t m FunCallInfo
 getFunCallInfo unprunedVisit = do
     visit <- fromJust <$> pruneVisit unprunedVisit
     node <- askNode $ nodeAddrOf visit.nodeId
