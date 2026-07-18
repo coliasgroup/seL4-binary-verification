@@ -98,17 +98,17 @@ library core
   other-modules:
       BV.Core.GenerateFreshName
       BV.Core.Glue
-      BV.Core.GraphSlice.New.AsmRefine
       BV.Core.GraphSlice.New.Common
       BV.Core.GraphSlice.New.Flat
       BV.Core.GraphSlice.New.Flatten
-      BV.Core.GraphSlice.New.MemCalls
-      BV.Core.GraphSlice.New.NameHint
-      BV.Core.GraphSlice.New.PcEnv
+      BV.Core.GraphSlice.New.Flatten.CallCount
+      BV.Core.GraphSlice.New.Flatten.NameHint
+      BV.Core.GraphSlice.New.Flatten.Visit
+      BV.Core.GraphSlice.New.Flatten.VisitInfo
       BV.Core.GraphSlice.New.SendFlatExprCommand
       BV.Core.GraphSlice.New.SendSolverExprCommand
-      BV.Core.GraphSlice.New.Tagged
       BV.Core.GraphSlice.Old.Core
+      BV.Core.GraphSlice.Old.NameHint
       BV.Core.GraphSlice.Old.Solver
       BV.Core.Stages.BuildProblem
       BV.Core.Stages.EnumerateProofChecks

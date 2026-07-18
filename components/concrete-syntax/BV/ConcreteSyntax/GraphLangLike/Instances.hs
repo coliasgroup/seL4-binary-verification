@@ -676,13 +676,13 @@ instance Tag t => ParseInLine (PcImpHypSide t) where
     parseInLine = word >>= \case
         "True" -> return $ PcImpHypSideBool True
         "False" -> return $ PcImpHypSideBool False
-        "PC" -> PcImpHypSidePc <$> parseVisitWithTagInLine
+        "PC" -> PcImpHypSidePc <$> parseInLine
         _ -> fail "invalid pc imp hyp side"
 
 instance Tag t => BuildInLine (PcImpHypSide t) where
     buildInLine = \case
         PcImpHypSideBool val -> putWord (show val)
-        PcImpHypSidePc visit -> putWord "PC" <> putVisitWithTag visit
+        PcImpHypSidePc visit -> putWord "PC" <> put visit
 
 instance Tag t => ParseInLine (EqHyp t) where
     parseInLine = do
@@ -698,22 +698,20 @@ instance Tag t => BuildInLine (EqHyp t) where
         Nothing -> putWord "None" <> putWord "None"
 
 instance Tag t => ParseInLine (EqHypSide t) where
-    parseInLine = EqHypSide <$> parseInLine <*> parseVisitWithTagInLine
+    parseInLine = EqHypSide <$> parseInLine <*> parseInLine
 
 instance Tag t => BuildInLine (EqHypSide t) where
-    buildInLine side = put side.expr <> putVisitWithTag side.visit
+    buildInLine side = put side.expr <> put side.visit
 
-parseVisitWithTagInLine :: Tag t => Parser (WithTag t Visit)
-parseVisitWithTagInLine = flip WithTag <$> parseInLine <*> parseTagInLine
+instance Tag t => ParseInLine (Visit t) where
+    parseInLine = do
+        nodeId <- parseInLine
+        restrs <- restrsToMap <$> parseInLine
+        tag <- parseTagInLine
+        return $ Visit tag nodeId restrs
 
-putVisitWithTag :: Tag t => WithTag t Visit -> LineBuilder
-putVisitWithTag visit = put visit.value <> putTag visit.tag
-
-instance ParseInLine Visit where
-    parseInLine = Visit <$> parseInLine <*> (restrsToMap <$> parseInLine)
-
-instance BuildInLine Visit where
-    buildInLine visit = put visit.nodeId <> put (restrsFromMap visit.restrs)
+instance Tag t => BuildInLine (Visit t) where
+    buildInLine visit = put visit.nodeId <> put (restrsFromMap visit.restrs) <> putTag visit.tag
 
 instance ParseInLine Restr where
     parseInLine = Restr <$> parseInLine <*> parseInLine

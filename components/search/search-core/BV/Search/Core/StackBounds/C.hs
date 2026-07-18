@@ -57,7 +57,7 @@ getRecursionIdents runner functions =
                     modify $ M.insertWith (\new old -> old ++ new) fname [newIdent]
                 return $ isJust newIdentOpt
 
-type RunnerFn n m = forall t a. HasTagIsAsm t => Problem t -> GraphSliceT t n a -> m a
+type RunnerFn n m = forall t a. HasTagIsAsm t => ProblemWithAnalysis t -> GraphSliceT t n a -> m a
 
 newtype Runner n m
   = Runner (RunnerFn n m)
@@ -71,7 +71,7 @@ data Env n m
       }
   deriving (Generic)
 
-run :: (Monad m, HasTagIsAsm t) => Problem t -> GraphSliceT t n a -> ReaderT (Env n m) m a
+run :: (Monad m, HasTagIsAsm t) => ProblemWithAnalysis t -> GraphSliceT t n a -> ReaderT (Env n m) m a
 run p m = do
     Runner f <- gview #runner
     lift $ f p m
@@ -151,19 +151,19 @@ modelStuff p assns deepestTag deepestFunName = do
                     | (renamed, orig) <- zip deepestSide.input deepestFun.input
                     , isWordT renamed.ty
                     ]
-            let entryVis = Visit deepestSide.entryPoint M.empty
-            stable <- run p.problem $ runTagged deepestTag $ do
-                pcEnv <- fromJust <$> getNodePcEnv entryVis
-                liftUntagged (testHypWhyps falseE assns) >>= ensureM . not
+            let entryVis = Visit deepestTag deepestSide.entryPoint M.empty
+            stable <- run p $ do
+                pcEnv <- fromJust <$> getPcEnv entryVis
+                testHypWhyps falseE assns >>= ensureM . not
                 candidates <- for wordArgs $ \(renamed, orig) -> do
                     let argFlat = flattenExpr pcEnv.env $ varFromNameTyE renamed
-                    val <- liftUntagged $ getFlatExprValue argFlat
+                    val <- getFlatExprValue argFlat
                     return (renamed, orig, argFlat, val)
                 flip filterM candidates $ \(_, _, argFlat, val) -> do
-                    liftUntagged $ testHypWhyps (argFlat `eqE` flattenExpr M.empty val) assns
+                    testHypWhyps (argFlat `eqE` flattenExpr M.empty val) assns
             (_, orig, _, val) <- fmap fromJust $ flip findM stable $ \(renamed, _, _, val) -> do
-                let assn = eqSideH (varFromNameTyE renamed) (WithTag deepestTag entryVis)
-                            `eqH` eqSideH val (WithTag deepestTag entryVis)
+                let assn = eqSideH (varFromNameTyE renamed) entryVis
+                            `eqH` eqSideH val entryVis
                 isNothing <$> findUnknownRecursion p deepestTag (assns ++ [assn])
             return $ Just (deepestFunName, varFromNameTyE orig `eqE` val)
 
@@ -175,8 +175,8 @@ functionLinkAssns
 functionLinkAssns p callSite newTag = pcTrueH callVis : eqHyps
   where
     newSide = viewAtTag newTag p.problem.sides
-    entryVis = WithTag newTag $ Visit newSide.entryPoint M.empty
-    callVis = WithTag callSite.tag $ defaultVisit p.analysis.loopData (Addr callSite.value)
+    entryVis = Visit newTag newSide.entryPoint M.empty
+    callVis = defaultVisit p.analysis.loopData callSite.tag (Addr callSite.value)
     callNode = p.problem ^. #nodes % expectingAt callSite.value % expecting #_NodeCall
     eqHyps =
         [ eqSideH callInput callVis `eqH` eqSideH entryInput entryVis
@@ -205,7 +205,7 @@ findUnknownRecursion p tag assns = do
             , callNode.functionName `S.member` group
             ]
     let isUnknown (addr, callNode) = do
-            getNodePcEnv (defaultVisit p.analysis.loopData (Addr addr)) >>= \case
+            getPcEnv (defaultVisit p.analysis.loopData tag (Addr addr)) >>= \case
                 Nothing -> return False
                 Just (PcEnv pc env) -> do
                     let calledFunName = callNode.functionName
@@ -215,5 +215,5 @@ findUnknownRecursion p tag assns = do
                             (map (flattenExpr env) callNode.input)
                     let calledIdents = map (flattenExpr inpEnv) $ M.findWithDefault [] calledFunName idents
                     let new = foldr1 andE $ pc : map notE calledIdents
-                    liftUntagged $ not <$> testHypWhyps (notE new) assns
-    run p.problem $ runTagged tag $ findM isUnknown callNodes
+                    not <$> testHypWhyps (notE new) assns
+    run p $ findM isUnknown callNodes

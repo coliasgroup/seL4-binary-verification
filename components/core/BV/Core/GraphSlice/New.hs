@@ -1,46 +1,36 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module BV.Core.GraphSlice.New
     ( AsmRefineGraphSliceInput (..)
     , ExprEnv
     , FlatExpr
-    , FunCallInfo (..)
-    , GraphSliceExport (..)
     , GraphSliceHooks
     , GraphSliceInput (..)
     , GraphSliceT
-    , GraphSliceTaggedT
     , MonadGraphSliceSendSExpr (..)
     , PcEnv (..)
     , addAccumulatedAssertions
-    , askContVisit
-    , askLoopData
-    , askNodeGraph
-    , askProblem
-    , askTag
-    , askWithTag
+    , askProblemWithAnalysis
     , asmRefineGraphSliceHooks
     , assertExpr
     , compileProofCheckGroup
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
-    , getExport
-    , getFunCallInfo
-    , getFunCallVisitsCompat
+    , getAllPcEnvs
+    , getCallOrderCompat
+    , getCallsByFunName
     , getInductVar
-    , getNodePcEnv
-    , getNodePcEnvWithTag
     , getPc
-    , getPcWithTag
+    , getPcEnv
+    , getSuccessVar
     , interpretCheck
     , interpretHyp
     , interpretHypImps
-    , liftUntagged
+    , isVisitOk
     , mapGraphSliceT
-    , mapGraphSliceTaggedT
     , runAsmRefineGraphSliceT
     , runGraphSliceT
-    , runTagged
-    , tryGetNodePcEnv
     , withAsmStackSplitting
     , withConstRetAssumptions
     , withFast
@@ -49,10 +39,8 @@ module BV.Core.GraphSlice.New
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flat
 import BV.Core.GraphSlice.New.Flatten
-import BV.Core.GraphSlice.New.PcEnv
 import BV.Core.GraphSlice.New.SendFlatExprCommand
 import BV.Core.GraphSlice.New.SendSolverExprCommand
-import BV.Core.GraphSlice.New.Tagged
 
 import BV.Core.Logic (eqHandlingRelWrapper, strengthenHyp)
 import BV.Core.Types
@@ -60,17 +48,23 @@ import BV.Core.Types.Extras
 import BV.Utils (ensure)
 
 import Control.Monad ((>=>))
+import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
 import Control.Monad.Writer (runWriter)
+import Data.Either (isRight)
 import Data.Foldable (toList)
+import Data.List (genericIndex)
 import qualified Data.Map as M
 import Data.Traversable (for)
 import GHC.Generics (Generic)
+import Optics
 
 data GraphSliceInput t
   = GraphSliceInput
       { structs :: ByTag t (M.Map Ident Struct)
       , rodata :: ROData
-      , problem :: Problem t
+        -- TODO rename
+      , pwa :: ProblemWithAnalysis t
       }
   deriving (Generic)
 
@@ -84,7 +78,7 @@ runGraphSliceT hooks input =
       runGraphSliceSendSolverExprCommandTStep input.rodata
     . runGraphSliceSendFlatExprCommandTStep structs (rodataPtrsFromROData input.rodata)
     . runGraphSliceFlatTStep
-    . runGraphSliceTStep input.problem hooks
+    . runGraphSliceTStep input.pwa hooks
   where
     -- TODO scope structs with tag and use `M.unionsWith undefined`
     structs = (M.!) $ M.unionsWith ensureEq $
@@ -116,6 +110,34 @@ runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
 
 --
 
+asmRefineGraphSliceHooks
+    :: t ~ AsmRefineTag
+    => LookupFunctionSignature t
+    -> Pairings t
+    -> ArgRenames t
+    -> GraphSliceHooks t
+asmRefineGraphSliceHooks lookupSig pairings argRenames =
+    withAsmStackSplitting lookupSig argRenames $
+        withAddFunAsserts lookupSig pairings $
+            defaultGraphSliceHooks
+
+withAsmStackSplitting
+    :: HasTagIsAsm t
+    => LookupFunctionSignature t
+    -> ArgRenames t
+    -> GraphSliceHooks t
+    -> GraphSliceHooks t
+withAsmStackSplitting lookupSig _argRenames = withIsStack $ asmRefineIsStackHook lookupSig
+
+asmRefineIsStackHook :: HasTagIsAsm t => LookupFunctionSignature t -> WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool
+asmRefineIsStackHook lookupSig fun direction i =
+    tagIsAsm fun.tag &&
+        genericIndex (viewFunctionSignatureDirection direction (lookupSig fun)) i == asmStackVar
+  where
+    asmStackVar = NameTy (Ident "stack") memT
+
+--
+
 mapGraphSliceT
     :: (forall a. m a -> n a)
     -> GraphSliceT t m b
@@ -130,15 +152,46 @@ convertExpr =
     liftInner . liftInner . convertFlatExpr
         >=> liftInner . liftInner . liftInner . convertSolverExpr
 
-getPcWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m FlatExpr
-getPcWithTag = runWithTag getPc
-
-getNodePcEnvWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m (Maybe PcEnv)
-getNodePcEnvWithTag = runWithTag getNodePcEnv
-
 addAccumulatedAssertions :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ()
-addAccumulatedAssertions = do
-    liftInner $ liftInner $ sendAccumulatedAssertionsInner
+addAccumulatedAssertions = liftInner $ liftInner $ sendAccumulatedAssertionsInner
+
+--
+
+normalizeVisitM
+    :: (Tag t, Monad m)
+    => Visit t
+    -> GraphSliceT t m (Either VisitTooGeneral (Maybe (NormalizedVisit t)))
+normalizeVisitM visit = normalizeVisit visit <$> askProblemWithAnalysis
+
+isVisitOk :: (Tag t, Monad m) => Visit t -> GraphSliceT t m Bool
+isVisitOk visit = isRight <$> normalizeVisitM visit
+
+getPcEnv :: (Tag t, MonadGraphSliceSendSExpr m) => Visit t -> GraphSliceT t m (Maybe PcEnv)
+getPcEnv visit = runMaybeT $ do
+    r <- lift $ normalizeVisitM visit
+    let Right normOpt = r
+    norm <- hoistMaybe normOpt
+    MaybeT $ getPcEnvNorm norm
+
+getPc :: (Tag t, MonadGraphSliceSendSExpr m) => Visit t -> GraphSliceT t m FlatExpr
+getPc visit = getPcEnv visit <&> \case
+    Just (PcEnv pc _) -> pc
+    Nothing -> falseE
+
+getAllPcEnvs :: (Tag t, Monad m) => GraphSliceT t m [(Visit t, PcEnv)]
+getAllPcEnvs = over (traversed % _1) unwrapNormalizedVisit <$> getAllPcEnvsNorm
+
+getCallsByFunName :: (Tag t, Monad m) => GraphSliceT t m (M.Map (WithTag t Ident) [Visit t])
+getCallsByFunName = (fmap . map) unwrapNormalizedVisit <$> getCallsByFunNameNorm
+
+getCallOrderCompat :: (Tag t, Monad m) => GraphSliceT t m [Visit t]
+getCallOrderCompat = map unwrapNormalizedVisit <$> getCallOrderCompatNorm
+
+getSuccessVar :: (Tag t, MonadGraphSliceSendSExpr m) => Visit t -> GraphSliceT t m FlatExpr
+getSuccessVar visit = do
+    r <- normalizeVisitM visit
+    let Right (Just norm) = r
+    getSuccessVarNorm norm
 
 --
 
@@ -168,14 +221,14 @@ interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case
                 PcImpHypSideBool v -> return $ fromBoolE v
-                PcImpHypSidePc vt -> getPcWithTag vt
+                PcImpHypSidePc vt -> getPc vt
         impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
         extEnv <- case eq.induct of
             Just induct -> M.insert (Ident "%n") <$> getInductVar induct
             Nothing -> return id
-        xPcEnvOpt <- getNodePcEnvWithTag eq.lhs.visit
-        yPcEnvOpt <- getNodePcEnvWithTag eq.rhs.visit
+        xPcEnvOpt <- getPcEnv eq.lhs.visit
+        yPcEnvOpt <- getPcEnv eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
             (Just xPcEnv, Just yPcEnv) -> do
                 let eq' = eqHandlingRelWrapper
@@ -183,16 +236,9 @@ interpretHyp = \case
                         (flattenExpr (extEnv yPcEnv.env) eq.rhs.expr)
                 if ifAt
                     then do
-                        xPc <- getPcWithTag eq.lhs.visit
-                        yPc <- getPcWithTag eq.rhs.visit
+                        xPc <- getPc eq.lhs.visit
+                        yPc <- getPc eq.rhs.visit
                         return $ nImpliesE [xPc, yPc] eq'
                     else do
                         return eq'
             _ -> return $ fromBoolE ifAt
-
---
-
-getFunCallVisitsCompat :: Monad m => GraphSliceT t m [WithTag t Visit]
-getFunCallVisitsCompat = do
-    export <- getExport
-    return $ toList export.funCallOrder

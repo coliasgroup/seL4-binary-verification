@@ -41,13 +41,13 @@ newtype CheckGroupKey
   deriving (Eq, Generic, Ord, Show)
   deriving newtype (NFData)
 
-groupKey :: Tag t => ProofCheck t a -> Set (WithTag t Visit)
+groupKey :: Tag t => ProofCheck t a -> Set (Visit t)
 groupKey check = S.fromList (check ^.. checkVisits)
 
-compatKey :: Tag t => Set (WithTag t Visit) -> CheckGroupKey
+compatKey :: Tag t => Set (Visit t) -> CheckGroupKey
 compatKey visits = CheckGroupKey $ sort
-    [ ((prettyNodeId visit.nodeId, map compatRestr (restrsFromMap visit.restrs)), prettyTag tag)
-    | WithTag tag visit <- S.toList visits
+    [ ((prettyNodeId visit.nodeId, map compatRestr (restrsFromMap visit.restrs)), prettyTag visit.tag)
+    | visit <- S.toList visits
     ]
 
 compatRestr :: Restr -> (Integer, ([Integer], [Integer]))

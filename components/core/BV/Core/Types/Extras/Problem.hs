@@ -15,7 +15,9 @@ module BV.Core.Types.Extras.Problem
     , augmentProblem
     , inlineScriptsEquivalent
     , innermostLoopContaining
+    , isNonTriviallyReachableFrom
     , isReachableFrom
+    , isSyntacticConstant
     , loopIsComplex
     , loopIsSimple
     , makeNodeGraph
@@ -28,16 +30,21 @@ module BV.Core.Types.Extras.Problem
     ) where
 
 import BV.Core.Types
+import BV.Core.Types.Extras.Expr (varFromNameTyE)
 import BV.Core.Types.Extras.Program
 import BV.Utils
 
-import Data.Foldable (toList)
+import Control.Monad (unless, when)
+import Control.Monad.Except (runExcept, throwError)
+import Control.Monad.State (evalStateT, get, modify)
+import Data.Either (isRight)
+import Data.Foldable (for_, toList)
 import Data.Function (applyWhen, on)
 import Data.Graph (Graph, Vertex)
 import qualified Data.Graph as G
-import Data.List (find, sortOn)
+import Data.List (elemIndex, find, genericIndex, sortOn)
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
@@ -68,6 +75,7 @@ varNamesOfProblem =
 
 --
 
+-- TODO rename to AnalyzedProblem
 data ProblemWithAnalysis t
   = ProblemWithAnalysis
       { problem :: Problem t
@@ -83,6 +91,7 @@ data ProblemAnalysis t
       , loopData :: LoopData
       , preds :: ByTag t (NodeId -> S.Set NodeAddr)
       , varNames :: S.Set Ident
+      , isNonTriviallyReachableFrom :: NodeAddr -> NodeId -> Bool
       }
   deriving (Generic)
 
@@ -90,24 +99,28 @@ analyzeProblem :: Tag t => Problem t -> ProblemAnalysis t
 analyzeProblem problem = ProblemAnalysis
     { nodeGraph
     , nodeTag
-    , loopData = makeLoopData problem nodeGraph
+    , loopData
     , preds = computePreds problem nodeTag
     , varNames = S.fromList $ toListOf varNamesOfProblem problem
+    , isNonTriviallyReachableFrom = makeIsNonTriviallyReachableFrom problem nodeGraph loopData
     }
   where
     nodeGraph = makeNodeGraph problem.nodes
     nodeTag = (M.!) $ nodeTagMap problem nodeGraph
+    loopData = makeLoopData problem nodeGraph
 
 analyzeProblemFromPartial :: Tag t => (NodeAddr -> t) -> S.Set Ident -> Problem t -> ProblemAnalysis t
 analyzeProblemFromPartial nodeTag varNames problem = ProblemAnalysis
     { nodeGraph
     , nodeTag
-    , loopData = makeLoopData problem nodeGraph
+    , loopData
     , preds = computePreds problem nodeTag
     , varNames
+    , isNonTriviallyReachableFrom = makeIsNonTriviallyReachableFrom problem nodeGraph loopData
     }
   where
     nodeGraph = makeNodeGraph problem.nodes
+    loopData = makeLoopData problem nodeGraph
 
 augmentProblem :: Tag t => Problem t -> ProblemWithAnalysis t
 augmentProblem problem = ProblemWithAnalysis
@@ -158,6 +171,22 @@ reachableFrom g from = map g.vertexToNodeId $ G.reachable g.graph (g.nodeIdToVer
 
 isReachableFrom :: NodeGraph -> NodeId -> NodeId -> Bool
 isReachableFrom g from to_ = G.path g.graph (g.nodeIdToVertex from) (g.nodeIdToVertex to_)
+
+isNonTriviallyReachableFrom :: ProblemWithAnalysis t -> NodeAddr -> NodeId -> Bool
+isNonTriviallyReachableFrom p from to_ =
+    if Addr from /= to_
+    then isReachableFrom p.analysis.nodeGraph (Addr from) to_
+    else from `M.member` p.analysis.loopData.byMember
+
+makeIsNonTriviallyReachableFrom :: Problem t -> NodeGraph -> LoopData -> NodeAddr -> NodeId -> Bool
+makeIsNonTriviallyReachableFrom problem g loopData = \from to_ -> to_ `S.member` (m M.! from)
+  where
+    m = M.mapWithKey f problem.nodes
+    f from _ = applyWhen (not keepSelf) (S.delete n) s
+      where
+        n = Addr from
+        s = S.fromList $ reachableFrom g n
+        keepSelf = from `M.member` loopData.byMember
 
 --
 
@@ -259,6 +288,60 @@ loopIsSimple loop = null loop.children
 
 loopIsComplex :: Loop -> Bool
 loopIsComplex = not . loopIsSimple
+
+--
+
+isSyntacticConstant
+    :: Tag t
+    => ProblemWithAnalysis t
+    -> (WithTag t Ident -> Integer -> Maybe Integer)
+    -> t
+    -> NameTy
+    -> Loop
+    -> NodeAddr
+    -> Bool
+isSyntacticConstant p constRetAssumptions tag var loop split =
+    ensure (not (loopIsComplex loop)) $
+    isRight $
+        runExcept
+            (evalStateT
+                (go (var.name, split))
+                (S.singleton (var.name, split)))
+  where
+    go (name, addr) = do
+        let localVar = NameTy name var.ty
+        let node = p.problem.nodes M.! addr
+        predName <- fromMaybe name <$> case node of
+            NodeCall callNode -> do
+                let isConst = case elemIndex localVar callNode.output of
+                        Nothing -> True
+                        Just outputIx -> case constRetAssumptions (WithTag tag callNode.functionName) (toInteger outputIx) of
+                            Nothing -> False
+                            Just intputIx -> callNode.input `genericIndex` intputIx == varFromNameTyE localVar
+                if isConst
+                    then return Nothing
+                    else throwNotConst
+            NodeBasic basicNode -> do
+                let updateExprs =
+                        [ u.val
+                        | u <- basicNode.varUpdates
+                        , u.var == localVar
+                        ]
+                case updateExprs of
+                    [] -> return Nothing
+                    [Expr _ (ExprValueVar ident)] -> return $ Just ident
+                    [_] -> throwNotConst
+                    _ -> error "unexpected"
+            _ -> return Nothing
+        let preds = S.intersection loop.members $ (viewAtTag tag p.analysis.preds) (Addr addr)
+        for_ preds $ \predAddr -> do
+            let predVar = (predName, predAddr)
+            safe <- get
+            unless (predVar `S.member` safe) $ do
+                when (predAddr == split) throwNotConst
+                go predVar
+                modify $ S.insert predVar
+    throwNotConst = throwError ()
 
 --
 

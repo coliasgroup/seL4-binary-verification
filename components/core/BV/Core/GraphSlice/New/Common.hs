@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module BV.Core.GraphSlice.New.Common
     ( ExprCommand (..)

@@ -1,84 +1,71 @@
 {-# LANGUAGE MultiWayIf #-}
-
-{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module BV.Core.GraphSlice.New.Flatten
-    ( FunCallInfo (..)
-    , GraphSliceExport (..)
+    ( ExprEnv
     , GraphSliceHooks
     , GraphSliceT
-    , askContVisit
-    , askLoopData
-    , askNodeGraph
-    , askProblem
-    , asmRefineGraphSliceHooks
+    , NormalizedVisit
+    , PcEnv (..)
+    , VisitTooGeneral
+    , askProblemWithAnalysis
     , defaultGraphSliceHooks
     , flattenExpr
-    , getExport
-    , getFunCallInfo
+    , getAllPcEnvsNorm
+    , getCallOrderCompatNorm
+    , getCallsByFunNameNorm
     , getInductVar
-    , getNodePcEnv
-    , getPc
+    , getPcEnvNorm
+    , getSuccessVarNorm
+    , normalizeVisit
     , runGraphSliceTStep
-    , tryGetNodePcEnv
-    , withAsmStackSplitting
+    , unwrapNormalizedVisit
+    , withAddFunAsserts
     , withConstRetAssumptions
     , withFast
+    , withIsStack
     ) where
 
-import BV.Core.GraphSlice.New.AsmRefine
 import BV.Core.GraphSlice.New.Common
 import BV.Core.GraphSlice.New.Flat
-import BV.Core.GraphSlice.New.MemCalls
-import BV.Core.GraphSlice.New.NameHint
-import BV.Core.GraphSlice.New.PcEnv
+import BV.Core.GraphSlice.New.Flatten.CallCount
+import BV.Core.GraphSlice.New.Flatten.NameHint
+import BV.Core.GraphSlice.New.Flatten.Visit
+import BV.Core.GraphSlice.New.Flatten.VisitInfo
 import BV.Core.GraphSlice.New.SendFlatExprCommand (FlatExpr)
-import BV.Core.GraphSlice.New.Tagged
 
 import BV.Core.Logic (eqHandlingRelWrapper, weakenAssert)
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils (whenNothing, withMapSlotWith)
+import BV.Core.Utils (withMapSlotWith)
 import BV.Utils
 
-import Control.Monad (filterM, guard, unless, when, (>=>))
-import Control.Monad.Except (ExceptT, runExceptT, throwError)
-import Control.Monad.Identity (runIdentity, runIdentityT)
+import Control.Monad (guard, when, (>=>))
+import Control.Monad.Identity (runIdentity)
 import Control.Monad.Reader (Reader, ReaderT, mapReaderT, runReaderT)
-import Control.Monad.State (StateT, evalStateT, get, mapStateT, modify)
+import Control.Monad.State (StateT, evalStateT, mapStateT)
 import Control.Monad.Trans (MonadTrans, lift)
-import Control.Monad.Trans.Maybe (MaybeT (MaybeT), hoistMaybe, runMaybeT)
-import Data.Either (isRight)
-import Data.Foldable (for_, toList, traverse_)
-import Data.Functor (void)
+import Data.Foldable (for_, toList)
+import Data.Function (on)
 import Data.List (genericIndex)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe)
+import Data.Maybe (catMaybes, fromJust)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=))
-import Text.Printf (printf)
 
 --
 
 type T = GraphSliceT
 
-type TaggedT t m = GraphSliceTaggedT t (T t m)
-
 type InnerT = GraphSliceFlatT
 
 type C t m = (Tag t, MonadGraphSliceSendSExpr m)
-
-type RefineC t m = (C t m, RefineTag t)
-
-type TaggedC t n m = (C t n, MonadLiftUntaggedGeneric t n m)
 
 --
 
@@ -98,19 +85,18 @@ instance MonadMapInnermost (T t) where
 
 runGraphSliceTStep
     :: (Tag t, Monad m)
-    => Problem t
+    => ProblemWithAnalysis t
     -> GraphSliceHooks t
     -> T t m a
     -> InnerT m a
-runGraphSliceTStep problem hooks =
-      flip runReaderT (initEnv problem hooks)
+runGraphSliceTStep pwa hooks =
+      flip runReaderT (initEnv pwa hooks)
     . flip evalStateT initState
     . (.run)
 
 data TEnv t
   = TEnv
-      { problem :: Problem t
-      , analysis :: ProblemAnalysis t
+      { pwa :: ProblemWithAnalysis t
       , hooks :: GraphSliceHooks t
       }
   deriving (Generic)
@@ -124,213 +110,105 @@ data GraphSliceHooks t
       }
   deriving (Generic)
 
-type AddFunAssertsHookFn t = forall m. MonadGraphSliceSendSExpr m => Visit -> TaggedT t m ()
-
-newtype AddFunAssertsHook t
-  = AddFunAssertsHook (AddFunAssertsHookFn t)
-
 data TState t
   = TState
-      { inputEnvs :: Map (WithTag t ()) ExprEnv
-      , nodePcEnvs :: Map (WithTag t Visit) (Maybe ExtPcEnv)
-      , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId ExtPcEnv)
+      { inputEnvs :: Map t ExprEnv
+      , inboundVisitInfo :: Map (NormalizedVisit t) (Maybe VisitInfo)
+      , outboundVisitInfo :: Map (NormalizedVisit t) (Maybe (Map NodeId VisitInfo))
+      , successVars :: Map (NormalizedVisit t) FlatExpr
       , inductVars :: Map EqHypInduct FlatExpr
-      , funCalls :: Map (WithTag t Visit) FunCallInfo
-      , funCallOrder :: Seq (WithTag t Visit)
-      , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
+      , callsByFunName :: Map (WithTag t Ident) (S.Set (NormalizedVisit t))
+      , callOrderCompat :: Seq (NormalizedVisit t)
       }
   deriving (Generic)
 
-data FunCallInfo
-  = FunCallInfo
-      { ins :: [FlatExpr]
-      , outs :: [FlatExpr]
-      , success :: FlatExpr
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-initEnv :: Tag t => Problem t -> GraphSliceHooks t -> TEnv t
-initEnv problem hooks = TEnv
-    { problem
-    , analysis = analyzeProblem problem
+initEnv :: Tag t => ProblemWithAnalysis t -> GraphSliceHooks t -> TEnv t
+initEnv pwa hooks = TEnv
+    { pwa
     , hooks
     }
 
 defaultGraphSliceHooks :: GraphSliceHooks t
 defaultGraphSliceHooks = GraphSliceHooks
-    { isStack = \_ _ _ -> False
-    , addFunAsserts = AddFunAssertsHook $ \_ -> return ()
+    { addFunAsserts = AddFunAssertsHook $ \_ -> return ()
+    , isStack = \_ _ _ -> False
     , fast = False
     , constRetAssumptions = \_ _ -> Nothing
     }
 
-asmRefineGraphSliceHooks
-    :: t ~ AsmRefineTag
+withAddFunAsserts
+    :: RefineTag t
     => LookupFunctionSignature t
     -> Pairings t
-    -> ArgRenames t
     -> GraphSliceHooks t
-asmRefineGraphSliceHooks lookupSig pairings argRenames =
-    withAsmStackSplitting lookupSig argRenames $
-        defaultGraphSliceHooks
-            & #addFunAsserts .~ addFunAssertsHook lookupSig pairings
+    -> GraphSliceHooks t
+withAddFunAsserts lookupSig pairings = #addFunAsserts .~ addFunAssertsHook lookupSig pairings
 
-withAsmStackSplitting
-    :: HasTagIsAsm t
-    => LookupFunctionSignature t
-    -> ArgRenames t
+withIsStack
+    :: (WithTag t Ident -> FunctionSignatureDirection -> Integer -> Bool)
     -> GraphSliceHooks t
     -> GraphSliceHooks t
-withAsmStackSplitting lookupSig _argRenames = #isStack .~ asmRefineIsStackHook lookupSig
-
-withConstRetAssumptions :: (WithTag t Ident -> Integer -> Maybe Integer) -> GraphSliceHooks t -> GraphSliceHooks t
-withConstRetAssumptions constRetAssumptions = #constRetAssumptions .~ constRetAssumptions
+withIsStack = set #isStack
 
 withFast :: GraphSliceHooks t -> GraphSliceHooks t
 withFast = #fast .~ True
 
+withConstRetAssumptions
+    :: (WithTag t Ident -> Integer -> Maybe Integer)
+    -> GraphSliceHooks t
+    -> GraphSliceHooks t
+withConstRetAssumptions = set #constRetAssumptions
+
 initState :: TState t
 initState = TState
     { inputEnvs = M.empty
-    , nodePcEnvs = M.empty
-    , arcPcEnvs = M.empty
+    , inboundVisitInfo = M.empty
+    , outboundVisitInfo = M.empty
+    , successVars = M.empty
     , inductVars = M.empty
-    , funCalls = M.empty
-    , funCallOrder = Seq.empty
-    , funCallsByName = M.empty
+    , callsByFunName = M.empty
+    , callOrderCompat = Seq.empty
     }
 
 --
 
-data GraphSliceExport t
-  = GraphSliceExport
-      { inputEnvs :: Map (WithTag t ()) ExprEnv
-      , nodePcEnvs :: Map (WithTag t Visit) (Maybe PcEnv)
-      , arcPcEnvs :: Map (WithTag t Visit) (Map NodeId PcEnv)
-      , inductVars :: Map EqHypInduct FlatExpr
-      , funCalls :: Map (WithTag t Visit) FunCallInfo
-      , funCallOrder :: Seq (WithTag t Visit)
-      , funCallsByName :: Map (WithTag t Ident) (S.Set Visit)
-      }
-  deriving (Generic)
+liftFlat :: Monad m => InnerT m a -> T t m a
+liftFlat = liftInner
 
-getExport :: Monad m => T t m (GraphSliceExport t)
-getExport = liftPure $ do
-    inputEnvs <- use #inputEnvs
-    nodePcEnvs <- use #nodePcEnvs
-    arcPcEnvs <- use #arcPcEnvs
-    inductVars <- use #inductVars
-    funCalls <- use #funCalls
-    funCallOrder <- use #funCallOrder
-    funCallsByName <- use #funCallsByName
-    return $ GraphSliceExport
-        { inputEnvs
-        , nodePcEnvs = fmap (fmap extPcEnvPcEnv) nodePcEnvs
-        , arcPcEnvs = fmap (fmap extPcEnvPcEnv) arcPcEnvs
-        , inductVars
-        , funCalls
-        , funCallOrder
-        , funCallsByName
-        }
+liftPure :: Monad m => StateT (TState t) (Reader (TEnv t)) a -> T t m a
+liftPure = GraphSliceT . mapStateT (mapReaderT (return . runIdentity))
+
+withMapSlot :: (C t m, Ord k) => Lens' (TState t) (Map k v) -> k -> T t m v -> T t m v
+withMapSlot = withMapSlotWith $ liftPure . mapStateT (return . runIdentity)
 
 --
 
-class (Monad n, Monad m) => MonadLiftUntaggedGeneric t n m | m -> t, m -> n where
-    liftUntaggedGeneric :: T t n a -> m a
+askProblemWithAnalysis :: Monad m => T t m (ProblemWithAnalysis t)
+askProblemWithAnalysis = liftPure $ gview #pwa
 
-instance Monad n => MonadLiftUntaggedGeneric t n (T t n) where
-    liftUntaggedGeneric = id
+askNode :: Monad m => NormalizedVisit t -> T t m Node
+askNode norm = do
+    p <- askProblemWithAnalysis
+    return $ p.problem.nodes ! (nodeAddrOf (unwrapNormalizedVisit norm).nodeId)
 
-instance Monad n => MonadLiftUntaggedGeneric t n (TaggedT t n) where
-    liftUntaggedGeneric = liftUntagged
+askCallNode :: Monad m => NormalizedVisit t -> T t m CallNode
+askCallNode norm = view (expecting #_NodeCall) <$> askNode norm
 
-liftFlat :: MonadLiftUntaggedGeneric t n m => InnerT n a -> m a
-liftFlat = liftUntaggedGeneric . liftInner
+askNodeFunName :: Monad m => NormalizedVisit t -> T t m Ident
+askNodeFunName norm = (.functionName) <$> askCallNode norm
 
-liftPure :: MonadLiftUntaggedGeneric t n m => StateT (TState t) (Reader (TEnv t)) a -> m a
-liftPure = liftUntaggedGeneric . GraphSliceT . mapStateT (mapReaderT (return . runIdentity))
+askProblemSide :: (Tag t, Monad m) => t -> T t m ProblemSide
+askProblemSide tag = do
+    p <- askProblemWithAnalysis
+    return $ viewAtTag tag p.problem.sides
 
---
-
-withMapSlotWithMapping :: (TaggedC t n m, Monad m', Ord k) => (forall a. m a -> m' a) -> Lens' (TState t) (Map k v) -> k -> m' v -> m' v
-withMapSlotWithMapping f = withMapSlotWith $ f . liftPure . mapStateT (return . runIdentity)
-
-withMapSlot :: (TaggedC t n m, Ord k) => Lens' (TState t) (Map k v) -> k -> m v -> m v
-withMapSlot = withMapSlotWithMapping id
-
-withMapSlotTagged :: (C t m, Ord k) => Lens' (TState t) (Map (WithTag t k) v) -> k -> TaggedT t m v -> TaggedT t m v
-withMapSlotTagged l k m = do
-    k' <- askWithTag k
-    withMapSlot l k' m
-
---
-
-askHook :: TaggedC t n m => Lens' (GraphSliceHooks t) a -> m a
+askHook :: C t m => Lens' (GraphSliceHooks t) a -> T t m a
 askHook l = liftPure $ gview $ #hooks % l
 
-askProblem :: TaggedC t n m => m (Problem t)
-askProblem = liftPure $ gview #problem
-
-askProblemSide :: C t m => TaggedT t m ProblemSide
-askProblemSide = do
-    tag <- askTag
-    view (#sides % atTag tag) <$> askProblem
-
-askNode :: TaggedC t n m => NodeAddr -> m Node
-askNode addr = liftPure $ gview $ #problem % #nodes % expectingAt addr
-
-askNodeGraph :: TaggedC t n m => m NodeGraph
-askNodeGraph = liftPure $ gview $ #analysis % #nodeGraph
-
-askIsNonTriviallyReachableFrom :: TaggedC t n m => NodeAddr -> NodeId -> m Bool
-askIsNonTriviallyReachableFrom from to_ = do
-    g <- liftPure $ gview $ #analysis % #nodeGraph
-    fromNode <- askNode from
-    return $ or [ isReachableFrom g fromCont to_ | fromCont <- fromNode ^.. nodeConts ]
-
-askLoopData :: C t m => TaggedT t m LoopData
-askLoopData = liftPure $ gview $ #analysis % #loopData
-
-askFunName :: C t m => Visit -> TaggedT t m Ident
-askFunName v = view (expecting #_NodeCall % #functionName) <$> askNode (nodeAddrOf v.nodeId)
-
-askPreds :: C t m => NodeId -> TaggedT t m (Set NodeAddr)
-askPreds n = do
-    tag <- askTag
-    liftPure $ gview $ #analysis % #preds % atTag tag % to ($ n)
-
-askPredVisits :: C t m => Visit -> TaggedT t m [Visit]
-askPredVisits visit = do
-    tag <- askTag
-    preds <- liftPure $ gview $ #analysis % #preds % atTag tag
-    return $ predVisits visit (toList (preds visit.nodeId))
-
-askContVisits :: C t m => Visit -> TaggedT t m [Visit]
-askContVisits visit = do
-    let addr = nodeAddrOf visit.nodeId
-    node <- askNode addr
-    return $ contVisits visit (toListOf nodeConts node)
-
-askContVisit :: C t m => Visit -> TaggedT t m Visit
-askContVisit visit = do
-    conts <- askContVisits visit
-    let [cont] = conts
-    return cont
-
---
-
-askNonConstOutputs :: C t m => CallNode -> TaggedT t m [(Integer, NameTy)]
-askNonConstOutputs callNode = do
-    funName <- askWithTag callNode.functionName
-    fast <- askHook #fast
-    constRetAssumptions <- askHook #constRetAssumptions
-    return
-        [ (i, out)
-        | (i, out) <- zip [0..] callNode.output
-        , not (fast && case constRetAssumptions funName i of
-                Just j -> callNode.input `genericIndex` j == varFromNameTyE out
-                Nothing -> False)
-        ]
+askIsStack :: C t m => WithTag t Ident -> FunctionSignatureDirection -> Integer -> T t m Bool
+askIsStack funName dir i = do
+    isStackHook <- askHook #isStack
+    return $ isStackHook funName dir i
 
 --
 
@@ -341,22 +219,34 @@ flattenExpr = flip go
         ExprValueVar name -> (! name)
         _ -> return expr
 
-flattenAndAddDef :: TaggedC t n m => ExprEnv -> GraphExpr -> NameHint -> m FlatExpr
-flattenAndAddDef env expr nameHint = liftFlat $ addDef nameHint $ flattenExpr env expr
+flattenAndAddDef :: C t m => ExprEnv -> GraphExpr -> NameHint -> T t m FlatExpr
+flattenAndAddDef env expr hint = liftFlat $ addDef hint $ flattenExpr env expr
 
-contractPcEnv :: C t m => Visit -> ExtPcEnv -> TaggedT t m ExtPcEnv
-contractPcEnv visit (ExtPcEnv pc env calls) = do
-    pc' <- do
-        hint <- pathCondName <$> askWithTag visit
-        liftFlat $ cacheExpr hint pc
+contractVisitInfo :: C t m => NormalizedVisit t -> VisitInfo -> T t m VisitInfo
+contractVisitInfo norm (VisitInfo pc env callCount) = do
+    pc' <- liftFlat $ cacheExpr (pathCondName norm) pc
+    let f name val = liftFlat $ cacheExprInline (localNameBefore norm name) val
     env' <- M.traverseWithKey f env
-    return $ ExtPcEnv pc' env' calls
+    return $ VisitInfo pc' env' callCount
+
+addOpaqueVar :: C t m => NameHint -> ExprType -> T t m FlatExpr
+addOpaqueVar hint ty = liftFlat $ varFromNameTyE <$> addVar hint ty
+
+addOpaqueVarWithIsStack
+    :: C t m
+    => (Ident -> NameHint)
+    -> NameTy
+    -> Bool
+    -> Bool
+    -> T t m FlatExpr
+addOpaqueVarWithIsStack f var isStack splitStack = do
+    if isStack
+    then ensure (isMemT var.ty) $ markedStackE <$> add (if splitStack then stackT else memT)
+    else add var.ty
   where
-    f name val = liftFlat $ cacheExprInline (localNameBefore visit name) val
+    add = addOpaqueVar $ f var.name
 
---
-
-getIsExprStack :: TaggedC t n m => FlatExpr -> m Bool
+getIsExprStack :: (Tag t, Monad m) => FlatExpr -> T t m Bool
 getIsExprStack =
     \expr -> if isMemT expr.ty then go expr else return False
   where
@@ -365,376 +255,271 @@ getIsExprStack =
         ExprValueOp OpIfThenElse [_, l, r] -> ensureEq <$> go l <*> go r
         ExprValueOp (OpExt OpExtMarkedStack) _ -> return True
         ExprValueVar name -> liftFlat (lookupDef name) >>= maybe (return False) go
+        _ -> unexpected
     ensureEq x y = ensure (x == y) x
 
-addStackVar :: C t m => Bool -> NameHint -> TaggedT t m FlatExpr
-addStackVar split nameHint = do
-    let ty = if split then stackT else memT
-    liftFlat $ markedStackE . varFromNameTyE <$> addVar nameHint ty
+applyTag :: NormalizedVisit t -> a -> WithTag t a
+applyTag norm = WithTag (unwrapNormalizedVisit norm).tag
 
 --
 
-pruneVisit :: C t m => Visit -> TaggedT t m (Maybe Visit)
-pruneVisit visit = runMaybeT $
-    forOf #restrs visit $ \restrs ->
-        fmap (M.fromList . concat) $ for (M.toList restrs) $ \(addr, vc) -> do
-            reachable <- lift $ askIsNonTriviallyReachableFrom addr visit.nodeId
-            guard $ reachable || hasZeroVC vc
-            return [ (addr, vc) | reachable ]
+getPcEnvNorm :: C t m => NormalizedVisit t -> T t m (Maybe PcEnv)
+getPcEnvNorm norm = fmap visitInfoPcEnv <$> getInboundVisitInfo norm
 
-pruneVisits :: C t m => [Visit] -> TaggedT t m [Visit]
-pruneVisits visits = catMaybes <$> traverse pruneVisit visits
+getAllPcEnvsNorm :: (Tag t, Monad m) => T t m [(NormalizedVisit t, PcEnv)]
+getAllPcEnvsNorm = do
+    inboundVisitInfo <- liftPure $ use #inboundVisitInfo
+    return
+        [ (norm, visitInfoPcEnv info)
+        | (norm, Just info) <- M.toList inboundVisitInfo
+        ]
 
-data TooGeneral
-  = TooGeneral
-      { split :: NodeAddr
-      }
-  deriving (Eq, Generic, Ord, Show)
+getCallsByFunNameNorm :: (Tag t, Monad m) => T t m (M.Map (WithTag t Ident) [NormalizedVisit t])
+getCallsByFunNameNorm = liftPure $ fmap toList <$> use #callsByFunName
 
-checkGenerality :: C t m => Visit -> ExceptT TooGeneral (TaggedT t m) ()
-checkGenerality visit = void $ runMaybeT $ do
-    loopData <- lift $ lift $ askLoopData
-    nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
-    loop <- hoistMaybe $ outermostLoopContaining loopData nodeAddr
-    ifor_ visit.restrs $ \addr vc -> do
-        let loopOpt' = outermostLoopContaining loopData addr
-        when (fmap (.head) loopOpt' == Just loop.head && isOptionsVC vc) $ do
-            throwError $ TooGeneral { split = addr }
+getCallOrderCompatNorm :: (Tag t, Monad m) => T t m [NormalizedVisit t]
+getCallOrderCompatNorm = liftPure $ toList <$> use #callOrderCompat
+
+getSuccessVarNorm :: C t m => NormalizedVisit t -> T t m FlatExpr
+getSuccessVarNorm norm = withMapSlot #successVars norm $ do
+    funName <- askNodeFunName norm
+    addOpaqueVar (successName norm funName) boolT
+
+getInductVar :: C t m => EqHypInduct -> T t m FlatExpr
+getInductVar induct = withMapSlot #inductVars induct $
+    addOpaqueVar (inductVarName induct) word32T
 
 --
 
-getInductVar :: TaggedC t n m => EqHypInduct -> m FlatExpr
-getInductVar induct =
-    withMapSlot #inductVars induct $
-        liftFlat $
-            varFromNameTyE <$> addVar (inductVarName induct) word32T
-
-getPc :: C t m => Visit -> TaggedT t m FlatExpr
-getPc visit = getNodePcEnv visit <&> \case
-    Just (PcEnv pc _) -> pc
-    Nothing -> falseE
-
-getNodePcEnvExt :: C t m => Visit -> TaggedT t m (Maybe ExtPcEnv)
-getNodePcEnvExt = runIdentityT . getNodePcEnvInner (const (return ()))
-
-getNodePcEnv :: C t m => Visit -> TaggedT t m (Maybe PcEnv)
-getNodePcEnv = (fmap . fmap) extPcEnvPcEnv . getNodePcEnvExt
-
-tryGetNodePcEnv :: C t m => Visit -> TaggedT t m (Either TooGeneral (Maybe ExtPcEnv))
-tryGetNodePcEnv = runExceptT . getNodePcEnvInner checkGenerality
-
-getNodePcEnvInner :: (C t m, MonadTrans trans) => (Visit -> trans (TaggedT t m) ()) -> Visit -> trans (TaggedT t m) (Maybe ExtPcEnv)
-getNodePcEnvInner check unprunedVisit = runMaybeT $ do
-    visit <- MaybeT $ lift $ pruneVisit unprunedVisit
-    lift $ check visit
-    MaybeT $ lift $ withMapSlotTagged #nodePcEnvs visit $ do
-        warmPcEnvCache visit
-        getNodePcEnvRaw visit
-
--- TODO try without
-warmPcEnvCache :: C t m => Visit -> TaggedT t m ()
-warmPcEnvCache visit = go iters [] visit >>= traverse_ getNodePcEnvExt
-  where
-    go 0 prevChain _ = return prevChain
-    go i prevChain curVisit = do
-        let f prev = do
-                checkGenerality prev
-                key <- lift $ askWithTag prev
-                present <- lift $ liftPure $ use $ #nodePcEnvs % to (M.member key)
-                return $ not present && prev.restrs == curVisit.restrs
-        runExceptT (lift (askPredVisits curVisit >>= pruneVisits) >>= filterM f) >>= \case
-            Right (v:_) -> go (i - 1) (v:prevChain) v
-            _ -> return prevChain
-    iters = 5000 :: Integer
-
-getNodePcEnvRaw :: C t m => Visit -> TaggedT t m (Maybe ExtPcEnv)
-getNodePcEnvRaw visit = do
-    side <- askProblemSide
-    let isEntryPoint = visit.nodeId == side.entryPoint
-    let isPostLoop = or
-            [ Addr addr == visit.nodeId && vc == offsetVC 0
-            | (addr, vc) <- M.toList visit.restrs
-            ]
-    if  | isEntryPoint -> do
-            env <- getInputEnv
-            return $ Just $ ExtPcEnv trueE env emptyMemCalls
-        | isPostLoop -> do
-            let preLoopVisit = visit & #restrs %~ M.insert (nodeAddrOf visit.nodeId) (numberVC 0)
-            preLoopEnvOpt <- getNodePcEnvExt preLoopVisit
-            for preLoopEnvOpt (getLoopPcEnv visit)
-        | otherwise -> do
-            preds <- askPreds visit.nodeId
-            arcPcEnvs <- fmap concat $ for (toList preds) $ \pred_ -> getArcPcEnvs pred_ visit
-            case arcPcEnvs of
+getInboundVisitInfo :: C t m => NormalizedVisit t -> T t m (Maybe VisitInfo)
+getInboundVisitInfo norm = withMapSlot #inboundVisitInfo norm $
+    visitKind norm <$> askProblemWithAnalysis >>= \case
+        VisitKindEntryPoint -> do
+            env <- getInputEnv tag
+            return $ Just $ VisitInfo trueE env emptyCallCount
+        VisitKindPostLoop preLoop -> do
+            getInboundVisitInfo preLoop >>= traverse (getPostLoopVisitInfo norm)
+        VisitKindNormal preds -> do
+            optArcs <- for preds $ \pred_ ->
+                (>>= M.lookup nodeId) <$> getOutboundVisitInfo pred_
+            case catMaybes optArcs of
                 [] -> return Nothing
-                _ -> Just <$> do
-                    let optimize = case visit.nodeId of
+                arcs -> Just <$> do
+                    let optimize = case nodeId of
                             Err -> traversed % #env .~ M.empty
                             _ -> id
-                    contractPcEnv visit $ mergePcEnvs (optimize arcPcEnvs)
+                    contractVisitInfo norm $ mergeVisitInfo $ optimize arcs
+  where
+    visit = unwrapNormalizedVisit norm
+    nodeId = visit.nodeId
+    tag = visit.tag
 
-getInputEnv :: C t m => TaggedT t m ExprEnv
-getInputEnv = withMapSlotTagged #inputEnvs () $ do
-    side <- askProblemSide
-    funName <- askWithTag side.name
-    isStackHook <- askHook #isStack
+getInputEnv :: C t m => t -> T t m ExprEnv
+getInputEnv tag = withMapSlot #inputEnvs tag $ do
+    side <- askProblemSide tag
     fmap M.fromList $ for (zip [0..] side.input) $ \(i, sigVar) -> (sigVar.name,) <$> do
-        let isStack = isStackHook funName FunctionSignatureDirectionIn i
-        let nameHint = printf "%P_init" sigVar.name
-        if isStack
-            then addStackVar False nameHint
-            else do
-                envVar <- liftFlat $ addVar nameHint sigVar.ty
-                return $ varFromNameTyE envVar
+        isStack <- askIsStack (WithTag tag side.name) FunctionSignatureDirectionIn i
+        addOpaqueVarWithIsStack (initName tag) sigVar isStack False
 
-getLoopPcEnv :: C t m => Visit -> ExtPcEnv -> TaggedT t m ExtPcEnv
-getLoopPcEnv visit preLoopPcEnv = do
-    loop <- askLoopData <&> \loopData -> fromJust $ outermostLoopContaining loopData visitAddr
-    nonConsts <- filterM (fmap not . flip isConstM loop) (toList (exprEnvVars preLoopPcEnv.env))
-    newVars <- fmap M.fromList $ for nonConsts $ \preLoopVar -> (preLoopVar.name,) <$> do
-        let preLoopVal = preLoopPcEnv.env ! preLoopVar.name
-        isStack <- getIsExprStack preLoopVal
-        let postLoopNameHint = printf "%P_after_loop_at_%P" preLoopVar.name visit.nodeId
-        if isStack
-            then addStackVar True postLoopNameHint
+getPostLoopVisitInfo :: C t m => NormalizedVisit t -> VisitInfo -> T t m VisitInfo
+getPostLoopVisitInfo norm preLoopInfo = do
+    p <- askProblemWithAnalysis
+    fast <- askHook #fast
+    constRetAssumptions <- askHook #constRetAssumptions
+    let loop = fromJust $ outermostLoopContaining p.analysis.loopData visitAddr
+    let isConst var =
+            let alwaysCheck = case var.ty of
+                    ExprTypeHtd -> True
+                    ExprTypeDom -> True
+                    _ -> False
+             in not (loopIsComplex loop)
+                    && (alwaysCheck || fast)
+                    && isSyntacticConstant p constRetAssumptions tag var loop visitAddr
+    env <- ifor preLoopInfo.env $ \name val ->
+        let var = NameTy name val.ty
+         in if isConst var
+            then return val
             else do
-                postLoopVar <- liftFlat $ addVar postLoopNameHint preLoopVar.ty
-                return $ varFromNameTyE postLoopVar
-    let postLoopEnv = M.union newVars preLoopPcEnv.env
-    pc <- liftFlat $ varFromNameTyE <$>
-        addVar (printf "pc_of_loop_at_%P" visit.nodeId) boolT
-    calls <- addLoopMemCalls loop preLoopPcEnv.calls
-    return $ ExtPcEnv pc postLoopEnv calls
+                isStack <- getIsExprStack $ preLoopInfo.env ! name
+                addOpaqueVarWithIsStack (localNameAfterLoop norm) var isStack True
+    pc <- addOpaqueVar (pathCondNameAfterLoop norm) boolT
+    return $ VisitInfo
+        { pc
+        , env
+        , callCount =
+            let calledFuns =
+                    [ p.problem.nodes ! addr | addr <- toList loop.members ]
+                        ^.. folded % #_NodeCall % #functionName
+             in foldl (flip addUnboundedCalls) preLoopInfo.callCount calledFuns
+        }
   where
+    visit = unwrapNormalizedVisit norm
+    tag = visit.tag
     visitAddr = nodeAddrOf visit.nodeId
-    isConstM var loop = do
-        -- TODO move check into isSyntacticConstant?
-        fast <- askHook #fast
-        let checkConst = fast || case var.ty of
-                ExprTypeHtd -> True
-                ExprTypeDom -> True
-                _ -> False
-        if checkConst then isSyntacticConstant var loop visitAddr else return False
 
-addLoopMemCalls :: C t m => Loop -> MemCalls -> TaggedT t m MemCalls
-addLoopMemCalls loop memCalls = do
-    nodes <- traverse askNode (toList loop.members)
-    let fnames = S.fromList $ nodes ^.. folded % #_NodeCall % #functionName
-    return $ foldl (flip addUnboundedMemCalls) memCalls (toList fnames)
-
-isSyntacticConstant :: C t m => NameTy -> Loop -> NodeAddr -> TaggedT t m Bool
-isSyntacticConstant var loop split =
-    -- TODO handle hasInnerLoop case
-    if loopIsComplex loop
-        then return False
-        else do
-            let go (name, addr) = do
-                    node <- lift $ lift $ askNode addr
-                    predName <- fromMaybe name <$> case node of
-                        NodeCall callNode -> do
-                            nonConstOutputs <- lift $ lift $ askNonConstOutputs callNode
-                            if NameTy name var.ty `elem` map snd nonConstOutputs
-                                then throwNotConst
-                                else return Nothing
-                        NodeBasic basicNode -> do
-                            let updateExprs =
-                                    [ u.val
-                                    | u <- basicNode.varUpdates
-                                    , u.var == NameTy name var.ty
-                                    ]
-                            case updateExprs of
-                                [] -> return Nothing
-                                [Expr _ (ExprValueVar ident)] -> return $ Just ident
-                                [_] -> throwNotConst
-                        _ -> return Nothing
-                    preds <- lift $ lift $ S.intersection loop.members <$> askPreds (Addr addr)
-                    for_ preds $ \predAddr -> do
-                        let predVar = (predName, predAddr)
-                        safe <- get
-                        unless (predVar `S.member` safe) $ do
-                            when (predAddr == split) throwNotConst
-                            go predVar
-                            modify $ S.insert predVar
-            isRight <$>
-                runExceptT
-                    (evalStateT
-                        (go (var.name, split))
-                        (S.singleton (var.name, split)))
-  where
-    throwNotConst = throwError ()
-
-getArcPcEnvs :: C t m => NodeAddr -> Visit -> TaggedT t m [ExtPcEnv]
-getArcPcEnvs pred_ visit = do
-    r <- runExceptT $ do
-        prevs <- lift $ askPredVisits visit >>= pruneVisits . filter (\prev -> prev.nodeId == Addr pred_)
-        ensureM $ length prevs <= 1
-        fmap catMaybes $ for prevs $ \prev -> do
-            checkGenerality prev
-            lift $ getArcPcEnv prev visit.nodeId
-    case r of
-        Right x -> return x
-        Left (TooGeneral { split }) ->
-            concat <$> traverse (getArcPcEnvs pred_) (splitVisitAt split visit)
-
-getArcPcEnv :: C t m => Visit -> NodeId -> TaggedT t m (Maybe ExtPcEnv)
-getArcPcEnv prev nodeId = runMaybeT $ do
-    key <- lift $ askWithTag prev
-    pcEnvs <- withMapSlotWithMapping lift #arcPcEnvs key $ do
-        MaybeT $ getNodePcEnvExt prev
-        lift $ emitNode prev
-    hoistMaybe $ pcEnvs !? nodeId
-
-emitNode :: C t m => Visit -> TaggedT t m (Map NodeId ExtPcEnv)
-emitNode visit = do
-    pcEnv@(ExtPcEnv pc env calls) <- fromJust <$> getNodePcEnvExt visit
-    let nodeAddr = nodeAddrOf visit.nodeId
-    node <- askNode nodeAddr
-    M.fromList <$>
-        if pc == falseE
-        then return [ (cont, ExtPcEnv falseE M.empty emptyMemCalls) | cont <- node ^.. nodeConts ]
-        else case node of
-            NodeCond condNode | condNode.left == condNode.right -> do
-                return [(condNode.left, pcEnv)]
-            NodeCond condNode | condNode.expr == trueE -> do
-                return [(condNode.left, pcEnv), (condNode.right, pcEnv & #pc .~ falseE)]
+getOutboundVisitInfo :: C t m => NormalizedVisit t -> T t m (Maybe (Map NodeId VisitInfo))
+getOutboundVisitInfo norm = withMapSlot #outboundVisitInfo norm $ do
+    infoOpt <- getInboundVisitInfo norm
+    for infoOpt $ \info@(VisitInfo { pc, env }) -> M.fromList <$> do
+        askNode norm >>= \case
+            node | pc == falseE -> return
+                [ (cont, VisitInfo falseE M.empty emptyCallCount)
+                | cont <- node ^.. nodeConts
+                ]
             NodeBasic basicNode -> do
-                updates <- for basicNode.varUpdates $ \update -> do
-                    val <- case update.val.value of
+                updates <- for basicNode.varUpdates $ \update ->
+                    (update.var.name,) <$> case update.val.value of
                         ExprValueVar name -> return $ env ! name
-                        _ -> flattenAndAddDef env update.val $ localName visit update.var.name
-                    return (update.var.name, val)
-                return [(basicNode.next, ExtPcEnv pc (M.union (M.fromList updates) env) calls)]
-            NodeCond condNode -> do
-                cond <- flattenAndAddDef env condNode.expr $ condName visit
-                let lpc = andE cond pc
-                let rpc = andE (notE cond) pc
-                return [(condNode.left, ExtPcEnv lpc env calls), (condNode.right, ExtPcEnv rpc env calls)]
+                        _ -> flattenAndAddDef env update.val $ localName norm update.var.name
+                let env' = M.union (M.fromList updates) env
+                return [(basicNode.next, info & #env .~ env')]
+            NodeCond condNode ->
+                if  | condNode.left == condNode.right -> return [(condNode.left, info)]
+                    | condNode.expr == trueE -> return
+                        [ (condNode.left, info)
+                        , (condNode.right, info & #pc .~ falseE)
+                        ]
+                    -- TODO why doesn't this work?
+                    -- | condNode.expr == falseE -> return
+                    --     [ (condNode.left, info & #pc .~ falseE)
+                    --     , (condNode.right, info)
+                    --     ]
+                    | otherwise -> do
+                        cond <- flattenAndAddDef env condNode.expr $ condName norm
+                        return
+                            [ (condNode.left, info & #pc .~ andE cond pc)
+                            , (condNode.right, info & #pc .~ andE (notE cond) pc)
+                            ]
             NodeCall callNode -> do
-                pcEnv' <- getCallNodeEnv visit pcEnv callNode
+                info' <- getPostCallVisitInfo norm info callNode
+                success <- getSuccessVarNorm norm
                 AddFunAssertsHook addFunAsserts <- askHook #addFunAsserts
-                addFunAsserts visit
-                return [(callNode.next, pcEnv')]
+                addFunAsserts $ applyTag norm $ FunAssertInput
+                    { callNode
+                    , inboundInfo = info
+                    , outboundInfo = info'
+                    , success
+                    }
+                liftPure $ do
+                    #callsByFunName %=
+                        M.insertWith (<>) (applyTag norm callNode.functionName) (S.singleton norm)
+                    #callOrderCompat %=
+                        (Seq.|> norm)
+                return [(callNode.next, info')]
 
-getCallNodeEnv :: C t m => Visit -> ExtPcEnv -> CallNode -> TaggedT t m ExtPcEnv
-getCallNodeEnv visit preCallEnv callNode = do
-    let ins = map (flattenExpr preCallEnv.env) callNode.input
-    funName <- askWithTag callNode.functionName
-    isStackHook <- askHook #isStack
-    nonConstOutputs <- askNonConstOutputs callNode
-    newVars <- fmap M.fromList $ for nonConstOutputs $ \(i, sigVar) -> (sigVar.name,) <$> do
-        let isStack = isStackHook funName FunctionSignatureDirectionOut i
-        let nameHint = localName visit sigVar.name
-        if isStack
-            then addStackVar True nameHint
-            else do
-                envVar <- liftFlat $ addVar nameHint sigVar.ty
-                return $ varFromNameTyE envVar
-    let postCallEnv = M.union newVars preCallEnv.env
-    successVar <- liftFlat $ addVar (successName visit callNode.functionName) boolT
-    let info = FunCallInfo
-            { ins
-            , outs = [ postCallEnv ! out.name | out <- callNode.output ]
-            , success = varFromNameTyE successVar
-            }
-    key <- askWithTag visit
-    liftPure $ #funCalls %= M.insertWith undefined key info
-    liftPure $ #funCallOrder %= (Seq.|> key)
-    liftPure $ #funCallsByName %= M.insertWith (<>) funName (S.singleton visit)
-    return $ ExtPcEnv preCallEnv.pc postCallEnv (addMemCall callNode.functionName preCallEnv.calls)
-
-getFunCallInfo :: C t m => Visit -> TaggedT t m FunCallInfo
-getFunCallInfo unprunedVisit = do
-    visit <- fromJust <$> pruneVisit unprunedVisit
-    node <- askNode $ nodeAddrOf visit.nodeId
-    ensureM $ is #_NodeCall node
-    key <- askWithTag visit
-    opt <- liftPure $ use $ #funCalls % at key
-    whenNothing opt $ do
-        askContVisit visit >>= getNodePcEnvExt
-        liftPure $ use $ #funCalls % expectingAt key
+getPostCallVisitInfo
+    :: forall t m. C t m
+    => NormalizedVisit t
+    -> VisitInfo
+    -> CallNode
+    -> T t m VisitInfo
+getPostCallVisitInfo norm preCallInfo callNode = do
+    fast <- askHook #fast
+    constRetAssumptions <- askHook #constRetAssumptions
+    newVars <- for (zip [0..] callNode.output) $ \(i, sigVar) -> (sigVar.name,) <$>
+        case guard fast >> constRetAssumptions funName i of
+            Just j -> return $ flattenExpr preCallInfo.env $ callNode.input `genericIndex` j
+            Nothing -> do
+                isStack <- askIsStack funName FunctionSignatureDirectionOut i
+                addOpaqueVarWithIsStack (localName norm) sigVar isStack True
+    return $ VisitInfo
+        { pc = preCallInfo.pc
+        , env = M.union (M.fromList newVars) preCallInfo.env
+        , callCount = addCall callNode.functionName preCallInfo.callCount
+        }
+  where
+    funName = applyTag norm callNode.functionName
 
 --
 
-addFunAssertsHook :: RefineTag t => LookupFunctionSignature t -> Pairings t -> AddFunAssertsHook t
-addFunAssertsHook lookupSig pairings = AddFunAssertsHook $ flip runReaderT env . addFunAssertsImpl
-  where
-    env = Env
-        { lookupSig
-        , pairings
-        , pairingsAccess = M.fromList $ concatMap toList
-            [ (,p) <$> withTags p | p <- M.keys pairings.unwrap]
-        }
+type AddFunAssertsHookFn t =
+    forall m. MonadGraphSliceSendSExpr m
+    => WithTag t FunAssertInput
+    -> T t m ()
 
-data AddFunAssertHookEnv t
-  = Env
-      { lookupSig :: LookupFunctionSignature t
-      , pairings :: Pairings t
-      , pairingsAccess :: Map (WithTag t Ident) (PairingId t)
+newtype AddFunAssertsHook t
+  = AddFunAssertsHook (AddFunAssertsHookFn t)
+
+addFunAssertsHook :: RefineTag t => LookupFunctionSignature t -> Pairings t -> AddFunAssertsHook t
+addFunAssertsHook lookupSig pairings = AddFunAssertsHook $
+    addFunAssertsImpl lookupSig (lookupPairingIdMap !?) pairings
+  where
+    lookupPairingIdMap = M.fromList $ concatMap toList
+        [ (,p) <$> withTags p | p <- M.keys pairings.unwrap]
+
+addFunAssertsImpl
+    :: forall t m. (RefineTag t, MonadGraphSliceSendSExpr m)
+    => LookupFunctionSignature t
+    -> (WithTag t Ident -> Maybe (PairingId t))
+    -> Pairings t
+    -> WithTag t FunAssertInput
+    -> T t m ()
+addFunAssertsImpl lookupSig lookupPairingId pairings (WithTag tag input) = do
+    let byTag :: forall a. a -> a -> ByTag t a
+        byTag x y = byTagFrom $ \t -> if t == tag then x else y
+    for_ (lookupPairingId (WithTag tag input.callNode.functionName)) $ \pairingId -> do
+        let otherFunName = viewWithTag (otherTag tag) pairingId
+        group <- liftPure $ use $ #callsByFunName % to (M.findWithDefault S.empty otherFunName)
+        for_ group $ \otherNorm -> do
+            otherInboundInfo <- fromJust <$> getInboundVisitInfo otherNorm
+            let compat = areCallCountsCompatible
+                    lookupPairingId
+                    ((.callCount) <$> byTag input.inboundInfo otherInboundInfo)
+            when compat $ do
+                otherInput <- do
+                    callNode <- askCallNode otherNorm
+                    outboundInfo <- deconstructSingleton . fromJust <$> getOutboundVisitInfo otherNorm
+                    success <- getSuccessVarNorm otherNorm
+                    return $ FunAssertInput
+                        { callNode
+                        , inboundInfo = otherInboundInfo
+                        , outboundInfo
+                        , success
+                        }
+                let pairing = pairings.unwrap ! pairingId
+                let sigs = lookupSig <$> withTags pairingId
+                let imp = funAssert pairing sigs (byTag input otherInput)
+                liftFlat $ assertFlatExpr $ weakenAssert imp
+  where
+    deconstructSingleton m = case toList m of
+        [x] -> x
+        _ -> error "unexpected"
+
+data FunAssertInput
+  = FunAssertInput
+      { callNode :: CallNode
+      , inboundInfo :: VisitInfo
+      , outboundInfo :: VisitInfo
+      , success :: FlatExpr
       }
   deriving (Generic)
 
-addFunAssertsImpl :: RefineC t m => Visit -> ReaderT (AddFunAssertHookEnv t) (TaggedT t m) ()
-addFunAssertsImpl visit = do
-    tag <- lift askTag
-    funName <- lift $ askWithTag =<< askFunName visit
-    pairingIdOpt <- gview $ #pairingsAccess % at funName
-    for_ pairingIdOpt $ \pairingId -> do
-        let otherFunName = viewAtTag (otherTag tag) (withTags pairingId)
-        group <- lift $ liftUntagged $ liftPure $ use $ #funCallsByName % to (M.findWithDefault S.empty otherFunName)
-        for_ group $ \otherVisit -> do
-            let visits = byTagFrom $ \tag' -> if tag' == tag then visit else otherVisit
-            compat <- mapReaderT liftUntagged $ areFunCallsCompatible visits
-            when compat $ do
-                imp <- mapReaderT liftUntagged $ getFunAssert visits
-                lift $ liftFlat $ assertFlatExpr $ weakenAssert imp
-
-areFunCallsCompatible :: RefineC t m => ByTag t Visit -> ReaderT (AddFunAssertHookEnv t) (T t m) Bool
-areFunCallsCompatible visits = do
-    pairingsAccess <- gview $ #pairingsAccess
-    lift $ do
-        memCalls <- forTagged visits $ \visit -> do
-            pcEnv <- getNodePcEnvExt visit
-            return $ (fromJust pcEnv).calls
-        return $ areMemCallsCompatible (pairingsAccess !) memCalls
-
-getFunAssert :: RefineC t m => ByTag t Visit -> ReaderT (AddFunAssertHookEnv t) (T t m) FlatExpr
-getFunAssert visits = do
-    pairingId <- lift $ forTagged visits askFunName
-    pairing <- gview $ #pairings % #unwrap % expectingAt pairingId
-    lookupSig <- gview #lookupSig
-    lift $ do
-        let sigs = lookupSig <$> withTags pairingId
-        lowLevelInfoByTag <- for (withTags visits) $ \key ->
-            liftPure $ use $ #funCalls % expectingAt key
-        let info = augmentFunCallInfo <$> sigs <*> lowLevelInfoByTag
-        rpc <- runTagged rightTag $ getPc visits.right
-        let instEqs eqs =
-                [ eqHandlingRelWrapper
-                    (flattenExpr (envForQuadrant eq.lhs.quadrant info) eq.lhs.expr)
-                    (flattenExpr (envForQuadrant eq.rhs.quadrant info) eq.rhs.expr)
-                | eq <- eqs
-                ]
-        return $ impliesE
-            (foldr1 andE (instEqs pairing.inEqs ++ [rpc]))
-            (foldr1 andE (instEqs pairing.outEqs ++ [info.right.success `impliesE` info.left.success]))
+funAssert
+    :: RefineTag t
+    => Pairing t
+    -> ByTag t FunctionSignature
+    -> ByTag t FunAssertInput
+    -> FlatExpr
+funAssert pairing sigs inputs = impliesE
+    (foldr1 andE (instEqs pairing.inEqs ++ [inputs.right.inboundInfo.pc]))
+    (foldr1 andE (instEqs pairing.outEqs ++ [inputs.right.success `impliesE` inputs.left.success]))
   where
-    envForQuadrant (PairingEqSideQuadrant t direction) = view $ atTag t % directionLabel
-      where
-        directionLabel = case direction of
-            PairingEqDirectionIn -> #ins
-            PairingEqDirectionOut -> #outs
-
-data FunCallInfoWithNames
-  = FunCallInfoWithNames
-      { ins :: ExprEnv
-      , outs :: ExprEnv
-      , success :: FlatExpr
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-augmentFunCallInfo :: FunctionSignature -> FunCallInfo -> FunCallInfoWithNames
-augmentFunCallInfo sig info = FunCallInfoWithNames
-    { ins = M.fromList (zip (map (.name) sig.input) info.ins)
-    , outs = M.fromList (zip (map (.name) sig.output) info.outs)
-    , success = info.success
-    }
+    instEqs eqs =
+        [ let f side = flattenExpr (envForQuadrant side.quadrant) side.expr
+           in (eqHandlingRelWrapper `on` f) eq.lhs eq.rhs
+        | eq <- eqs
+        ]
+    envForQuadrant (PairingEqSideQuadrant tag direction) =
+        let FunAssertInput { .. } = viewAtTag tag inputs
+            sig = viewAtTag tag sigs
+         in case direction of
+                PairingEqDirectionIn ->
+                    M.fromList $
+                        zip
+                            (map (.name) sig.input)
+                            [ flattenExpr inboundInfo.env in_ | in_ <- callNode.input ]
+                PairingEqDirectionOut ->
+                    M.fromList $
+                        zip
+                            (map (.name) sig.output)
+                            [ outboundInfo.env ! out.name | out <- callNode.output ]

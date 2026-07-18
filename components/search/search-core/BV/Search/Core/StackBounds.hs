@@ -86,10 +86,10 @@ discoverStackBounds run forConcurrently input = do
 
     asmFunIsPaired = (`S.member` S.map (.asm) input.pairingIds)
 
-    runGraphSliceC :: forall t a. HasTagIsAsm t => Problem t -> GraphSliceT t n a -> m a
+    runGraphSliceC :: forall t a. HasTagIsAsm t => ProblemWithAnalysis t -> GraphSliceT t n a -> m a
     runGraphSliceC p m = run $ runGraphSlice input C p m
 
-    runGraphSliceAsm :: forall t a. HasTagIsAsm t => Problem t -> GraphSliceT t n a -> m a
+    runGraphSliceAsm :: forall t a. HasTagIsAsm t => ProblemWithAnalysis t -> GraphSliceT t n a -> m a
     runGraphSliceAsm p m = run $ runGraphSlice input Asm p m
 
     convertRecursionIdents cIdents = M.fromList
@@ -139,25 +139,25 @@ discoverStackBounds run forConcurrently input = do
         let argRenames = problemArgRenames p.problem $ byTagFrom $ const $ signatureOfFunction $ lookupAsmFun funName
         let spName = argRenames (PairingEqSideQuadrant asmTag PairingEqDirectionIn) (Ident "r13")
         let spVar = varE word32T spName
-        let visitOf = defaultVisit p.analysis.loopData . Addr
+        let visitOf = defaultVisit p.analysis.loopData asmTag . Addr
         let spPreservationHyps =
-                [ let f = eqSideH spVar . withAsmTag . visitOf
+                [ let f = eqSideH spVar . visitOf
                    in f addr `eqH` f cont
                 | (addr, NodeCall (CallNode { next = Addr cont })) <- M.toList p.problem.nodes
                 ]
-        spOffsets <- runGraphSliceAsm p.problem $ runTagged asmTag $ do
-            PcEnv _ entryEnv <- fromJust <$> getNodePcEnv (Visit side.entryPoint M.empty)
+        spOffsets <- runGraphSliceAsm p $ do
+            PcEnv _ entryEnv <- fromJust <$> getPcEnv (Visit asmTag side.entryPoint M.empty)
             let spInit = flattenExpr entryEnv spVar
             symbolicOffsets <- flip mapMaybeM (M.keys p.problem.nodes) $ \addr -> do
-                opt <- getNodePcEnv (visitOf addr)
+                opt <- getPcEnv (visitOf addr)
                 return $ opt <&> \(PcEnv _ env) ->
                     (addr, flattenExpr env spVar `minusE` spInit)
-            liftUntagged (testHypWhyps falseE spPreservationHyps) >>= ensureM . not
+            testHypWhyps falseE spPreservationHyps >>= ensureM . not
             concreteOffsets <- for symbolicOffsets $ \(addr, symbolicOffset) -> do
-                val <- liftUntagged $ getFlatExprValue symbolicOffset
+                val <- getFlatExprValue symbolicOffset
                 return (addr, symbolicOffset, val)
             for concreteOffsets $ \(addr, symbolicOffset, concreteOffset) -> do
-                stable <- liftUntagged $ testHypWhyps (symbolicOffset `eqE` concreteOffset) spPreservationHyps
+                stable <- testHypWhyps (symbolicOffset `eqE` concreteOffset) spPreservationHyps
                 ensureM stable
                 return (addr, signedOffset (numValOf concreteOffset))
         let (maxOffset, sign) =
@@ -197,18 +197,18 @@ discoverStackBounds run forConcurrently input = do
                         , calleeName `M.notMember` asmIdents
                         ]
                 let side = viewAtTag asmTag p.problem.sides
-                let entryVis = Visit side.entryPoint M.empty
-                let visitOf = defaultVisit p.analysis.loopData
+                let entryVis = Visit asmTag side.entryPoint M.empty
+                let visitOf = defaultVisit p.analysis.loopData asmTag
                 let toCheck =
                         [ (callsiteAddr, callsiteNode, calleeIdent, calleeIdentCond)
                         | (callsiteAddr, NodeCall callsiteNode) <- M.toAscList p.problem.nodes
                         , Just calleeIdents <- return $ M.lookup callsiteNode.functionName asmIdents
                         , (calleeIdent, calleeIdentCond) <- identConds calleeIdents
                         ]
-                results <- runGraphSliceAsm p.problem $ runTagged asmTag $ do
+                results <- runGraphSliceAsm p $ do
                     concatForM (identConds callerIdents) $ \(callerIdent, callerIdentCond) -> do
                         for toCheck $ \(callsiteAddr, callsiteNode, calleeIdent, calleeIdentCond) -> do
-                            possible <- getNodePcEnv (visitOf (Addr callsiteAddr)) >>= \case
+                            possible <- getPcEnv (visitOf (Addr callsiteAddr)) >>= \case
                                 Nothing -> return False
                                 Just (PcEnv pc env) -> do
                                     let calleeInputs = (lookupAsmFun callsiteNode.functionName).input
@@ -217,10 +217,10 @@ discoverStackBounds run forConcurrently input = do
                                             (map (flattenExpr env) callsiteNode.input)
                                     let new = pc `andE` flattenExpr inpEnv calleeIdentCond
                                     -- Note that graph-refine adds mk_not_callable_hyps here
-                                    covered <- liftUntagged $ testHypWhyps (notE new)
-                                        [ pcFalseH (withAsmTag (visitOf Err))
-                                        , eqSideH callerIdentCond (withAsmTag entryVis)
-                                            `eqH` eqSideH trueE (withAsmTag entryVis)
+                                    covered <- testHypWhyps (notE new)
+                                        [ pcFalseH (visitOf Err)
+                                        , eqSideH callerIdentCond entryVis
+                                            `eqH` eqSideH trueE entryVis
                                         ]
                                     return $ not covered
                             return ((callerIdent, callsiteNode.functionName, calleeIdent), possible)

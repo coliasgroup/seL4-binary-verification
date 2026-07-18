@@ -113,7 +113,7 @@ incrVC incr = (#numbers %~ f) . (#offsets %~ f)
   where
     f = filter (>= 0) . map (+ incr)
 
-splitVisitAt :: NodeAddr -> Visit -> [Visit]
+splitVisitAt :: Tag t => NodeAddr -> Visit t -> [Visit t]
 splitVisitAt split visit =
     ensure (isOptionsVC vc) $
         enumerateSimpleVCs vc <&> \option ->
@@ -121,15 +121,16 @@ splitVisitAt split visit =
   where
     vc = visit.restrs M.! split
 
-predVisits :: Visit -> [NodeAddr] -> [Visit]
+predVisits :: Tag t => Visit t -> [NodeAddr] -> [Visit t]
 predVisits visit = mapMaybe f
   where
-    f pred_ = Visit (Addr pred_) <$> incrVCs (-1) pred_ visit.restrs
+    f pred_ = Visit visit.tag (Addr pred_) <$> incrVCs (-1) pred_ visit.restrs
 
-contVisits :: Visit -> [NodeId] -> [Visit]
+contVisits :: Tag t => Visit t -> [NodeId] -> [Visit t]
 contVisits visit conts =
     [ Visit
-        { nodeId = cont
+        { tag = visit.tag
+        , nodeId = cont
         , restrs = fromJust $ incrVCs 1 (nodeAddrOf visit.nodeId) visit.restrs
         }
     | cont <- conts
@@ -204,22 +205,22 @@ eqWithIfAtH ifAt lhs rhs induct = HypEq
         }
     }
 
-trueIfAt :: GraphExpr -> WithTag t Visit -> Hyp t
+trueIfAt :: GraphExpr -> Visit t -> Hyp t
 trueIfAt expr visit = eqIfAtH (eqSideH expr visit) (eqSideH trueE visit)
 
-pcTrueH :: WithTag t Visit -> Hyp t
+pcTrueH :: Visit t -> Hyp t
 pcTrueH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSideBool True
     , rhs = PcImpHypSidePc visit
     })
 
-pcFalseH :: WithTag t Visit -> Hyp t
+pcFalseH :: Visit t -> Hyp t
 pcFalseH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSideBool False
     })
 
-pcTrivH :: WithTag t Visit -> Hyp t
+pcTrivH :: Visit t -> Hyp t
 pcTrivH visit = HypPcImp (PcImpHyp
     { lhs = PcImpHypSidePc visit
     , rhs = PcImpHypSidePc visit
@@ -228,7 +229,7 @@ pcTrivH visit = HypPcImp (PcImpHyp
 pcImpH :: PcImpHypSide t -> PcImpHypSide t -> Hyp t
 pcImpH lhs rhs = HypPcImp (PcImpHyp { lhs, rhs })
 
-eqSideH :: GraphExpr -> WithTag t Visit -> EqHypSide t
+eqSideH :: GraphExpr -> Visit t -> EqHypSide t
 eqSideH = EqHypSide
 
 -- HACK integer representation matches graph-refine
