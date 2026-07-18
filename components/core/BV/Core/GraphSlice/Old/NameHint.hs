@@ -1,4 +1,4 @@
-module BV.Core.GraphSlice.New.NameHint
+module BV.Core.GraphSlice.Old.NameHint
     ( NameHint
     , condName
     , inductVarName
@@ -9,8 +9,6 @@ module BV.Core.GraphSlice.New.NameHint
     , successName
     ) where
 
-import BV.Core.GraphSlice.New.Flat (NameHint)
-
 import BV.Core.Types
 
 import Data.Char (isAlpha)
@@ -20,19 +18,21 @@ import qualified Data.Map as M
 import Optics
 import Text.Printf (printf)
 
-localNameBefore :: Visit -> Ident -> NameHint
+type NameHint = String
+
+localNameBefore :: Visit t -> Ident -> NameHint
 localNameBefore visit var = printf "%P_v_at_%s" var (nodeCountName visit)
 
-localName ::Visit ->  Ident -> NameHint
+localName ::Visit t ->  Ident -> NameHint
 localName visit var = printf "%P_after_%s" var (nodeCountName visit)
 
-condName :: Visit -> NameHint
+condName :: Visit t -> NameHint
 condName visit = printf "cond_at_%s" (nodeCountName visit)
 
-pathCondName :: Tag t => WithTag t Visit -> NameHint
-pathCondName (WithTag tag visit) = printf "path_cond_to_%s_%P" (nodeCountName visit) tag
+pathCondName :: Tag t => Visit t -> NameHint
+pathCondName visit = printf "path_cond_to_%s_%P" (nodeCountName visit) visit.tag
 
-successName :: Visit -> Ident -> NameHint
+successName :: Visit t -> Ident -> NameHint
 successName visit fname =
     printf "%s_success_at_%s" name (nodeCountName visit)
   where
@@ -46,7 +46,7 @@ successName visit fname =
         ]
     bits = splitOn "." fname.unwrap
 
-nodeCountName :: Visit -> NameHint
+nodeCountName :: Visit t -> NameHint
 nodeCountName visit = intercalate "_" $
     [ prettyNodeId visit.nodeId
     ] ++

@@ -13,11 +13,13 @@ import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr (notE)
 import BV.Core.Types.Extras.Problem
+import BV.Core.Types.Extras.Program (nodeAddrOf)
 import BV.Core.Types.Extras.ProofCheck
-import BV.Utils (expecting, expectingAt, is)
+import BV.Utils (expectingAt, is)
 
 import Control.Applicative (asum)
 import Control.Monad (filterM, guard, unless)
+import Control.Monad.Extra (whenM)
 import Control.Monad.State (StateT, evalStateT, get, gets, put)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (runMaybeT)
@@ -57,28 +59,28 @@ discoverInlineScript run input =
     funs = withTags input.pairingId <&> \nameWithTag -> Named nameWithTag.value (lookupFun nameWithTag)
     allMatched = S.fromList $ input.matches ^.. folded % folded
     asmToCMatch = M.fromList $ [ (match.asm, match.c) | match <- S.toList input.matches ]
-    presentInProblem problem = S.fromList $ problem ^.. #nodes % folded % #_NodeCall % #functionName
-    inlineCompletelyUnmatched problem =
-        let matched = S.intersection (presentInProblem problem) allMatched
-         in return $ nextCompletelyUnmatchedInlinePoints matched problem
-    inlineReachableUnmatchedC problem =
+    presentInProblem pwa = S.fromList $ pwa.problem ^.. #nodes % folded % #_NodeCall % #functionName
+    inlineCompletelyUnmatched pwa =
+        let matched = S.intersection (presentInProblem pwa) allMatched
+         in return $ nextCompletelyUnmatchedInlinePoints matched pwa.problem
+    inlineReachableUnmatchedC pwa =
         let matchedC =
-                let present = presentInProblem problem
+                let present = presentInProblem pwa
                 in S.fromList $ toList $ M.restrictKeys asmToCMatch present
          in run $ nextReachableUnmatchedCInlinePoints matchedC $ GraphSliceInput
                 { structs = input.structs
                 , rodata = input.rodata
-                , problem
+                , pwa
                 }
 
-type Inliner t m = Problem t -> m [NodeAddr]
+type Inliner t m = ProblemWithAnalysis t -> m [NodeAddr]
 
 buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (WithTag t Ident -> Function) -> ByTag t (Named Function) -> m (InlineScript t)
 buildInlineScript inliner lookupFun funs = flip evalStateT initProblemBuilder $ do
     addEntrypoints funs
     doAnalysis
     let go = do
-            p <- lift $ gets extractProblem
+            p <- lift $ gets extractProblemWithAnalysis
             addrs <- lift $ lift $ inliner p
             unless (null addrs) $ do
                 entries <- lift $ traverse inlineEntryForPoint addrs
@@ -89,11 +91,11 @@ buildInlineScript inliner lookupFun funs = flip evalStateT initProblemBuilder $ 
     execWriterT go
 
 composeInliners :: Monad m => Inliner t (StateT [Inliner t m] m)
-composeInliners problem = go
+composeInliners pwa = go
   where
     go = get >>= \case
         [] -> return []
-        x:xs -> lift (x problem) >>= \case
+        x:xs -> lift (x pwa) >>= \case
             [] -> put xs >> go
             ys -> return ys
 
@@ -125,51 +127,53 @@ nextReachableUnmatchedCInlinePointsInnerIncompat
     :: MonadGraphSliceSolverInteract m
     => S.Set Ident
     -> GraphSliceT AsmRefineTag m [NodeAddr]
-nextReachableUnmatchedCInlinePointsInnerIncompat matchedC = runTagged C $ do
-    p <- askProblem
-    g <- askNodeGraph
-    loops <- allLoopsOf <$> askLoopData
-    let limits = M.fromList [(loop.head, doubleRangeVC 3 3) | loop <- loops ]
-    for_ (reachableFrom g p.sides.c.entryPoint) $ \n -> tryGetNodePcEnv $ Visit n limits
-    funCallVisits <- liftUntagged getFunCallVisitsCompat
+nextReachableUnmatchedCInlinePointsInnerIncompat matchedC = do
+    p <- askProblemWithAnalysis
+    let g = p.analysis.nodeGraph
+    let loops = allLoopsOf $ p.analysis.loopData
+    let limits = M.fromList [ (loop.head, doubleRangeVC 3 3) | loop <- loops ]
+    for_ (reachableFrom g p.problem.sides.c.entryPoint) $ \n -> do
+        let visit = Visit C n limits
+        whenM (isVisitOk visit) $ void $ getPcEnv visit
+    visitsByFunName <- getCallsByFunName
     let unmatchedByAddr = foldl (M.unionWith S.union) M.empty
-            [ let Addr addr = visit.nodeId
-                  fname = p ^. #nodes % expectingAt addr % expecting #_NodeCall % #functionName
-               in if S.notMember fname matchedC
-                  then M.singleton addr (S.singleton visit)
-                  else M.empty
-            | WithTag C visit <- funCallVisits
+            [ M.singleton (nodeAddrOf visit.nodeId) (S.singleton visit)
+            | (WithTag C funName, visits) <- M.toList visitsByFunName
+            , S.notMember funName matchedC
+            , visit <- visits
             ]
     fmap (map fst) $ flip filterM (M.toList unmatchedByAddr) $ \(_addr, visits) ->
         flip anyM visits $ \visit -> do
-            pcEnv <- fromJust <$> getNodePcEnv visit
-            unreachable <- liftUntagged $ testHyp $ notE pcEnv.pc
+            pc <- getPc visit
+            unreachable <- testHyp $ notE pc
             return $ not unreachable
 
 nextReachableUnmatchedCInlinePointsInnerCompat
     :: MonadGraphSliceSolverInteract m
     => S.Set Ident
     -> GraphSliceT AsmRefineTag m [NodeAddr]
-nextReachableUnmatchedCInlinePointsInnerCompat matchedC = runTagged C $ do
-    p <- askProblem
-    g <- askNodeGraph
-    loops <- allLoopsOf <$> askLoopData
+nextReachableUnmatchedCInlinePointsInnerCompat matchedC = do
+    p <- askProblemWithAnalysis
+    let g = p.analysis.nodeGraph
+    let loops = allLoopsOf $ p.analysis.loopData
     let limits = M.fromList [ (loop.head, doubleRangeVC 3 3) | loop <- loops ]
-    let reachable = reachableFrom g p.sides.c.entryPoint
-    let f n = void $ tryGetNodePcEnv $ Visit n limits
+    let reachable = reachableFrom g p.problem.sides.c.entryPoint
+    let f n = do
+            let visit = Visit C n limits
+            whenM (isVisitOk visit) $ void $ getPcEnv visit
     -- HACK order matches graph-refine
     traverse_ f $ sort $ filter (is #_Addr) reachable
     f Ret
     f Err
-    funCallVisits <- liftUntagged getFunCallVisitsCompat
+    funCallVisits <- getCallOrderCompat
     -- HACK return just one result at a time to match graph-refine
-    fmap toList $ runMaybeT $ asum $ flip map funCallVisits $ \(WithTag tag visit) -> do
+    fmap toList $ runMaybeT $ asum $ flip map funCallVisits $ \visit -> do
         let Addr addr = visit.nodeId
-        let Just fname = p ^? #nodes % expectingAt addr % #_NodeCall % #functionName
-        guard $ tag == C
+        let Just fname = p.problem.nodes ^? expectingAt addr % #_NodeCall % #functionName
+        guard $ visit.tag == C
         guard $ S.notMember fname matchedC
         res <- lift $ do
-            pcEnv <- fromJust <$> getNodePcEnv visit
-            liftUntagged $ testHyp $ notE pcEnv.pc
+            pcEnv <- fromJust <$> getPcEnv visit
+            testHyp $ notE pcEnv.pc
         guard $ not res
         return addr

@@ -157,8 +157,8 @@ asmArgSeq cSig = take numCArgs $ regArgSeq ++ stackArgSeq
         | i <- [0..]
         ]
 
-defaultVisit :: LoopData -> NodeId -> Visit
-defaultVisit loopData n = Visit n (general <> specific)
+defaultVisit :: LoopData -> t -> NodeId -> Visit t
+defaultVisit loopData tag n = Visit tag n (general <> specific)
   where
     -- TODO handle inner loops too
     loopOpt = preview #_Addr n >>= outermostLoopContaining loopData
@@ -174,18 +174,18 @@ defaultVisit loopData n = Visit n (general <> specific)
 
 runGraphSlice
     :: DiscoverStackBoundsInput
-    -> (forall t n a. (HasTagIsAsm t, MonadGraphSliceSendSExpr n) => AsmRefineTag -> Problem t -> GraphSliceT t n a -> n a)
-runGraphSlice input tag problem m = runGraphSliceT hooks repGraphInput m
+    -> (forall t n a. (HasTagIsAsm t, MonadGraphSliceSendSExpr n) => AsmRefineTag -> ProblemWithAnalysis t -> GraphSliceT t n a -> n a)
+runGraphSlice input tag pwa m = runGraphSliceT hooks repGraphInput m
   where
     lookupSig (WithTag _ name) = signatureOfFunction $ input.lookupFunction $ WithTag tag name
     argRenames =
-        problemArgRenames problem $
+        problemArgRenames pwa.problem $
             lookupSig <$>
-                withTags (pairingIdOfProblem problem)
+                withTags (pairingIdOfProblem pwa.problem)
     repGraphInput = GraphSliceInput
-        { structs = byTagFromN (length problem.sides) $ const $ viewAtTag tag input.structs
+        { structs = byTagFromN (length pwa.problem.sides) $ const $ viewAtTag tag input.structs
         , rodata = input.rodata
-        , problem
+        , pwa
         }
     hooks = (if tag == Asm then withAsmHooks else id) $ withFast defaultGraphSliceHooks
     withAsmHooks =

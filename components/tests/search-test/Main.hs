@@ -49,6 +49,7 @@ testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
             discoverInlineScript' solverConfig input >>= assertSuccess
     scripts <- runConcurrentlyUnliftIO $ InlineScripts <$> traverse f allInput
     let reference = stagesInput.inlineScripts & #unwrap %~ flip M.restrictKeys (M.keysSet scripts.unwrap)
+    -- let check = checkMatch
     let check = checkMatchWith $ \x y -> over _Left show $ inlineScriptMapsEquivalent x y
     check "inline-scripts" "json" scripts reference
     return ()

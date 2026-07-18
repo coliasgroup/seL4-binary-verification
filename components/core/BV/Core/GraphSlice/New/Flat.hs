@@ -106,10 +106,10 @@ cacheExprWithInlineHint inline nameHint expr = case expr.value of
     ExprValueVar _ -> return expr
     _ -> withMapSlotWith liftPure #cache expr $ addDefWithInlineHint inline nameHint expr
 
-lookupDef :: C m =>  Ident -> T m (Maybe FlatExpr)
+lookupDef :: Monad m =>  Ident -> T m (Maybe FlatExpr)
 lookupDef name = liftPure $ use $ #defs % at name
 
-takeFreshName :: C m => NameHint -> T m Ident
+takeFreshName :: Monad m => NameHint -> T m Ident
 takeFreshName nameHint = liftPure $ zoom #names $ takeFreshNameWith Ident nameHint
 
 assertFlatExpr :: C m => FlatExpr -> T m ()

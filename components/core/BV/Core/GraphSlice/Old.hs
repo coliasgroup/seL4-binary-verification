@@ -2,45 +2,33 @@ module BV.Core.GraphSlice.Old
     ( AsmRefineGraphSliceInput (..)
     , ExprEnv
     , FlatExpr
-    , FunCallInfo (..)
-    , GraphSliceExport (..)
     , GraphSliceHooks
     , GraphSliceInput (..)
     , GraphSliceT
-    , GraphSliceTaggedT
     , MonadGraphSliceSendSExpr (..)
     , PcEnv (..)
     , addAccumulatedAssertions
-    , askContVisit
-    , askLoopData
-    , askNodeGraph
-    , askProblem
-    , askTag
-    , askWithTag
+    , askProblemWithAnalysis
     , asmRefineGraphSliceHooks
     , assertExpr
     , compileProofCheckGroup
     , convertExpr
     , defaultGraphSliceHooks
     , flattenExpr
-    , getExport
-    , getFunCallInfo
-    , getFunCallVisitsCompat
+    , getAllPcEnvs
+    , getCallOrderCompat
+    , getCallsByFunName
     , getInductVar
-    , getNodePcEnv
-    , getNodePcEnvWithTag
     , getPc
-    , getPcWithTag
+    , getPcEnv
+    , getSuccessVar
     , interpretCheck
     , interpretHyp
     , interpretHypImps
-    , liftUntagged
+    , isVisitOk
     , mapGraphSliceT
-    , mapGraphSliceTaggedT
     , runAsmRefineGraphSliceT
     , runGraphSliceT
-    , runTagged
-    , tryGetNodePcEnv
     , withAsmStackSplitting
     , withConstRetAssumptions
     , withFast
@@ -51,10 +39,10 @@ import BV.Core.GraphSlice.Old.Solver
 
 import BV.Core.GraphSlice.New (AsmRefineGraphSliceInput (..), FlatExpr,
                                GraphSliceInput (..))
-import BV.Core.GraphSlice.New.Common
-import BV.Core.GraphSlice.New.Flatten (GraphSliceExport (..))
-import BV.Core.GraphSlice.New.PcEnv
-import BV.Core.GraphSlice.New.Tagged
+import BV.Core.GraphSlice.New.Common (MonadGraphSliceSendSExpr (..),
+                                      MonadLiftInner (..),
+                                      MonadMapInnermost (..))
+import BV.Core.GraphSlice.New.Flatten.VisitInfo
 
 import BV.Core.Logic (strengthenHyp)
 import BV.Core.Types
@@ -74,7 +62,7 @@ runGraphSliceT
     -> m a
 runGraphSliceT hooks input =
       runGraphSliceSolverTStep structs input.rodata
-    . runGraphSliceTStep input.problem hooks
+    . runGraphSliceTStep input.pwa hooks
   where
     -- TODO scope structs with tag and use `M.unionsWith undefined`
     structs = (M.!) $ M.unionsWith ensureEq $
@@ -89,9 +77,9 @@ runAsmRefineGraphSliceT
 runAsmRefineGraphSliceT input = runGraphSliceT hooks input.repGraphInput
   where
     argRenames =
-        problemArgRenames input.repGraphInput.problem $
+        problemArgRenames input.repGraphInput.pwa.problem $
             input.lookupSig <$>
-                withTags (pairingIdOfProblem input.repGraphInput.problem)
+                withTags (pairingIdOfProblem input.repGraphInput.pwa.problem)
     hooks = asmRefineGraphSliceHooks input.lookupSig input.pairings argRenames
 
 --
@@ -108,15 +96,8 @@ assertExpr = liftInner . assertFact
 convertExpr :: (Tag t, MonadGraphSliceSendSExpr m) => FlatExpr -> GraphSliceT t m SExprWithPlaceholders
 convertExpr = liftInner . convertExprNotSplit
 
-getPcWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m FlatExpr
-getPcWithTag (WithTag tag visit) = fmap castExpr $ runTagged tag $ getPc visit
-
-getNodePcEnvWithTag :: (Tag t, MonadGraphSliceSendSExpr m) => WithTag t Visit -> GraphSliceT t m (Maybe PcEnv)
-getNodePcEnvWithTag (WithTag tag visit) = runTagged tag $ getNodePcEnv visit
-
 addAccumulatedAssertions :: (Tag t, MonadGraphSliceSendSExpr m) => GraphSliceT t m ()
-addAccumulatedAssertions = do
-    liftInner $ sendAccumulatedSolverAssertions
+addAccumulatedAssertions = liftInner $ sendAccumulatedSolverAssertions
 
 --
 
@@ -159,14 +140,14 @@ interpretHyp = \case
     HypPcImp hyp -> do
         let f = \case
                 PcImpHypSideBool v -> return $ fromBoolE v
-                PcImpHypSidePc vt -> runWithTag getPc vt
+                PcImpHypSidePc v -> getPc v
         impliesE <$> f hyp.lhs <*> f hyp.rhs
     HypEq { ifAt, eq } -> do
         extEnv <- case eq.induct of
             Just induct -> M.insert (Ident "%n") <$> getInductVar induct
             Nothing -> return id
-        xPcEnvOpt <- runWithTag getNodePcEnv eq.lhs.visit
-        yPcEnvOpt <- runWithTag getNodePcEnv eq.rhs.visit
+        xPcEnvOpt <- getPcEnv eq.lhs.visit
+        yPcEnvOpt <- getPcEnv eq.rhs.visit
         case (xPcEnvOpt, yPcEnvOpt) of
             (Just xPcEnv, Just yPcEnv) -> do
                 eq' <- instEqWithEnvs
@@ -174,8 +155,8 @@ interpretHyp = \case
                         (eq.rhs.expr, extEnv yPcEnv.env)
                 if ifAt
                     then do
-                        xPc <- runWithTag getPc eq.lhs.visit
-                        yPc <- runWithTag getPc eq.rhs.visit
+                        xPc <- getPc eq.lhs.visit
+                        yPc <- getPc eq.rhs.visit
                         return $ nImpliesE [xPc, yPc] eq'
                     else do
                         return eq'

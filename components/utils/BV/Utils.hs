@@ -14,7 +14,9 @@ module BV.Utils
     , fromIntegerChecked
     , is
     , mapFilterA
+    , mapFilterWithKeyA
     , todo
+    , unexpected
     , unimplemented
     , unwrapped
     , viewExpecting
@@ -57,6 +59,9 @@ unimplemented = error "unimplemented"
 
 todo :: HasCallStack => a
 todo = error "todo"
+
+unexpected :: HasCallStack => a
+unexpected = error "unexpected"
 
 --
 
@@ -104,6 +109,9 @@ findWithCallstack m k = if k `M.member` m then m M.! k else error ("not present:
 
 mapFilterA :: (Ord k, Applicative f) => (a -> f Bool) -> M.Map k a -> f (M.Map k a)
 mapFilterA f m = M.fromList <$> filterM (f . snd) (M.toList m)
+
+mapFilterWithKeyA :: (Ord k, Applicative f) => (k -> a -> f Bool) -> M.Map k a -> f (M.Map k a)
+mapFilterWithKeyA f m = M.fromList <$> filterM (uncurry f) (M.toList m)
 
 --
 

@@ -121,26 +121,28 @@ stages input = StagesOutput
         let problem = buildProblem lookupFunction inlineScript namedFuns
         return (pairingId, problem)
 
-    provenProblems = M.restrictKeys problems.unwrap (M.keysSet input.proofScripts.unwrap)
+    provenAnalyzedProblems =
+        augmentProblem <$>
+            M.restrictKeys problems.unwrap (M.keysSet input.proofScripts.unwrap)
 
-    proofChecks = ProofChecks $ flip M.mapWithKey provenProblems $ \pairingId problem ->
+    proofChecks = ProofChecks $ flip M.mapWithKey provenAnalyzedProblems $ \pairingId problem ->
         let pairing = pairings.unwrap ! pairingId
             sigs = lookupFunctionSig <$> withTags pairingId
             proofScript = input.proofScripts.unwrap ! pairingId
          in enumerateProofChecks problem sigs pairing proofScript
 
-    graphSliceInput = provenProblems <&> \problem ->
+    graphSliceInput = provenAnalyzedProblems <&> \pwa ->
         AsmRefineGraphSliceInput
             { repGraphInput = GraphSliceInput
                 { structs = (.structs) <$> input.programs
                 , rodata = input.rodata
-                , problem
+                , pwa
                 }
             , lookupSig = lookupFunctionSig
             , pairings
             }
 
-    smtProofChecks = SMTProofChecks $ flip M.fromSet (M.keysSet provenProblems) $ \pairingId ->
+    smtProofChecks = SMTProofChecks $ flip M.fromSet (M.keysSet provenAnalyzedProblems) $ \pairingId ->
         compileProofChecks (graphSliceInput ! pairingId) <$> (proofChecks.unwrap ! pairingId)
 
 compileProofChecks
@@ -150,4 +152,4 @@ compileProofChecks
 compileProofChecks input checks =
     over (traversed % _2)
         (compileProofCheckGroup input)
-        (prunedProofCheckGroups (analyzeProblem input.repGraphInput.problem) checks)
+        (prunedProofCheckGroups input.repGraphInput.pwa.analysis checks)

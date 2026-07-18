@@ -20,8 +20,8 @@ import BV.Core.GraphSlice.New.Common
 import BV.Core.GenerateFreshName (takeFreshNameWith)
 import BV.Core.Types
 import BV.Core.Types.Extras
-import BV.Core.Utils (compareLength, withMapSlotWith)
-import BV.SMTLIB2.SExpr (GenericSExpr (List), isValidSymbolAtomFirstChar,
+import BV.Core.Utils (withMapSlotWith)
+import BV.SMTLIB2.SExpr (GenericSExpr (Atom, List), isValidSymbolAtomFirstChar,
                          isValidSymbolAtomSubsequentChar)
 
 import Control.Applicative ((<|>))
@@ -207,13 +207,18 @@ sendSolverExprCommand = \case
         liftPure $ #nameMap %= M.insertWith undefined var.name s
     ExprCommandDefine inlineHint var val -> do
         body <- convertSolverExpr val
-        if inlineHint == ExprCommandInlineHintSometimes && compareLength 80 (showSExprWithPlaceholders body) == LT
+        if inlineHint == ExprCommandInlineHintSometimes && numAtoms body < 20
         then do
             liftPure $ #inline %= M.insertWith undefined var.name body
         else do
             s <- addSmtDef var.name.unwrap [] (typeToSmt val.ty) body
             liftPure $ #nameMap %= M.insertWith undefined var.name s
     ExprCommandAssert expr -> convertSolverExpr expr >>= assertSmt
+
+numAtoms :: SExprWithPlaceholders -> Int
+numAtoms = \case
+    Atom _ -> 1
+    List xs -> sum (map numAtoms xs)
 
 convertSolverExpr :: C m => SolverExpr -> T m SExprWithPlaceholders
 convertSolverExpr expr = case expr.value of
