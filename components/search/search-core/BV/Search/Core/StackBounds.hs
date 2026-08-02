@@ -127,7 +127,7 @@ discoverStackBounds run forConcurrently input = do
         doAnalysis
         patchNoreturnCallConts asmFunIsNoreturn
         doAnalysis
-        intermed <- gets extractProblemWithAnalysis
+        intermed <- gets $ problemSideWithAnalysis asmTag . extractProblemWithAnalysis
         lift $ guard $ all loopIsSimple intermed.analysis.loopData.outermostLoops
         inlineNoPrePairing asmFunIsPaired lookupAsmFun
         doAnalysis
@@ -135,20 +135,20 @@ discoverStackBounds run forConcurrently input = do
 
     guessAsmStackDepth :: Ident -> ProblemWithAnalysis AsmTag -> m (Integer, M.Map Ident Integer)
     guessAsmStackDepth funName p = do
-        let side = viewAtTag asmTag p.problem.sides
+        let side = problemSideWithAnalysis asmTag p
         let argRenames = problemArgRenames p.problem $ byTagFrom $ const $ signatureOfFunction $ lookupAsmFun funName
         let spName = argRenames (PairingEqSideQuadrant asmTag PairingEqDirectionIn) (Ident "r13")
         let spVar = varE word32T spName
-        let visitOf = defaultVisit p.analysis.loopData asmTag . Addr
+        let visitOf = defaultVisit side.analysis.loopData asmTag . Addr
         let spPreservationHyps =
                 [ let f = eqSideH spVar . visitOf
                    in f addr `eqH` f cont
-                | (addr, NodeCall (CallNode { next = Addr cont })) <- M.toList p.problem.nodes
+                | (addr, NodeCall (CallNode { next = Addr cont })) <- M.toList side.problem.nodes
                 ]
         spOffsets <- runGraphSliceAsm p $ do
-            PcEnv _ entryEnv <- fromJust <$> getPcEnv (Visit asmTag side.entryPoint M.empty)
+            PcEnv _ entryEnv <- fromJust <$> getPcEnv (Visit asmTag side.problem.entryPoint M.empty)
             let spInit = flattenExpr entryEnv spVar
-            symbolicOffsets <- flip mapMaybeM (M.keys p.problem.nodes) $ \addr -> do
+            symbolicOffsets <- flip mapMaybeM (M.keys side.problem.nodes) $ \addr -> do
                 opt <- getPcEnv (visitOf addr)
                 return $ opt <&> \(PcEnv _ env) ->
                     (addr, flattenExpr env spVar `minusE` spInit)
@@ -168,7 +168,7 @@ discoverStackBounds run forConcurrently input = do
         let maxOffsetByCallee = M.fromListWith max
                 [ (callNode.functionName, offset * sign)
                 | (addr, offset) <- spOffsets
-                , NodeCall callNode <- return $ p.problem.nodes M.! addr
+                , NodeCall callNode <- return $ side.problem.nodes M.! addr
                 ]
         return (maxOffset, maxOffsetByCallee)
 
@@ -196,12 +196,12 @@ discoverStackBounds run forConcurrently input = do
                         , calleeName <- calleeNames
                         , calleeName `M.notMember` asmIdents
                         ]
-                let side = viewAtTag asmTag p.problem.sides
-                let entryVis = Visit asmTag side.entryPoint M.empty
-                let visitOf = defaultVisit p.analysis.loopData asmTag
+                let side = problemSideWithAnalysis asmTag p
+                let entryVis = Visit asmTag side.problem.entryPoint M.empty
+                let visitOf = defaultVisit side.analysis.loopData asmTag
                 let toCheck =
                         [ (callsiteAddr, callsiteNode, calleeIdent, calleeIdentCond)
-                        | (callsiteAddr, NodeCall callsiteNode) <- M.toAscList p.problem.nodes
+                        | (callsiteAddr, NodeCall callsiteNode) <- M.toAscList side.problem.nodes
                         , Just calleeIdents <- return $ M.lookup callsiteNode.functionName asmIdents
                         , (calleeIdent, calleeIdentCond) <- identConds calleeIdents
                         ]
@@ -248,9 +248,10 @@ inlineNoPrePairing isPaired lookupAsmFun =
     go iters = do
         when (iters > 10000) $ error "inlineNoPrePairing: iteration cap exceeded"
         p <- gets extractProblem
+        let side = viewAtTag asmTag p.sides
         let toInline =
-                [ addr
-                | (addr, NodeCall callNode) <- M.toAscList p.nodes
+                [ WithTag asmTag addr
+                | (addr, NodeCall callNode) <- M.toAscList side.nodes
                 , not (isPaired callNode.functionName)
                 , isJust (lookupAsmFun callNode.functionName).body
                 ]

@@ -8,10 +8,6 @@ module BV.Core.GraphSlice.Old.Core
     , TooGeneral (..)
     , VarRepRequestKind (..)
     , VarReqRequest (..)
-    , askContVisit
-    , askLoopData
-    , askNodeGraph
-    , askProblem
     , askProblemWithAnalysis
     , asmRefineGraphSliceHooks
     , defaultGraphSliceHooks
@@ -50,7 +46,7 @@ import BV.Core.Types.Extras
 import BV.Core.Utils
 import BV.Utils
 
-import Control.Monad (filterM, guard, unless, when, (>=>))
+import Control.Monad (filterM, guard, when, (>=>))
 import Control.Monad.Error.Class (MonadError (throwError))
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Identity (IdentityT (runIdentityT), runIdentity)
@@ -65,7 +61,7 @@ import Data.Functor (void)
 import Data.List (genericIndex, isPrefixOf)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust, fromMaybe)
+import Data.Maybe (catMaybes, fromJust)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -258,49 +254,44 @@ applyTag visit = WithTag visit.tag
 
 --
 
-askProblemWithAnalysis :: C t m => T t m (ProblemWithAnalysis t)
+askProblem :: C t m => T t m (Problem t)
+askProblem = (.problem) <$> askProblemWithAnalysis
+
+askProblemWithAnalysis :: (Tag t, Monad m) => T t m (ProblemWithAnalysis t)
 askProblemWithAnalysis = liftPure $ gview #pwa
+
+askProblemSide :: (Tag t, Monad m) => t -> T t m ProblemSide
+askProblemSide tag = do
+    p <- askProblemWithAnalysis
+    return $ viewAtTag tag p.problem.sides
+
+askProblemSideWithAnalysis :: (Tag t, Monad m) => t -> T t m ProblemSideWithAnalysis
+askProblemSideWithAnalysis tag = problemSideWithAnalysis tag <$> askProblemWithAnalysis
 
 askHook :: C t m => Lens' (GraphSliceHooks t) a -> T t m a
 askHook l = liftPure $ gview $ #hooks % l
 
-askProblem :: C t m => T t m (Problem t)
-askProblem = (.problem) <$> askProblemWithAnalysis
-
-askNode :: C t m => NodeAddr -> T t m Node
-askNode addr = liftPure $ gview $ #pwa % #problem % #nodes % expectingAt addr
-
-askNodeGraph :: C t m => T t m NodeGraph
-askNodeGraph = liftPure $ gview $ #pwa % #analysis % #nodeGraph
-
-askIsNonTriviallyReachableFrom :: C t m => NodeAddr -> NodeId -> T t m Bool
-askIsNonTriviallyReachableFrom from to_ = do
-    g <- liftPure $ gview $ #pwa % #analysis % #nodeGraph
-    fromNode <- askNode from
-    return $ or [ isReachableFrom g fromCont to_ | fromCont <- fromNode ^.. nodeConts ]
-
-askLoopData :: C t m => T t m LoopData
-askLoopData = liftPure $ gview $ #pwa % #analysis % #loopData
-
-askNodeTag :: C t m => T t m (NodeAddr -> t)
-askNodeTag = liftPure $ gview $ #pwa % #analysis % #nodeTag
+askNode :: C t m => Visit t -> T t m Node
+askNode visit = do
+    side <- askProblemSide visit.tag
+    return $ side.nodes ! nodeAddrOf visit.nodeId
 
 askFunName :: C t m => Visit t -> T t m Ident
-askFunName v = view (expecting #_NodeCall % #functionName) <$> askNode (nodeAddrOf v.nodeId)
+askFunName v = view (expecting #_NodeCall % #functionName) <$> askNode v
 
-askPreds :: C t m => t -> NodeId -> T t m (Set NodeAddr)
-askPreds tag n = do
-    liftPure $ gview $ #pwa % #analysis % #preds % atTag tag % to ($ n)
+askPreds :: C t m => Visit t -> T t m (Set NodeAddr)
+askPreds visit = do
+    side <- askProblemSideWithAnalysis visit.tag
+    return $ side.analysis.preds visit.nodeId
 
 askPredVisits :: C t m => Visit t -> T t m [Visit t]
 askPredVisits visit = do
-    preds <- liftPure $ gview $ #pwa % #analysis % #preds % atTag visit.tag
-    return $ predVisits visit (toList (preds visit.nodeId))
+    side <- askProblemSideWithAnalysis visit.tag
+    return $ predVisits visit (toList (side.analysis.preds visit.nodeId))
 
 askContVisits :: C t m => Visit t -> T t m [Visit t]
 askContVisits visit = do
-    let addr = nodeAddrOf visit.nodeId
-    node <- askNode addr
+    node <- askNode visit
     return $ contVisits visit (toListOf nodeConts node)
 
 askContVisit :: C t m => Visit t -> T t m (Visit t)
@@ -384,16 +375,17 @@ scanMemCalls tyVals = do
 --
 
 pruneVisit :: C t m => Visit t -> T t m (Maybe (Visit t))
-pruneVisit visit = runMaybeT $ do
-    nodeTag <- lift askNodeTag
-    forOf #restrs visit $ \restrs ->
-        fmap (M.fromList . concat) $ for (M.toList restrs) $ \(addr, vc) ->
-            if nodeTag addr /= visit.tag
-                then return []
-                else do
-                    reachable <- lift $ askIsNonTriviallyReachableFrom addr visit.nodeId
-                    guard $ reachable || hasZeroVC vc
-                    return [ (addr, vc) | reachable ]
+pruneVisit visit = do
+    side <- askProblemSideWithAnalysis visit.tag
+    runMaybeT $
+        forOf #restrs visit $ \restrs ->
+            fmap (M.fromList . concat) $ for (M.toList restrs) $ \(addr, vc) ->
+                if addr `M.notMember` side.problem.nodes
+                    then return []
+                    else do
+                        let reachable = isNonTriviallyReachableFrom side addr visit.nodeId
+                        guard $ reachable || hasZeroVC vc
+                        return [ (addr, vc) | reachable ]
 
 pruneVisits :: C t m => [Visit t] -> T t m [Visit t]
 pruneVisits visits = catMaybes <$> traverse pruneVisit visits
@@ -406,7 +398,8 @@ data TooGeneral
 
 checkGenerality :: C t m => Visit t -> ExceptT TooGeneral (T t m) ()
 checkGenerality visit = void $ runMaybeT $ do
-    loopData <- lift $ lift $ askLoopData
+    side <- lift $ lift $ askProblemSideWithAnalysis visit.tag
+    let loopData = side.analysis.loopData
     nodeAddr <- hoistMaybe $ preview #_Addr visit.nodeId
     loop <- hoistMaybe $ outermostLoopContaining loopData nodeAddr
     ifor_ visit.restrs $ \addr vc -> do
@@ -527,7 +520,7 @@ getPcEnvTaggedRaw visit = do
                 then getLoopPcEnv visit
                 else do
                     arcPcEnvs <- toListOf (folded % folded) <$> do
-                        preds <- toList <$> askPreds visit.tag visit.nodeId
+                        preds <- toList <$> askPreds visit
                         for preds $ \pred_ -> getArcPcEnvs pred_ visit
                     case arcPcEnvs of
                         [] -> return Nothing
@@ -559,11 +552,22 @@ addInputEnvs = do
 
 getLoopPcEnv :: C t m => Visit t -> T t m (Maybe PcEnv)
 getLoopPcEnv visit = do
-    loop <- askLoopData <&> \loopData -> fromJust $ outermostLoopContaining loopData visitAddr
+    side <- askProblemSideWithAnalysis tag
+    fast <- askHook #fast
+    constRetAssumptions <- (. WithTag tag) <$> askHook #constRetAssumptions
+    let loop = fromJust $ outermostLoopContaining side.analysis.loopData visitAddr
+    let isConst var =
+            let alwaysCheck = case var.ty of
+                    ExprTypeHtd -> True
+                    ExprTypeDom -> True
+                    _ -> False
+             in not (loopIsComplex loop)
+                    && (alwaysCheck || fast)
+                    && isSyntacticConstant side constRetAssumptions var loop visitAddr
     prevPcEnvOpt <- getPcEnvTagged $ visit & #restrs %~ M.insert visitAddr (numberVC 0)
     for prevPcEnvOpt $ \(PcEnv _ prevEnv) -> do
-        memCalls <- scanMemCallsEnv prevEnv >>= addLoopMemCalls loop
-        nonConsts <- filterM (fmap not . flip isConstM loop) [ NameTy name ty | (name, Expr ty _) <- M.toList prevEnv ]
+        memCalls <- addLoopMemCalls side.problem.nodes loop <$> scanMemCallsEnv prevEnv
+        let nonConsts = filter (not . isConst) [ NameTy name ty | (name, Expr ty _) <- M.toList prevEnv ]
         env <- addVarReps
             VarRepRequestKindLoop
             (\ident -> printf "%P_after_loop_at_%P" ident visit.nodeId)
@@ -575,20 +579,14 @@ getLoopPcEnv visit = do
             addVar (printf "pc_of_loop_at_%P" visit.nodeId) boolT
         return $ PcEnv pc env
   where
+    tag = visit.tag
     visitAddr = nodeAddrOf visit.nodeId
-    isConstM var loop = do
-        fast <- askHook #fast
-        let checkConst = fast || case var.ty of
-                ExprTypeHtd -> True
-                ExprTypeDom -> True
-                _ -> False
-        if checkConst then isSyntacticConstantM visit.tag var loop visitAddr else return False
 
-addLoopMemCalls :: C t m => Loop -> MemCallsIfKnown -> T t m MemCallsIfKnown
-addLoopMemCalls loop = traverse $ \memCalls -> do
-    node <- traverse askNode (toList loop.members)
-    let fnames = S.fromList $ node ^.. folded % #_NodeCall % #functionName
-    return $ foldl (flip addUnboundedCalls) memCalls (toList fnames)
+addLoopMemCalls :: NodeMap -> Loop -> MemCallsIfKnown -> MemCallsIfKnown
+addLoopMemCalls nodes loop = fmap $ \memCalls ->
+    let memberNodes = M.restrictKeys nodes loop.members
+        fnames = S.fromList $ memberNodes ^.. folded % #_NodeCall % #functionName
+     in foldl (flip addUnboundedCalls) memCalls (toList fnames)
 
 getArcPcEnvs :: C t m => NodeAddr -> Visit t -> T t m [PcEnv]
 getArcPcEnvs pred_ visit = do
@@ -627,8 +625,7 @@ warmPcEnvCache visit = go iters [] visit >>= traverse_ getPcEnvTagged
 emitNode :: C t m => Visit t -> T t m (M.Map NodeId PcEnv)
 emitNode visit = do
     pcEnv@(PcEnv pc env) <- fromJust <$> getPcEnvTagged visit
-    let nodeAddr = nodeAddrOf visit.nodeId
-    node <- askNode nodeAddr
+    node <- askNode visit
     M.fromList <$>
         if pc == falseE
         then return [ (cont, PcEnv falseE M.empty) | cont <- node ^.. nodeConts ]
@@ -680,50 +677,10 @@ emitNode visit = do
                 addFunAsserts visit
                 return [(callNode.next, PcEnv pc env')]
 
-isSyntacticConstantM :: C t m => t -> NameTy -> Loop -> NodeAddr -> T t m Bool
-isSyntacticConstantM tag var loop split = do
-    if loopIsComplex loop
-        then return False
-        else do
-            let go (name, addr) = do
-                    node <- lift $ lift $ askNode addr
-                    predName <- fromMaybe name <$> case node of
-                        NodeCall callNode -> do
-                            nonConstOutputs <- lift $ lift $ askNonConstOutputs tag callNode
-                            if NameTy name var.ty `elem` nonConstOutputs
-                                then throwNotConst
-                                else return Nothing
-                        NodeBasic basicNode -> do
-                            let updateExprs =
-                                    [ u.val
-                                    | u <- basicNode.varUpdates
-                                    , u.var == NameTy name var.ty
-                                    ]
-                            case updateExprs of
-                                [] -> return Nothing
-                                [Expr _ (ExprValueVar ident)] -> return $ Just ident
-                                [_] -> throwNotConst
-                        _ -> return Nothing
-                    preds <- lift $ lift $ S.intersection loop.members <$> askPreds tag (Addr addr)
-                    for_ preds $ \predAddr -> do
-                        let predVar = (predName, predAddr)
-                        safe <- get
-                        unless (predVar `S.member` safe) $ do
-                            when (predAddr == split) throwNotConst
-                            go predVar
-                            modify $ S.insert predVar
-            isRight <$>
-                runExceptT
-                    (evalStateT
-                        (go (var.name, split))
-                        (S.singleton (var.name, split)))
-  where
-    throwNotConst = throwError ()
-
 getFunCallInfo :: C t m => Visit t -> T t m FunCallInfo
 getFunCallInfo unprunedVisit = do
     visit <- fromJust <$> pruneVisit unprunedVisit
-    node <- askNode $ nodeAddrOf visit.nodeId
+    node <- askNode visit
     ensureM $ is #_NodeCall node
     opt <- liftPure $ use $ #funCalls % at visit
     whenNothing opt $ do

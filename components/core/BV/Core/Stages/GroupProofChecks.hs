@@ -4,7 +4,7 @@ module BV.Core.Stages.GroupProofChecks
 
 import BV.Core.Stages.EnumerateProofChecks (pruneProofCheck)
 import BV.Core.Types
-import BV.Core.Types.Extras (ProblemAnalysis, restrsFromMap)
+import BV.Core.Types.Extras (restrsFromMap)
 
 import Control.DeepSeq (NFData)
 import Data.Foldable (toList)
@@ -18,13 +18,13 @@ import Optics
 
 prunedProofCheckGroups
     :: RefineTag t
-    => ProblemAnalysis t
+    => Problem t
     -> [ProofCheck t a]
     -> [(ProofCheckGroupCheckIndices, ProofCheckGroup t a)]
-prunedProofCheckGroups analysis checks =
+prunedProofCheckGroups p checks =
     over (traversed % _2) pruneGroup (proofCheckGroups checks)
   where
-    pruneCheck = pruneProofCheck analysis
+    pruneCheck = pruneProofCheck p
     pruneGroup = map pruneCheck
 
 proofCheckGroups :: Tag t => [ProofCheck t a] -> [(ProofCheckGroupCheckIndices, ProofCheckGroup t a)]
