@@ -90,7 +90,6 @@ data ProblemAnalysis t
       , nodeTag :: NodeAddr -> t
       , loopData :: LoopData
       , preds :: ByTag t (NodeId -> S.Set NodeAddr)
-      , varNames :: S.Set Ident
       , isNonTriviallyReachableFrom :: NodeAddr -> NodeId -> Bool
       }
   deriving (Generic)
@@ -101,7 +100,6 @@ analyzeProblem problem = ProblemAnalysis
     , nodeTag
     , loopData
     , preds = computePreds problem nodeTag
-    , varNames = S.fromList $ toListOf varNamesOfProblem problem
     , isNonTriviallyReachableFrom = makeIsNonTriviallyReachableFrom problem nodeGraph loopData
     }
   where
@@ -109,13 +107,12 @@ analyzeProblem problem = ProblemAnalysis
     nodeTag = (M.!) $ nodeTagMap problem nodeGraph
     loopData = makeLoopData problem nodeGraph
 
-analyzeProblemFromPartial :: Tag t => (NodeAddr -> t) -> S.Set Ident -> Problem t -> ProblemAnalysis t
-analyzeProblemFromPartial nodeTag varNames problem = ProblemAnalysis
+analyzeProblemFromPartial :: Tag t => (NodeAddr -> t) -> Problem t -> ProblemAnalysis t
+analyzeProblemFromPartial nodeTag problem = ProblemAnalysis
     { nodeGraph
     , nodeTag
     , loopData
     , preds = computePreds problem nodeTag
-    , varNames
     , isNonTriviallyReachableFrom = makeIsNonTriviallyReachableFrom problem nodeGraph loopData
     }
   where
