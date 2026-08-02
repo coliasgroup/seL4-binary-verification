@@ -8,10 +8,10 @@ module BV.Core.Types.Extras.Problem
     , LoopData (..)
     , NodeGraph
     , ProblemAnalysis (..)
+    , ProblemSideAnalysis (..)
+    , ProblemSideWithAnalysis (..)
     , ProblemWithAnalysis (..)
     , allLoopsOf
-    , analyzeProblem
-    , analyzeProblemFromPartial
     , augmentProblem
     , inlineScriptsEquivalent
     , innermostLoopContaining
@@ -21,10 +21,11 @@ module BV.Core.Types.Extras.Problem
     , loopIsComplex
     , loopIsSimple
     , makeNodeGraph
-    , makeProblemWithAnalysisLens
     , outermostLoopContaining
     , pairingIdOfProblem
     , problemArgRenames
+    , problemSideWithAnalysis
+    , problemSidesWithAnalysis
     , reachableFrom
     , varNamesOfProblem
     ) where
@@ -71,9 +72,24 @@ pairingIdOfProblem problem = view #name <$> problem.sides
 varNamesOfProblem :: Tag t => Traversal' (Problem t) Ident
 varNamesOfProblem =
     (#sides % traversed % (#input `adjoin` #output) % traversed % varNamesOf)
-        `adjoin` (#nodes % traversed % varNamesOf)
+        `adjoin` (#sides % traversed % #nodes % traversed % varNamesOf)
 
 --
+
+data ProblemSideAnalysis
+  = ProblemSideAnalysis
+      { nodeGraph :: NodeGraph
+      , loopData :: LoopData
+      , preds :: NodeId -> S.Set NodeAddr
+      , isNonTriviallyReachableFrom :: NodeAddr -> NodeId -> Bool
+      }
+  deriving (Generic)
+
+data ProblemAnalysis t
+  = ProblemAnalysis
+      { sides :: ByTag t ProblemSideAnalysis
+      }
+  deriving (Generic)
 
 -- TODO rename to AnalyzedProblem
 data ProblemWithAnalysis t
@@ -83,52 +99,43 @@ data ProblemWithAnalysis t
       }
   deriving (Generic)
 
--- TODO add problem as field
-data ProblemAnalysis t
-  = ProblemAnalysis
-      { nodeGraph :: NodeGraph
-      , nodeTag :: NodeAddr -> t
-      , loopData :: LoopData
-      , preds :: ByTag t (NodeId -> S.Set NodeAddr)
-      , isNonTriviallyReachableFrom :: NodeAddr -> NodeId -> Bool
+-- TODO rename to AnalyzedProblemSide
+data ProblemSideWithAnalysis
+  = ProblemSideWithAnalysis
+      { problem :: ProblemSide
+      , analysis :: ProblemSideAnalysis
       }
   deriving (Generic)
 
-analyzeProblem :: Tag t => Problem t -> ProblemAnalysis t
-analyzeProblem problem = ProblemAnalysis
+analyzeProblemSide :: ProblemSide -> ProblemSideAnalysis
+analyzeProblemSide side = ProblemSideAnalysis
     { nodeGraph
-    , nodeTag
     , loopData
-    , preds = computePreds problem nodeTag
-    , isNonTriviallyReachableFrom = makeIsNonTriviallyReachableFrom problem nodeGraph loopData
+    , preds = computePreds side
+    , isNonTriviallyReachableFrom = makeIsNonTriviallyReachableFrom side nodeGraph loopData
     }
   where
-    nodeGraph = makeNodeGraph problem.nodes
-    nodeTag = (M.!) $ nodeTagMap problem nodeGraph
-    loopData = makeLoopData problem nodeGraph
-
-analyzeProblemFromPartial :: Tag t => (NodeAddr -> t) -> Problem t -> ProblemAnalysis t
-analyzeProblemFromPartial nodeTag problem = ProblemAnalysis
-    { nodeGraph
-    , nodeTag
-    , loopData
-    , preds = computePreds problem nodeTag
-    , isNonTriviallyReachableFrom = makeIsNonTriviallyReachableFrom problem nodeGraph loopData
-    }
-  where
-    nodeGraph = makeNodeGraph problem.nodes
-    loopData = makeLoopData problem nodeGraph
+    nodeGraph = makeNodeGraph side.nodes
+    loopData = makeLoopData side nodeGraph
 
 augmentProblem :: Tag t => Problem t -> ProblemWithAnalysis t
 augmentProblem problem = ProblemWithAnalysis
     { problem
-    , analysis = analyzeProblem problem
+    , analysis = ProblemAnalysis $ analyzeProblemSide <$> problem.sides
     }
 
-makeProblemWithAnalysisLens :: Lens' s (Problem t) -> Lens' s (ProblemAnalysis t) -> Lens' s (ProblemWithAnalysis t)
-makeProblemWithAnalysisLens p pa = lens
-    (\s -> ProblemWithAnalysis (view p s) (view pa s))
-    (\s c -> set p c.problem (set pa c.analysis s))
+problemSideWithAnalysis :: Tag t => t -> ProblemWithAnalysis t -> ProblemSideWithAnalysis
+problemSideWithAnalysis tag pwa = ProblemSideWithAnalysis
+    { problem = viewAtTag tag pwa.problem.sides
+    , analysis = viewAtTag tag pwa.analysis.sides
+    }
+
+problemSidesWithAnalysis :: Tag t => ProblemWithAnalysis t -> ByTag t ProblemSideWithAnalysis
+problemSidesWithAnalysis pwa = withTags pwa.problem.sides <&> \(WithTag tag side) ->
+    ProblemSideWithAnalysis
+        { problem = side
+        , analysis = viewAtTag tag pwa.analysis.sides
+        }
 
 --
 
@@ -169,16 +176,16 @@ reachableFrom g from = map g.vertexToNodeId $ G.reachable g.graph (g.nodeIdToVer
 isReachableFrom :: NodeGraph -> NodeId -> NodeId -> Bool
 isReachableFrom g from to_ = G.path g.graph (g.nodeIdToVertex from) (g.nodeIdToVertex to_)
 
-isNonTriviallyReachableFrom :: ProblemWithAnalysis t -> NodeAddr -> NodeId -> Bool
-isNonTriviallyReachableFrom p from to_ =
+isNonTriviallyReachableFrom :: ProblemSideWithAnalysis -> NodeAddr -> NodeId -> Bool
+isNonTriviallyReachableFrom swa from to_ =
     if Addr from /= to_
-    then isReachableFrom p.analysis.nodeGraph (Addr from) to_
-    else from `M.member` p.analysis.loopData.byMember
+    then isReachableFrom swa.analysis.nodeGraph (Addr from) to_
+    else from `M.member` swa.analysis.loopData.byMember
 
-makeIsNonTriviallyReachableFrom :: Problem t -> NodeGraph -> LoopData -> NodeAddr -> NodeId -> Bool
-makeIsNonTriviallyReachableFrom problem g loopData = \from to_ -> to_ `S.member` (m M.! from)
+makeIsNonTriviallyReachableFrom :: ProblemSide -> NodeGraph -> LoopData -> NodeAddr -> NodeId -> Bool
+makeIsNonTriviallyReachableFrom side g loopData = \from to_ -> to_ `S.member` (m M.! from)
   where
-    m = M.mapWithKey f problem.nodes
+    m = M.mapWithKey f side.nodes
     f from _ = applyWhen (not keepSelf) (S.delete n) s
       where
         n = Addr from
@@ -187,19 +194,8 @@ makeIsNonTriviallyReachableFrom problem g loopData = \from to_ -> to_ `S.member`
 
 --
 
-nodeTagMap :: Tag t => Problem t -> NodeGraph -> M.Map NodeAddr t
-nodeTagMap problem nodeGraph =
-    M.fromListWith undefined $ byTag ^.. folded % folded
-  where
-    byTag = withTags problem.sides <&> \(WithTag tag side) ->
-        [ (addr, tag)
-        | addr <- reachableFrom nodeGraph side.entryPoint ^.. folded % #_Addr
-        ]
-
---
-
-loopsFromGeneric :: G.Graph -> [Vertex] -> [(Vertex, S.Set Vertex)]
-loopsFromGeneric g entryPoints =
+loopsFromGeneric :: G.Graph -> Vertex -> [(Vertex, S.Set Vertex)]
+loopsFromGeneric g entryPoint =
     [ (h, body)
     | scc <- G.scc g
     , let body = S.fromList (toList scc)
@@ -207,7 +203,7 @@ loopsFromGeneric g entryPoints =
     , let Just h = find (`S.member` body) inOrder
     ]
   where
-    inOrder = foldMap toList $ G.dfs g entryPoints
+    inOrder = foldMap toList $ G.dfs g [entryPoint]
 
 data LoopData
   = LoopData
@@ -226,8 +222,8 @@ data Loop
       }
   deriving (Generic)
 
-makeLoopData :: Tag t => Problem t -> NodeGraph -> LoopData
-makeLoopData problem nodeGraph = LoopData
+makeLoopData :: ProblemSide -> NodeGraph -> LoopData
+makeLoopData side nodeGraph = LoopData
     { outermostLoops
     , byHead = M.fromList $ allLoops <&> \loop -> (loop.head, loop)
     , byMember = M.fromList $ concat $ allLoops <&> \loop ->
@@ -236,9 +232,9 @@ makeLoopData problem nodeGraph = LoopData
         ]
     }
   where
-    outermostLoops = go nodeGraph Nothing $ toListOf (folded % #entryPoint) problem.sides
+    outermostLoops = go nodeGraph Nothing side.entryPoint
     allLoops = flattenLoops outermostLoops
-    go g parent entryPoints = sortOn (.head)
+    go g parent entryPoint = sortOn (.head)
         [ let toNodeAddr = nodeAddrOf . g.vertexToNodeId
               loop = Loop
                 { head = toNodeAddr h
@@ -250,15 +246,15 @@ makeLoopData problem nodeGraph = LoopData
                             | src <- S.toList loop.members
                             , let dsts =
                                     [ Addr dst
-                                    | Addr dst <- problem.nodes ^.. at src % unwrapped % nodeConts
+                                    | Addr dst <- side.nodes ^.. at src % unwrapped % nodeConts
                                     , dst `S.member` loop.members
                                     , dst /= loop.head
                                     ]
                             ]
-                     in go g' (Just loop) [Addr loop.head]
+                     in go g' (Just loop) (Addr loop.head)
                 }
           in loop
-        | (h, body) <- loopsFromGeneric g.graph (map g.nodeIdToVertex entryPoints)
+        | (h, body) <- loopsFromGeneric g.graph (g.nodeIdToVertex entryPoint)
         ]
 
 flattenLoops :: [Loop] -> [Loop]
@@ -289,15 +285,13 @@ loopIsComplex = not . loopIsSimple
 --
 
 isSyntacticConstant
-    :: Tag t
-    => ProblemWithAnalysis t
-    -> (WithTag t Ident -> Integer -> Maybe Integer)
-    -> t
+    :: ProblemSideWithAnalysis
+    -> (Ident -> Integer -> Maybe Integer)
     -> NameTy
     -> Loop
     -> NodeAddr
     -> Bool
-isSyntacticConstant p constRetAssumptions tag var loop split =
+isSyntacticConstant swa constRetAssumptions var loop split =
     ensure (not (loopIsComplex loop)) $
     isRight $
         runExcept
@@ -307,12 +301,12 @@ isSyntacticConstant p constRetAssumptions tag var loop split =
   where
     go (name, addr) = do
         let localVar = NameTy name var.ty
-        let node = p.problem.nodes M.! addr
+        let node = swa.problem.nodes M.! addr
         predName <- fromMaybe name <$> case node of
             NodeCall callNode -> do
                 let isConst = case elemIndex localVar callNode.output of
                         Nothing -> True
-                        Just outputIx -> case constRetAssumptions (WithTag tag callNode.functionName) (toInteger outputIx) of
+                        Just outputIx -> case constRetAssumptions callNode.functionName (toInteger outputIx) of
                             Nothing -> False
                             Just intputIx -> callNode.input `genericIndex` intputIx == varFromNameTyE localVar
                 if isConst
@@ -330,7 +324,7 @@ isSyntacticConstant p constRetAssumptions tag var loop split =
                     [_] -> throwNotConst
                     _ -> error "unexpected"
             _ -> return Nothing
-        let preds = S.intersection loop.members $ (viewAtTag tag p.analysis.preds) (Addr addr)
+        let preds = S.intersection loop.members $ swa.analysis.preds (Addr addr)
         for_ preds $ \predAddr -> do
             let predVar = (predName, predAddr)
             safe <- get
@@ -342,21 +336,17 @@ isSyntacticConstant p constRetAssumptions tag var loop split =
 
 --
 
-computePreds :: Tag t => Problem t -> (NodeAddr -> t) -> ByTag t (NodeId -> S.Set NodeAddr)
-computePreds problem nodeTag = withTags problem.sides <&> \(WithTag tag _) nodeId ->
-    applyWhen
-        (not (is #_Addr nodeId))
-        (S.filter ((==) tag . nodeTag))
-        (M.findWithDefault S.empty nodeId clobbered)
+computePreds :: ProblemSide -> NodeId -> S.Set NodeAddr
+computePreds side = \nodeId -> M.findWithDefault S.empty nodeId m
   where
-    clobbered = M.fromListWith (<>) $ concat
+    m = M.fromListWith (<>) $ concat
         [ [ (cont, S.singleton nodeAddr)
           | cont <- node ^.. nodeConts
           ]
-        | (nodeAddr, node) <- M.toList problem.nodes
+        | (nodeAddr, node) <- M.toList side.nodes
         ]
 
----
+--
 
 inlineScriptsEquivalent :: Tag t => InlineScript t -> InlineScript t -> Bool
 inlineScriptsEquivalent = (==) `on` f

@@ -11,21 +11,25 @@ import BV.ConcreteSyntax.GraphLangLike.Building
 import BV.ConcreteSyntax.GraphLangLike.Parsing
 import BV.ConcreteSyntax.SExprWithPlaceholders
 import BV.Core.Types
+import BV.Core.Types.Extras.Problem (makeNodeGraph)
 import BV.Core.Types.Extras.ProofCheck (restrsFromMap, restrsToMap)
 
+import BV.Core.Types.Extras.Problem (reachableFrom)
 import Control.Monad (replicateM)
 import Data.Bits (shiftL, (.|.))
 import Data.Char (chr, isDigit, ord)
+import Data.Foldable (toList)
 import Data.Functor ((<&>))
 import Data.List (elemIndices, unsnoc)
 import qualified Data.Map as M
-import Data.Maybe (maybeToList)
+import Data.Maybe (mapMaybe, maybeToList)
 import Data.Proxy (Proxy (Proxy))
+import qualified Data.Set as S
 import Data.String (fromString)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as TL
 import Data.Void (Void)
-import Optics (at, (%), (&), (?~))
+import Optics (at, preview, (%), (&), (?~))
 import Text.Megaparsec
 import Text.Megaparsec.Char
 
@@ -384,12 +388,10 @@ instance StaticTag t => ParseInBlock (Problem t) where
     parseInBlock = do
         _ <- line $ inLineSymbol "Problem"
         byTagAssocs <- replicateM (numTagValues (Proxy :: Proxy t)) problemSideLine
-        let sides = byTagFrom (M.fromList byTagAssocs M.!)
-        nodes <- M.fromList <$> manyTill nodeLine (try endLine)
-        return $ Problem
-            { sides
-            , nodes
-            }
+        allNodes <- M.fromList <$> manyTill nodeLine (try endLine)
+        let allNodesGraph = makeNodeGraph allNodes
+        let sides = byTagFrom (($ (allNodes, allNodesGraph)) . (M.fromList byTagAssocs M.!))
+        return $ Problem { sides }
       where
         nodeLine = line $ (,) <$> parseInLine <*> parseInLine
         endLine = line $ inLineSymbol "EndProblem"
@@ -400,8 +402,16 @@ instance StaticTag t => ParseInBlock (Problem t) where
             name <- parseInLine
             input <- parseInLine
             output <- parseInLine
-            let side = ProblemSide { name, input, output, entryPoint }
-            return (tag, side)
+            let mkSide (allNodes, allNodesGraph) =
+                    let sideAddrs = S.fromList $ mapMaybe (preview #_Addr) (reachableFrom allNodesGraph entryPoint)
+                     in ProblemSide
+                            { name
+                            , input
+                            , output
+                            , entryPoint
+                            , nodes = M.restrictKeys allNodes sideAddrs
+                            }
+            return (tag, mkSide)
 
 --
 
@@ -409,10 +419,11 @@ instance BuildToFile Problems' where
     buildToFile (Problems problems) = intersperse "\n" $ map (buildBlock . buildInBlock . snd) (M.toList problems)
 
 instance Tag t => BuildInBlock (Problem t) where
-    buildInBlock (Problem { sides, nodes }) =
+    buildInBlock (Problem { sides }) =
         lineInBlock "Problem"
             <> foldMap (withTag problemSideLine) (withTags sides)
-            <> foldMap nodeLine (M.toList nodes)
+            <> foldMap nodeLine
+                (M.toList (foldr (M.unionWith undefined) M.empty (map (.nodes) (toList sides))))
             <> lineInBlock "EndProblem"
       where
         problemSideLine tag (ProblemSide { name, input, output, entryPoint }) = lineInBlock $

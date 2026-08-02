@@ -18,7 +18,7 @@ import Control.Monad (guard, when)
 import Data.Bifunctor (bimap)
 import Data.Foldable (for_, toList)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes)
+import Data.Maybe (mapMaybe)
 import GHC.Generics (Generic)
 import Optics
 
@@ -40,56 +40,57 @@ normalizeVisit
     -> M t (Either VisitTooGeneral (Maybe (NormalizedVisit t)))
 normalizeVisit visit p = ensure tagOk $ bimap
     (const VisitTooGeneral)
-    (const (NormalizedVisit <$> pruneVisit visit p))
-    (checkGenerality visit p)
+    (const (NormalizedVisit <$> pruneVisit side visit))
+    (checkGenerality side visit)
   where
+    side = problemSideWithAnalysis visit.tag p
     tagOk = case visit.nodeId of
-        Addr addr -> p.analysis.nodeTag addr == visit.tag
+        Addr addr -> addr `M.member` side.problem.nodes
         _ -> True
 
 normalizePredVisits
     :: Tag t
-    => NormalizedVisit t
-    -> M t [NormalizedVisit t]
-normalizePredVisits norm p =
-    map NormalizedVisit $
-        catMaybes $
-            map (\v -> pruneVisit v p) predVis
+    => ProblemSideWithAnalysis
+    -> NormalizedVisit t
+    -> [NormalizedVisit t]
+normalizePredVisits side norm =
+    NormalizedVisit <$> mapMaybe (pruneVisit side) (concatMap expand naivePredVisits)
   where
     visit = norm.unwrap
-    preds = (viewAtTag visit.tag p.analysis.preds) visit.nodeId
-    naivePredVisits = predVisits visit (toList preds)
-    predVis = concatMap f naivePredVisits
-    f v = either (\split -> splitVisitAt split v) (const [v]) (checkGenerality v p)
+    predAddrs = side.analysis.preds visit.nodeId
+    naivePredVisits = predVisits visit (toList predAddrs)
+    expand v = either (\split -> splitVisitAt split v) (const [v]) (checkGenerality side v)
 
-pruneVisit :: Tag t => Visit t -> M t (Maybe (Visit t))
-pruneVisit visit p =
+pruneVisit :: Tag t => ProblemSideWithAnalysis -> Visit t -> Maybe (Visit t)
+pruneVisit side visit =
     forOf #restrs visit $ mapFilterWithKeyA $ \addr vc ->
-        if p.analysis.nodeTag addr /= visit.tag
+        if addr `M.notMember` side.problem.nodes
         then return False
         else do
-            let reachable = isNonTriviallyReachableFromImpl addr visit.nodeId p
+            let reachable = isNonTriviallyReachableFromImpl side addr visit.nodeId
             guard $ reachable || hasZeroVC vc
             return reachable
 
 -- TODO choose one
-isNonTriviallyReachableFromImpl :: NodeAddr -> NodeId -> M t Bool
-isNonTriviallyReachableFromImpl from to_ p =
+isNonTriviallyReachableFromImpl :: ProblemSideWithAnalysis -> NodeAddr -> NodeId -> Bool
+isNonTriviallyReachableFromImpl side from to_ =
 --     if x /= y then error (show (Addr from == to_)) else x
 --   where
 --     x =
-        isNonTriviallyReachableFrom p from to_
+        isNonTriviallyReachableFrom side from to_
     -- y =
-    --     p.analysis.isNonTriviallyReachableFrom from to_
+    --     side.analysis.isNonTriviallyReachableFrom from to_
 
-checkGenerality :: Visit t -> M t (Either NodeAddr ())
-checkGenerality visit p =
-    for_ (preview #_Addr visit.nodeId) $ \nodeAddr ->
-        for_ (outermostLoopContaining p.analysis.loopData nodeAddr) $ \loop ->
+checkGenerality :: ProblemSideWithAnalysis -> Visit t -> Either NodeAddr ()
+checkGenerality side visit =
+    for_ (preview #_Addr visit.nodeId) $ \visitAddr ->
+        for_ (lookupLoop visitAddr) $ \visitLoop ->
             ifor_ visit.restrs $ \addr vc -> do
-                let loopOpt' = outermostLoopContaining p.analysis.loopData addr
-                when (fmap (.head) loopOpt' == Just loop.head && isOptionsVC vc) $ do
+                let loopOpt' = lookupLoop addr
+                when (fmap (.head) loopOpt' == Just visitLoop.head && isOptionsVC vc) $ do
                     Left addr
+  where
+    lookupLoop = outermostLoopContaining side.analysis.loopData
 
 data VisitKind t
   = VisitKindEntryPoint
@@ -109,10 +110,11 @@ visitKind norm p = if
     | isEntryPoint -> VisitKindEntryPoint
     | isPostLoop -> VisitKindPostLoop $
             NormalizedVisit $ visit & #restrs %~ M.insert (nodeAddrOf visit.nodeId) (numberVC 0)
-    | otherwise -> VisitKindNormal $ normalizePredVisits norm p
+    | otherwise -> VisitKindNormal $ normalizePredVisits side norm
 
   where
     visit = norm.unwrap
+    side = problemSideWithAnalysis visit.tag p
     isEntryPoint = visit.nodeId == (viewAtTag visit.tag p.problem.sides).entryPoint
     isPostLoop = or
         [ Addr addr == visit.nodeId && vc == offsetVC 0

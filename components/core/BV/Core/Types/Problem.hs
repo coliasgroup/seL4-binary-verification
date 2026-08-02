@@ -18,7 +18,6 @@ import GHC.Generics (Generic)
 data Problem t
   = Problem
       { sides :: ByTag t ProblemSide
-      , nodes :: NodeMap
       }
   deriving (Eq, Generic, NFData, Ord)
 
@@ -28,6 +27,7 @@ data ProblemSide
       , input :: [NameTy]
       , output :: [NameTy]
       , entryPoint :: NodeId
+      , nodes :: NodeMap
       }
   deriving (Eq, Generic, NFData, Ord, Show)
 

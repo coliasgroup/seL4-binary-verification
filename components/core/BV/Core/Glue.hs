@@ -152,4 +152,4 @@ compileProofChecks
 compileProofChecks input checks =
     over (traversed % _2)
         (compileProofCheckGroup input)
-        (prunedProofCheckGroups input.repGraphInput.pwa.analysis checks)
+        (prunedProofCheckGroups input.repGraphInput.pwa.problem checks)

@@ -183,24 +183,37 @@ withMapSlot = withMapSlotWith $ liftPure . mapStateT (return . runIdentity)
 
 --
 
+normTag :: Tag t => NormalizedVisit t -> t
+normTag norm = (unwrapNormalizedVisit norm).tag
+
+withNormTag :: Tag t => NormalizedVisit t -> a -> WithTag t a
+withNormTag = WithTag . normTag
+
+--
+
 askProblemWithAnalysis :: Monad m => T t m (ProblemWithAnalysis t)
 askProblemWithAnalysis = liftPure $ gview #pwa
-
-askNode :: Monad m => NormalizedVisit t -> T t m Node
-askNode norm = do
-    p <- askProblemWithAnalysis
-    return $ p.problem.nodes ! (nodeAddrOf (unwrapNormalizedVisit norm).nodeId)
-
-askCallNode :: Monad m => NormalizedVisit t -> T t m CallNode
-askCallNode norm = view (expecting #_NodeCall) <$> askNode norm
-
-askNodeFunName :: Monad m => NormalizedVisit t -> T t m Ident
-askNodeFunName norm = (.functionName) <$> askCallNode norm
 
 askProblemSide :: (Tag t, Monad m) => t -> T t m ProblemSide
 askProblemSide tag = do
     p <- askProblemWithAnalysis
     return $ viewAtTag tag p.problem.sides
+
+askProblemSideWithAnalysis :: (Tag t, Monad m) => t -> T t m ProblemSideWithAnalysis
+askProblemSideWithAnalysis tag = problemSideWithAnalysis tag <$> askProblemWithAnalysis
+
+askNode :: (Tag t, Monad m) => NormalizedVisit t -> T t m Node
+askNode norm = do
+    side <- askProblemSide $ normTag norm
+    return $ side.nodes ! (nodeAddrOf visit.nodeId)
+  where
+    visit = unwrapNormalizedVisit norm
+
+askCallNode :: (Tag t, Monad m) => NormalizedVisit t -> T t m CallNode
+askCallNode norm = view (expecting #_NodeCall) <$> askNode norm
+
+askNodeFunName :: (Tag t, Monad m) => NormalizedVisit t -> T t m Ident
+askNodeFunName norm = (.functionName) <$> askCallNode norm
 
 askHook :: C t m => Lens' (GraphSliceHooks t) a -> T t m a
 askHook l = liftPure $ gview $ #hooks % l
@@ -257,9 +270,6 @@ getIsExprStack =
         ExprValueVar name -> liftFlat (lookupDef name) >>= maybe (return False) go
         _ -> unexpected
     ensureEq x y = ensure (x == y) x
-
-applyTag :: NormalizedVisit t -> a -> WithTag t a
-applyTag norm = WithTag (unwrapNormalizedVisit norm).tag
 
 --
 
@@ -323,10 +333,10 @@ getInputEnv tag = withMapSlot #inputEnvs tag $ do
 
 getPostLoopVisitInfo :: C t m => NormalizedVisit t -> VisitInfo -> T t m VisitInfo
 getPostLoopVisitInfo norm preLoopInfo = do
-    p <- askProblemWithAnalysis
+    side <- askProblemSideWithAnalysis tag
     fast <- askHook #fast
-    constRetAssumptions <- askHook #constRetAssumptions
-    let loop = fromJust $ outermostLoopContaining p.analysis.loopData visitAddr
+    constRetAssumptions <- (. WithTag tag) <$> askHook #constRetAssumptions
+    let loop = fromJust $ outermostLoopContaining side.analysis.loopData visitAddr
     let isConst var =
             let alwaysCheck = case var.ty of
                     ExprTypeHtd -> True
@@ -334,7 +344,7 @@ getPostLoopVisitInfo norm preLoopInfo = do
                     _ -> False
              in not (loopIsComplex loop)
                     && (alwaysCheck || fast)
-                    && isSyntacticConstant p constRetAssumptions tag var loop visitAddr
+                    && isSyntacticConstant side constRetAssumptions var loop visitAddr
     env <- ifor preLoopInfo.env $ \name val ->
         let var = NameTy name val.ty
          in if isConst var
@@ -348,7 +358,7 @@ getPostLoopVisitInfo norm preLoopInfo = do
         , env
         , callCount =
             let calledFuns =
-                    [ p.problem.nodes ! addr | addr <- toList loop.members ]
+                    [ side.problem.nodes ! addr | addr <- toList loop.members ]
                         ^.. folded % #_NodeCall % #functionName
              in foldl (flip addUnboundedCalls) preLoopInfo.callCount calledFuns
         }
@@ -394,7 +404,7 @@ getOutboundVisitInfo norm = withMapSlot #outboundVisitInfo norm $ do
                 info' <- getPostCallVisitInfo norm info callNode
                 success <- getSuccessVarNorm norm
                 AddFunAssertsHook addFunAsserts <- askHook #addFunAsserts
-                addFunAsserts $ applyTag norm $ FunAssertInput
+                addFunAsserts $ withNormTag norm $ FunAssertInput
                     { callNode
                     , inboundInfo = info
                     , outboundInfo = info'
@@ -402,7 +412,7 @@ getOutboundVisitInfo norm = withMapSlot #outboundVisitInfo norm $ do
                     }
                 liftPure $ do
                     #callsByFunName %=
-                        M.insertWith (<>) (applyTag norm callNode.functionName) (S.singleton norm)
+                        M.insertWith (<>) (withNormTag norm callNode.functionName) (S.singleton norm)
                     #callOrderCompat %=
                         (Seq.|> norm)
                 return [(callNode.next, info')]
@@ -428,7 +438,7 @@ getPostCallVisitInfo norm preCallInfo callNode = do
         , callCount = addCall callNode.functionName preCallInfo.callCount
         }
   where
-    funName = applyTag norm callNode.functionName
+    funName = withNormTag norm callNode.functionName
 
 --
 

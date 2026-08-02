@@ -125,15 +125,15 @@ main = withLoggingOpts loggingOpts $ withPushLogContext "x" $ do
 
 thisLookupCheck
     :: t ~ AsmRefineTag
-    => ProblemAnalysis t
+    => Problem t
     -> CheckPath
     -> ProofChecks t ProofCheckDescription
     -> ProofCheck t ProofCheckDescription
-thisLookupCheck analysis path =
+thisLookupCheck problem path =
       (`genericIndex` path.indexInGroup.unwrap)
     . fromJust
     . lookup path.checkGroupPath.checkIndices
-    . prunedProofCheckGroups analysis
+    . prunedProofCheckGroups problem
     . followProofScriptEdgePath path.checkGroupPath.proofScriptEdgePath
     . view (#unwrap % expectingAt path.checkGroupPath.pairingId % #root)
 

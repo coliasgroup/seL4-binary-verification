@@ -38,12 +38,12 @@ enumerateProofChecks pwa sigs pairing proofScript =
         (assumeR =<< instantiatePairingEqs PairingEqDirectionIn)
         proofScript.root
 
-pruneProofCheck :: RefineTag t => ProblemAnalysis t -> ProofCheck t a -> ProofCheck t a
-pruneProofCheck analysis = over checkVisits pruneVisitWithTag
+pruneProofCheck :: RefineTag t => Problem t -> ProofCheck t a -> ProofCheck t a
+pruneProofCheck p = over checkVisits pruneVisitWithTag
   where
     pruneVisitWithTag (Visit tag nodeId restrs) =
         Visit tag nodeId (M.filterWithKey (testRestr tag) restrs)
-    testRestr tag nodeAddr _ = analysis.nodeTag nodeAddr == tag
+    testRestr tag nodeAddr _ = nodeAddr `M.member` (viewAtTag tag p.sides).nodes
 
 data Env t
   = Env
@@ -66,14 +66,8 @@ askPairing = gview #pairing
 askEntryPoints :: MonadReader (Env t) m => m (ByTag t NodeId)
 askEntryPoints = gview $ #pwa % #problem % #sides % to (fmap (.entryPoint))
 
-askNodeGraph :: MonadReader (Env t) m => m NodeGraph
-askNodeGraph = gview $ #pwa % #analysis % #nodeGraph
-
-askLoopData :: MonadReader (Env t) m => m LoopData
-askLoopData = gview $ #pwa % #analysis % #loopData
-
-askNodeTagMap :: MonadReader (Env t) m => m (NodeAddr -> t)
-askNodeTagMap = gview $ #pwa % #analysis % #nodeTag
+askAnalysis :: MonadReader (Env t) m => m (ByTag t ProblemSideAnalysis)
+askAnalysis = gview $ #pwa % #analysis % #sides
 
 askArgRenames :: MonadReader (Env t) m => m (ArgRenames t)
 askArgRenames = gview #argRenames
@@ -309,21 +303,19 @@ applyRestrOthers = getLoopsToSplit >>= traverse_ splitLoop
 
 getLoopsToSplit :: MonadChecks t m => m [WithTag t NodeAddr]
 getLoopsToSplit = do
-    loopData <- askLoopData
-    nodeTag <- askNodeTagMap
     restrs <- getRestrs
-    let taggedLoopHead loop = WithTag (nodeTag loop.head) loop.head
-    let loopHeadsWithSplit = catMaybes $ restrs <&> \restr ->
-            taggedLoopHead <$> outermostLoopContaining loopData restr.value.nodeAddr
-    let loopHeads = taggedLoopHead <$> loopData.outermostLoops
-    let loopHeadsWithoutSplit = (S.difference `on` S.fromList) loopHeads loopHeadsWithSplit
-    g <- askNodeGraph
-    let pruneWith restr = applyWhen (not (hasZeroVC restr.value.visitCount)) $
-            -- restr node must be visited, so loop heads must be from restr (or on another tag)
-            S.filter $ \loopHeadWithoutSplit ->
-                loopHeadWithoutSplit.tag /= restr.tag
-                    || isReachableFrom g (Addr restr.value.nodeAddr) (Addr loopHeadWithoutSplit.value)
-    return $ S.toList $ foldr pruneWith loopHeadsWithoutSplit restrs
+    analysis <- askAnalysis
+    return $ toListOf (folded % folded) $ withTags analysis <&> \(WithTag tag side) -> WithTag tag <$>
+        let loopHeadsWithSplit = catMaybes $ restrs <&> \restr ->
+                (.head) <$> outermostLoopContaining side.loopData restr.value.nodeAddr
+            loopHeads = (.head) <$> side.loopData.outermostLoops
+            loopHeadsWithoutSplit = (S.difference `on` S.fromList) loopHeads loopHeadsWithSplit
+            pruneWith restr = applyWhen (not (hasZeroVC restr.value.visitCount)) $
+                -- restr node must be visited, so loop heads must be from restr (or on another tag)
+                S.filter $ \loopHeadWithoutSplit ->
+                    tag /= restr.tag
+                        || isReachableFrom side.nodeGraph (Addr restr.value.nodeAddr) (Addr loopHeadWithoutSplit)
+         in S.toList $ foldr pruneWith loopHeadsWithoutSplit restrs
 
 getVisitToRestrPointAfter :: MonadChecks t m => RestrProofNode t a -> VisitCount -> m (Visit t)
 getVisitToRestrPointAfter restrNode vc = branchRestrs $ do

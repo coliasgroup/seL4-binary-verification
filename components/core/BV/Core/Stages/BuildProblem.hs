@@ -6,7 +6,6 @@ module BV.Core.Stages.BuildProblem
     , addEntrypoints
     , buildProblem
     , doAnalysis
-    , extractAnalysis
     , extractProblem
     , extractProblemWithAnalysis
     , initProblemBuilder
@@ -22,20 +21,153 @@ import BV.Core.Types
 import BV.Core.Types.Extras
 import BV.Utils (ensureM, expecting, expectingAt, expectingIx, unwrapped)
 
-import Control.Monad (unless)
+import Control.Monad (guard, unless)
 import Control.Monad.Identity (runIdentity)
-import Control.Monad.State (StateT, evalStateT, gets, modify, put)
-import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Maybe (MaybeT (..), hoistMaybe, runMaybeT)
-import Data.Foldable (for_, toList)
+import Control.Monad.State (StateT, evalStateT, gets)
+import Data.Foldable (for_, sequenceA_, toList, traverse_)
 import Data.Map (Map, (!))
 import qualified Data.Map as M
-import Data.Maybe (fromJust, fromMaybe, isJust)
+import Data.Maybe (fromJust, fromMaybe)
 import qualified Data.Set as S
 import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
-import Optics.State.Operators ((%=))
+import Optics.State.Operators ((%=), (<<%=))
+import Data.Vector.Internal.Check (HasCallStack)
+
+data ProblemBuilder t
+  = ProblemBuilder
+      { sides :: M.Map t ProblemBuilderSide
+      , common :: ProblemBuilderCommon
+      }
+  deriving (Generic)
+
+data ProblemBuilderCommon
+  = ProblemBuilderCommon
+      { nextAddr :: Integer
+      , vars :: S.Set Ident
+      }
+  deriving (Generic)
+
+data ProblemBuilderSide
+  = ProblemBuilderSide
+      { problem :: ProblemSide
+      , meta :: ProblemBuilderSideMeta
+      }
+  deriving (Generic)
+
+data ProblemBuilderSideMeta
+  = ProblemBuilderSideMeta
+      { byNode :: M.Map NodeAddr (NodeSource, Int)
+      , bySource :: M.Map NodeSource [NodeAddr]
+      }
+  deriving (Generic)
+
+initProblemBuilder :: ProblemBuilder t
+initProblemBuilder = ProblemBuilder
+    { sides = M.empty
+    , common = ProblemBuilderCommon
+        { nextAddr = 1 -- match graph-refine
+        , vars = S.empty
+        }
+    }
+
+initProblemSideMeta :: ProblemBuilderSideMeta
+initProblemSideMeta = ProblemBuilderSideMeta
+    { byNode = M.empty
+    , bySource = M.empty
+    }
+
+extractProblem :: Tag t => ProblemBuilder t -> Problem t
+extractProblem builder = Problem
+    { sides = byTagFromN (M.size builder.sides) ((.problem) . (builder.sides M.!))
+    }
+
+extractProblemWithAnalysis :: Tag t => ProblemBuilder t -> ProblemWithAnalysis t
+extractProblemWithAnalysis = augmentProblem . extractProblem
+
+--
+
+nodeAt :: Tag t => t -> NodeAddr -> Lens' (ProblemBuilder t) Node
+nodeAt tag addr = #sides % expectingAt tag % #problem % #nodes % expectingAt addr
+
+reserveNodeAddr :: Monad m => StateT (ProblemBuilder t) m NodeAddr
+reserveNodeAddr = do
+    addr <- #common % #nextAddr <<%= (+ 1)
+    return $ NodeAddr addr
+
+appendNode :: (Tag t, Monad m) => t -> Node -> StateT (ProblemBuilder t) m NodeAddr
+appendNode tag node = do
+    addr <- reserveNodeAddr
+    #sides % expectingAt tag % #problem % #nodes %= M.insertWith undefined addr node
+    return addr
+
+getFreshName :: Monad m => Ident -> StateT (ProblemBuilder t) m Ident
+getFreshName hint = zoom (#common % #vars) $ takeFreshNameWith Ident hint.unwrap
+
+--
+
+data AddFunctionRenames
+  = AddFunctionRenames
+      { addrs :: Map NodeAddr NodeAddr
+      , vars :: Map Ident Ident
+      }
+  deriving (Generic)
+
+addFunction
+    :: Monad m
+    => Named Function
+    -> NodeId
+    -> StateT
+        (ProblemBuilder t)
+        m
+        (AddFunctionRenames, NodeMap, ProblemBuilderSideMeta -> ProblemBuilderSideMeta)
+addFunction (Named funName fun) retTarget = do
+    renames <- do
+        nodeAddrRenames <- M.fromList <$>
+            for (toList origNodeAddrs) (\addr -> (addr,) <$> reserveNodeAddr)
+        varRenames <- M.fromList <$>
+            for (toList origVars) (\name -> (name,) <$> getFreshName name)
+        return $ AddFunctionRenames
+            { addrs = nodeAddrRenames
+            , vars = varRenames
+            }
+    let renameVar = (renames.vars !)
+        renameNodeAddr = (renames.addrs !)
+        renameNodeId = \case
+            Ret -> retTarget
+            Err -> Err
+            Addr addr -> Addr (renameNodeAddr addr)
+        renameNode = (varNamesOf %~ renameVar) . (nodeConts %~ renameNodeId)
+        nodes = M.fromList
+            [ (renameNodeAddr origAddr, renameNode (funBody.nodes ! origAddr))
+            | origAddr <- toList origNodeAddrs
+            ]
+        addMeta = foldl (flip (.)) id
+            [ insertNodeMeta (renameNodeAddr origAddr) (NodeSource funName origAddr)
+            | origAddr <- toList origNodeAddrs
+            ]
+    return (renames, nodes, addMeta)
+  where
+    funBody = fun ^. #body % unwrapped
+    funGraph = makeNodeGraph funBody.nodes
+    origNodeAddrs = S.fromList $ reachableFrom funGraph funBody.entryPoint ^.. traversed % #_Addr
+    origVars = S.fromList $ fun ^.. varDeclsOf % #name
+
+insertNodeMeta :: NodeAddr -> NodeSource -> ProblemBuilderSideMeta -> ProblemBuilderSideMeta
+insertNodeMeta addr nodeSource meta = ProblemBuilderSideMeta
+    { bySource
+    , byNode
+    }
+  where
+    (indexInProblem, bySource) =
+        let f curOpt =
+                let cur = fromMaybe [] curOpt
+                 in (length cur, Just (cur ++ [addr]))
+         in M.alterF f nodeSource meta.bySource
+    byNode = M.insertWith undefined addr (nodeSource, indexInProblem) meta.byNode
+
+--
 
 buildProblem :: Tag t => (WithTag t Ident -> Function) -> InlineScript t -> ByTag t (Named Function) -> Problem t
 buildProblem lookupFun inlineScript funs = runIdentity . flip evalStateT initProblemBuilder $ do
@@ -48,140 +180,24 @@ buildProblem lookupFun inlineScript funs = runIdentity . flip evalStateT initPro
     doAnalysis
     gets extractProblem
 
-data ProblemBuilder t
-  = ProblemBuilder
-      { sides :: M.Map t ProblemSide
-      , nodes :: M.Map NodeAddr (Maybe (NodeWithMeta t))
-      , nodesBySource :: M.Map (t, NodeSource) [NodeAddr]
-      , vars :: S.Set Ident
-      }
-  deriving (Generic)
-
-data NodeWithMeta t
-  = NodeWithMeta
-      { node :: Node
-      , meta :: NodeMeta t
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-data NodeMeta t
-  = NodeMeta
-      { tag :: t
-      , sourceWithIndex :: Maybe (NodeSource, Int)
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-initProblemBuilder :: ProblemBuilder t
-initProblemBuilder = ProblemBuilder
-    { sides = M.empty
-    , nodes = M.singleton 0 Nothing -- HACK graph_refine.problem starts at 1
-    , nodesBySource = M.empty
-    , vars = S.empty
-    }
-
-extractProblem :: Tag t => ProblemBuilder t -> Problem t
-extractProblem builder = Problem
-    { sides = byTagFromN (M.size builder.sides) (builder.sides M.!)
-    , nodes = M.mapMaybe (preview (_Just % #node)) builder.nodes
-    }
-
-extractAnalysis :: Tag t => ProblemBuilder t -> ProblemAnalysis t
-extractAnalysis builder = analyzeProblemFromPartial nodeTag (extractProblem builder)
-  where
-    nodeTag = (M.!) $ M.mapMaybe (fmap (view (#meta % #tag))) builder.nodes
-
-extractProblemWithAnalysis :: Tag t => ProblemBuilder t -> ProblemWithAnalysis t
-extractProblemWithAnalysis = ProblemWithAnalysis <$> extractProblem <*> extractAnalysis
-
-nodeAt :: NodeAddr -> Lens' (ProblemBuilder t) Node
-nodeAt nodeAddr = nodeWithMetaAt nodeAddr % #node
-
-nodeWithMetaAt :: NodeAddr -> Lens' (ProblemBuilder t) (NodeWithMeta t)
-nodeWithMetaAt nodeAddr = #nodes % expectingAt nodeAddr % unwrapped
-
-reserveNodeAddr :: (Tag t, Monad m) => StateT (ProblemBuilder t) m NodeAddr
-reserveNodeAddr = do
-    addr <- gets $ ((+ 1) . fst) . M.findMax . (.nodes)
-    modify $ #nodes % at addr ?~ Nothing
-    return addr
-
-insertNodeWithMeta :: Monad m => NodeAddr -> NodeWithMeta t -> StateT (ProblemBuilder t) m ()
-insertNodeWithMeta addr nodeWithMeta = do
-    zoom (#nodes % at addr) $ do
-        gets isJust >>= ensureM
-        put $ Just (Just nodeWithMeta)
-
-insertNode :: (Tag t, Monad m) => NodeAddr -> Node -> t -> Maybe NodeSource -> StateT (ProblemBuilder t) m ()
-insertNode addr node tag nodeSourceOpt = do
-    sourceWithIndexOpt <- runMaybeT $ do
-        nodeSource <- hoistMaybe nodeSourceOpt
-        indexInProblem <- lift $ do
-            zoom (#nodesBySource % at (tag, nodeSource)) $ do
-                v <- gets (fromMaybe [])
-                let indexInProblem = length v
-                put $ Just (v ++ [addr])
-                return indexInProblem
-        return (nodeSource, indexInProblem)
-    insertNodeWithMeta addr (NodeWithMeta node (NodeMeta tag sourceWithIndexOpt))
-
-appendNode :: (Tag t, Monad m) => Node -> t -> Maybe NodeSource -> StateT (ProblemBuilder t) m NodeAddr
-appendNode node tag nodeSourceOpt = do
-    addr <- reserveNodeAddr
-    insertNode addr node tag nodeSourceOpt
-    return addr
-
-getFreshName :: Monad m => Ident -> StateT (ProblemBuilder t) m Ident
-getFreshName hint = zoom #vars $ takeFreshNameWith Ident hint.unwrap
-
-data AddFunctionRenames
-  = AddFunctionRenames
-      { var :: Map Ident Ident
-      , nodeAddr :: Map NodeAddr NodeAddr
-      }
-  deriving (Eq, Generic, Ord, Show)
-
-addFunction
-    :: (Tag t, Monad m) => WithTag t (Named Function) -> NodeId -> StateT (ProblemBuilder t) m AddFunctionRenames
-addFunction (WithTag tag (Named funName fun)) retTarget = do
-    varRenames <- M.fromList <$>
-        for (toList origVars) (\name -> (name,) <$> getFreshName name)
-    nodeAddrRenames <- M.fromList <$>
-        for (toList origNodeAddrs) (\addr -> (addr,) <$> reserveNodeAddr)
-    let renames = AddFunctionRenames
-            { var = varRenames
-            , nodeAddr = nodeAddrRenames
-            }
-        adaptNodeId = \case
-            Ret -> retTarget
-            Err -> Err
-            Addr addr -> Addr (renames.nodeAddr ! addr)
-        adaptNode = (varNamesOf %~ (renames.var !)) . (nodeConts %~ adaptNodeId)
-    for_ origNodeAddrs $ \origAddr ->
-        let newNodeAddr = renames.nodeAddr ! origAddr
-            newNode = adaptNode (funBody.nodes ! origAddr)
-            nodeSource = NodeSource funName origAddr
-         in insertNode newNodeAddr newNode tag (Just nodeSource)
-    return renames
-  where
-    funBody = fun ^. #body % unwrapped
-    funGraph = makeNodeGraph funBody.nodes
-    origNodeAddrs = S.fromList $ reachableFrom funGraph funBody.entryPoint ^.. traversed % #_Addr
-    origVars = S.fromList $ fun ^.. varDeclsOf % #name
-
-addEntrypoint :: (Tag t, Monad m) => WithTag t (Named Function) -> StateT (ProblemBuilder t) m ()
-addEntrypoint namedFun@(WithTag tag (Named name fun)) = do
-    renames <- addFunction namedFun Ret
-    let renameArgs = traversed % #name %~ (renames.var !)
-    let side = ProblemSide
-            { name = name
-            , entryPoint = (fromJust fun.body).entryPoint & #_Addr %~ (renames.nodeAddr !)
-            , input = renameArgs fun.input
-            , output = renameArgs fun.output
-            }
-    #sides %= M.insert tag side
-
 addEntrypoints :: (Tag t, Monad m) => ByTag t (Named Function) -> StateT (ProblemBuilder t) m ()
 addEntrypoints funs = for_ (withTags funs) $ \fun -> addEntrypoint fun
+
+addEntrypoint :: (Tag t, Monad m) => WithTag t (Named Function) -> StateT (ProblemBuilder t) m ()
+addEntrypoint (WithTag tag namedFun@(Named name fun)) = do
+    (renames, nodes, addMeta) <- addFunction namedFun Ret
+    let renameArgs = traversed % #name %~ (renames.vars !)
+        newSide = ProblemBuilderSide
+            { problem = ProblemSide
+                { name = name
+                , input = renameArgs fun.input
+                , output = renameArgs fun.output
+                , entryPoint = (fromJust fun.body).entryPoint & #_Addr %~ (renames.addrs !)
+                , nodes
+                }
+            , meta = addMeta initProblemSideMeta
+            }
+    #sides %= M.insertWith undefined tag newSide
 
 --
 
@@ -191,90 +207,99 @@ doAnalysis = do
 
 -- TODO apply to inner loops too
 forceSimpleLoopReturns :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
-forceSimpleLoopReturns = do
-    ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
-    for_ analysis.loopData.outermostLoops $ \loop -> do
-        let tag = analysis.nodeTag loop.head
-        let rets = S.toList $ S.filter (`S.member` loop.members) $ viewAtTag tag analysis.preds (Addr loop.head)
-        let alreadySimple = [ isNodeNoop (problem.nodes ! ret) | ret <- rets ] == [True]
+forceSimpleLoopReturns = doBySide $ \(WithTag tag swa) ->
+    for_ swa.analysis.loopData.outermostLoops $ \loop -> do
+        let rets = S.toList $ S.filter (`S.member` loop.members) $ swa.analysis.preds (Addr loop.head)
+        let alreadySimple = [ isNodeNoop (swa.problem.nodes ! ret) | ret <- rets ] == [True]
         unless alreadySimple $ do
-            simpleRetNodeAddr <- appendNode (trivialNode (Addr loop.head)) tag Nothing
-            for_ rets $ \ret -> modifying (nodeAt ret % nodeConts) $ \cont ->
-                if cont == Addr loop.head
-                then Addr simpleRetNodeAddr
-                else cont
+            simpleRetNodeAddr <- appendNode tag $ trivialNode (Addr loop.head)
+            for_ rets $ \ret -> replaceCont tag ret loop.head simpleRetNodeAddr
 
 padMergePoints :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
-padMergePoints = do
-    ProblemWithAnalysis problem analysis <- gets extractProblemWithAnalysis
-    let allMergePointPreds =
-            M.filter
-                (\preds -> S.size preds > 1)
-                (M.fromSet
-                    (\n -> viewAtTag (analysis.nodeTag n) analysis.preds (Addr n))
-                    (M.keysSet problem.nodes))
-    nonTrivialEdgesToMergePoints <-
-        fmap concat . for (M.toList allMergePointPreds) $ \(mergePointAddr, mergePointPreds) -> do
-            fmap concat . for (toList mergePointPreds) $ \predAddr -> do
-                predNode <- use $ nodeAt predAddr
-                return $ case predNode of
-                    NodeBasic (BasicNode { varUpdates = [] }) -> []
-                    _ -> [(predAddr, mergePointAddr)]
-    for_ nonTrivialEdgesToMergePoints $ \(predAddr, mergePointAddr) -> do
-        let paddingNode = NodeBasic $ BasicNode
-                { next = Addr mergePointAddr
-                , varUpdates = []
-                }
-        paddingNodeAddr <- appendNode paddingNode (analysis.nodeTag mergePointAddr) Nothing
-        modifying (nodeAt predAddr % nodeConts % #_Addr) $ \contNodeAddr ->
-            if contNodeAddr == mergePointAddr
-            then paddingNodeAddr
-            else contNodeAddr
+padMergePoints = doBySide $ \(WithTag tag swa) -> sequenceA_ $ do
+    addr <- M.keys swa.problem.nodes
+    let preds = swa.analysis.preds (Addr addr)
+    guard $ S.size preds > 1
+    predAddr <- S.toList preds
+    let predNode = swa.problem.nodes ! predAddr
+    guard $ predNode /= trivialNode (Addr addr)
+    return $ do
+        paddingNodeAddr <- appendNode tag $ NodeBasic $ BasicNode
+            { next = Addr addr
+            , varUpdates = []
+            }
+        replaceCont tag predAddr addr paddingNodeAddr
+
+doBySide
+    :: (Tag t, Monad m)
+    => (WithTag t ProblemSideWithAnalysis -> StateT (ProblemBuilder t) m ())
+    -> StateT (ProblemBuilder t) m ()
+doBySide f = do
+    pwa <- gets extractProblemWithAnalysis
+    traverse_ f (withTags (problemSidesWithAnalysis pwa))
+
+replaceCont
+    :: (Tag t, Monad m)
+    => t
+    -> NodeAddr
+    -> NodeAddr
+    -> NodeAddr
+    -> StateT (ProblemBuilder t) m ()
+replaceCont tag addr origContAddr newContAddr =
+    modifying (nodeAt tag addr % nodeConts % #_Addr) $ \contAddr ->
+        if contAddr == origContAddr
+        then newContAddr
+        else contAddr
 
 --
 
 inline :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> InlineScriptEntry t -> StateT (ProblemBuilder t) m ()
 inline lookupFun entry = do
-    nodeAddr <- use $
-        #nodesBySource % at (entry.tag, entry.nodeSource) % unwrapped
-            % expectingIx entry.indexInProblem
-    inlineInner lookupFun nodeAddr entry
+    addr <- use $
+        #sides % expectingAt entry.tag % #meta %
+            #bySource % expectingAt entry.nodeSource % expectingIx entry.indexInProblem
+    inlineInner lookupFun addr entry
 
 inlineEntryForPoint
-    :: (Tag t, Monad m) => NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
-inlineEntryForPoint nodeAddr = do
-    meta <- use $ #nodes % expectingAt nodeAddr % unwrapped % #meta
-    inlinedFunctionName <- use $ nodeAt nodeAddr % expecting #_NodeCall % #functionName
-    let Just (nodeSource, indexInProblem) = meta.sourceWithIndex
+    :: HasCallStack => (Tag t, Monad m) => WithTag t NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
+inlineEntryForPoint (WithTag tag addr) = do
+    (nodeSource, indexInProblem) <- use $
+        #sides % expectingAt tag % #meta %
+            #byNode % expectingAt addr
+    inlinedFunctionName <- use $ nodeAt tag addr % expecting #_NodeCall % #functionName
     return $ InlineScriptEntry
-            { tag = meta.tag
+            { tag
             , nodeSource
             , indexInProblem
             , inlinedFunctionName
             }
 
 inlineAtPoint
-    :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeAddr -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
-inlineAtPoint lookupFun nodeAddr = do
-    entry <- inlineEntryForPoint nodeAddr
-    inlineInner lookupFun nodeAddr entry
+    :: HasCallStack => (Tag t, Monad m) => (WithTag t Ident -> Function) -> (WithTag t NodeAddr) -> StateT (ProblemBuilder t) m (InlineScriptEntry t)
+inlineAtPoint lookupFun (WithTag tag addr) = do
+    entry <- inlineEntryForPoint (WithTag tag addr)
+    inlineInner lookupFun addr entry
     return entry
 
 inlineInner
-    :: (Tag t, Monad m) => (WithTag t Ident -> Function) -> NodeAddr -> InlineScriptEntry t -> StateT (ProblemBuilder t) m ()
-inlineInner lookupFun nodeAddr entry = do
-    callNode <- use $ nodeAt nodeAddr % expecting #_NodeCall
+    :: HasCallStack => (Tag t, Monad m)
+    => (WithTag t Ident -> Function)
+    -> NodeAddr
+    -> InlineScriptEntry t
+    -> StateT (ProblemBuilder t) m ()
+inlineInner lookupFun addr entry = do
+    callNode <- use $ nodeAt entry.tag addr % expecting #_NodeCall
     ensureM $ callNode.functionName == entry.inlinedFunctionName
     let fun = lookupFun (WithTag entry.tag callNode.functionName)
     exitNodeAddr <- reserveNodeAddr
-    renames <- addFunction (WithTag entry.tag (Named callNode.functionName fun)) (Addr exitNodeAddr)
-    let entryNodeAddr = renames.nodeAddr ! (fun ^. #body % unwrapped % #entryPoint % expecting #_Addr)
-    let newNode = NodeBasic $ BasicNode
+    (renames, newNodes, addMeta) <- addFunction (Named callNode.functionName fun) (Addr exitNodeAddr)
+    let entryNodeAddr = renames.addrs ! (fun ^. #body % unwrapped % #entryPoint % expecting #_Addr)
+    let entryNode = NodeBasic $ BasicNode
             { next = Addr entryNodeAddr
             , varUpdates =
                 [ VarUpdate
                     { var = NameTy
-                        { name = renames.var ! arg.name
+                        { name = renames.vars ! arg.name
                         , ty = arg.ty
                         }
                     , val = callInput
@@ -282,7 +307,6 @@ inlineInner lookupFun nodeAddr entry = do
                 | (arg, callInput) <- zip fun.input callNode.input
                 ]
             }
-    insertNode nodeAddr newNode entry.tag Nothing
     let exitNode = NodeBasic $ BasicNode
             { next = callNode.next
             , varUpdates =
@@ -291,31 +315,29 @@ inlineInner lookupFun nodeAddr entry = do
                         { name = callOutput.name
                         , ty = arg.ty
                         }
-                    , val = varE arg.ty (renames.var ! arg.name)
+                    , val = varE arg.ty (renames.vars ! arg.name)
                     }
                 | (arg, callOutput) <- zip fun.output callNode.output
                 ]
             }
-    insertNode exitNodeAddr exitNode entry.tag Nothing
+    zoom (#sides % expectingAt entry.tag) $ do
+        modifying #meta addMeta
+        modifying (#problem % #nodes) $
+            M.unionWith undefined newNodes .
+            M.insert addr entryNode .
+            M.insertWith undefined exitNodeAddr exitNode
 
 --
-
 -- TODO move?
 
 patchNoreturnCallConts :: (Tag t, Monad m) => (Ident -> Bool) -> StateT (ProblemBuilder t) m ()
-patchNoreturnCallConts isNoreturn = do
-    modifying (#nodes % traversed % _Just % #node % #_NodeCall) $ \callNode ->
+patchNoreturnCallConts isNoreturn = doBySide $ \(WithTag tag _) -> do
+    modifying (#sides % expectingAt tag % #problem % #nodes % traversed % #_NodeCall) $ \callNode ->
         callNode & #next %~ (if isNoreturn callNode.functionName then const Err else id)
     pruneUnreachableNodes
 
 pruneUnreachableNodes :: (Tag t, Monad m) => StateT (ProblemBuilder t) m ()
-pruneUnreachableNodes = do
-    problem <- gets extractProblem
-    let nodeGraph = makeNodeGraph problem.nodes
-        reachable = S.fromList
-            [ nodeId
-            | side <- toList problem.sides
-            , nodeId <- reachableFrom nodeGraph side.entryPoint
-            ]
-    modify $ #nodes %~ M.filterWithKey
-        (\addr -> maybe True (const (Addr addr `S.member` reachable)))
+pruneUnreachableNodes = doBySide $ \(WithTag tag swa) -> do
+    let reachable = S.fromList $ reachableFrom swa.analysis.nodeGraph swa.problem.entryPoint
+    modifying (#sides % expectingAt tag % #problem % #nodes) $ M.filterWithKey
+        (\addr _ -> Addr addr `S.member` reachable)

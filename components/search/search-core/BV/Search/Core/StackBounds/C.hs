@@ -176,8 +176,8 @@ functionLinkAssns p callSite newTag = pcTrueH callVis : eqHyps
   where
     newSide = viewAtTag newTag p.problem.sides
     entryVis = Visit newTag newSide.entryPoint M.empty
-    callVis = defaultVisit p.analysis.loopData callSite.tag (Addr callSite.value)
-    callNode = p.problem ^. #nodes % expectingAt callSite.value % expecting #_NodeCall
+    callVis = defaultVisit (viewAtTag callSite.tag p.analysis.sides).loopData callSite.tag (Addr callSite.value)
+    callNode = (viewAtTag callSite.tag p.problem.sides) ^. #nodes % expectingAt callSite.value % expecting #_NodeCall
     eqHyps =
         [ eqSideH callInput callVis `eqH` eqSideH entryInput entryVis
         | (callInput, entryInput) <- zip callNode.input (map varFromNameTyE newSide.input)
@@ -200,12 +200,11 @@ findUnknownRecursion p tag assns = do
     idents <- gview #idents
     let callNodes =
             [ (addr, callNode)
-            | (addr, NodeCall callNode) <- M.toAscList p.problem.nodes
-            , p.analysis.nodeTag addr == tag
+            | (addr, NodeCall callNode) <- M.toAscList (viewAtTag tag p.problem.sides).nodes
             , callNode.functionName `S.member` group
             ]
     let isUnknown (addr, callNode) = do
-            getPcEnv (defaultVisit p.analysis.loopData tag (Addr addr)) >>= \case
+            getPcEnv (defaultVisit (viewAtTag tag p.analysis.sides).loopData tag (Addr addr)) >>= \case
                 Nothing -> return False
                 Just (PcEnv pc env) -> do
                     let calledFunName = callNode.functionName
