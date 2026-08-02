@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# OPTIONS_GHC -Wno-missing-fields #-}
 
 module BV.Core.GraphSlice.Old.Core
     ( FunCallInfo (..)
@@ -121,6 +120,7 @@ runGraphSliceTStep pwa hooks m =
 data TEnv t
   = TEnv
       { pwa :: ProblemWithAnalysis t
+      , varNames :: S.Set Ident
       , hooks :: GraphSliceHooks t
       }
   deriving (Generic)
@@ -167,6 +167,7 @@ data FunCallInfo
 initEnv :: Tag t => ProblemWithAnalysis t -> GraphSliceHooks t -> TEnv t
 initEnv pwa hooks = TEnv
     { pwa
+    , varNames = S.fromList $ toListOf varNamesOfProblem pwa.problem
     , hooks
     }
 
@@ -329,7 +330,7 @@ askNonConstOutputs tag callNode = do
 
 getFreshIdent :: C t m => NameHint -> T t m Ident
 getFreshIdent nameHint = do
-    problemNames <- liftPure $ gview $ #pwa % #analysis % #varNames
+    problemNames <- liftPure $ gview $ #varNames
     extraProblemNames <- liftPure $ use #extraProblemNames
     let taken n = S.member n problemNames || S.member n extraProblemNames
     let n = Ident $ generateFreshName (taken . Ident) nameHint

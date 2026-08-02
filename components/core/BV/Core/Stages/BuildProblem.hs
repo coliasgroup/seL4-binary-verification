@@ -86,7 +86,7 @@ extractProblem builder = Problem
     }
 
 extractAnalysis :: Tag t => ProblemBuilder t -> ProblemAnalysis t
-extractAnalysis builder = analyzeProblemFromPartial nodeTag builder.vars (extractProblem builder)
+extractAnalysis builder = analyzeProblemFromPartial nodeTag (extractProblem builder)
   where
     nodeTag = (M.!) $ M.mapMaybe (fmap (view (#meta % #tag))) builder.nodes
 
