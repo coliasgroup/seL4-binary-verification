@@ -31,6 +31,7 @@ module BV.Core.GraphSlice.New
     , mapGraphSliceT
     , runAsmRefineGraphSliceT
     , runGraphSliceT
+    , splitVisit
     , withAsmStackSplitting
     , withConstRetAssumptions
     , withFast
@@ -165,6 +166,9 @@ normalizeVisitM visit = normalizeVisit visit <$> askProblemWithAnalysis
 
 isVisitOk :: (Tag t, Monad m) => Visit t -> GraphSliceT t m Bool
 isVisitOk visit = isRight <$> normalizeVisitM visit
+
+splitVisit :: (Tag t, Monad m) => Visit t -> GraphSliceT t m [Visit t]
+splitVisit visit = map unwrapNormalizedVisit . normalizeGeneralVisit visit <$> askProblemWithAnalysis
 
 getPcEnv :: (Tag t, MonadGraphSliceSendSExpr m) => Visit t -> GraphSliceT t m (Maybe PcEnv)
 getPcEnv visit = runMaybeT $ do
