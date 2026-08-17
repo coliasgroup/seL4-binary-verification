@@ -15,6 +15,7 @@ module BV.Utils
     , is
     , mapFilterA
     , mapFilterWithKeyA
+    , setFilterA
     , todo
     , unexpected
     , unimplemented
@@ -28,6 +29,7 @@ import Data.Either (fromRight)
 import Data.Function (applyWhen)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, isJust)
+import qualified Data.Set as S
 import GHC.Stack (HasCallStack)
 import Optics
 import qualified Text.Printf as P
@@ -112,6 +114,9 @@ mapFilterA f m = M.fromList <$> filterM (f . snd) (M.toList m)
 
 mapFilterWithKeyA :: (Ord k, Applicative f) => (k -> a -> f Bool) -> M.Map k a -> f (M.Map k a)
 mapFilterWithKeyA f m = M.fromList <$> filterM (uncurry f) (M.toList m)
+
+setFilterA :: (Ord a, Applicative f) => (a -> f Bool) -> S.Set a -> f (S.Set a)
+setFilterA f s = S.fromList <$> filterM f (S.toList s)
 
 --
 

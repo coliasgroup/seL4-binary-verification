@@ -13,24 +13,19 @@ import BV.Core.Stages
 import BV.Core.Types
 import BV.Core.Types.Extras.Expr (notE)
 import BV.Core.Types.Extras.Problem
-import BV.Core.Types.Extras.Program (nodeAddrOf)
 import BV.Core.Types.Extras.ProofCheck
-import BV.Utils (expectingAt, is)
+import BV.Utils (setFilterA)
 
-import Control.Applicative (asum)
-import Control.Monad (filterM, guard, unless)
-import Control.Monad.Extra (whenM)
-import Control.Monad.State (StateT, evalStateT, get, gets, put)
+import Control.Monad (unless)
+import Control.Monad.State (StateT, evalState, evalStateT, get, gets, modify,
+                            put)
 import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Maybe (runMaybeT)
 import Control.Monad.Writer (execWriterT, tell)
-import Data.Foldable (for_, toList, traverse_)
+import Data.Foldable (toList)
 import Data.Foldable.Extra (anyM)
-import Data.Functor (void)
-import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
+import Data.Maybe (isJust)
 import qualified Data.Set as S
 import GHC.Generics (Generic)
 import Optics
@@ -51,37 +46,61 @@ discoverInlineScript
     -> DiscoverInlineScriptInput
     -> m InlineScript'
 discoverInlineScript run input =
-    evalStateT
+    flip evalStateT S.empty $
+    flip evalStateT [inlineCompletelyUnmatched, inlineReachableUnmatchedC] $
         (buildInlineScript composeInliners lookupFun funs)
-        [inlineCompletelyUnmatched, inlineReachableUnmatchedC]
   where
     lookupFun = input.lookupFunction
-    funs = withTags input.pairingId <&> \nameWithTag -> Named nameWithTag.value (lookupFun nameWithTag)
-    allMatched = S.fromList $ input.matches ^.. folded % to withTags % folded
-    asmToCMatch = M.fromList $ [ (WithTag Asm match.asm, WithTag C match.c) | match <- S.toList input.matches ]
-    presentInProblem pwa = S.fromList $ flip foldMap (withTags pwa.problem.sides) $ \(WithTag tag side) -> side ^.. #nodes % folded % #_NodeCall % #functionName % to (WithTag tag)
-    inlineCompletelyUnmatched pwa =
-        let matched = S.intersection (presentInProblem pwa) allMatched
-         in return $ nextCompletelyUnmatchedInlinePoints matched pwa.problem
-    inlineReachableUnmatchedC pwa =
-        let matchedC =
-                let present = presentInProblem pwa
-                in S.fromList $ toList $ M.restrictKeys asmToCMatch present
-         in run $ nextReachableUnmatchedCInlinePoints matchedC $ GraphSliceInput
+    funs = withTags input.pairingId <&> \name -> Named name.value (lookupFun name)
+    inlineCompletelyUnmatched builder =
+        let pwa = extractProblemWithAnalysis builder
+            matchExists = flip S.member $ S.fromList $ input.matches ^.. folded % to withTags % folded
+         in return
+                [ WithTag tag addr
+                | WithTag tag side <- toList $ withTags pwa.problem.sides
+                , (addr, NodeCall callNode) <- M.toList side.nodes
+                , not $ matchExists $ WithTag tag callNode.functionName
+                ]
+    inlineReachableUnmatchedC builder =
+        let pwa = extractProblemWithAnalysis builder
+            present = presentInProblem pwa
+            matchPresentInProblem = S.fromList
+                [ viewAtTag C p
+                | p <- toList input.matches
+                , viewAtTag Asm $ S.member <$> p <*> present
+                ]
+            candidatesWithHaveBody =
+                [ (WithTag C addr, haveBody)
+                | (addr, NodeCall callNode) <- M.toList (viewAtTag C pwa.problem.sides).nodes
+                , callNode.functionName `S.notMember` matchPresentInProblem
+                , let haveBody = isJust (lookupFun (WithTag C callNode.functionName)).body
+                ]
+            candidates = map fst candidatesWithHaveBody
+            candidatesWithBody = map fst $ filter snd candidatesWithHaveBody
+            speculativelyInlined = flip evalState builder $ do
+                traverse (inlineAtPoint lookupFun) candidatesWithBody
+                doAnalysis
+                gets extractProblemWithAnalysis
+            filterInput = GraphSliceInput
                 { structs = input.structs
                 , rodata = input.rodata
-                , pwa
+                , pwa = speculativelyInlined
                 }
+         in S.toList <$> filterLive run filterInput (S.fromList candidates)
 
-type Inliner t m = ProblemWithAnalysis t -> m [WithTag t NodeAddr]
+presentInProblem :: Tag t => ProblemWithAnalysis t -> ByTag t (S.Set Ident)
+presentInProblem pwa = pwa.problem.sides <&>
+    S.fromList . toListOf (#nodes % folded % #_NodeCall % #functionName)
+
+type Inliner t m = ProblemBuilder t -> m [WithTag t NodeAddr]
 
 buildInlineScript :: forall t m. (Tag t, Monad m) => Inliner t m -> (WithTag t Ident -> Function) -> ByTag t (Named Function) -> m (InlineScript t)
 buildInlineScript inliner lookupFun funs = flip evalStateT initProblemBuilder $ do
     addEntrypoints funs
     doAnalysis
     let go = do
-            p <- lift $ gets extractProblemWithAnalysis
-            addrs <- lift $ lift $ inliner p
+            builder <- lift $ get
+            addrs <- lift $ lift $ inliner builder
             unless (null addrs) $ do
                 entries <- lift $ traverse inlineEntryForPoint addrs
                 lift $ traverse (inline lookupFun) entries
@@ -99,82 +118,26 @@ composeInliners pwa = go
             [] -> put xs >> go
             ys -> return ys
 
-nextCompletelyUnmatchedInlinePoints :: S.Set (WithTag AsmRefineTag Ident) -> Problem' -> [WithTag AsmRefineTag NodeAddr]
-nextCompletelyUnmatchedInlinePoints matched p = foldMap g (withTags p.sides)
-  where
-    g (WithTag tag side) = map (WithTag tag) $ M.keys (M.filter (f tag) side.nodes)
-    f tag = \case
-        NodeCall callNode -> S.notMember (WithTag tag callNode.functionName) matched
-        _ -> False
-
-nextReachableUnmatchedCInlinePoints
-    :: MonadGraphSliceSolverInteract m
-    => S.Set (WithTag AsmRefineTag Ident)
+filterLive
+    :: (Monad m, MonadGraphSliceSolverInteract n)
+    => (forall a. n a -> m a)
     -> GraphSliceInput AsmRefineTag
-    -> m [WithTag AsmRefineTag NodeAddr]
-nextReachableUnmatchedCInlinePoints matchedC repGraphInput =
-    runGraphSliceT defaultGraphSliceHooks repGraphInput $
-        nextReachableUnmatchedCInlinePointsInner matchedC
-
-nextReachableUnmatchedCInlinePointsInner
-    :: MonadGraphSliceSolverInteract m
-    => S.Set (WithTag AsmRefineTag Ident)
-    -> GraphSliceT AsmRefineTag m [WithTag AsmRefineTag NodeAddr]
-nextReachableUnmatchedCInlinePointsInner =
-    nextReachableUnmatchedCInlinePointsInnerIncompat
-    -- nextReachableUnmatchedCInlinePointsInnerCompat
-
-nextReachableUnmatchedCInlinePointsInnerIncompat
-    :: MonadGraphSliceSolverInteract m
-    => S.Set (WithTag AsmRefineTag Ident)
-    -> GraphSliceT AsmRefineTag m [WithTag AsmRefineTag NodeAddr]
-nextReachableUnmatchedCInlinePointsInnerIncompat matchedC = do
-    side <- problemSideWithAnalysis C <$> askProblemWithAnalysis
-    let g = side.analysis.nodeGraph
-    let loops = allLoopsOf $ side.analysis.loopData
-    let limits = M.fromList [ (loop.head, doubleRangeVC 3 3) | loop <- loops ]
-    for_ (reachableFrom g side.problem.entryPoint) $ \n -> do
-        let visit = Visit C n limits
-        whenM (isVisitOk visit) $ void $ getPcEnv visit
-    visitsByFunName <- getCallsByFunName
-    let unmatchedByAddr = foldl (M.unionWith S.union) M.empty
-            [ M.singleton (WithTag visit.tag (nodeAddrOf visit.nodeId)) (S.singleton visit)
-            | (WithTag C funName, visits) <- M.toList visitsByFunName
-            , S.notMember (WithTag C funName) matchedC
-            , visit <- visits
-            ]
-    fmap (map fst) $ flip filterM (M.toList unmatchedByAddr) $ \(_addr, visits) ->
-        flip anyM visits $ \visit -> do
-            pc <- getPc visit
-            unreachable <- testHyp $ notE pc
-            return $ not unreachable
-
-nextReachableUnmatchedCInlinePointsInnerCompat
-    :: MonadGraphSliceSolverInteract m
-    => S.Set Ident
-    -> GraphSliceT AsmRefineTag m [NodeAddr]
-nextReachableUnmatchedCInlinePointsInnerCompat matchedC = do
-    side <- problemSideWithAnalysis C <$> askProblemWithAnalysis
-    let g = side.analysis.nodeGraph
-    let loops = allLoopsOf $ side.analysis.loopData
-    let limits = M.fromList [ (loop.head, doubleRangeVC 3 3) | loop <- loops ]
-    let reachable = reachableFrom g side.problem.entryPoint
-    let f n = do
-            let visit = Visit C n limits
-            whenM (isVisitOk visit) $ void $ getPcEnv visit
-    -- HACK order matches graph-refine
-    traverse_ f $ sort $ filter (is #_Addr) reachable
-    f Ret
-    f Err
-    funCallVisits <- getCallOrderCompat
-    -- HACK return just one result at a time to match graph-refine
-    fmap toList $ runMaybeT $ asum $ flip map funCallVisits $ \visit -> do
-        let Addr addr = visit.nodeId
-        let Just fname = side.problem.nodes ^? expectingAt addr % #_NodeCall % #functionName
-        guard $ visit.tag == C
-        guard $ S.notMember fname matchedC
-        res <- lift $ do
-            pcEnv <- fromJust <$> getPcEnv visit
-            testHyp $ notE pcEnv.pc
-        guard $ not res
-        return addr
+    -> S.Set (WithTag AsmRefineTag NodeAddr)
+    -> StateT (S.Set (WithTag AsmRefineTag NodeAddr)) m (S.Set (WithTag AsmRefineTag NodeAddr))
+filterLive run input candidates = do
+    dead <- get
+    let liveCandidates = candidates `S.difference` dead
+    live <- lift $ run $ runGraphSliceT defaultGraphSliceHooks input $ do
+        swa <- problemSideWithAnalysis C <$> askProblemWithAnalysis
+        let limits = M.fromList
+                [ (loop.head, doubleRangeVC 3 3)
+                | loop <- allLoopsOf swa.analysis.loopData
+                ]
+        flip setFilterA liveCandidates $ \(WithTag _ addr) -> do
+            visits <- splitVisit $ Visit C (Addr addr) limits
+            flip anyM visits $ \visit -> do
+                pc <- getPc visit
+                unreachable <- testHyp $ notE pc
+                return $ not unreachable
+    modify $ S.union $ liveCandidates `S.difference` live
+    return live

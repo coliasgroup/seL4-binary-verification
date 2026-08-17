@@ -4,6 +4,7 @@ module BV.Core.GraphSlice.New.Flatten.Visit
     ( NormalizedVisit
     , VisitKind (..)
     , VisitTooGeneral (..)
+    , normalizeGeneralVisit
     , normalizeVisit
     , unwrapNormalizedVisit
     , visitKind
@@ -38,15 +39,29 @@ normalizeVisit
     :: Tag t
     => Visit t
     -> M t (Either VisitTooGeneral (Maybe (NormalizedVisit t)))
-normalizeVisit visit p = ensure tagOk $ bimap
+normalizeVisit visit p = ensureTagOk visit p $ bimap
     (const VisitTooGeneral)
     (const (NormalizedVisit <$> pruneVisit side visit))
     (checkGenerality side visit)
   where
     side = problemSideWithAnalysis visit.tag p
-    tagOk = case visit.nodeId of
-        Addr addr -> addr `M.member` side.problem.nodes
-        _ -> True
+
+normalizeGeneralVisit
+    :: Tag t
+    => Visit t
+    -> M t [NormalizedVisit t]
+normalizeGeneralVisit visit p = ensureTagOk visit p $
+    NormalizedVisit <$> mapMaybe (pruneVisit side) (expand visit)
+  where
+    side = problemSideWithAnalysis visit.tag p
+    expand v = either (\split -> splitVisitAt split v) (const [v]) (checkGenerality side v)
+
+ensureTagOk :: Tag t => Visit t -> ProblemWithAnalysis t -> a -> a
+ensureTagOk visit p = ensure $ case visit.nodeId of
+    Addr addr -> addr `M.member` side.problem.nodes
+    _ -> True
+  where
+    side = problemSideWithAnalysis visit.tag p
 
 normalizePredVisits
     :: Tag t

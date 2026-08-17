@@ -17,6 +17,7 @@ module BV.Core.GraphSlice.New.Flatten
     , getInductVar
     , getPcEnvNorm
     , getSuccessVarNorm
+    , normalizeGeneralVisit
     , normalizeVisit
     , runGraphSliceTStep
     , unwrapNormalizedVisit
