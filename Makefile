@@ -101,18 +101,6 @@ test-inlining: hpack
 	cabal test search-test \
 		--test-option=--pattern=inlining
 
-.PHONY: test-inlining-big
-test-inlining-big: hpack
-	cabal test search-test \
-		--test-option=--for-slow=$(test_target_dirs)/big \
-		--test-option=--pattern=inlining
-
-.PHONY: test-inlining-focused
-test-inlining-focused: hpack
-	cabal test search-test \
-		--test-option=--for-slow=$(test_target_dirs)/focused \
-		--test-option=--pattern=inlining
-
 .PHONY: test-stack-bounds
 test-stack-bounds: hpack
 	cabal test search-test \
