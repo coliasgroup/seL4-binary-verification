@@ -16,6 +16,8 @@ import BV.System.Core
 import BV.System.Utils.SemGate
 import BV.System.Utils.UnliftIO.Async
 import BV.Test.Utils
+import BV.TargetDir (TargetDir(TargetDir))
+import BV.Test.Utils.Paths (defaultTestTargetDir)
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Map as M
@@ -35,7 +37,7 @@ main = bvMain $ \opts ->
 
 testInlining :: (?opts :: CustomOpts) => IO ()
 testInlining = withLoggingOpts (loggingOpts ?opts "inlining.log") $ do
-    stagesInput <- liftIO $ seL4DefaultReadStagesInput ?opts.defaultTargetDirForFastTests
+    stagesInput <- liftIO $ seL4DefaultReadStagesInput $ TargetDir $ defaultTestTargetDir "coverage"
     let allInput = prepareAllDiscoverInlineScriptInput $ DiscoverAllInlineScriptsInput
             { programs = stagesInput.programs
             , objDumpInfo = stagesInput.objDumpInfo
