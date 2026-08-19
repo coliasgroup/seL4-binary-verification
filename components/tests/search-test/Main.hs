@@ -15,8 +15,8 @@ import BV.SMTLIB2.Monad
 import BV.System.Core
 import BV.System.Utils.SemGate
 import BV.System.Utils.UnliftIO.Async
+import BV.TargetDir (TargetDir (TargetDir))
 import BV.Test.Utils
-import BV.TargetDir (TargetDir(TargetDir))
 import BV.Test.Utils.Paths (defaultTestTargetDir)
 
 import Control.Monad.IO.Class (MonadIO, liftIO)

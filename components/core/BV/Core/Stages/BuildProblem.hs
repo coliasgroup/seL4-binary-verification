@@ -30,10 +30,10 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe)
 import qualified Data.Set as S
 import Data.Traversable (for)
+import Data.Vector.Internal.Check (HasCallStack)
 import GHC.Generics (Generic)
 import Optics
 import Optics.State.Operators ((%=), (<<%=))
-import Data.Vector.Internal.Check (HasCallStack)
 
 data ProblemBuilder t
   = ProblemBuilder
