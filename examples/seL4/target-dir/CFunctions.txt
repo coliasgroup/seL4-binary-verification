@@ -781,30 +781,31 @@ Function Kernel_C.doFlush 8 invLabel___int#v Word 32 start___unsigned_long#v Wor
 3 Call 1 Kernel_C.invalidateCacheRange_RAM 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 4 Call 1 Kernel_C.cleanInvalidateCacheRange_RAM 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 5 Call 1 Kernel_C.isb 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-6 Call 5 Kernel_C.branchFlushRange 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-7 Call 6 Kernel_C.invalidateCacheRange_I 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-8 Call 7 Kernel_C.dsb 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-9 Call 8 Kernel_C.cleanCacheRange_PoU 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-10 Cond 1 Err Op False Bool 0
-11 Call 10 Kernel_C.halt 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 0
-12 Cond 11 Err Op False Bool 0
-13 Cond 12 1 Op True Bool 0
-14 Cond 9 13 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 44 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 36 Word 32 Op False Bool 0
-15 Cond 4 14 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 43 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 35 Word 32 Op False Bool 0
-16 Cond 3 15 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 42 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 34 Word 32 Op False Bool 0
-17 Cond 2 16 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 41 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 33 Word 32 Op False Bool 0
-18 Basic 17 1 start___unsigned_long#v Word 32 Var ret__ptr_to_void#v Word 32
-19 Basic 18 1 ret__ptr_to_void#v Word 32 Var rv#space#ret__ptr_to_void#v Word 32
-20 Call 19 Kernel_C.ptrFromPAddr 1 Var pstart___unsigned_long#v Word 32 1 rv#space#ret__ptr_to_void#v Word 32
-21 Basic 20 1 end___unsigned_long#v Word 32 Op Plus Word 32 2 Var ret__ptr_to_void#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
-22 Basic 21 1 ret__ptr_to_void#v Word 32 Var rv#space#ret__ptr_to_void#v Word 32
-23 Call 22 Kernel_C.ptrFromPAddr 1 Var pstart___unsigned_long#v Word 32 1 rv#space#ret__ptr_to_void#v Word 32
-24 Cond 23 17 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
-25 Basic 24 1 ret__int#v Word 32 Var rv#space#ret__int#v Word 32
-26 Call 25 Kernel_C.wrap_config_set 1 Num 0 Word 32 1 rv#space#ret__int#v Word 32
-27 Basic 26 0
-28 Cond 27 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32
-EntryPoint 28
+6 Call 5 Kernel_C.dsb 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+7 Call 6 Kernel_C.branchFlushRange 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+8 Call 7 Kernel_C.invalidateCacheRange_I 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+9 Call 8 Kernel_C.dsb 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+10 Call 9 Kernel_C.cleanCacheRange_PoU 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+11 Cond 1 Err Op False Bool 0
+12 Call 11 Kernel_C.halt 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 0
+13 Cond 12 Err Op False Bool 0
+14 Cond 13 1 Op True Bool 0
+15 Cond 10 14 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 44 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 36 Word 32 Op False Bool 0
+16 Cond 4 15 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 43 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 35 Word 32 Op False Bool 0
+17 Cond 3 16 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 42 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 34 Word 32 Op False Bool 0
+18 Cond 2 17 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 41 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___int#v Word 32 Num 33 Word 32 Op False Bool 0
+19 Basic 18 1 start___unsigned_long#v Word 32 Var ret__ptr_to_void#v Word 32
+20 Basic 19 1 ret__ptr_to_void#v Word 32 Var rv#space#ret__ptr_to_void#v Word 32
+21 Call 20 Kernel_C.ptrFromPAddr 1 Var pstart___unsigned_long#v Word 32 1 rv#space#ret__ptr_to_void#v Word 32
+22 Basic 21 1 end___unsigned_long#v Word 32 Op Plus Word 32 2 Var ret__ptr_to_void#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
+23 Basic 22 1 ret__ptr_to_void#v Word 32 Var rv#space#ret__ptr_to_void#v Word 32
+24 Call 23 Kernel_C.ptrFromPAddr 1 Var pstart___unsigned_long#v Word 32 1 rv#space#ret__ptr_to_void#v Word 32
+25 Cond 24 18 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
+26 Basic 25 1 ret__int#v Word 32 Var rv#space#ret__int#v Word 32
+27 Call 26 Kernel_C.wrap_config_set 1 Num 0 Word 32 1 rv#space#ret__int#v Word 32
+28 Basic 27 0
+29 Cond 28 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32
+EntryPoint 29
 
 Function Kernel_C.getCIDR 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 5 ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
@@ -867,7 +868,7 @@ Function Kernel_C.memzero 6 s___ptr_to_void#v Word 32 n___unsigned_long#v Word 3
 4 Cond 10 1 Op Not Bool 1 Op Equals Bool 2 Var n___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
 5 Basic 3 1 loop#2#count Word 32 Num 0 Word 32
 11 Basic 5 0
-12 Cond 11 Err Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Var n___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50
+12 Cond 11 Err Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Var n___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50
 13 Basic 12 1 p___ptr_to_unsigned_char#v Word 32 Var s___ptr_to_void#v Word 32
 EntryPoint 13
 
@@ -1072,8 +1073,8 @@ EntryPoint 17
 
 Function Kernel_C.suspend 5 target___ptr_to_struct_tcb_C#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
-2 Call 1 Kernel_C.tcbSchedDequeue 5 Var target___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-3 Call 2 Kernel_C.setThreadState 6 Var target___ptr_to_struct_tcb_C#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+2 Call 1 Kernel_C.setThreadState 6 Var target___ptr_to_struct_tcb_C#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+3 Call 2 Kernel_C.tcbSchedDequeue 5 Var target___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 4 Call 3 Kernel_C.updateRestartPC 5 Var target___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 5 Cond 4 3 Op Equals Bool 2 Var ret__unsigned#v Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
 6 Basic 5 1 ret__unsigned#v Word 32 Var rv#space#ret__unsigned#v Word 32
@@ -1251,7 +1252,7 @@ Function Kernel_C.cancelIPC 5 tptr___ptr_to_struct_tcb_C#v Word 32 Mem Mem HTD H
 14 Basic 13 1 ret__unsigned#v Word 32 Var rv#space#ret__unsigned#v Word 32
 15 Call 14 Kernel_C.thread_state_ptr_get_blockingObject 5 Var state___ptr_to_struct_thread_state_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned#v Word 32
 16 Call 1 Kernel_C.cteDeleteOne 5 Var callerCap___ptr_to_struct_cte_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-17 Basic 16 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 657 Word 50 Op WordCast Word 32 1 Num 8 Word 32
+17 Basic 16 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 658 Word 50 Op WordCast Word 32 1 Num 8 Word 32
 18 Cond 17 Err Op True Bool 0
 19 Cond 18 1 Op Not Bool 1 Op Equals Bool 2 Var callerCap___ptr_to_struct_cte_C#v Word 32 Num 0 Word 32
 20 Basic 19 1 callerCap___ptr_to_struct_cte_C#v Word 32 Op WordCast Word 32 1 Var ret__unsigned#v Word 32
@@ -2188,6 +2189,16 @@ Function Kernel_C.nextDomain 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray
 23 Cond 22 Err Op PGlobalValid Bool 3 Var HTD HTD Type Word 32 Symbol ksDomScheduleIdx Word 32
 EntryPoint 23
 
+Function Kernel_C.readPAR_64 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 1 ret__unsigned_longlong#v Word 64
+
+Function Kernel_C.readPARlow 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 5 ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+1 Basic Ret 0
+2 Cond 1 Err Op False Bool 0
+3 Basic 1 1 ret__unsigned_long#v Word 32 Var val___unsigned_long#v Word 32
+4 Call 3 asm_instruction'mrc_p15,_0,_%0,_c7,_c4,_0 2 Var Mem Mem Var PMS PMS 3 val___unsigned_long#v Word 32 Mem Mem PMS PMS
+5 Basic 4 1 val___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+EntryPoint 5
+
 Function Kernel_C.receiveIPC 8 thread___ptr_to_struct_tcb_C#v Word 32 cap___struct_cap_C#v.words_C.0 Word 32 cap___struct_cap_C#v.words_C.1 Word 32 isBlocking___unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
 2 Call 1 Kernel_C.completeSignal 6 Var ntfnPtr___ptr_to_struct_notification_C#v Word 32 Var thread___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
@@ -2756,20 +2767,30 @@ Function Kernel_C.provide_cap 8 root_cnode_cap___struct_cap_C#v.words_C.0 Word 3
 17 Cond 16 Err Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 12 Word 32 Op SignedLess Bool 2 Num 12 Word 32 Num 32 Word 32
 EntryPoint 17
 
+Function Kernel_C.readPARhigh 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 1 ret__unsigned_long#v Word 32
+1 Basic Ret 0
+2 Cond 1 Err Op False Bool 0
+3 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCast Word 32 1 Op ShiftRight Word 64 2 Var par___unsigned_longlong#v Word 64 Op WordCast Word 64 1 Num 32 Word 32
+4 Cond 3 Err Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 32 Word 32 Op SignedLess Bool 2 Num 32 Word 32 Num 64 Word 32
+5 Basic 4 1 par___unsigned_longlong#v Word 64 Var rv#space#ret__unsigned_longlong#v Word 64
+6 Call 5 Kernel_C.readPAR_64 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_longlong#v Word 64
+EntryPoint 6
+
 Function Kernel_C.scheduleTCB 5 tptr___ptr_to_struct_tcb_C#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
-2 Call 1 Kernel_C.rescheduleRequired 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-3 Cond 2 1 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
-4 Basic 3 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32 Num 1 Word 32 Num 0 Word 32
-5 Basic 4 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-6 Call 5 Kernel_C.isRunnable 5 Var tptr___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
-7 Cond 6 3 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
-8 Basic 7 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op Equals Bool 2 Op MemAcc Word 32 2 Var Mem Mem Symbol ksSchedulerAction Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 Num 1 Word 32 Num 0 Word 32
-9 Cond 8 Err Op PGlobalValid Bool 3 Var HTD HTD Type Ptr Struct Kernel_C.tcb_C Symbol ksSchedulerAction Word 32
-10 Cond 9 7 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
-11 Basic 10 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op Equals Bool 2 Var tptr___ptr_to_struct_tcb_C#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Symbol ksCurThread Word 32 Num 1 Word 32 Num 0 Word 32
-12 Cond 11 Err Op PGlobalValid Bool 3 Var HTD HTD Type Ptr Struct Kernel_C.tcb_C Symbol ksCurThread Word 32
-EntryPoint 12
+2 Basic 1 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Symbol ksSchedulerAction Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
+3 Cond 2 Err Op PGlobalValid Bool 3 Var HTD HTD Type Ptr Struct Kernel_C.tcb_C Symbol ksSchedulerAction Word 32
+4 Cond 3 1 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
+5 Basic 4 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32 Num 1 Word 32 Num 0 Word 32
+6 Basic 5 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+7 Call 6 Kernel_C.isRunnable 5 Var tptr___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
+8 Cond 7 4 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
+9 Basic 8 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op Equals Bool 2 Op MemAcc Word 32 2 Var Mem Mem Symbol ksSchedulerAction Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 Num 1 Word 32 Num 0 Word 32
+10 Cond 9 Err Op PGlobalValid Bool 3 Var HTD HTD Type Ptr Struct Kernel_C.tcb_C Symbol ksSchedulerAction Word 32
+11 Cond 10 8 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
+12 Basic 11 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op Equals Bool 2 Var tptr___ptr_to_struct_tcb_C#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Symbol ksCurThread Word 32 Num 1 Word 32 Num 0 Word 32
+13 Cond 12 Err Op PGlobalValid Bool 3 Var HTD HTD Type Ptr Struct Kernel_C.tcb_C Symbol ksCurThread Word 32
+EntryPoint 13
 
 Function Kernel_C.setIRQState 6 irqState___unsigned_long#v Word 32 irq___unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
@@ -2885,6 +2906,13 @@ EntryPoint 1
 Function Kernel_C.writeHTPIDR 1 htpidr___unsigned_long#v Word 32 0
 1 Basic Ret 0
 EntryPoint 1
+
+Function Kernel_C.writePAR_64 5 val___unsigned_longlong#v Word 64 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+
+Function Kernel_C.writePARlow 5 val___unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+1 Basic Ret 0
+2 Call 1 asm_instruction'mcr_p15,_0,_%0,_c7,_c4,_0 3 Var val___unsigned_long#v Word 32 Var Mem Mem Var PMS PMS 2 Mem Mem PMS PMS
+EntryPoint 2
 
 Function Kernel_C.L2_cacheSync 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
@@ -3118,7 +3146,7 @@ Function Kernel_C.cteDeleteOne 5 slot___ptr_to_struct_cte_C#v Word 32 Mem Mem HT
 8 Basic 7 1 final___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
 9 Call 8 Kernel_C.isFinalCapability 5 Var slot___ptr_to_struct_cte_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
 10 Basic 9 0
-11 Cond 10 Err Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 657 Word 50 Op Minus Word 32 2 Num 0 Word 32 Num 1 Word 32 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 657 Word 50 Var cap_type___unsigned_long#v Word 32
+11 Cond 10 Err Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 658 Word 50 Op Minus Word 32 2 Num 0 Word 32 Num 1 Word 32 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 658 Word 50 Var cap_type___unsigned_long#v Word 32
 12 Cond 11 1 Op Not Bool 1 Op Equals Bool 2 Var cap_type___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
 13 Basic 12 1 cap_type___unsigned_long#v Word 32 Op WordCast Word 32 1 Var ret__unsigned#v Word 32
 14 Basic 13 1 ret__unsigned#v Word 32 Var rv#space#ret__unsigned#v Word 32
@@ -3384,53 +3412,30 @@ Function Kernel_C.init_freemem 11 n_available___unsigned_long#v Word 32 availabl
 97 Basic 95 1 loop#94#count Word 32 Num 0 Word 32
 148 Basic 97 1 r___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
 149 Basic 148 1 a___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-154 Basic 150 1 i___unsigned_long#v Word 32 Op Plus Word 32 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
-155 Basic 154 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Symbol avail_reg Word 32 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 0 Word 32 Var ret__unsigned_long#v Word 32
-156 Cond 155 Err Op PGlobalValid Bool 3 Var HTD HTD Type Array Struct Kernel_C.region_C 4 Symbol avail_reg Word 32
-157 Cond 156 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4 Word 32
-158 Basic 157 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-159 Call 158 Kernel_C.ceiling_kernel_window 1 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol avail_reg Word 32 Op Plus Word 32 2 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 0 Word 32 1 rv#space#ret__unsigned_long#v Word 32
-160 Cond 159 Err Op PGlobalValid Bool 3 Var HTD HTD Type Array Struct Kernel_C.region_C 4 Symbol avail_reg Word 32
-161 Cond 160 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4 Word 32
-162 Basic 161 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Symbol avail_reg Word 32 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 4 Word 32 Var ret__unsigned_long#v Word 32
-163 Cond 162 Err Op PGlobalValid Bool 3 Var HTD HTD Type Array Struct Kernel_C.region_C 4 Symbol avail_reg Word 32
-164 Cond 163 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4 Word 32
-165 Basic 164 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-166 Call 165 Kernel_C.ceiling_kernel_window 1 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol avail_reg Word 32 Op Plus Word 32 2 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 4 Word 32 1 rv#space#ret__unsigned_long#v Word 32
-167 Cond 166 Err Op PGlobalValid Bool 3 Var HTD HTD Type Array Struct Kernel_C.region_C 4 Symbol avail_reg Word 32
-168 Cond 167 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4 Word 32
-169 Basic 168 1 Mem Mem Op MemUpdate Mem 3 Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Symbol avail_reg Word 32 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 0 Word 32 Var ret__struct_region_C#v.start_C Word 32 Op Plus Word 32 2 Op Plus Word 32 2 Symbol avail_reg Word 32 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 4 Word 32 Var ret__struct_region_C#v.end_C Word 32
-170 Cond 169 Err Op PGlobalValid Bool 3 Var HTD HTD Type Array Struct Kernel_C.region_C 4 Symbol avail_reg Word 32
-171 Cond 170 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4 Word 32
-172 Cond 171 Err Op Or Bool 2 Op Equals Bool 2 Var i___unsigned_long#v Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.p_region_C Var available___ptr_to_struct_p_region_C#v Word 32 Op Plus Word 32 2 Var i___unsigned_long#v Word 32 Num 1 Word 32
-173 Basic 172 2 ret__struct_region_C#v.start_C Word 32 Var rv#space#ret__struct_region_C#v.start_C Word 32 ret__struct_region_C#v.end_C Word 32 Var rv#space#ret__struct_region_C#v.end_C Word 32
-174 Call 173 Kernel_C.paddr_to_pptr_reg 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Var available___ptr_to_struct_p_region_C#v Word 32 Op Times Word 32 2 Var i___unsigned_long#v Word 32 Num 8 Word 32 Num 0 Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Var available___ptr_to_struct_p_region_C#v Word 32 Op Times Word 32 2 Var i___unsigned_long#v Word 32 Num 8 Word 32 Num 4 Word 32 2 rv#space#ret__struct_region_C#v.start_C Word 32 rv#space#ret__struct_region_C#v.end_C Word 32
-175 Cond 174 Err Op And Bool 2 Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Var i___unsigned_long#v Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.p_region_C Var available___ptr_to_struct_p_region_C#v Word 32 Var i___unsigned_long#v Word 32 Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.p_region_C Op Plus Word 32 2 Var available___ptr_to_struct_p_region_C#v Word 32 Op Times Word 32 2 Var i___unsigned_long#v Word 32 Num 8 Word 32 Op Or Bool 2 Op Equals Bool 2 Var i___unsigned_long#v Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.p_region_C Var available___ptr_to_struct_p_region_C#v Word 32 Op Plus Word 32 2 Var i___unsigned_long#v Word 32 Num 1 Word 32
+154 Cond 150 Err Op Not Bool 1 Op Equals Bool 2 Num 8 Word 32 Num 0 Word 32
+155 Basic 154 1 i___unsigned_long#v Word 32 Op Plus Word 32 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
+156 Basic 155 1 Mem Mem Op MemUpdate Mem 3 Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Op Plus Word 32 2 Symbol ndks_boot Word 32 Num 92 Word 32 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 0 Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 Op Plus Word 32 2 Op Plus Word 32 2 Op Plus Word 32 2 Symbol ndks_boot Word 32 Num 92 Word 32 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 4 Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+157 Cond 156 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
+158 Cond 157 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4 Word 32
 150 Basic 151 1 loop#150#count Word 32 Op Plus Word 32 2 Var loop#150#count Word 32 Num 1 Word 32
 151 Cond 152 Err Op True Bool 0
-152 Cond 175 149 Op Less Bool 2 Var i___unsigned_long#v Word 32 Var n_available___unsigned_long#v Word 32
+152 Cond 158 149 Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCast Word 32 1 Op DividedBy Word 32 2 Num 32 Word 32 Num 8 Word 32
 153 Basic 151 1 loop#150#count Word 32 Num 0 Word 32
-176 Basic 153 1 i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-181 Cond 177 Err Op Not Bool 1 Op Equals Bool 2 Num 8 Word 32 Num 0 Word 32
-182 Basic 181 1 i___unsigned_long#v Word 32 Op Plus Word 32 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
-183 Basic 182 1 Mem Mem Op MemUpdate Mem 3 Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Op Plus Word 32 2 Symbol ndks_boot Word 32 Num 92 Word 32 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 0 Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 Op Plus Word 32 2 Op Plus Word 32 2 Op Plus Word 32 2 Symbol ndks_boot Word 32 Num 92 Word 32 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 4 Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-184 Cond 183 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
-185 Cond 184 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4 Word 32
-177 Basic 178 1 loop#177#count Word 32 Op Plus Word 32 2 Var loop#177#count Word 32 Num 1 Word 32
-178 Cond 179 Err Op True Bool 0
-179 Cond 185 176 Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCast Word 32 1 Op DividedBy Word 32 2 Num 32 Word 32 Num 8 Word 32
-180 Basic 178 1 loop#177#count Word 32 Num 0 Word 32
-186 Cond 180 Err Op Not Bool 1 Op Equals Bool 2 Num 8 Word 32 Num 0 Word 32
-187 Basic 186 1 i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-188 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-189 Cond 188 187 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
-190 Basic 189 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-191 Call 190 Kernel_C.check_reserved_memory 6 Var n_reserved___unsigned_long#v Word 32 Var reserved___ptr_to_struct_region_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
-192 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-193 Cond 192 191 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
-194 Basic 193 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-195 Call 194 Kernel_C.check_available_memory 6 Var n_available___unsigned_long#v Word 32 Var available___ptr_to_struct_p_region_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
-EntryPoint 195
+159 Cond 153 Err Op Not Bool 1 Op Equals Bool 2 Num 8 Word 32 Num 0 Word 32
+160 Basic 159 1 i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+161 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+162 Cond 161 160 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
+163 Basic 162 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+164 Call 163 Kernel_C.check_reserved_memory 6 Var n_reserved___unsigned_long#v Word 32 Var reserved___ptr_to_struct_region_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
+165 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+166 Cond 165 164 Op Equals Bool 2 Op WordCastSigned Word 32 1 Num 0 Word 32 Var n_available___unsigned_long#v Word 32
+167 Basic 166 1 n_available___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+168 Call 167 Kernel_C.init_avail_reg 6 Var n_available___unsigned_long#v Word 32 Var available___ptr_to_struct_p_region_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+169 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+170 Cond 169 168 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
+171 Basic 170 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+172 Call 171 Kernel_C.check_available_memory 6 Var n_available___unsigned_long#v Word 32 Var available___ptr_to_struct_p_region_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
+EntryPoint 172
 
 Function Kernel_C.insertNewCap 8 parent___ptr_to_struct_cte_C#v Word 32 slot___ptr_to_struct_cte_C#v Word 32 cap___struct_cap_C#v.words_C.0 Word 32 cap___struct_cap_C#v.words_C.1 Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
@@ -4034,6 +4039,16 @@ Function Kernel_C.transferCaps 8 info___struct_seL4_MessageInfo_C#v.words_C.0 Wo
 62 Basic 61 1 info___struct_seL4_MessageInfo_C#v.words_C.0 Word 32 Var rv#space#ret__struct_seL4_MessageInfo_C#v.words_C.0 Word 32
 63 Call 62 Kernel_C.seL4_MessageInfo_set_extraCaps 2 Var info___struct_seL4_MessageInfo_C#v.words_C.0 Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 1 rv#space#ret__struct_seL4_MessageInfo_C#v.words_C.0 Word 32
 EntryPoint 63
+
+Function Kernel_C.writePARhigh 5 val___unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+1 Basic Ret 0
+2 Call 1 Kernel_C.writePAR_64 5 Op BWOr Word 64 2 Var par_high___unsigned_longlong#v Word 64 Var par_low___unsigned_longlong#v Word 64 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+3 Basic 2 1 par_low___unsigned_longlong#v Word 64 Op WordCast Word 64 1 Var ret__unsigned_long#v Word 32
+4 Basic 3 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+5 Call 4 Kernel_C.readPARlow 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+6 Basic 5 1 par_high___unsigned_longlong#v Word 64 Op ShiftLeft Word 64 2 Op WordCast Word 64 1 Var val___unsigned_long#v Word 32 Op WordCast Word 64 1 Num 32 Word 32
+7 Cond 6 Err Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 32 Word 32 Op SignedLess Bool 2 Num 32 Word 32 Num 64 Word 32
+EntryPoint 7
 
 Function Kernel_C.Arch_checkIRQ 5 irq_w___unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 5 ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
@@ -5164,6 +5179,58 @@ Function Kernel_C.getProcessorID 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordA
 4 Call 3 asm_instruction'mrc__p15,_0,_%0,_c0,_c0,_0 2 Var Mem Mem Var PMS PMS 3 processor_id___unsigned_long#v Word 32 Mem Mem PMS PMS
 EntryPoint 4
 
+Function Kernel_C.init_avail_reg 6 n_available___unsigned_long#v Word 32 available___ptr_to_struct_p_region_C#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 5 ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+1 Basic Ret 0
+2 Cond 1 Err Op False Bool 0
+3 Basic 1 1 ret__unsigned_long#v Word 32 Var cnt___unsigned_long#v Word 32
+8 Basic 4 1 i___unsigned_long#v Word 32 Op Plus Word 32 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
+9 Basic 8 1 cnt___unsigned_long#v Word 32 Op Plus Word 32 2 Var cnt___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
+10 Basic 9 1 Mem Mem Op MemUpdate Mem 3 Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Symbol avail_reg Word 32 Op Times Word 32 2 Num 8 Word 32 Var cnt___unsigned_long#v Word 32 Num 0 Word 32 Var ret__struct_region_C#v.start_C Word 32 Op Plus Word 32 2 Op Plus Word 32 2 Symbol avail_reg Word 32 Op Times Word 32 2 Num 8 Word 32 Var cnt___unsigned_long#v Word 32 Num 4 Word 32 Var ret__struct_region_C#v.end_C Word 32
+11 Cond 10 Err Op PGlobalValid Bool 3 Var HTD HTD Type Array Struct Kernel_C.region_C 4 Symbol avail_reg Word 32
+12 Cond 11 Err Op Less Bool 2 Var cnt___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4 Word 32
+13 Basic 12 2 ret__struct_region_C#v.start_C Word 32 Var rv#space#ret__struct_region_C#v.start_C Word 32 ret__struct_region_C#v.end_C Word 32 Var rv#space#ret__struct_region_C#v.end_C Word 32
+14 Call 13 Kernel_C.paddr_to_pptr_reg 2 Var usable_reg___struct_p_region_C#v.start_C Word 32 Var usable_reg___struct_p_region_C#v.end_C Word 32 2 rv#space#ret__struct_region_C#v.start_C Word 32 rv#space#ret__struct_region_C#v.end_C Word 32
+15 Cond 8 14 Op LessEquals Bool 2 Op WordCast Word 32 1 Op DividedBy Word 32 2 Num 32 Word 32 Num 8 Word 32 Var cnt___unsigned_long#v Word 32
+16 Cond 15 Err Op Not Bool 1 Op Equals Bool 2 Num 8 Word 32 Num 0 Word 32
+17 Basic 16 2 usable_reg___struct_p_region_C#v.start_C Word 32 Var ret__unsigned_long#v Word 32 usable_reg___struct_p_region_C#v.end_C Word 32 Var unsigned_long_eret_2#v Word 32
+18 Basic 17 1 unsigned_long_eret_2#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Var r___ptr_to_struct_p_region_C#v Word 32 Num 4 Word 32
+19 Cond 18 Err Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.p_region_C Var r___ptr_to_struct_p_region_C#v Word 32
+20 Basic 17 1 unsigned_long_eret_2#v Word 32 Op Minus Word 32 2 Num 4293918720 Word 32 Op Minus Word 32 2 Op WordCast Word 32 1 Num 3758096384 Word 32 Var unsigned_long_eret_2#v Word 32
+21 Basic 20 1 unsigned_long_eret_2#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+22 Call 21 Kernel_C.physBase 0 1 rv#space#ret__unsigned_long#v Word 32
+23 Cond 19 22 Op Less Bool 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Var r___ptr_to_struct_p_region_C#v Word 32 Num 4 Word 32 Op Minus Word 32 2 Num 4293918720 Word 32 Op Minus Word 32 2 Op WordCast Word 32 1 Num 3758096384 Word 32 Var unsigned_long_eret_2#v Word 32
+24 Cond 23 Err Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.p_region_C Var r___ptr_to_struct_p_region_C#v Word 32
+25 Basic 24 1 unsigned_long_eret_2#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+26 Call 25 Kernel_C.physBase 0 1 rv#space#ret__unsigned_long#v Word 32
+27 Basic 26 1 ret__unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Var r___ptr_to_struct_p_region_C#v Word 32
+28 Cond 27 Err Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.p_region_C Var r___ptr_to_struct_p_region_C#v Word 32
+29 Basic 26 0
+30 Basic 29 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+31 Call 30 Kernel_C.physBase 0 1 rv#space#ret__unsigned_long#v Word 32
+32 Cond 28 31 Op Less Bool 2 Var ret__unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Var r___ptr_to_struct_p_region_C#v Word 32
+33 Cond 32 Err Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.p_region_C Var r___ptr_to_struct_p_region_C#v Word 32
+34 Basic 33 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+35 Call 34 Kernel_C.physBase 0 1 rv#space#ret__unsigned_long#v Word 32
+36 Cond 8 35 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
+37 Basic 36 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op LessEquals Bool 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Var r___ptr_to_struct_p_region_C#v Word 32 Num 4 Word 32 Var ret__unsigned_long#v Word 32 Num 1 Word 32 Num 0 Word 32
+38 Cond 37 Err Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.p_region_C Var r___ptr_to_struct_p_region_C#v Word 32
+39 Basic 38 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+40 Call 39 Kernel_C.physBase 0 1 rv#space#ret__unsigned_long#v Word 32
+41 Cond 36 40 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
+42 Basic 41 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op LessEquals Bool 2 Op Minus Word 32 2 Num 4293918720 Word 32 Op Minus Word 32 2 Op WordCast Word 32 1 Num 3758096384 Word 32 Var ret__unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Var r___ptr_to_struct_p_region_C#v Word 32 Num 1 Word 32 Num 0 Word 32
+43 Cond 42 Err Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.p_region_C Var r___ptr_to_struct_p_region_C#v Word 32
+44 Basic 43 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+45 Call 44 Kernel_C.physBase 0 1 rv#space#ret__unsigned_long#v Word 32
+46 Basic 45 1 r___ptr_to_struct_p_region_C#v Word 32 Op Plus Word 32 2 Var available___ptr_to_struct_p_region_C#v Word 32 Op Times Word 32 2 Var i___unsigned_long#v Word 32 Num 8 Word 32
+47 Cond 46 Err Op And Bool 2 Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Var i___unsigned_long#v Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.p_region_C Var available___ptr_to_struct_p_region_C#v Word 32 Var i___unsigned_long#v Word 32 Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.p_region_C Op Plus Word 32 2 Var available___ptr_to_struct_p_region_C#v Word 32 Op Times Word 32 2 Var i___unsigned_long#v Word 32 Num 8 Word 32 Op Or Bool 2 Op Equals Bool 2 Var i___unsigned_long#v Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.p_region_C Var available___ptr_to_struct_p_region_C#v Word 32 Var i___unsigned_long#v Word 32
+4 Basic 5 1 loop#4#count Word 32 Op Plus Word 32 2 Var loop#4#count Word 32 Num 1 Word 32
+5 Cond 6 Err Op True Bool 0
+6 Cond 47 3 Op Less Bool 2 Var i___unsigned_long#v Word 32 Var n_available___unsigned_long#v Word 32
+7 Basic 5 1 loop#4#count Word 32 Num 0 Word 32
+48 Basic 7 1 i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+49 Basic 48 1 cnt___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+EntryPoint 49
+
 Function Kernel_C.invalidateASID 5 asid___unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
 2 Basic 1 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Op Plus Word 32 2 Var pd___ptr_to_struct_pde_C#v Word 32 Op Times Word 32 2 Op ShiftRight Word 32 2 Num 4278190080 Word 32 Op WordCast Word 32 1 Op Plus Word 32 2 Num 8 Word 32 Num 12 Word 32 Num 4 Word 32 Num 0 Word 32 Num 0 Word 32 Var ret__struct_pde_C#v.words_C.0 Word 32
@@ -5510,37 +5577,38 @@ Function Kernel_C.create_untypeds 6 root_cnode_cap___struct_cap_C#v.words_C.0 Wo
 36 Basic 35 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
 37 Call 36 Kernel_C.create_untypeds_for_region 10 Var root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32 Var reg___struct_region_C#v.start_C Word 32 Var reg___struct_region_C#v.end_C Word 32 Var first_untyped_slot___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 38 Basic 37 2 reg___struct_region_C#v.start_C Word 32 Var rv#space#ret__struct_region_C#v.start_C Word 32 reg___struct_region_C#v.end_C Word 32 Var rv#space#ret__struct_region_C#v.end_C Word 32
-39 Call 38 Kernel_C.paddr_to_pptr_reg 2 Var start___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4294967295 Word 64 2 rv#space#ret__struct_region_C#v.start_C Word 32 rv#space#ret__struct_region_C#v.end_C Word 32
-40 Cond 39 33 Op SignedLess Bool 2 Op WordCast Word 64 1 Var start___unsigned_long#v Word 32 Num 4294967295 Word 64
-45 Basic 41 1 i___unsigned_long#v Word 32 Op Plus Word 32 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
-46 Basic 45 1 start___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Op Plus Word 32 2 Num 0 Word 32 Op Plus Word 32 2 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 4 Word 32
-47 Cond 46 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
-48 Cond 47 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 11 Word 32
-49 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-50 Cond 49 48 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
-51 Basic 50 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-52 Call 51 Kernel_C.create_untypeds_for_region 10 Var root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32 Var reg___struct_region_C#v.start_C Word 32 Var reg___struct_region_C#v.end_C Word 32 Var first_untyped_slot___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-53 Basic 52 2 reg___struct_region_C#v.start_C Word 32 Var rv#space#ret__struct_region_C#v.start_C Word 32 reg___struct_region_C#v.end_C Word 32 Var rv#space#ret__struct_region_C#v.end_C Word 32
-54 Call 53 Kernel_C.paddr_to_pptr_reg 2 Var start___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Op Plus Word 32 2 Num 0 Word 32 Op Plus Word 32 2 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 0 Word 32 2 rv#space#ret__struct_region_C#v.start_C Word 32 rv#space#ret__struct_region_C#v.end_C Word 32
-55 Cond 54 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
-56 Cond 55 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 11 Word 32
-57 Cond 56 48 Op Less Bool 2 Var start___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Op Plus Word 32 2 Num 0 Word 32 Op Plus Word 32 2 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 0 Word 32
-58 Cond 57 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
-59 Cond 58 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 11 Word 32
-41 Basic 42 1 loop#41#count Word 32 Op Plus Word 32 2 Var loop#41#count Word 32 Num 1 Word 32
-42 Cond 43 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
-43 Cond 59 40 Op Less Bool 2 Var i___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Num 88 Word 32
-44 Basic 42 1 loop#41#count Word 32 Num 0 Word 32
-60 Basic 44 1 i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-61 Basic 60 1 start___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-62 Basic 61 1 first_untyped_slot___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Num 128 Word 32
-63 Cond 62 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
-EntryPoint 63
+39 Call 38 Kernel_C.paddr_to_pptr_reg 2 Var start___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 4294967296 Word 64 2 rv#space#ret__struct_region_C#v.start_C Word 32 rv#space#ret__struct_region_C#v.end_C Word 32
+40 Cond 39 33 Op SignedLessEquals Bool 2 Op WordCast Word 64 1 Var start___unsigned_long#v Word 32 Op Minus Word 64 2 Num 4294967296 Word 64 Op WordCastSigned Word 64 1 Num 1 Word 32
+41 Cond 40 Err Op Equals Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 64 Op Minus Word 64 2 Num 4294967296 Word 64 Op WordCastSigned Word 64 1 Num 1 Word 32 Op SignedLessEquals Bool 2 Op WordCastSigned Word 64 1 Num 1 Word 32 Num 4294967296 Word 64
+46 Basic 42 1 i___unsigned_long#v Word 32 Op Plus Word 32 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
+47 Basic 46 1 start___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Op Plus Word 32 2 Num 0 Word 32 Op Plus Word 32 2 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 4 Word 32
+48 Cond 47 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
+49 Cond 48 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 11 Word 32
+50 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+51 Cond 50 49 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
+52 Basic 51 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+53 Call 52 Kernel_C.create_untypeds_for_region 10 Var root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32 Var reg___struct_region_C#v.start_C Word 32 Var reg___struct_region_C#v.end_C Word 32 Var first_untyped_slot___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+54 Basic 53 2 reg___struct_region_C#v.start_C Word 32 Var rv#space#ret__struct_region_C#v.start_C Word 32 reg___struct_region_C#v.end_C Word 32 Var rv#space#ret__struct_region_C#v.end_C Word 32
+55 Call 54 Kernel_C.paddr_to_pptr_reg 2 Var start___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Op Plus Word 32 2 Num 0 Word 32 Op Plus Word 32 2 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 0 Word 32 2 rv#space#ret__struct_region_C#v.start_C Word 32 rv#space#ret__struct_region_C#v.end_C Word 32
+56 Cond 55 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
+57 Cond 56 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 11 Word 32
+58 Cond 57 49 Op Less Bool 2 Var start___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Op Plus Word 32 2 Num 0 Word 32 Op Plus Word 32 2 Op Times Word 32 2 Num 8 Word 32 Var i___unsigned_long#v Word 32 Num 0 Word 32
+59 Cond 58 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
+60 Cond 59 Err Op Less Bool 2 Var i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 11 Word 32
+42 Basic 43 1 loop#42#count Word 32 Op Plus Word 32 2 Var loop#42#count Word 32 Num 1 Word 32
+43 Cond 44 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
+44 Cond 60 41 Op Less Bool 2 Var i___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Num 88 Word 32
+45 Basic 43 1 loop#42#count Word 32 Num 0 Word 32
+61 Basic 45 1 i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+62 Basic 61 1 start___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+63 Basic 62 1 first_untyped_slot___unsigned_long#v Word 32 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol ndks_boot Word 32 Num 128 Word 32
+64 Cond 63 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.ndks_boot_C Symbol ndks_boot Word 32
+EntryPoint 64
 
 Function Kernel_C.deleteCallerCap 5 receiver___ptr_to_struct_tcb_C#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
 2 Call 1 Kernel_C.cteDeleteOne 5 Var callerSlot___ptr_to_struct_cte_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-3 Basic 2 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 657 Word 50 Op WordCast Word 32 1 Num 8 Word 32
+3 Basic 2 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 658 Word 50 Op WordCast Word 32 1 Num 8 Word 32
 4 Cond 3 Err Op True Bool 0
 5 Basic 4 1 callerSlot___ptr_to_struct_cte_C#v Word 32 Op Plus Word 32 2 Op BWAnd Word 32 2 Var receiver___ptr_to_struct_tcb_C#v Word 32 Op BWNot Word 32 1 Op Minus Word 32 2 Op ShiftLeft Word 32 2 Num 1 Word 32 Op WordCast Word 32 1 Num 9 Word 32 Num 1 Word 32 Op Times Word 32 2 Num 3 Word 32 Num 16 Word 32
 6 Cond 5 Err Op And Bool 2 Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 9 Word 32 Op SignedLess Bool 2 Num 9 Word 32 Num 32 Word 32 Op Or Bool 2 Op Equals Bool 2 Num 3 Word 32 Num 0 Word 32 Op Or Bool 2 Op And Bool 2 Op SignedLess Bool 2 Num 3 Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.cte_C Op Plus Word 32 2 Op BWAnd Word 32 2 Var receiver___ptr_to_struct_tcb_C#v Word 32 Op BWNot Word 32 1 Op Minus Word 32 2 Op ShiftLeft Word 32 2 Num 1 Word 32 Op WordCast Word 32 1 Num 9 Word 32 Num 1 Word 32 Op Times Word 32 2 Num 3 Word 32 Num 16 Word 32 Op WordCast Word 32 1 Op Minus Word 32 2 Num 0 Word 32 Num 3 Word 32 Op And Bool 2 Op Not Bool 1 Op Equals Bool 2 Num 3 Word 32 Num 0 Word 32 Op And Bool 2 Op Not Bool 1 Op SignedLess Bool 2 Num 3 Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.cte_C Op BWAnd Word 32 2 Var receiver___ptr_to_struct_tcb_C#v Word 32 Op BWNot Word 32 1 Op Minus Word 32 2 Op ShiftLeft Word 32 2 Num 1 Word 32 Op WordCast Word 32 1 Num 9 Word 32 Num 1 Word 32 Op WordCast Word 32 1 Num 3 Word 32
@@ -5584,7 +5652,7 @@ Function Kernel_C.doReplyTransfer 8 sender___ptr_to_struct_tcb_C#v Word 32 recei
 2 Call 1 Kernel_C.possibleSwitchTo 5 Var receiver___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 3 Call 2 Kernel_C.setThreadState 6 Var receiver___ptr_to_struct_tcb_C#v Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 4 Call 3 Kernel_C.cteDeleteOne 5 Var slot___ptr_to_struct_cte_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-5 Basic 4 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 657 Word 50 Op WordCast Word 32 1 Num 8 Word 32
+5 Basic 4 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 658 Word 50 Op WordCast Word 32 1 Num 8 Word 32
 6 Cond 5 Err Op True Bool 0
 7 Call 6 Kernel_C.doIPCTransfer 9 Var sender___ptr_to_struct_tcb_C#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 Var grant___unsigned_long#v Word 32 Var receiver___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 8 Call 1 Kernel_C.possibleSwitchTo 5 Var receiver___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
@@ -5598,7 +5666,7 @@ Function Kernel_C.doReplyTransfer 8 sender___ptr_to_struct_tcb_C#v Word 32 recei
 16 Basic 15 1 restart___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
 17 Call 16 Kernel_C.handleFaultReply 6 Var receiver___ptr_to_struct_tcb_C#v Word 32 Var sender___ptr_to_struct_tcb_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 18 Call 17 Kernel_C.cteDeleteOne 5 Var slot___ptr_to_struct_cte_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-19 Basic 18 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 657 Word 50 Op WordCast Word 32 1 Num 8 Word 32
+19 Basic 18 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 658 Word 50 Op WordCast Word 32 1 Num 8 Word 32
 20 Cond 19 Err Op True Bool 0
 21 Cond 7 20 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var fault_type___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
 22 Basic 21 1 fault_type___unsigned_long#v Word 32 Op WordCast Word 32 1 Var ret__unsigned#v Word 32
@@ -6188,77 +6256,70 @@ Function Kernel_C.try_init_kernel 10 ui_p_reg_start___unsigned_long#v Word 32 ui
 94 Cond 89 93 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
 95 Basic 94 1 ret__int#v Word 32 Var rv#space#ret__int#v Word 32
 96 Call 95 Kernel_C.wrap_config_set 1 Num 0 Word 32 1 rv#space#ret__int#v Word 32
-97 Basic 96 1 Mem Mem Op MemUpdate Mem 3 Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32 Num 0 Word 32 Var header___struct_seL4_BootInfoHeader_C#v.id_C Word 32 Op Plus Word 32 2 Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32 Num 4 Word 32 Var header___struct_seL4_BootInfoHeader_C#v.len_C Word 32
-98 Cond 97 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.AnonStruct1' Symbol rootserver Word 32
-99 Cond 98 Err Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.seL4_BootInfoHeader_C Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32
-100 Cond 99 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.AnonStruct1' Symbol rootserver Word 32
-101 Basic 100 1 header___struct_seL4_BootInfoHeader_C#v.len_C Word 32 Op Minus Word 32 2 Var extra_bi_size___unsigned_long#v Word 32 Var extra_bi_offset___unsigned_long#v Word 32
-102 Basic 101 1 header___struct_seL4_BootInfoHeader_C#v.id_C Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-103 Cond 102 96 Op Less Bool 2 Var extra_bi_offset___unsigned_long#v Word 32 Var extra_bi_size___unsigned_long#v Word 32
-104 Basic 103 1 extra_bi_offset___unsigned_long#v Word 32 Op Plus Word 32 2 Var extra_bi_offset___unsigned_long#v Word 32 Var dtb_size___unsigned_long#v Word 32
-105 Call 104 Kernel_C.memcpy 7 Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32 Var ret__ptr_to_void#v Word 32 Var dtb_size___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__ptr_to_void#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+97 Basic 96 1 extra_bi_offset___unsigned_long#v Word 32 Op Plus Word 32 2 Var extra_bi_offset___unsigned_long#v Word 32 Var dtb_size___unsigned_long#v Word 32
+98 Call 97 Kernel_C.memcpy 7 Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32 Var ret__ptr_to_void#v Word 32 Var dtb_size___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__ptr_to_void#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+99 Cond 98 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.AnonStruct1' Symbol rootserver Word 32
+100 Basic 99 1 ret__ptr_to_void#v Word 32 Var rv#space#ret__ptr_to_void#v Word 32
+101 Call 100 Kernel_C.ptrFromPAddr 1 Var dtb_phys_addr___unsigned_long#v Word 32 1 rv#space#ret__ptr_to_void#v Word 32
+102 Basic 101 1 extra_bi_offset___unsigned_long#v Word 32 Op Plus Word 32 2 Var extra_bi_offset___unsigned_long#v Word 32 Op WordCast Word 32 1 Num 8 Word 32
+103 Basic 102 1 Mem Mem Op MemUpdate Mem 3 Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32 Num 0 Word 32 Var header___struct_seL4_BootInfoHeader_C#v.id_C Word 32 Op Plus Word 32 2 Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32 Num 4 Word 32 Var header___struct_seL4_BootInfoHeader_C#v.len_C Word 32
+104 Cond 103 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.AnonStruct1' Symbol rootserver Word 32
+105 Cond 104 Err Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.seL4_BootInfoHeader_C Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32
 106 Cond 105 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.AnonStruct1' Symbol rootserver Word 32
-107 Basic 106 1 ret__ptr_to_void#v Word 32 Var rv#space#ret__ptr_to_void#v Word 32
-108 Call 107 Kernel_C.ptrFromPAddr 1 Var dtb_phys_addr___unsigned_long#v Word 32 1 rv#space#ret__ptr_to_void#v Word 32
-109 Basic 108 1 extra_bi_offset___unsigned_long#v Word 32 Op Plus Word 32 2 Var extra_bi_offset___unsigned_long#v Word 32 Op WordCast Word 32 1 Num 8 Word 32
-110 Basic 109 1 Mem Mem Op MemUpdate Mem 3 Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32 Num 0 Word 32 Var header___struct_seL4_BootInfoHeader_C#v.id_C Word 32 Op Plus Word 32 2 Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32 Num 4 Word 32 Var header___struct_seL4_BootInfoHeader_C#v.len_C Word 32
-111 Cond 110 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.AnonStruct1' Symbol rootserver Word 32
-112 Cond 111 Err Op PValid Bool 3 Var HTD HTD Type Struct Kernel_C.seL4_BootInfoHeader_C Op Plus Word 32 2 Op MemAcc Word 32 2 Var Mem Mem Op Plus Word 32 2 Symbol rootserver Word 32 Num 20 Word 32 Var extra_bi_offset___unsigned_long#v Word 32
-113 Cond 112 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.AnonStruct1' Symbol rootserver Word 32
-114 Basic 113 1 header___struct_seL4_BootInfoHeader_C#v.len_C Word 32 Op Plus Word 32 2 Op WordCast Word 32 1 Num 8 Word 32 Var dtb_size___unsigned_long#v Word 32
-115 Basic 114 1 header___struct_seL4_BootInfoHeader_C#v.id_C Word 32 Op WordCastSigned Word 32 1 Num 6 Word 32
-116 Cond 115 103 Op Less Bool 2 Op WordCastSigned Word 32 1 Num 0 Word 32 Var dtb_size___unsigned_long#v Word 32
-117 Call 116 Kernel_C.populate_bi_frame 8 Op WordCastSigned Word 32 1 Num 0 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32 Var ipcbuf_vptr___unsigned_long#v Word 32 Var extra_bi_size___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-118 Call 117 Kernel_C.init_irqs 6 Var root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-119 Call 118 Kernel_C.create_domain_cap 6 Var root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-120 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-121 Cond 120 119 Op Equals Bool 2 Var ret__unsigned#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-122 Basic 121 1 ret__unsigned#v Word 32 Var rv#space#ret__unsigned#v Word 32
-123 Call 122 Kernel_C.cap_get_capType 2 Var root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned#v Word 32
-124 Basic 123 2 root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var rv#space#ret__struct_cap_C#v.words_C.0 Word 32 root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 Var rv#space#ret__struct_cap_C#v.words_C.1 Word 32
-125 Call 124 Kernel_C.create_root_cnode 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 6 rv#space#ret__struct_cap_C#v.words_C.0 Word 32 rv#space#ret__struct_cap_C#v.words_C.1 Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-126 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-127 Cond 126 125 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
-128 Basic 127 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-129 Call 128 Kernel_C.arch_init_freemem 11 Var ui_p_reg___struct_p_region_C#v.start_C Word 32 Var ui_p_reg___struct_p_region_C#v.end_C Word 32 Var dtb_p_reg___struct_p_region_C#v.start_C Word 32 Var dtb_p_reg___struct_p_region_C#v.end_C Word 32 Var it_v_reg___struct_v_region_C#v.start_C Word 32 Var it_v_reg___struct_v_region_C#v.end_C Word 32 Var extra_bi_size_bits___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-130 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-131 Cond 130 129 Op LessEquals Bool 2 Op WordCast Word 32 1 Num 3758096384 Word 32 Var it_v_reg___struct_v_region_C#v.end_C Word 32
-132 Basic 131 2 it_v_reg___struct_v_region_C#v.start_C Word 32 Var ui_v_reg___struct_v_region_C#v.start_C Word 32 it_v_reg___struct_v_region_C#v.end_C Word 32 Op Plus Word 32 2 Var extra_bi_frame_vptr___unsigned_long#v Word 32 Var ret__unsigned_long#v Word 32
-133 Basic 132 1 ret__unsigned_long#v Word 32 Op ShiftLeft Word 32 2 Num 1 Word 32 Var extra_bi_size_bits___unsigned_long#v Word 32
-134 Cond 133 Err Op Less Bool 2 Var extra_bi_size_bits___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 32 Word 32
-135 Basic 132 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-136 Cond 134 135 Op Less Bool 2 Op WordCastSigned Word 32 1 Num 0 Word 32 Var extra_bi_size_bits___unsigned_long#v Word 32
-137 Basic 136 1 extra_bi_size_bits___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-138 Call 137 Kernel_C.calculate_extra_bi_size_bits 5 Var extra_bi_size___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
-139 Basic 138 2 dtb_p_reg___struct_p_region_C#v.start_C Word 32 Var dtb_phys_addr___unsigned_long#v Word 32 dtb_p_reg___struct_p_region_C#v.end_C Word 32 Var dtb_phys_end___unsigned_long#v Word 32
-140 Basic 139 1 extra_bi_size___unsigned_long#v Word 32 Op Plus Word 32 2 Var extra_bi_size___unsigned_long#v Word 32 Op Plus Word 32 2 Op WordCast Word 32 1 Num 8 Word 32 Var dtb_size___unsigned_long#v Word 32
-141 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-142 Cond 141 140 Op LessEquals Bool 2 Op Minus Word 32 2 Num 4293918720 Word 32 Op Minus Word 32 2 Op WordCast Word 32 1 Num 3758096384 Word 32 Var ret__unsigned_long#v Word 32 Var dtb_phys_end___unsigned_long#v Word 32
-143 Basic 142 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-144 Call 143 Kernel_C.physBase 0 1 rv#space#ret__unsigned_long#v Word 32
-145 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-146 Cond 145 144 Op Less Bool 2 Var dtb_phys_end___unsigned_long#v Word 32 Var dtb_phys_addr___unsigned_long#v Word 32
-147 Basic 146 1 dtb_phys_end___unsigned_long#v Word 32 Op Plus Word 32 2 Var dtb_phys_addr___unsigned_long#v Word 32 Var dtb_size___unsigned_long#v Word 32
-148 Cond 147 138 Op Less Bool 2 Op WordCastSigned Word 32 1 Num 0 Word 32 Var dtb_size___unsigned_long#v Word 32
-149 Basic 148 2 dtb_p_reg___struct_p_region_C#v.start_C Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 dtb_p_reg___struct_p_region_C#v.end_C Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-150 Call 149 Kernel_C.init_plat 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-151 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-152 Cond 151 150 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
-153 Basic 152 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-154 Call 153 Kernel_C.init_cpu 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-155 Call 154 Kernel_C.map_kernel_window 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-156 Basic 155 1 extra_bi_frame_vptr___unsigned_long#v Word 32 Op Plus Word 32 2 Var bi_frame_vptr___unsigned_long#v Word 32 Op ShiftLeft Word 32 2 Num 1 Word 32 Op WordCast Word 32 1 Num 12 Word 32
-157 Cond 156 Err Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 12 Word 32 Op SignedLess Bool 2 Num 12 Word 32 Num 32 Word 32
-158 Basic 157 1 bi_frame_vptr___unsigned_long#v Word 32 Op Plus Word 32 2 Var ipcbuf_vptr___unsigned_long#v Word 32 Op ShiftLeft Word 32 2 Num 1 Word 32 Op WordCast Word 32 1 Num 12 Word 32
-159 Cond 158 Err Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 12 Word 32 Op SignedLess Bool 2 Num 12 Word 32 Num 32 Word 32
-160 Basic 159 1 ipcbuf_vptr___unsigned_long#v Word 32 Var ui_v_reg___struct_v_region_C#v.end_C Word 32
-161 Basic 160 2 ui_v_reg___struct_v_region_C#v.start_C Word 32 Op Minus Word 32 2 Var ui_p_reg_start___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Var pv_offset___long#v Word 32 ui_v_reg___struct_v_region_C#v.end_C Word 32 Op Minus Word 32 2 Var ui_p_reg_end___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Var pv_offset___long#v Word 32
-162 Basic 161 1 extra_bi_offset___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-163 Basic 162 1 extra_bi_size___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-164 Basic 163 2 ui_reg___struct_region_C#v.start_C Word 32 Var rv#space#ret__struct_region_C#v.start_C Word 32 ui_reg___struct_region_C#v.end_C Word 32 Var rv#space#ret__struct_region_C#v.end_C Word 32
-165 Call 164 Kernel_C.paddr_to_pptr_reg 2 Var ui_p_reg___struct_p_region_C#v.start_C Word 32 Var ui_p_reg___struct_p_region_C#v.end_C Word 32 2 rv#space#ret__struct_region_C#v.start_C Word 32 rv#space#ret__struct_region_C#v.end_C Word 32
-166 Basic 165 2 ui_p_reg___struct_p_region_C#v.start_C Word 32 Var ui_p_reg_start___unsigned_long#v Word 32 ui_p_reg___struct_p_region_C#v.end_C Word 32 Var ui_p_reg_end___unsigned_long#v Word 32
-EntryPoint 166
+107 Basic 106 1 header___struct_seL4_BootInfoHeader_C#v.len_C Word 32 Op Plus Word 32 2 Op WordCast Word 32 1 Num 8 Word 32 Var dtb_size___unsigned_long#v Word 32
+108 Basic 107 1 header___struct_seL4_BootInfoHeader_C#v.id_C Word 32 Op WordCastSigned Word 32 1 Num 6 Word 32
+109 Cond 108 96 Op Less Bool 2 Op WordCastSigned Word 32 1 Num 0 Word 32 Var dtb_size___unsigned_long#v Word 32
+110 Call 109 Kernel_C.populate_bi_frame 8 Op WordCastSigned Word 32 1 Num 0 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32 Var ipcbuf_vptr___unsigned_long#v Word 32 Var extra_bi_size___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+111 Call 110 Kernel_C.init_irqs 6 Var root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+112 Call 111 Kernel_C.create_domain_cap 6 Var root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+113 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+114 Cond 113 112 Op Equals Bool 2 Var ret__unsigned#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+115 Basic 114 1 ret__unsigned#v Word 32 Var rv#space#ret__unsigned#v Word 32
+116 Call 115 Kernel_C.cap_get_capType 2 Var root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned#v Word 32
+117 Basic 116 2 root_cnode_cap___struct_cap_C#v.words_C.0 Word 32 Var rv#space#ret__struct_cap_C#v.words_C.0 Word 32 root_cnode_cap___struct_cap_C#v.words_C.1 Word 32 Var rv#space#ret__struct_cap_C#v.words_C.1 Word 32
+118 Call 117 Kernel_C.create_root_cnode 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 6 rv#space#ret__struct_cap_C#v.words_C.0 Word 32 rv#space#ret__struct_cap_C#v.words_C.1 Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+119 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+120 Cond 119 118 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
+121 Basic 120 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+122 Call 121 Kernel_C.arch_init_freemem 11 Var ui_p_reg___struct_p_region_C#v.start_C Word 32 Var ui_p_reg___struct_p_region_C#v.end_C Word 32 Var dtb_p_reg___struct_p_region_C#v.start_C Word 32 Var dtb_p_reg___struct_p_region_C#v.end_C Word 32 Var it_v_reg___struct_v_region_C#v.start_C Word 32 Var it_v_reg___struct_v_region_C#v.end_C Word 32 Var extra_bi_size_bits___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+123 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+124 Cond 123 122 Op LessEquals Bool 2 Op WordCast Word 32 1 Num 3758096384 Word 32 Var it_v_reg___struct_v_region_C#v.end_C Word 32
+125 Basic 124 2 it_v_reg___struct_v_region_C#v.start_C Word 32 Var ui_v_reg___struct_v_region_C#v.start_C Word 32 it_v_reg___struct_v_region_C#v.end_C Word 32 Op Plus Word 32 2 Var extra_bi_frame_vptr___unsigned_long#v Word 32 Var ret__unsigned_long#v Word 32
+126 Basic 125 1 ret__unsigned_long#v Word 32 Op ShiftLeft Word 32 2 Num 1 Word 32 Var extra_bi_size_bits___unsigned_long#v Word 32
+127 Cond 126 Err Op Less Bool 2 Var extra_bi_size_bits___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 32 Word 32
+128 Basic 125 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+129 Cond 127 128 Op Less Bool 2 Op WordCastSigned Word 32 1 Num 0 Word 32 Var extra_bi_size_bits___unsigned_long#v Word 32
+130 Basic 129 1 extra_bi_size_bits___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+131 Call 130 Kernel_C.calculate_extra_bi_size_bits 5 Var extra_bi_size___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
+132 Basic 131 2 dtb_p_reg___struct_p_region_C#v.start_C Word 32 Var dtb_phys_addr___unsigned_long#v Word 32 dtb_p_reg___struct_p_region_C#v.end_C Word 32 Var dtb_phys_end___unsigned_long#v Word 32
+133 Basic 132 1 extra_bi_size___unsigned_long#v Word 32 Op Plus Word 32 2 Var extra_bi_size___unsigned_long#v Word 32 Op Plus Word 32 2 Op WordCast Word 32 1 Num 8 Word 32 Var dtb_size___unsigned_long#v Word 32
+134 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+135 Cond 134 133 Op LessEquals Bool 2 Op Minus Word 32 2 Num 4293918720 Word 32 Op Minus Word 32 2 Op WordCast Word 32 1 Num 3758096384 Word 32 Var ret__unsigned_long#v Word 32 Var dtb_phys_end___unsigned_long#v Word 32
+136 Basic 135 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+137 Call 136 Kernel_C.physBase 0 1 rv#space#ret__unsigned_long#v Word 32
+138 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+139 Cond 138 137 Op Less Bool 2 Var dtb_phys_end___unsigned_long#v Word 32 Var dtb_phys_addr___unsigned_long#v Word 32
+140 Basic 139 1 dtb_phys_end___unsigned_long#v Word 32 Op Plus Word 32 2 Var dtb_phys_addr___unsigned_long#v Word 32 Var dtb_size___unsigned_long#v Word 32
+141 Cond 140 131 Op Less Bool 2 Op WordCastSigned Word 32 1 Num 0 Word 32 Var dtb_size___unsigned_long#v Word 32
+142 Basic 141 2 dtb_p_reg___struct_p_region_C#v.start_C Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32 dtb_p_reg___struct_p_region_C#v.end_C Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+143 Call 142 Kernel_C.init_plat 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+144 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+145 Cond 144 143 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
+146 Basic 145 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+147 Call 146 Kernel_C.init_cpu 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+148 Call 147 Kernel_C.map_kernel_window 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+149 Basic 148 1 extra_bi_frame_vptr___unsigned_long#v Word 32 Op Plus Word 32 2 Var bi_frame_vptr___unsigned_long#v Word 32 Op ShiftLeft Word 32 2 Num 1 Word 32 Op WordCast Word 32 1 Num 12 Word 32
+150 Cond 149 Err Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 12 Word 32 Op SignedLess Bool 2 Num 12 Word 32 Num 32 Word 32
+151 Basic 150 1 bi_frame_vptr___unsigned_long#v Word 32 Op Plus Word 32 2 Var ipcbuf_vptr___unsigned_long#v Word 32 Op ShiftLeft Word 32 2 Num 1 Word 32 Op WordCast Word 32 1 Num 12 Word 32
+152 Cond 151 Err Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 12 Word 32 Op SignedLess Bool 2 Num 12 Word 32 Num 32 Word 32
+153 Basic 152 1 ipcbuf_vptr___unsigned_long#v Word 32 Var ui_v_reg___struct_v_region_C#v.end_C Word 32
+154 Basic 153 2 ui_v_reg___struct_v_region_C#v.start_C Word 32 Op Minus Word 32 2 Var ui_p_reg_start___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Var pv_offset___long#v Word 32 ui_v_reg___struct_v_region_C#v.end_C Word 32 Op Minus Word 32 2 Var ui_p_reg_end___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Var pv_offset___long#v Word 32
+155 Basic 154 1 extra_bi_offset___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+156 Basic 155 1 extra_bi_size___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+157 Basic 156 2 ui_reg___struct_region_C#v.start_C Word 32 Var rv#space#ret__struct_region_C#v.start_C Word 32 ui_reg___struct_region_C#v.end_C Word 32 Var rv#space#ret__struct_region_C#v.end_C Word 32
+158 Call 157 Kernel_C.paddr_to_pptr_reg 2 Var ui_p_reg___struct_p_region_C#v.start_C Word 32 Var ui_p_reg___struct_p_region_C#v.end_C Word 32 2 rv#space#ret__struct_region_C#v.start_C Word 32 rv#space#ret__struct_region_C#v.end_C Word 32
+159 Basic 158 2 ui_p_reg___struct_p_region_C#v.start_C Word 32 Var ui_p_reg_start___unsigned_long#v Word 32 ui_p_reg___struct_p_region_C#v.end_C Word 32 Var ui_p_reg_end___unsigned_long#v Word 32
+EntryPoint 159
 
 Function Kernel_C.updateRestartPC 5 tcb___ptr_to_struct_tcb_C#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
@@ -6490,7 +6551,7 @@ Function Kernel_C.createNewObjects 12 t___unsigned_long#v Word 32 parent___ptr_t
 15 Basic 5 1 i___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
 16 Basic 15 1 nextFreeArea___ptr_to_void#v Word 32 Var regionBase___ptr_to_void#v Word 32
 17 Basic 16 0
-18 Cond 17 Err Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Var totalObjectSize___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50
+18 Cond 17 Err Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Var totalObjectSize___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50
 19 Basic 18 1 totalObjectSize___unsigned_long#v Word 32 Op ShiftLeft Word 32 2 Var destLength___unsigned_long#v Word 32 Var objectSize___unsigned_long#v Word 32
 20 Cond 19 Err Op Less Bool 2 Var objectSize___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 32 Word 32
 21 Basic 20 1 objectSize___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
@@ -8498,7 +8559,7 @@ EntryPoint 113
 Function Kernel_C.deletingIRQHandler 5 irq___unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
 2 Call 1 Kernel_C.cteDeleteOne 5 Var slot___ptr_to_struct_cte_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-3 Basic 2 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 657 Word 50 Op WordCast Word 32 1 Num 6 Word 32
+3 Basic 2 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 658 Word 50 Op WordCast Word 32 1 Num 6 Word 32
 4 Cond 3 Err Op True Bool 0
 5 Basic 4 1 slot___ptr_to_struct_cte_C#v Word 32 Op Plus Word 32 2 Symbol intStateIRQNode Word 32 Op Times Word 32 2 Var irq___unsigned_long#v Word 32 Num 16 Word 32
 6 Cond 5 Err Op And Bool 2 Op PValid Bool 3 Var HTD HTD Type Array Struct Kernel_C.cte_C 256 Symbol intStateIRQNode Word 32 Op Or Bool 2 Op Equals Bool 2 Var irq___unsigned_long#v Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.cte_C Symbol intStateIRQNode Word 32 Var irq___unsigned_long#v Word 32
@@ -8865,18 +8926,18 @@ Function Kernel_C.cleanCacheRange_PoU 7 start___unsigned_long#v Word 32 end___un
 12 Basic 11 1 index___unsigned_long#v Word 32 Op ShiftRight Word 32 2 Op ShiftLeft Word 32 2 Op ShiftRight Word 32 2 Var start___unsigned_long#v Word 32 Op WordCast Word 32 1 Num 5 Word 32 Op WordCast Word 32 1 Num 5 Word 32 Op WordCast Word 32 1 Num 5 Word 32
 13 Cond 12 Err Op And Bool 2 Op And Bool 2 Op And Bool 2 Op And Bool 2 Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 5 Word 32 Op SignedLess Bool 2 Num 5 Word 32 Num 32 Word 32 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 5 Word 32 Op SignedLess Bool 2 Num 5 Word 32 Num 32 Word 32 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 5 Word 32 Op SignedLess Bool 2 Num 5 Word 32 Num 32 Word 32
 14 Basic 13 0
-15 Cond 14 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
+15 Cond 14 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
 EntryPoint 15
 
 Function Kernel_C.cleanCacheRange_RAM 7 start___unsigned_long#v Word 32 end___unsigned_long#v Word 32 pstart___unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
 2 Call 1 Kernel_C.plat_cleanL2Range 6 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 3 Basic 2 0
-4 Cond 3 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
+4 Cond 3 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
 5 Call 4 Kernel_C.dsb 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 6 Call 5 Kernel_C.cleanCacheRange_PoC 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 7 Basic 6 0
-8 Cond 7 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
+8 Cond 7 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
 EntryPoint 8
 
 Function Kernel_C.cleanInvalidate_L1D 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
@@ -10048,18 +10109,6 @@ Function Kernel_C.cap_get_capIsPhysical 2 cap___struct_cap_C#v.words_C.0 Word 32
 28 Basic 27 1 ret__unsigned#v Word 32 Var rv#space#ret__unsigned#v Word 32
 29 Call 28 Kernel_C.cap_get_capType 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned#v Word 32
 EntryPoint 29
-
-Function Kernel_C.ceiling_kernel_window 1 p___unsigned_long#v Word 32 1 ret__unsigned_long#v Word 32
-1 Basic Ret 0
-2 Cond 1 Err Op False Bool 0
-3 Basic 1 1 ret__unsigned_long#v Word 32 Var p___unsigned_long#v Word 32
-4 Basic 3 1 p___unsigned_long#v Word 32 Num 4293918720 Word 32
-5 Cond 4 3 Op Less Bool 2 Op Minus Word 32 2 Num 4293918720 Word 32 Op Minus Word 32 2 Op WordCast Word 32 1 Num 3758096384 Word 32 Var unsigned_long_eret_2#v Word 32 Var ret__unsigned_long#v Word 32
-6 Basic 5 1 unsigned_long_eret_2#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-7 Call 6 Kernel_C.physBase 0 1 rv#space#ret__unsigned_long#v Word 32
-8 Basic 7 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-9 Call 8 Kernel_C.addrFromPPtr 1 Var p___unsigned_long#v Word 32 1 rv#space#ret__unsigned_long#v Word 32
-EntryPoint 9
 
 Function Kernel_C.check_reserved_memory 6 n_reserved___unsigned_long#v Word 32 reserved___ptr_to_struct_region_C#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 1 ret__unsigned_long#v Word 32
 1 Basic Ret 0
@@ -11848,64 +11897,77 @@ Function Kernel_C.decodeARMFrameInvocation 11 invLabel___unsigned_long#v Word 32
 141 Basic 140 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
 142 Cond 141 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
 143 Cond 142 137 Op Or Bool 2 Op LessEquals Bool 2 Var page_size___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op Less Bool 2 Var page_size___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32
-144 Basic 143 1 page_base___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-145 Call 144 Kernel_C.addrFromPPtr 1 Var ret__unsigned_long#v Word 32 1 rv#space#ret__unsigned_long#v Word 32
-146 Basic 145 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-147 Call 146 Kernel_C.generic_frame_cap_get_capFBasePtr 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
-148 Basic 147 1 page_size___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Op ShiftLeft Word 32 2 Num 1 Word 32 Op WordCast Word 32 1 Var unsigned_long_eret_2#v Word 32
-149 Cond 148 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Num 1 Word 32 Num 0 Word 32 Op Less Bool 2 Num 1 Word 32 Op ShiftRight Word 32 2 Op ShiftLeft Word 32 2 Num 1 Word 32 Num 31 Word 32 Op WordCast Word 32 1 Var unsigned_long_eret_2#v Word 32 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 1 Word 32
-150 Basic 149 1 unsigned_long_eret_2#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-151 Call 150 Kernel_C.pageBitsForSize 5 Var ret__unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
-152 Basic 151 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-153 Call 152 Kernel_C.generic_frame_cap_get_capFSize 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
-154 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
-155 Basic 154 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 0 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
-156 Cond 155 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
-157 Basic 156 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
-158 Cond 157 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
-159 Cond 158 153 Op LessEquals Bool 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
-160 Basic 159 1 end___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-161 Call 160 Kernel_C.getSyscallArg 6 Op WordCastSigned Word 32 1 Num 1 Word 32 Var buffer___ptr_to_unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
-162 Basic 161 1 start___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-163 Call 162 Kernel_C.getSyscallArg 6 Op WordCastSigned Word 32 1 Num 0 Word 32 Var buffer___ptr_to_unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
-164 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
-165 Basic 164 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 20 Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-166 Cond 165 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
-167 Basic 166 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 6 Word 32
-168 Cond 167 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
-169 Cond 168 163 Op Not Bool 1 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var pd___struct_findPDForASID_ret_C#v.status_C Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
-170 Basic 169 2 pd___struct_findPDForASID_ret_C#v.status_C Word 32 Var rv#space#ret__struct_findPDForASID_ret_C#v.status_C Word 32 pd___struct_findPDForASID_ret_C#v.pd_C Word 32 Var rv#space#ret__struct_findPDForASID_ret_C#v.pd_C Word 32
-171 Call 170 Kernel_C.findPDForASID 5 Var asid___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 6 rv#space#ret__struct_findPDForASID_ret_C#v.status_C Word 32 rv#space#ret__struct_findPDForASID_ret_C#v.pd_C Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-172 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
-173 Basic 172 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
-174 Cond 173 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
-175 Cond 174 171 Op Not Bool 1 Op Not Bool 1 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
-176 Basic 175 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-177 Call 176 Kernel_C.generic_frame_cap_get_capFIsMapped 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
-178 Basic 177 1 vaddr___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-179 Call 178 Kernel_C.generic_frame_cap_get_capFMappedAddress 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
-180 Basic 179 1 asid___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-181 Call 180 Kernel_C.generic_frame_cap_get_capFMappedASID 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
-182 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
-183 Basic 182 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 7 Word 32
-184 Cond 183 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
-185 Cond 184 181 Op Less Bool 2 Var length___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 2 Word 32
-186 Basic 1 0
-187 Basic 186 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-188 Call 187 Kernel_C.performPageGetAddress 6 Var ret__unsigned_long#v Word 32 Var call___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+144 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
+145 Basic 144 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 4 Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+146 Cond 145 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
+147 Basic 146 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 2 Word 32
+148 Cond 147 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
+149 Cond 148 143 Op Not Bool 1 Op Not Bool 1 Op Or Bool 2 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32 Op Not Bool 1 Op Equals Bool 2 Var resolve_ret___struct_resolve_ret_C#v.frameBase_C Word 32 Var page_base___unsigned_long#v Word 32
+150 Basic 149 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op Not Bool 1 Op Equals Bool 2 Var resolve_ret___struct_resolve_ret_C#v.frameSize_C Word 32 Var ret__unsigned_long#v Word 32 Num 1 Word 32 Num 0 Word 32
+151 Basic 150 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+152 Call 151 Kernel_C.generic_frame_cap_get_capFSize 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
+153 Cond 149 152 Op Not Bool 1 Op Equals Bool 2 Var ret__int#v Word 32 Num 0 Word 32
+154 Basic 153 1 ret__int#v Word 32 Op IfThenElse Word 32 3 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var resolve_ret___struct_resolve_ret_C#v.valid_C Word 32 Num 0 Word 32 Num 1 Word 32 Num 0 Word 32
+155 Basic 154 3 resolve_ret___struct_resolve_ret_C#v.frameBase_C Word 32 Var rv#space#ret__struct_resolve_ret_C#v.frameBase_C Word 32 resolve_ret___struct_resolve_ret_C#v.frameSize_C Word 32 Var rv#space#ret__struct_resolve_ret_C#v.frameSize_C Word 32 resolve_ret___struct_resolve_ret_C#v.valid_C Word 32 Var rv#space#ret__struct_resolve_ret_C#v.valid_C Word 32
+156 Call 155 Kernel_C.resolveVAddr 6 Var pd___struct_findPDForASID_ret_C#v.pd_C Word 32 Var vaddr___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 3 rv#space#ret__struct_resolve_ret_C#v.frameBase_C Word 32 rv#space#ret__struct_resolve_ret_C#v.frameSize_C Word 32 rv#space#ret__struct_resolve_ret_C#v.valid_C Word 32
+157 Basic 156 1 page_base___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+158 Call 157 Kernel_C.addrFromPPtr 1 Var ret__unsigned_long#v Word 32 1 rv#space#ret__unsigned_long#v Word 32
+159 Basic 158 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+160 Call 159 Kernel_C.generic_frame_cap_get_capFBasePtr 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
+161 Basic 160 1 page_size___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Op ShiftLeft Word 32 2 Num 1 Word 32 Op WordCast Word 32 1 Var unsigned_long_eret_2#v Word 32
+162 Cond 161 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Num 1 Word 32 Num 0 Word 32 Op Less Bool 2 Num 1 Word 32 Op ShiftRight Word 32 2 Op ShiftLeft Word 32 2 Num 1 Word 32 Num 31 Word 32 Op WordCast Word 32 1 Var unsigned_long_eret_2#v Word 32 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 1 Word 32
+163 Basic 162 1 unsigned_long_eret_2#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+164 Call 163 Kernel_C.pageBitsForSize 5 Var ret__unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
+165 Basic 164 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+166 Call 165 Kernel_C.generic_frame_cap_get_capFSize 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
+167 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
+168 Basic 167 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 0 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
+169 Cond 168 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
+170 Basic 169 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 1 Word 32
+171 Cond 170 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
+172 Cond 171 166 Op LessEquals Bool 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
+173 Basic 172 1 end___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+174 Call 173 Kernel_C.getSyscallArg 6 Op WordCastSigned Word 32 1 Num 1 Word 32 Var buffer___ptr_to_unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
+175 Basic 174 1 start___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+176 Call 175 Kernel_C.getSyscallArg 6 Op WordCastSigned Word 32 1 Num 0 Word 32 Var buffer___ptr_to_unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 1 rv#space#ret__unsigned_long#v Word 32
+177 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
+178 Basic 177 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 20 Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+179 Cond 178 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
+180 Basic 179 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 6 Word 32
+181 Cond 180 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
+182 Cond 181 176 Op Not Bool 1 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var pd___struct_findPDForASID_ret_C#v.status_C Word 32 Op WordCastSigned Word 32 1 Num 0 Word 32
+183 Basic 182 2 pd___struct_findPDForASID_ret_C#v.status_C Word 32 Var rv#space#ret__struct_findPDForASID_ret_C#v.status_C Word 32 pd___struct_findPDForASID_ret_C#v.pd_C Word 32 Var rv#space#ret__struct_findPDForASID_ret_C#v.pd_C Word 32
+184 Call 183 Kernel_C.findPDForASID 5 Var asid___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 6 rv#space#ret__struct_findPDForASID_ret_C#v.status_C Word 32 rv#space#ret__struct_findPDForASID_ret_C#v.pd_C Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+185 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
+186 Basic 185 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
+187 Cond 186 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
+188 Cond 187 184 Op Not Bool 1 Op Not Bool 1 Op Not Bool 1 Op Not Bool 1 Op Equals Bool 2 Var ret__unsigned_long#v Word 32 Num 0 Word 32
 189 Basic 188 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
-190 Call 189 Kernel_C.generic_frame_cap_get_capFBasePtr 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
-191 Call 190 Kernel_C.setThreadState 6 Op MemAcc Word 32 2 Var Mem Mem Symbol ksCurThread Word 32 Op WordCastSigned Word 32 1 Num 2 Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-192 Cond 191 Err Op PGlobalValid Bool 3 Var HTD HTD Type Ptr Struct Kernel_C.tcb_C Symbol ksCurThread Word 32
-193 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
-194 Basic 193 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
-195 Cond 194 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
-196 Cond 195 2 Op True Bool 0
-197 Cond 192 196 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 45 Word 32 Op False Bool 0
-198 Cond 185 197 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 44 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 43 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 42 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 41 Word 32 Op False Bool 0
-199 Cond 129 198 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 40 Word 32 Op False Bool 0
-200 Cond 124 199 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 39 Word 32 Op False Bool 0
-EntryPoint 200
+190 Call 189 Kernel_C.generic_frame_cap_get_capFIsMapped 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
+191 Basic 190 1 vaddr___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+192 Call 191 Kernel_C.generic_frame_cap_get_capFMappedAddress 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
+193 Basic 192 1 asid___unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+194 Call 193 Kernel_C.generic_frame_cap_get_capFMappedASID 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
+195 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
+196 Basic 195 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 7 Word 32
+197 Cond 196 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
+198 Cond 197 194 Op Less Bool 2 Var length___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 2 Word 32
+199 Basic 1 0
+200 Basic 199 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+201 Call 200 Kernel_C.performPageGetAddress 6 Var ret__unsigned_long#v Word 32 Var call___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 5 rv#space#ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+202 Basic 201 1 ret__unsigned_long#v Word 32 Var rv#space#ret__unsigned_long#v Word 32
+203 Call 202 Kernel_C.generic_frame_cap_get_capFBasePtr 2 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 1 rv#space#ret__unsigned_long#v Word 32
+204 Call 203 Kernel_C.setThreadState 6 Op MemAcc Word 32 2 Var Mem Mem Symbol ksCurThread Word 32 Op WordCastSigned Word 32 1 Num 2 Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
+205 Cond 204 Err Op PGlobalValid Bool 3 Var HTD HTD Type Ptr Struct Kernel_C.tcb_C Symbol ksCurThread Word 32
+206 Basic 1 1 ret__unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
+207 Basic 206 1 Mem Mem Op MemUpdate Mem 3 Var Mem Mem Op Plus Word 32 2 Symbol current_syscall_error Word 32 Num 24 Word 32 Op WordCastSigned Word 32 1 Num 3 Word 32
+208 Cond 207 Err Op PGlobalValid Bool 3 Var HTD HTD Type Struct Kernel_C.syscall_error_C Symbol current_syscall_error Word 32
+209 Cond 208 2 Op True Bool 0
+210 Cond 205 209 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 45 Word 32 Op False Bool 0
+211 Cond 198 210 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 44 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 43 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 42 Word 32 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 41 Word 32 Op False Bool 0
+212 Cond 129 211 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 40 Word 32 Op False Bool 0
+213 Cond 124 212 Op Or Bool 2 Op Equals Bool 2 Var invLabel___unsigned_long#v Word 32 Op WordCastSigned Word 32 1 Num 39 Word 32 Op False Bool 0
+EntryPoint 213
 
 Function Kernel_C.decodeARMIOMapInvocation 6 invLabel___unsigned_long#v Word 32 length___unsigned#v Word 32 slot___ptr_to_struct_cte_C#v Word 32 cap___struct_cap_C#v.words_C.0 Word 32 cap___struct_cap_C#v.words_C.1 Word 32 buffer___ptr_to_unsigned_long#v Word 32 1 ret__unsigned_long#v Word 32
 1 Basic Ret 0
@@ -11954,10 +12016,10 @@ Function Kernel_C.invalidateCacheRange_RAM 7 start___unsigned_long#v Word 32 end
 13 Basic 12 1 index___unsigned_long#v Word 32 Op ShiftRight Word 32 2 Op ShiftLeft Word 32 2 Op ShiftRight Word 32 2 Var start___unsigned_long#v Word 32 Op WordCast Word 32 1 Num 5 Word 32 Op WordCast Word 32 1 Num 5 Word 32 Op WordCast Word 32 1 Num 5 Word 32
 14 Cond 13 Err Op And Bool 2 Op And Bool 2 Op And Bool 2 Op And Bool 2 Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 5 Word 32 Op SignedLess Bool 2 Num 5 Word 32 Num 32 Word 32 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 5 Word 32 Op SignedLess Bool 2 Num 5 Word 32 Num 32 Word 32 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 5 Word 32 Op SignedLess Bool 2 Num 5 Word 32 Num 32 Word 32
 15 Basic 14 0
-16 Cond 15 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
+16 Cond 15 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
 17 Call 16 Kernel_C.plat_invalidateL2Range 6 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 18 Basic 17 0
-19 Cond 18 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
+19 Cond 18 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Op And Bool 2 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Op LessEquals Bool 2 Var pstart___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32
 20 Call 19 Kernel_C.cleanCacheRange_RAM 7 Var line___unsigned_long#v Word 32 Var line___unsigned_long#v Word 32 Op Plus Word 32 2 Var pstart___unsigned_long#v Word 32 Op Minus Word 32 2 Var line___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 21 Basic 20 1 line___unsigned_long#v Word 32 Op ShiftLeft Word 32 2 Op ShiftRight Word 32 2 Var end___unsigned_long#v Word 32 Op WordCast Word 32 1 Num 5 Word 32 Op WordCast Word 32 1 Num 5 Word 32
 22 Cond 21 Err Op And Bool 2 Op And Bool 2 Op And Bool 2 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 5 Word 32 Op SignedLess Bool 2 Num 5 Word 32 Num 32 Word 32 Op SignedLessEquals Bool 2 Num 0 Word 32 Num 5 Word 32 Op SignedLess Bool 2 Num 5 Word 32 Num 32 Word 32
@@ -13463,7 +13525,7 @@ Function Kernel_C.cleanInvalidateCacheRange_RAM 7 start___unsigned_long#v Word 3
 16 Call 15 Kernel_C.dsb 4 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 17 Call 16 Kernel_C.cleanCacheRange_PoC 7 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32 Var pstart___unsigned_long#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 18 Basic 17 0
-19 Cond 18 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 386 Word 50 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32
+19 Cond 18 Err Op And Bool 2 Op Or Bool 2 Op Equals Bool 2 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Num 0 Word 32 Op LessEquals Bool 2 Op Minus Word 32 2 Var end___unsigned_long#v Word 32 Var start___unsigned_long#v Word 32 Op WordArrayAccess Word 32 2 Var GhostAssertions WordArray 50 32 Num 385 Word 50 Op LessEquals Bool 2 Var start___unsigned_long#v Word 32 Var end___unsigned_long#v Word 32
 EntryPoint 19
 
 Function Kernel_C.decodeDomainScheduleConfigure 6 length___unsigned_long#v Word 32 buffer___ptr_to_unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 5 ret__unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
@@ -13803,7 +13865,7 @@ Function Kernel_C.invokeIRQHandler_SetIRQHandler 8 irq___unsigned_long#v Word 32
 1 Basic Ret 0
 2 Call 1 Kernel_C.cteInsert 8 Var cap___struct_cap_C#v.words_C.0 Word 32 Var cap___struct_cap_C#v.words_C.1 Word 32 Var slot___ptr_to_struct_cte_C#v Word 32 Var irqSlot___ptr_to_struct_cte_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 3 Call 2 Kernel_C.cteDeleteOne 5 Var irqSlot___ptr_to_struct_cte_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-4 Basic 3 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 657 Word 50 Op Minus Word 32 2 Num 0 Word 32 Num 1 Word 32
+4 Basic 3 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 658 Word 50 Op Minus Word 32 2 Num 0 Word 32 Num 1 Word 32
 5 Cond 4 Err Op True Bool 0
 6 Basic 5 1 irqSlot___ptr_to_struct_cte_C#v Word 32 Op Plus Word 32 2 Symbol intStateIRQNode Word 32 Op Times Word 32 2 Var irq___unsigned_long#v Word 32 Num 16 Word 32
 7 Cond 6 Err Op And Bool 2 Op PValid Bool 3 Var HTD HTD Type Array Struct Kernel_C.cte_C 256 Symbol intStateIRQNode Word 32 Op Or Bool 2 Op Equals Bool 2 Var irq___unsigned_long#v Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.cte_C Symbol intStateIRQNode Word 32 Var irq___unsigned_long#v Word 32
@@ -14482,7 +14544,7 @@ EntryPoint 2
 Function Kernel_C.invokeIRQHandler_ClearIRQHandler 5 irq___unsigned_long#v Word 32 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
 1 Basic Ret 0
 2 Call 1 Kernel_C.cteDeleteOne 5 Var irqSlot___ptr_to_struct_cte_C#v Word 32 Var Mem Mem Var HTD HTD Var PMS PMS Var GhostAssertions WordArray 50 32 4 Mem Mem HTD HTD PMS PMS GhostAssertions WordArray 50 32
-3 Basic 2 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 657 Word 50 Op Minus Word 32 2 Num 0 Word 32 Num 1 Word 32
+3 Basic 2 1 GhostAssertions WordArray 50 32 Op WordArrayUpdate WordArray 50 32 3 Var GhostAssertions WordArray 50 32 Num 658 Word 50 Op Minus Word 32 2 Num 0 Word 32 Num 1 Word 32
 4 Cond 3 Err Op True Bool 0
 5 Basic 4 1 irqSlot___ptr_to_struct_cte_C#v Word 32 Op Plus Word 32 2 Symbol intStateIRQNode Word 32 Op Times Word 32 2 Var irq___unsigned_long#v Word 32 Num 16 Word 32
 6 Cond 5 Err Op And Bool 2 Op PValid Bool 3 Var HTD HTD Type Array Struct Kernel_C.cte_C 256 Symbol intStateIRQNode Word 32 Op Or Bool 2 Op Equals Bool 2 Var irq___unsigned_long#v Word 32 Num 0 Word 32 Op PArrayValid Bool 4 Var HTD HTD Type Struct Kernel_C.cte_C Symbol intStateIRQNode Word 32 Var irq___unsigned_long#v Word 32
@@ -15780,6 +15842,7 @@ Function asm_instruction'mcr_p15,_0,_%0,_c5,_c1,_0 3 arg1 Word 32 Mem Mem PMS PM
 Function asm_instruction'mcr_p15,_0,_%0,_c5,_c1,_1 3 arg1 Word 32 Mem Mem PMS PMS 2 Mem Mem PMS PMS
 Function asm_instruction'mcr_p15,_0,_%0,_c6,_c0,_0 3 arg1 Word 32 Mem Mem PMS PMS 2 Mem Mem PMS PMS
 Function asm_instruction'mcr_p15,_0,_%0,_c6,_c0,_2 3 arg1 Word 32 Mem Mem PMS PMS 2 Mem Mem PMS PMS
+Function asm_instruction'mcr_p15,_0,_%0,_c7,_c4,_0 3 arg1 Word 32 Mem Mem PMS PMS 2 Mem Mem PMS PMS
 Function asm_instruction'mcr_p15,_0,_%0,_c7,_c5,_0 3 arg1 Word 32 Mem Mem PMS PMS 2 Mem Mem PMS PMS
 Function asm_instruction'mcr_p15,_0,_%0,_c7,_c5,_1 3 arg1 Word 32 Mem Mem PMS PMS 2 Mem Mem PMS PMS
 Function asm_instruction'mcr_p15,_0,_%0,_c7,_c5,_6 3 arg1 Word 32 Mem Mem PMS PMS 2 Mem Mem PMS PMS
@@ -15801,6 +15864,7 @@ Function asm_instruction'mrc_p15,_0,_%0,_c5,_c1,_0 2 Mem Mem PMS PMS 3 ret1 Word
 Function asm_instruction'mrc_p15,_0,_%0,_c5,_c1,_1 2 Mem Mem PMS PMS 3 ret1 Word 32 Mem Mem PMS PMS
 Function asm_instruction'mrc_p15,_0,_%0,_c6,_c0,_0 2 Mem Mem PMS PMS 3 ret1 Word 32 Mem Mem PMS PMS
 Function asm_instruction'mrc_p15,_0,_%0,_c6,_c0,_2 2 Mem Mem PMS PMS 3 ret1 Word 32 Mem Mem PMS PMS
+Function asm_instruction'mrc_p15,_0,_%0,_c7,_c4,_0 2 Mem Mem PMS PMS 3 ret1 Word 32 Mem Mem PMS PMS
 Function asm_instruction'mrc_p15,_1,_%0,_c0,_c0,_0 2 Mem Mem PMS PMS 3 ret1 Word 32 Mem Mem PMS PMS
 Function asm_instruction'mrc_p15,_1,_%0,_c0,_c0,_1 2 Mem Mem PMS PMS 3 ret1 Word 32 Mem Mem PMS PMS
 Function asm_instruction'mrc_p15,_2,_%0,_c0,_c0,_0 2 Mem Mem PMS PMS 3 ret1 Word 32 Mem Mem PMS PMS
