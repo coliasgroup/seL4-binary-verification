@@ -66,7 +66,7 @@ formulatePairing minStackSize sig = Pairing { inEqs, outEqs }
         ]
 
     asmPreconds = concat
-        [ [ alignedE 2 sp
+        [ [ alignedE 3 sp
           , ret `eqE` r 14
           , alignedE 2 ret
           , r0Input `eqE` r 0
