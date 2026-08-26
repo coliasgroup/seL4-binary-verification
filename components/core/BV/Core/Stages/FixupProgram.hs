@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module BV.Core.Stages.FixupProgram
     ( fixupProgram
     ) where
@@ -19,6 +21,8 @@ fixupProgram = #functions % traversed % #body % traversed %~ fixupFunctionBody
 fixupFunctionBody :: FunctionBody -> FunctionBody
 fixupFunctionBody = execState $ do
     ensureSimpleEntrypoint
+    cutNoreturnCallConts
+    cutUnreachableCalls
     ensureClosed
 
 ensureSimpleEntrypoint :: State FunctionBody ()
@@ -27,6 +31,31 @@ ensureSimpleEntrypoint = do
     newEntryPointAddr <- use $ #nodes % to freshNodeAddr
     modify $ #nodes % at newEntryPointAddr ?~ trivialNode origEntryPointId
     assign #entryPoint (Addr newEntryPointAddr)
+
+noreturnFunctionNames :: S.Set Ident
+noreturnFunctionNames = S.fromList
+    [ "halt"
+    , "idle_thread"
+    , "restore_user_context"
+    , "c_handle_vm_fault"
+    , "fastpath_restore"
+    , "slowpath"
+    ]
+
+cutNoreturnCallConts :: State FunctionBody ()
+cutNoreturnCallConts = modify $ #nodes % traversed % #_NodeCall %~ \callNode ->
+    if callNode.functionName `S.member` noreturnFunctionNames
+        then callNode & #next .~ Err
+        else callNode
+
+unreachableFunctionName :: Ident
+unreachableFunctionName = "Kernel_C.StrictC'__builtin_unreachable"
+
+cutUnreachableCalls :: State FunctionBody ()
+cutUnreachableCalls = modify $ #nodes % traversed %~ \node -> case node of
+    NodeCall callNode | callNode.functionName == unreachableFunctionName ->
+        trivialNode Err
+    _ -> node
 
 ensureClosed :: State FunctionBody ()
 ensureClosed = do
