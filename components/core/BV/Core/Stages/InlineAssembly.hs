@@ -19,7 +19,8 @@ import Control.Monad.Writer (runWriter, tell)
 import Data.Char (isAlphaNum, isDigit, isHexDigit)
 import Data.Foldable (toList)
 import Data.Functor (void)
-import Data.List (intercalate, stripPrefix)
+import Data.List (intercalate, isPrefixOf, stripPrefix)
+import Data.List.Extra (splitOn)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import qualified Data.Set as S
@@ -83,6 +84,8 @@ data InstFunction
   | DMB
   | ISB
   | WFI
+  | VMRS
+  | VMSR
   deriving (Eq, Ord, Show)
 
 data RegRole
@@ -103,6 +106,8 @@ regSpecForInstFunction = \case
     DMB -> []
     ISB -> []
     WFI -> []
+    VMRS -> [RegRoleOut]
+    VMSR -> [RegRoleIn]
 
 instFunctionName :: InstFunction -> ByTag' Ident
 instFunctionName instFun = byRefineTag "l" "r" <&> \prefix -> Ident (prefix ++ "_impl'" ++ suffix)
@@ -116,6 +121,8 @@ instFunctionName instFun = byRefineTag "l" "r" <&> \prefix -> Ident (prefix ++ "
         DMB -> "dmb"
         ISB -> "isb"
         WFI -> "wfi"
+        VMRS -> "vmrs"
+        VMSR -> "vmsr"
 
 elaborateInstFunction :: InstFunction -> Function
 elaborateInstFunction instFun =
@@ -181,7 +188,7 @@ decodeAsmInstFun funName _fun = f <$> stripPrefix "instruction'" funName.unwrap
 decodeCInstFun :: InstFunDecoder
 decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
   where
-    f funNameWithoutPrefix = case tryReadP parseCInstFun funNameWithoutPrefix of
+    f funNameWithoutPrefix = case soleInstructionLine funNameWithoutPrefix >>= tryReadP parseCInstFun of
         Nothing -> Left Unhandled
         Just (instFun, token) -> Right $
             let (iscs, imems, _) = splitScalarPairs fun.input
@@ -190,6 +197,13 @@ decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
                 output = oscs ++ omems
                 funBody = trivialProxyFunctionBody (instFunctionName instFun).c input output
              in (funBody, instFun)
+
+-- Handle e.g. '.fpu vf' directives in C inline assembly
+soleInstructionLine :: String -> Maybe String
+soleInstructionLine block =
+    case dropWhile ("." `isPrefixOf`) (filter (not . null) (splitOn "\\n" block)) of
+        [line] -> Just line
+        _ -> Nothing
 
 trivialProxyFunctionBody :: Ident -> [GraphExpr] -> [NameTy] -> FunctionBody
 trivialProxyFunctionBody functionName input output =
@@ -230,6 +244,8 @@ parseInstFun argP = do
         , (,) DMB <$> string "dmb"
         , (,) ISB <$> string "isb"
         , (,) WFI <$> string "wfi"
+        , (,) VMRS <$> string "vmrs"
+        , (,) VMSR <$> string "vmsr"
         ]
     (args, tokenTail) <- case instFun of
         MCR -> mcrP
@@ -239,6 +255,8 @@ parseInstFun argP = do
         DSB -> barrierP
         DMB -> barrierP
         ISB -> barrierP
+        VMRS -> vmrsP
+        VMSR -> vmsrP
         _ -> return ([], [])
     return (instFun, args, Ident (intercalate "_" (tokenHead:tokenTail)))
   where
@@ -258,6 +276,14 @@ parseInstFun argP = do
     barrierP = do
         arg' <- option [] ((:[]) <$> (sepP *> munch1 isAlphaNum))
         return ([], filter (/= "sy") arg')
+    vmrsP = do
+        r <- sepThenP argP
+        s <- sepThenP (munch1 isAlphaNum)
+        return ([r], ["argv1", s])
+    vmsrP = do
+        s <- sepThenP (munch1 isAlphaNum)
+        r <- sepThenP argP
+        return ([r], [s, "argv1"])
 
 registerP :: ReadP Ident
 registerP = Ident <$> choice
