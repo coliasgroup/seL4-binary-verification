@@ -8,6 +8,7 @@ module BV.Search.Core.Solver
     , testHypWhyps
     , testHypWhypsWithCache
     , testHypWhypsWithCacheFast
+    , tryGetFlatExprValue
     , withoutSendSExpr
     ) where
 
@@ -24,6 +25,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Writer (Writer, runWriter, tell)
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
+import Data.Traversable (for)
 import GHC.Generics (Generic)
 import Optics
 
@@ -88,13 +90,20 @@ testHypWhypsWithCacheFast
 testHypWhypsWithCacheFast hyp hyps =
     withCache (testHypWhypsCommon True hyp hyps)
 
-getFlatExprValue :: (Tag t, MonadGraphSliceGetSExprValue m) => FlatExpr -> GraphSliceT t m (Expr c)
-getFlatExprValue expr = do
+tryGetFlatExprValue
+    :: (Tag t, MonadGraphSliceGetSExprValue m)
+    => FlatExpr -> GraphSliceT t m (Maybe (Expr c))
+tryGetFlatExprValue expr = do
     sexpr <- withoutSendSExpr $ convertExpr expr
     valueSExpr <- lift $ getSExprValue sexpr
-    let valueExpr = sexprToExpr valueSExpr
-    ensureM $ valueExpr.ty == expr.ty
-    return valueExpr
+    for (sexprToExpr valueSExpr) $ \valueExpr -> do
+        ensureM $ valueExpr.ty == expr.ty
+        return valueExpr
+
+getFlatExprValue
+    :: (Tag t, MonadGraphSliceGetSExprValue m)
+    => FlatExpr -> GraphSliceT t m (Expr c)
+getFlatExprValue expr = fromJust <$> tryGetFlatExprValue expr
 
 --
 
