@@ -15,11 +15,10 @@ import BV.Logging
 import BV.System.Core
 import BV.TargetDir
 
-import Control.DeepSeq (NFData, deepseq, force)
+import Control.DeepSeq (NFData, deepseq)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (for_)
-import Data.Function (applyWhen)
 import qualified Data.Map as M
 import Data.Maybe (isJust)
 import GHC.Generics (Generic)
@@ -58,15 +57,15 @@ evalStages ctx input = do
 
     unless registerIsNoop $ do
         logInfo "Registering functions"
-        register filterFunctions targetDirFiles.functions output.intermediate.functions
+        register (Just filterFunctions) targetDirFiles.functions output.intermediate.functions
         logInfo "Registering pairings"
-        register noop targetDirFiles.pairings output.intermediate.pairings
+        register Nothing targetDirFiles.pairings output.intermediate.pairings
         logInfo "Registering problems"
-        register filterProblems targetDirFiles.problems output.intermediate.problems
+        register (Just filterProblems) targetDirFiles.problems output.intermediate.problems
         logInfo "Registering proof checks"
-        register noop targetDirFiles.proofChecks output.intermediate.compatProofChecks
+        register Nothing targetDirFiles.proofChecks output.intermediate.compatProofChecks
         logInfo "Registering SMT proof checks"
-        register noop targetDirFiles.smtProofChecks output.intermediate.compatSMTProofChecks
+        register Nothing targetDirFiles.smtProofChecks output.intermediate.compatSMTProofChecks
         logInfo "Registered all intermediate artifacts"
 
     return $ elaborateChecks output.checks
@@ -77,29 +76,32 @@ evalStages ctx input = do
 
     registerIsNoop = not $ ctx.forceAll || isJust ctx.dumpTargetDir || isJust ctx.referenceTargetDir
 
-    register :: forall a c. (Eq a, NFData a, ReadBVFile c a, WriteBVFile c a) => (a -> a -> a) -> TargetDirFile a -> a -> m ()
-    register f file actual = applyWhen ctx.forceAll (deepseq actual) $ do
+    register
+        :: forall a c. (Eq a, NFData a, ReadBVFile c a, WriteBVFile c a)
+        => Maybe (a -> a -> a) -> TargetDirFile a -> a -> m ()
+    register restrict file actual = do
         for_ ctx.dumpTargetDir $ \dumpTargetDir -> do
             logInfo $ "Dumping " ++ file.relativePath
             liftIO $ writeTargetDirFile dumpTargetDir file actual
-        for_ ctx.referenceTargetDir $ \referenceTargetDir -> do
-            expected <- liftIO $ readTargetDirFile referenceTargetDir file
-            let actual' = f expected actual
-            when (maybeForce actual' /= maybeForce expected) $ do
-                logError $ "Intermediate artifact mismatch for " ++ file.relativePath
-                for_ ctx.mismatchDumpDir $ \mismatchDumpDir -> do
-                    let d = mismatchDumpDir </> file.relativePath
-                    logInfo $ "Writing mismatch to " ++ d
-                    liftIO $ do
-                        createDirectoryIfMissing True d
-                        writeBVFile (d </> "actual.txt") actual'
-                        writeBVFile (d </> "expected.txt") expected
-                fail "Intermediate artifact mismatch"
+        case ctx.referenceTargetDir of
+            Nothing -> forceWhenAsked actual
+            Just referenceTargetDir -> do
+                expected <- liftIO $ readTargetDirFile referenceTargetDir file
+                when (isJust restrict) $ forceWhenAsked actual
+                let actual' = maybe actual (\f -> f expected actual) restrict
+                when (actual' /= expected) $ do
+                    logError $ "Intermediate artifact mismatch for " ++ file.relativePath
+                    for_ ctx.mismatchDumpDir $ \mismatchDumpDir -> do
+                        let d = mismatchDumpDir </> file.relativePath
+                        logInfo $ "Writing mismatch to " ++ d
+                        liftIO $ do
+                            createDirectoryIfMissing True d
+                            writeBVFile (d </> "actual.txt") actual'
+                            writeBVFile (d </> "expected.txt") expected
+                    fail "Intermediate artifact mismatch"
 
-    maybeForce :: forall a. NFData a => a -> a
-    maybeForce = applyWhen ctx.forceAll force
+    forceWhenAsked :: forall a. NFData a => a -> m ()
+    forceWhenAsked x = when ctx.forceAll $ deepseq x (return ())
 
     filterFunctions expected actual = actual & #functions %~ M.filterWithKey (\k _v -> k `M.member` expected.functions)
     filterProblems expected actual = actual & #unwrap %~ M.filterWithKey (\k _v -> k `M.member` expected.unwrap)
-
-    noop _expected actual = actual
