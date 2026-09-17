@@ -9,6 +9,14 @@ e001b600 l    d  ._idle_thread	00000000 ._idle_thread
 e001b800 l    d  .boot.bss	00000000 .boot.bss
 e001b8f0 l    d  .bss	00000000 .bss
 00000000 l    d  .ARM.attributes	00000000 .ARM.attributes
+00000000 l    d  .debug_line	00000000 .debug_line
+00000000 l    d  .debug_line_str	00000000 .debug_line_str
+00000000 l    d  .debug_info	00000000 .debug_info
+00000000 l    d  .debug_abbrev	00000000 .debug_abbrev
+00000000 l    d  .debug_aranges	00000000 .debug_aranges
+00000000 l    d  .debug_str	00000000 .debug_str
+00000000 l    d  .debug_rnglists	00000000 .debug_rnglists
+00000000 l    d  .debug_frame	00000000 .debug_frame
 00000000 l    df *ABS*	00000000 head.S.obj
 00000000 l    df *ABS*	00000000 kernel_all.c
 e00106ec l     F .text	00000014 clearExMonitor
