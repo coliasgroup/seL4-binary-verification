@@ -354,6 +354,7 @@ getPostLoopVisitInfo norm preLoopInfo = do
                 isStack <- getIsExprStack $ preLoopInfo.env ! name
                 addOpaqueVarWithIsStack (localNameAfterLoop norm) var isStack True
     pc <- addOpaqueVar (pathCondNameAfterLoop norm) boolT
+    when fast $ liftFlat $ assertFlatExpr $ impliesE pc preLoopInfo.pc
     return $ VisitInfo
         { pc
         , env
