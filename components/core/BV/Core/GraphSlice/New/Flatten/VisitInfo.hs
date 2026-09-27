@@ -50,13 +50,18 @@ visitInfoPcEnv info = PcEnv
     }
 
 mergeVisitInfo :: [VisitInfo] -> VisitInfo
-mergeVisitInfo unfiltered = VisitInfo
-    { pc = case infos of
-            [] -> falseE
-            _ -> foldAssocBalanced orE (nub (map (.pc) infos))
-    , env = mergeEnvs infos
-    , callCount = foldl mergeCallCounts emptyCallCount (map (.callCount) infos)
-    }
+mergeVisitInfo unfiltered =
+    if null infos
+    then VisitInfo
+        { pc = falseE
+        , env = M.empty
+        , callCount = emptyCallCount
+        }
+    else VisitInfo
+        { pc = foldAssocBalanced orE $ nub $ map (.pc) infos
+        , env = mergeEnvs infos
+        , callCount = foldl1 mergeCallCounts $ map (.callCount) infos
+        }
   where
     infos = filter (\pcEnv -> pcEnv.pc /= falseE) unfiltered
 
