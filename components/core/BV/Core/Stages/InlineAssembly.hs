@@ -109,6 +109,12 @@ regSpecForInstFunction = \case
     VMRS -> [RegRoleOut]
     VMSR -> [RegRoleIn]
 
+instFunctionIsMemoryFree :: InstFunction -> Bool
+instFunctionIsMemoryFree = (`elem` [MRC, MRRC, VMRS])
+
+instFunctionMemParams :: InstFunction -> [NameTy]
+instFunctionMemParams instFun = [ NameTy "mem" memT | not (instFunctionIsMemoryFree instFun) ]
+
 instFunctionName :: InstFunction -> ByTag' Ident
 instFunctionName instFun = byRefineTag "l" "r" <&> \prefix -> Ident (prefix ++ "_impl'" ++ suffix)
   where
@@ -132,18 +138,16 @@ elaborateInstFunction instFun =
             | i :: Integer <- zipWith const [0..] (filter (== RegRoleIn) regSpec)
             ] ++
             [ NameTy "inst_ident" tokenT
-            , NameTy "mem" memT
-            ]
+            ] ++ memParams
         , output =
             [ NameTy (Ident ("ret_val" ++ show (i + 1))) machineWordT
             | i :: Integer <- zipWith const [0..] (filter (== RegRoleOut) regSpec)
-            ] ++
-            [ NameTy "mem" memT
-            ]
+            ] ++ memParams
         , body = Nothing
         }
   where
     regSpec = regSpecForInstFunction instFun
+    memParams = instFunctionMemParams instFun
 
 pairingForInstFunction :: InstFunction -> Pairing'
 pairingForInstFunction instFun = Pairing
@@ -156,13 +160,15 @@ pairingForInstFunction instFun = Pairing
         [ leftIn (varFromNameTyE arg) === rightIn (varFromNameTyE arg)
         | arg <- fun.input
         ] ++
-        [ leftIn (rodataE (varE memT "mem")) === rightIn trueE
+        [ leftIn (rodataE (varFromNameTyE memParam)) === rightIn trueE
+        | memParam <- instFunctionMemParams instFun
         ]
     outEqs =
         [ leftOut (varFromNameTyE arg) === rightOut (varFromNameTyE arg)
         | arg <- fun.output
         ] ++
-        [ leftOut (rodataE (varE memT "mem")) === rightOut trueE
+        [ leftOut (rodataE (varFromNameTyE memParam)) === rightOut trueE
+        | memParam <- instFunctionMemParams instFun
         ]
 
 --
@@ -178,10 +184,10 @@ decodeAsmInstFun funName _fun = f <$> stripPrefix "instruction'" funName.unwrap
             let regSpec = regSpecForInstFunction instFun
                 input =
                     [ machineWordVarE reg | (reg, RegRoleIn) <- zip regAssignments regSpec ]
-                    ++ [ tokenE token, varE memT "mem" ]
+                    ++ [ tokenE token ] ++ map varFromNameTyE (instFunctionMemParams instFun)
                 output =
                     [ NameTy reg machineWordT | (reg, RegRoleOut) <- zip regAssignments regSpec ]
-                    ++ [ NameTy "mem" memT ]
+                    ++ instFunctionMemParams instFun
                 funBody = trivialProxyFunctionBody (instFunctionName instFun).asm input output
              in (funBody, instFun)
 
@@ -191,8 +197,11 @@ decodeCInstFun funName fun = f <$> stripPrefix "asm_instruction'" funName.unwrap
     f funNameWithoutPrefix = case soleInstructionLine funNameWithoutPrefix >>= tryReadP parseCInstFun of
         Nothing -> Left Unhandled
         Just (instFun, token) -> Right $
-            let (iscs, imems, _) = splitScalarPairs fun.input
-                (oscs, omems, _) = splitScalarPairs fun.output
+            let (iscs, imems', _) = splitScalarPairs fun.input
+                (oscs, omems', _) = splitScalarPairs fun.output
+                (imems, omems)
+                    | instFunctionIsMemoryFree instFun = ([], [])
+                    | otherwise = (imems', omems')
                 input = map varFromNameTyE iscs ++ [ tokenE token ] ++ map varFromNameTyE imems
                 output = oscs ++ omems
                 funBody = trivialProxyFunctionBody (instFunctionName instFun).c input output
